@@ -33,6 +33,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -62,6 +63,9 @@ static void lts_ecs_fm0_n0_p6_ilores_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -95,6 +99,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -127,6 +132,9 @@ static void lts_ecs_fm0_n1_p6_ilores_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -161,6 +169,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -190,6 +199,9 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -224,6 +236,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -256,6 +269,9 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -294,6 +310,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -323,6 +340,9 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -361,6 +381,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -393,6 +414,9 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -426,6 +450,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -455,6 +480,9 @@ static void lts_ecs_fm0_ham0_p6_ilores_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -488,6 +516,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -520,6 +549,9 @@ static void lts_ecs_fm0_ham1_p6_ilores_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -562,6 +594,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -599,6 +632,9 @@ static void lts_ecs_fm0_n0_p6_ilores_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -641,6 +677,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -681,6 +718,9 @@ static void lts_ecs_fm0_n1_p6_ilores_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -724,6 +764,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -761,6 +802,9 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -804,6 +848,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -844,6 +889,9 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -891,6 +939,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -928,6 +977,9 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -975,6 +1027,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -1015,6 +1068,9 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1057,6 +1113,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -1094,6 +1151,9 @@ static void lts_ecs_fm0_ham0_p6_ilores_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1136,6 +1196,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -1176,6 +1237,9 @@ static void lts_ecs_fm0_ham1_p6_ilores_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1206,6 +1270,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -1221,6 +1286,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -1250,6 +1316,9 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1280,6 +1349,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -1295,6 +1365,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -1327,6 +1398,9 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1358,6 +1432,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -1374,6 +1449,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -1403,6 +1479,9 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1434,6 +1513,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -1450,6 +1530,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -1482,6 +1563,9 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1537,6 +1621,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -1552,6 +1637,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_spr_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -1589,6 +1675,9 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1628,6 +1717,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -1643,6 +1733,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_spr_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -1683,6 +1774,9 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1723,6 +1817,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -1739,6 +1834,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_spr_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -1776,6 +1872,9 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1816,6 +1915,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -1832,6 +1932,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_spr_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -1872,6 +1973,9 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1921,6 +2025,8 @@ static void lts_ecs_fm0_n0_p6_ilores_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -1967,6 +2073,9 @@ static void lts_ecs_fm0_n0_p6_ilores_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2000,6 +2109,8 @@ static void lts_ecs_fm0_n1_p6_ilores_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -2049,6 +2160,9 @@ static void lts_ecs_fm0_n1_p6_ilores_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2083,6 +2197,8 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -2129,6 +2245,9 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2163,6 +2282,8 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -2212,6 +2333,9 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2250,6 +2374,8 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -2296,6 +2422,9 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2334,6 +2463,8 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -2383,6 +2514,9 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2416,6 +2550,8 @@ static void lts_ecs_fm0_ham0_p6_ilores_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -2462,6 +2598,9 @@ static void lts_ecs_fm0_ham0_p6_ilores_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2495,6 +2634,8 @@ static void lts_ecs_fm0_ham1_p6_ilores_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -2544,6 +2685,9 @@ static void lts_ecs_fm0_ham1_p6_ilores_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2586,6 +2730,8 @@ static void lts_ecs_fm0_n0_p6_ilores_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -2641,6 +2787,9 @@ static void lts_ecs_fm0_n0_p6_ilores_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2683,6 +2832,8 @@ static void lts_ecs_fm0_n1_p6_ilores_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -2741,6 +2892,9 @@ static void lts_ecs_fm0_n1_p6_ilores_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2784,6 +2938,8 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -2839,6 +2995,9 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2882,6 +3041,8 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -2940,6 +3101,9 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2987,6 +3151,8 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -3042,6 +3208,9 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3089,6 +3258,8 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -3147,6 +3318,9 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3189,6 +3363,8 @@ static void lts_ecs_fm0_ham0_p6_ilores_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -3244,6 +3420,9 @@ static void lts_ecs_fm0_ham0_p6_ilores_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3286,6 +3465,8 @@ static void lts_ecs_fm0_ham1_p6_ilores_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
+			internal_pixel_cnt += 2;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -3344,6 +3525,9 @@ static void lts_ecs_fm0_ham1_p6_ilores_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3374,6 +3558,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -3389,6 +3574,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -3432,6 +3618,9 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3462,6 +3651,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -3477,6 +3667,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -3523,6 +3714,9 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3554,6 +3748,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -3570,6 +3765,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -3613,6 +3809,9 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3644,6 +3843,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -3660,6 +3860,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dhires_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
@@ -3706,6 +3907,9 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dhires_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3761,6 +3965,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -3776,6 +3981,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_spr_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -3828,6 +4034,9 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3867,6 +4076,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -3882,6 +4092,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_spr_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -3937,6 +4148,9 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3977,6 +4191,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -3993,6 +4208,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_spr_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -4045,6 +4261,9 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4085,6 +4304,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dhires_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
 			uae_u16 gpix1 = 0xffff;
 			uae_u32 dpix_val1 = 0;
@@ -4101,6 +4321,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dhires_spr_ntsc_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
@@ -4156,6 +4377,9 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dhires_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4205,6 +4429,10 @@ static void lts_ecs_fm0_n0_p6_ilores_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -4285,6 +4513,9 @@ static void lts_ecs_fm0_n0_p6_ilores_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4318,6 +4549,10 @@ static void lts_ecs_fm0_n1_p6_ilores_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -4401,6 +4636,9 @@ static void lts_ecs_fm0_n1_p6_ilores_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4435,6 +4673,10 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -4515,6 +4757,9 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4549,6 +4794,10 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -4632,6 +4881,9 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4670,6 +4922,10 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -4750,6 +5006,9 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4788,6 +5047,10 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -4871,6 +5134,9 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4904,6 +5170,10 @@ static void lts_ecs_fm0_ham0_p6_ilores_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -4984,6 +5254,9 @@ static void lts_ecs_fm0_ham0_p6_ilores_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5017,6 +5290,10 @@ static void lts_ecs_fm0_ham1_p6_ilores_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl6();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -5100,6 +5377,9 @@ static void lts_ecs_fm0_ham1_p6_ilores_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5142,6 +5422,10 @@ static void lts_ecs_fm0_n0_p6_ilores_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -5233,6 +5517,9 @@ static void lts_ecs_fm0_n0_p6_ilores_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5275,6 +5562,10 @@ static void lts_ecs_fm0_n1_p6_ilores_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -5369,6 +5660,9 @@ static void lts_ecs_fm0_n1_p6_ilores_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5412,6 +5706,10 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -5503,6 +5801,9 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5546,6 +5847,10 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -5640,6 +5945,9 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5687,6 +5995,10 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -5778,6 +6090,9 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5825,6 +6140,10 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -5919,6 +6238,9 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5961,6 +6283,10 @@ static void lts_ecs_fm0_ham0_p6_ilores_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -6052,6 +6378,9 @@ static void lts_ecs_fm0_ham0_p6_ilores_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6094,6 +6423,10 @@ static void lts_ecs_fm0_ham1_p6_ilores_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -6188,6 +6521,9 @@ static void lts_ecs_fm0_ham1_p6_ilores_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6218,6 +6554,8 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
 			uae_u16 gpix2 = 0xffff;
 			uae_u32 dpix_val2 = 0;
@@ -6233,6 +6571,8 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -6310,6 +6650,9 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6340,6 +6683,8 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
 			uae_u16 gpix2 = 0xffff;
 			uae_u32 dpix_val2 = 0;
@@ -6355,6 +6700,8 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -6435,6 +6782,9 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6466,6 +6816,8 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
 			uae_u16 gpix2 = 0xffff;
 			uae_u32 dpix_val2 = 0;
@@ -6482,6 +6834,8 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -6559,6 +6913,9 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6590,6 +6947,8 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
 			uae_u16 gpix2 = 0xffff;
 			uae_u32 dpix_val2 = 0;
@@ -6606,6 +6965,8 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dshres_ntsc_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -6686,6 +7047,9 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dshres_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6741,6 +7105,8 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
 			uae_u16 gpix2 = 0xffff;
 			uae_u32 dpix_val2 = 0;
@@ -6756,6 +7122,8 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_spr_ntsc_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -6844,6 +7212,9 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6883,6 +7254,8 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
 			uae_u16 gpix2 = 0xffff;
 			uae_u32 dpix_val2 = 0;
@@ -6898,6 +7271,8 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_spr_ntsc_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -6989,6 +7364,9 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -7029,6 +7407,8 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
 			uae_u16 gpix2 = 0xffff;
 			uae_u32 dpix_val2 = 0;
@@ -7045,6 +7425,8 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_spr_ntsc_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -7133,6 +7515,9 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -7173,6 +7558,8 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dshres_spr_ntsc_genlock(void)
 					sv0 = svt;
 				}
 			}
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
 			uae_u16 gpix2 = 0xffff;
 			uae_u32 dpix_val2 = 0;
@@ -7189,6 +7576,8 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dshres_spr_ntsc_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
+			internal_pixel_cnt += 1;
+			internal_pixel_cnt += 1;
 			uae_u32 dpix_val1 = dpix_val0;
 			uae_u8 pix1 = pix0;
 			uae_u16 gpix1 = gpix0;
@@ -7280,6 +7669,9 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dshres_spr_ntsc_genlock(void)
 			denise_hcounter_next &= 511;
 		}
 		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}

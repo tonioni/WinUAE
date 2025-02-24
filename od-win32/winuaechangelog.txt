@@ -1,4 +1,13 @@
 
+Beta 10:
+
+This update includes most planned non-ce mode optimizations. As long as display mode is mostly normal, performance should be quite good even when all lines change every frame. Optimizations still need optimizations (most code is not optimized because it makes testing and fixing much easier. Too early optimization is rarely a good idea.). Part of these optimization can be also used in CE modes but I am not yet sure if it is worth the trouble because cycle based chipset emulation can't be bypassed like it can be in non-ce modes, total performance improvement may be quite small.
+
+- Added another optimized bitplane mode: if line's parameters (DDF/DIW/BPLCON,FMODE etc. Except BPLCON1) have not changed but content or colors have since previous field: draw the line directly from chip ram (bypassing DMA emulation) using quick line-based mode because it is guaranteed that it is safe to do for this line. Currently only supports normal bitplane modes (no HAM or DPF etc but these will be implemented later). Currently uses very naive planar to chunky conversion code. (Some SSE based would be nice). This should improve performance when most of native mode display changes continuously. Now all non-cycle exact configurations should be as fast or faster than old versions. WARNING: Programs that have "unaligned" DDFSTRT are not yet correct and will have lines with horizontal offset mixed with lines with correct horizontal offset. Subpixel scrolling is not fully supported yet.
+- Reset stored line state (redraw whole screen) when any config change is detected.
+- Optimized hardwired (PAL/NTSC) horizontal match cycle logic. Enable programmed mode horizontal match logic only if at least one horizontal programmed mode register is updated, don't unnecessarily enable it if only vertical register is updated. This should speed up cycle-exact modes.
+- Immediate blitter in fastest possible modes was not as fast as previously. It is still not as fast as it was previously because this change can reduce pure CPU emulation speed, need tweaking later. This was unrelated to display emulation rewrite. For example AIBB EllipseTest.
+- If Picasso96 SetSwitch() is called requesting switching to native mode but mode is already native mode: do nothing and don't create useless log message. (Happens when dragging native mode screens with Picasso96 loaded which caused unnecessary config changes and stored line state resets)
 
 Beta 9:
 

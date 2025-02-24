@@ -7,6 +7,8 @@
 #ifndef UAE_DRAWING_H
 #define UAE_DRAWING_H
 
+#define DISABLE_BPLCON1 0
+
 #include "uae/types.h"
 
 #define SMART_UPDATE 1
@@ -164,9 +166,33 @@ void set_inhibit_frame(int monid, int bit);
 void clear_inhibit_frame(int monid, int bit);
 void toggle_inhibit_frame(int monid, int bit);
 
+#define LINE_DRAW_COUNT 3
+#define LINETYPE_BLANK 1
+#define LINETYPE_BORDER 2
+#define LINETYPE_BPL 3
+struct linestate
+{
+	int type;
+	uae_u32 cnt;
+	uae_u16 ddfstrt, ddfstop;
+	uae_u16 diwstrt, diwstop, diwhigh;
+	uae_u16 bplcon0, bplcon1, bplcon2, bplcon3, bplcon4;
+	uae_u16 fmode;
+	uae_u32 color0;
+	uae_u8 *linedatastate, *linecolorstate;
+	int bpllen;
+	int colors;
+	uae_u8 *bplpt[MAX_PLANES];
+	int hbstrt_offset, hbstop_offset;
+	int hstrt_offset, hstop_offset;
+	int bpl1dat_trigger_offset;
+	int bpl1dat_hcounter;
+	int fetchmode_size, fetchstart_mask;
+};
+
 extern struct color_entry denise_colors;
-void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol);
-bool draw_denise_line_fast(uae_u8 *bplpt[8], int bplstart, int bpllen, int gfx_ypos, enum nln_how how, int total, int dstart, int dtotal, bool vblank, struct denise_fastsprite *dfs);
+void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, struct linestate *ls);
+bool draw_denise_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
 bool start_draw_denise(void);
 void end_draw_denise(void);
 void denise_update_reg(uae_u16 reg, uae_u16 v);
@@ -175,6 +201,7 @@ bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 cycle);
 void denise_store_registers(void);
 void denise_restore_registers(void);
 void denise_set_line(int gfx_ypos);
+void denise_mark_last_line(void);
 void denise_handle_quick_disable_hblank(void);
 void denise_handle_quick_strobe(uae_u16 strobe, int offset);
 

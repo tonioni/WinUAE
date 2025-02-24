@@ -168,7 +168,6 @@ static int thisframe_y_adjust;
 static int thisframe_y_adjust_real, min_ypos_for_screen;
 static int max_ypos_thisframe1;
 int thisframe_first_drawn_line, thisframe_last_drawn_line;
-static int drawing_blank_start, drawing_blank_end;
 
 /* A frame counter that forces a redraw after at least one skipped frame in
 interlace mode.  */
@@ -307,15 +306,17 @@ static int denise_spr_nearestcnt;
 
 static int denise_y_start, denise_y_end;
 
-static int denise_pixtotal, denise_linecnt, denise_startpos, denise_cck, denise_total;
+static int denise_pixtotal, denise_pixtotalv, denise_linecnt, denise_startpos, denise_cck, denise_total;
 static int denise_pixtotalskip, denise_pixtotalskip2;
 static int denise_pixtotal_max;
 static uae_u32 *buf1, *buf2, *buf_d;
 static uae_u16 *gbuf;
 static uae_u8 pixx0, pixx1, pixx2, pixx3;
 static uae_u32 debug_buf[256 * 2 * 4], debug_bufx[256 * 2 * 4];
-static uae_u32 *hbstrt_ptr1, *hbstrt_ptr2;
-static uae_u32 *hbstop_ptr1, *hbstop_ptr2;
+static int hbstrt_offset, hbstop_offset;
+static int hstrt_offset, hstop_offset;
+static int bpl1dat_trigger_offset, bpl1dat_hcounter;
+static int internal_pixel_cnt, internal_pixel_start_cnt;
 static bool no_denise_lol;
 
 void set_inhibit_frame(int monid, int bit)
@@ -2019,8 +2020,6 @@ void reset_drawing(void)
 
 	clearbuffer(&vidinfo->drawbuffer);
 	clearbuffer(&vidinfo->tempbuffer);
-	drawing_blank_start = 0;
-	drawing_blank_end = vidinfo->drawbuffer.inheight;
 
 	center_reset = 1;
 	ad->specialmonitoron = false;
@@ -2751,7 +2750,7 @@ static void expand_bplcon4_spr(uae_u16 v)
 	bplcon4_denise |= v & 0x00ff;
 	// Sprite bank change is 1 hires pixel faster than bitplane XOR change
 	if (aga_mode && bplcon4_denise_sbase != (bplcon4_denise & 0x00ff)) {
-		bplcon4_denise_sbase = bplcon4_denise & 0x0ff;
+		bplcon4_denise_sbase = bplcon4_denise & 0xff;
 		sbasecol2[0] = ((bplcon4_denise_sbase >> 4) & 15) << 4;
 		sbasecol2[1] = ((bplcon4_denise_sbase >> 0) & 15) << 4;
 		aga_unalign1++;
@@ -2812,6 +2811,10 @@ static void expand_bplcon2(uae_u16 v)
 
 static void expand_bplcon1(uae_u16 v)
 {
+#if DISABLE_BPLCON1
+	v = 0;
+#endif
+
 	if (!aga_mode) {
 		v &= 0x00ff;
 	}
@@ -3259,15 +3262,6 @@ static void bpl1dat_enable_bpls(void)
 #endif
 	}
 }
-static void bpl1dat_enable_bpls_aga(void)
-{
-	bpl1dat_trigger = true;
-#ifdef DEBUGGER
-	if (debug_dma) {
-		record_dma_event_denise(debug_dma_ptr, denise_cycle_half, DENISE_EVENT_BPL1DAT_HDIW, true);
-	}
-#endif
-}
 
 // bpl1dat write -> copy all bplxdats to internal registers
 // (must copy all, not just current plane count because if planecount
@@ -3305,6 +3299,11 @@ static void bpldat_docopy(void)
 
 	bpldat_copy[0] = true;
 	bpldat_copy[1] = true;
+
+	if (bpl1dat_trigger_offset < 0) {
+		bpl1dat_trigger_offset = internal_pixel_cnt;
+		bpl1dat_hcounter = denise_hcounter;
+	}
 
 	if (debug_bpl_mask != 0xff) {
 		for (int i = 0; i < MAX_PLANES; i++) {
@@ -4025,9 +4024,8 @@ static uae_u32 denise_render_sprites_ecs_shres(void)
 static void do_hbstrt(int cnt)
 {
 	denise_hblank = true;
-	hbstrt_ptr1 = buf1;
-	hbstrt_ptr2 = buf2;
 	if (!exthblankon_ecs) {
+		hbstrt_offset = internal_pixel_cnt;
 		if (delayed_vblank_ecs > 0) {
 #ifdef DEBUGGER
 			if (debug_dma && !denise_vblank) {
@@ -4054,9 +4052,8 @@ static void do_hbstrt(int cnt)
 static void do_hbstop(int cnt)
 {
 	denise_hblank = false;
-	hbstop_ptr1 = buf1;
-	hbstop_ptr2 = buf2;
 	if (!exthblankon_ecs) {
+		hbstop_offset = internal_pixel_cnt;
 		if (delayed_vblank_ecs < 0) {
 #ifdef DEBUGGER
 			if (debug_dma && denise_vblank) {
@@ -4084,6 +4081,7 @@ static void do_phbstrt_aga(int cnt)
 {
 	denise_phblank = true;
 	if (exthblankon_aga) {
+		hbstrt_offset = internal_pixel_cnt;
 		if (delayed_vblank_ecs > 0) {
 			denise_pvblank = true;
 			delayed_vblank_ecs = 0;
@@ -4102,6 +4100,7 @@ static void do_phbstop_aga(int cnt)
 {
 	denise_phblank = false;
 	if (exthblankon_aga) {
+		hbstop_offset = internal_pixel_cnt;
 		if (delayed_vblank_ecs < 0) {
 			denise_pvblank = false;
 			delayed_vblank_ecs = 0;
@@ -4119,6 +4118,7 @@ static void do_phbstrt_ecs(int cnt)
 {
 	denise_phblank = true;
 	if (exthblankon_ecs) {
+		hbstrt_offset = internal_pixel_cnt;
 		if (delayed_vblank_ecs > 0) {
 			denise_pvblank = true;
 			delayed_vblank_ecs = 0;
@@ -4136,6 +4136,7 @@ static void do_phbstop_ecs(int cnt)
 {
 	denise_phblank = false;
 	if (exthblankon_ecs) {
+		hbstop_offset = internal_pixel_cnt;
 		if (delayed_vblank_ecs < 0) {
 			denise_pvblank = false;
 			delayed_vblank_ecs = 0;
@@ -4152,6 +4153,7 @@ static void do_phbstop_ecs(int cnt)
 static void do_hstrt_aga(int cnt)
 {
 	denise_hdiw = true;
+	hstrt_offset = internal_pixel_cnt;
 	sprites_hidden2 &= ~1;
 	sprites_hidden = sprites_hidden2;
 	last_bpl_pix = 0;
@@ -4167,6 +4169,7 @@ static void do_hstrt_aga(int cnt)
 }
 static void do_hstop_aga(int cnt)
 {
+	hstop_offset = internal_pixel_cnt;
 	sprites_hidden2 |= sprite_hidden_mask;
 	sprites_hidden = sprites_hidden2;
 	denise_hdiw = false;
@@ -4181,6 +4184,7 @@ static void do_hstop_aga(int cnt)
 }
 static void do_hstrt_ecs(int cnt)
 {
+	hstrt_offset = internal_pixel_cnt;
 	denise_hdiw = true;
 	sprites_hidden2 &= ~1;
 	sprites_hidden = sprites_hidden2;
@@ -4197,6 +4201,7 @@ static void do_hstrt_ecs(int cnt)
 }
 static void do_hstop_ecs(int cnt)
 {
+	hstop_offset = internal_pixel_cnt;
 	denise_hdiw = false;
 	if (denisea1000) {
 		// A1000 sprite ends 1 lores pixel later
@@ -4784,17 +4789,33 @@ static void lts_null(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
 }
 
 static int prevline;
+static int prev_last_line;
+static bool prev_last_line_req;
 
-// set highest line, used in fast mode emulation
+void denise_mark_last_line(void)
+{
+	if (prev_last_line != prevline) {
+		prev_last_line = prevline;
+		prev_last_line_req = true;
+	}
+}
+
+// set current line, used in fast mode emulation
 void denise_set_line(int gfx_ypos)
 {
+	if (currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
+		gfx_ypos -= minfirstline_linear << currprefs.gfx_vresolution;
+	}
 	if (gfx_ypos < prevline) {
 		prevline = gfx_ypos;
 	}
@@ -4805,6 +4826,20 @@ static void get_line(int gfx_ypos, enum nln_how how)
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	struct vidbuffer *vb = &vidinfo->drawbuffer;
 
+	// clear remaining lines if mode height is now smaller than previously
+	if (prev_last_line_req) {
+		struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
+		struct vidbuffer *vb = &vidinfo->drawbuffer;
+		int l = prev_last_line;
+
+		while (l < prevline && l < vb->inheight) {
+			uae_u8 *b = row_map[l];
+			memset(b, 0, vb->inwidth * vb->pixbytes);
+			l++;
+		}
+		prev_last_line_req = false;
+	}
+
 	xlinebuffer = NULL;
 	xlinebuffer2 = NULL;
 
@@ -4812,33 +4847,6 @@ static void get_line(int gfx_ypos, enum nln_how how)
 		gfx_ypos -= minfirstline_linear << currprefs.gfx_vresolution;
 	}
 
-	// clear lines if mode height is now smaller than previously
-	if (gfx_ypos >= 0 && gfx_ypos < prevline && !scandoubled_line) {
-		struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
-		struct vidbuffer *vb = &vidinfo->drawbuffer;
-		if (prevline > vb->inheight) {
-			prevline = vb->inheight;
-		}
-		int l = prevline;
-		while (l < drawing_blank_end && l < vb->inheight) {
-			uae_u8 *b = row_map[l];
-			memset(b, 0, vb->inwidth * vb->pixbytes);
-			l++;
-		}
-		l = gfx_ypos - 1;
-		if (l < 0) {
-			l = 0;
-		}
-		while (l > drawing_blank_start) {
-			if (l < vb->inheight) {
-				uae_u8 *b = row_map[l];
-				memset(b, 0, vb->inwidth * vb->pixbytes);
-			}
-			l--;
-		}
-		drawing_blank_start = gfx_ypos < 0 ? 0 : gfx_ypos;
-		drawing_blank_end = prevline;
-	}
 	prevline = gfx_ypos >= 0 ? gfx_ypos : 0;
 
 	if (gfx_ypos >= 0 && gfx_ypos < vb->inheight) {
@@ -4891,7 +4899,7 @@ static void get_line(int gfx_ypos, enum nln_how how)
 		}
 	}
 	
-	denise_pixtotal_max = denise_pixtotal - denise_pixtotalskip2;
+	denise_pixtotal_max = denise_pixtotalv - denise_pixtotalskip2;
 	denise_pixtotal = -denise_pixtotalskip;
 
 	if ((denise_pixtotal_max << (1 + hresolution)) > vb->inwidth) {
@@ -4918,12 +4926,12 @@ static void denise_draw_update(void)
 	denise_max_odd_even = denise_odd_even;
 }
 
-void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int startpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol)
+void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int startpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, struct linestate *ls)
 {
 	bool fullline = false; // currprefs.chipset_hr;
 
 	denise_hcounter_prev = -1;
-	denise_pixtotal = dtotal;
+	denise_pixtotalv = dtotal;
 	denise_pixtotalskip = skip;
 	denise_pixtotalskip2 = skip2;
 	denise_linecnt = linecnt;
@@ -4934,16 +4942,21 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 	denise_draw_update();
 
 	if (fullline) {
-		denise_pixtotal = denise_total;
+		denise_pixtotalv = denise_total;
 		buf1 = debug_buf;
 		buf2 = debug_buf;
 	}
 
 	get_line(gfx_ypos, how);
-	hbstrt_ptr1 = NULL;
-	hbstrt_ptr2 = NULL;
-	hbstop_ptr1 = NULL;
-	hbstop_ptr2 = NULL;
+
+	hbstrt_offset = -1;
+	hbstop_offset = -1;
+	hstrt_offset = -1;
+	hstop_offset = -1;
+	bpl1dat_trigger_offset = -1;
+	bpl1dat_hcounter = -1;
+	internal_pixel_cnt = 0;
+	internal_pixel_start_cnt = 0;
 
 	if (denise_pixtotal_max == -0x7fffffff || ((linear_vpos >= denise_vblank_extra_vbstop || linear_vpos < denise_vblank_extra_vbstrt) && currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA)) {
 
@@ -5008,6 +5021,14 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 			lts_changed = false;
 		}
 
+		if (ls) {
+			ls->hstrt_offset = hstrt_offset;
+			ls->hstop_offset = hstop_offset;
+			ls->hbstrt_offset = hbstrt_offset;
+			ls->hbstop_offset = hbstop_offset;
+			ls->bpl1dat_trigger_offset = bpl1dat_trigger_offset;
+			ls->bpl1dat_hcounter = bpl1dat_hcounter;
+		}
 #if 0
 		static int testtoggle[1000];
 		testtoggle[gfx_ypos]++;
@@ -5024,7 +5045,9 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 			}
 		}
 #endif
-
+#if 0
+		uae_u32 *hbstrt_ptr2 = buf2 ? buf2t + (hbstrt_ptr1 - buf1t) : NULL;
+		uae_u32 *hbstop_ptr2 = buf2 ? buf2t + (hbstop_ptr1 - buf1t) : NULL;
 		// blank last pixel row if normal overscan mode, it might have NTSC artifacts
 		if (denise_pixtotal_max != -0x7fffffff && hbstrt_ptr1 && currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN && !ecs_denise) {
 			int add = 1 << hresolution;
@@ -5095,7 +5118,7 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 				}
 			}
 		}
-
+#endif
 
 		if (currprefs.display_calibration && xlinebuffer) {
 			emulate_black_level_calibration(buf1t, buf2t, bufdt, total, calib_start, calib_len);
@@ -5273,7 +5296,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 
 	int dpixcnt = 0;
 
-	int xshift = RES_SUPERHIRES - hresolution;
+	int xshift = RES_MAX - hresolution;
 	int xadd = 1 << xshift;
 	int denise_res_size2 = denise_res_size << xshift;
 	if (denise_res > hresolution) {
@@ -5282,7 +5305,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 		denise_res_size2 = denise_res_size;
 	}
 	int ipix = 0;
-	for (int i = 0; i < (1 << RES_SUPERHIRES); i += xadd, ipix += xadd) {
+	for (int i = 0; i < (1 << RES_MAX); i += xadd, ipix += xadd) {
 
 		if (i == 2 || !hresolution) {
 
@@ -5299,7 +5322,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 				sbasecol[1] = sbasecol2[1];
 
 				if (bpl1dat_unalign) {
-					bpl1dat_enable_bpls_aga();
+					bpl1dat_enable_bpls();
 					bpl1dat_unalign = false;
 				}
 
@@ -5467,6 +5490,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 
 		cnt += xadd;
 		cnt_next += xadd;
+		internal_pixel_cnt += xadd;
 	}
 
 	sprites_hidden = sprites_hidden2;
@@ -5535,7 +5559,7 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 
 			if (h) {
 				if (bpl1dat_unalign) {
-					bpl1dat_enable_bpls_aga();
+					bpl1dat_enable_bpls();
 					bpl1dat_unalign = false;
 				}
 			}
@@ -5658,6 +5682,7 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 
 		cnt++;
 		cnt_next++;
+		internal_pixel_cnt++;
 	}
 
 	int dhv = denise_hcounter & bplcon1_shift_mask;
@@ -5697,7 +5722,7 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 constant.  That will cause some unnecessary code to be optimized away.
 Don't touch this if you don't know what you are doing.  */
 
-#define MERGE(a,b,mask,shift) do {\
+#define MERGE32(a,b,mask,shift) do {\
 	uae_u32 tmp = mask & (a ^ (b >> shift)); \
 	a ^= tmp; \
 	b ^= (tmp << shift); \
@@ -5709,6 +5734,7 @@ Don't touch this if you don't know what you are doing.  */
 	b ^= (tmp << shift); \
 } while (0)
 
+#define DOLINE_SWAP 0
 
 #define GETLONG32(P) (*(uae_u32*)P)
 #define GETLONG64(P) (*(uae_u64*)P)
@@ -5732,46 +5758,58 @@ STATIC_INLINE void pfield_doline32_1(uae_u32 *pixels, int wordcount, int planes,
 			case 1: b7 = GETLONG32(real_bplpt[0]); real_bplpt[0] += 4;
 		}
 
-		MERGE(b0, b1, 0x55555555, 1);
-		MERGE(b2, b3, 0x55555555, 1);
-		MERGE(b4, b5, 0x55555555, 1);
-		MERGE(b6, b7, 0x55555555, 1);
+		MERGE32(b0, b1, 0x55555555, 1);
+		MERGE32(b2, b3, 0x55555555, 1);
+		MERGE32(b4, b5, 0x55555555, 1);
+		MERGE32(b6, b7, 0x55555555, 1);
 
-		MERGE(b0, b2, 0x33333333, 2);
-		MERGE(b1, b3, 0x33333333, 2);
-		MERGE(b4, b6, 0x33333333, 2);
-		MERGE(b5, b7, 0x33333333, 2);
+		MERGE32(b0, b2, 0x33333333, 2);
+		MERGE32(b1, b3, 0x33333333, 2);
+		MERGE32(b4, b6, 0x33333333, 2);
+		MERGE32(b5, b7, 0x33333333, 2);
 
-		MERGE(b0, b4, 0x0f0f0f0f, 4);
-		MERGE(b1, b5, 0x0f0f0f0f, 4);
-		MERGE(b2, b6, 0x0f0f0f0f, 4);
-		MERGE(b3, b7, 0x0f0f0f0f, 4);
+		MERGE32(b0, b4, 0x0f0f0f0f, 4);
+		MERGE32(b1, b5, 0x0f0f0f0f, 4);
+		MERGE32(b2, b6, 0x0f0f0f0f, 4);
+		MERGE32(b3, b7, 0x0f0f0f0f, 4);
 
-		MERGE(b0, b1, 0x00ff00ff, 8);
-		MERGE(b2, b3, 0x00ff00ff, 8);
-		MERGE(b4, b5, 0x00ff00ff, 8);
-		MERGE(b6, b7, 0x00ff00ff, 8);
+		MERGE32(b0, b1, 0x00ff00ff, 8);
+		MERGE32(b2, b3, 0x00ff00ff, 8);
+		MERGE32(b4, b5, 0x00ff00ff, 8);
+		MERGE32(b6, b7, 0x00ff00ff, 8);
 
-		MERGE(b0, b2, 0x0000ffff, 16);
-		//pixels[0] = b0;
-		//pixels[4] = b2;
+		MERGE32(b0, b2, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[0] = b0;
+		pixels[4] = b2;
+#else
 		do_put_mem_long(pixels + 0, b0);
 		do_put_mem_long(pixels + 4, b2);
-		MERGE(b1, b3, 0x0000ffff, 16);
-		//pixels[2] = b1;
-		//pixels[6] = b3;
+#endif
+		MERGE32(b1, b3, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[2] = b1;
+		pixels[6] = b3;
+#else
 		do_put_mem_long(pixels + 2, b1);
 		do_put_mem_long(pixels + 6, b3);
-		MERGE(b4, b6, 0x0000ffff, 16);
-		//pixels[1] = b4;
-		//pixels[5] = b6;
+#endif
+		MERGE32(b4, b6, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[1] = b4;
+		pixels[5] = b6;
+#else
 		do_put_mem_long(pixels + 1, b4);
 		do_put_mem_long(pixels + 5, b6);
-		MERGE(b5, b7, 0x0000ffff, 16);
-		//pixels[3] = b5;
-		//pixels[7] = b7;
+#endif
+		MERGE32(b5, b7, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[3] = b5;
+		pixels[7] = b7;
+#else
 		do_put_mem_long(pixels + 3, b5);
 		do_put_mem_long(pixels + 7, b7);
+#endif
 		pixels += 8;
 	}
 }
@@ -5785,7 +5823,7 @@ static void NOINLINE pfield_doline32_n4(uae_u32 *data, int count, uae_u8 *real_b
 static void NOINLINE pfield_doline32_n5(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 5, real_bplpt); }
 static void NOINLINE pfield_doline32_n6(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 6, real_bplpt); }
 #ifdef AGA
-static void NOINLINE pfield_doline32_n7(uae_u32 *data, int count, uae_u8* real_bplpt[8]) { pfield_doline32_1(data, count, 7, real_bplpt); }
+static void NOINLINE pfield_doline32_n7(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 7, real_bplpt); }
 static void NOINLINE pfield_doline32_n8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 8, real_bplpt); }
 #endif
 
@@ -5807,7 +5845,489 @@ static void pfield_doline(int planecnt, int wordcount, uae_u8 *real_bplpt[8], ua
 	}
 }
 
-static uae_u32 chunky_out[2048];
+static void pfield_doline_not_fast_enough_yet(int planecnt, int wordcount, uae_u8 *data, struct linestate *ls)
+{
+	wordcount *= 4;
+	uae_u8 *dpt = ls->linedatastate;
+	int len = ls->bpllen;
+	for (int i = 0; i < planecnt; i++) {
+		memcpy(dpt, ls->bplpt[i], len);
+		dpt += len;
+	}
+	while (wordcount-- > 0) {
+		uae_u32 v[MAX_PLANES];
+		for (int i = 0; i < planecnt; i++) {
+			v[i] = *ls->bplpt[i];
+			ls->bplpt[i]++;
+		}
+		for (int i = 0; i < 8; i++) {
+			uae_u8 out = 0;
+			for (int j = 0; j < planecnt; j++) {
+				if (v[j] & 0x80) {
+					out |= 1 << j;
+				}
+				v[j] <<= 1;
+			}
+			*data++ = out;
+		}
+	}
+}
+
+static int r_shift(int v, int shift)
+{
+	if (shift >= 0) {
+		return v >> shift;
+	} else {
+		return v << (-shift);
+	}
+}
+static int l_shift(int v, int shift)
+{
+	if (shift >= 0) {
+		return v << shift;
+	} else {
+		return v >> (-shift);
+	}
+}
+
+extern int blop;
+static uae_u32 chunky_out[4096];
+bool draw_denise_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls)
+{
+	get_line(gfx_ypos, how);
+
+	if (!buf1) {
+		return false;
+	}
+	uae_u32 *buf1p = buf1;
+	uae_u32 *buf2p = buf2 != buf1 ? buf2 : NULL;
+	int planecnt = GET_PLANES(ls->bplcon0);
+	int res = GET_RES_DENISE(ls->bplcon0);
+
+	uae_u32 *cstart = chunky_out + 1024;
+	int len = (ls->bpllen + 3) / 4;
+	pfield_doline_not_fast_enough_yet(planecnt, len, (uae_u8*)cstart, ls);
+
+	bool ecsena = ecs_denise && (ls->bplcon0 & 1) != 0;
+	bool brdblank = (ls->bplcon3 & 0x20) && ecsena;
+
+	uae_u32 bgcol;
+	if (aga_mode) {
+		bgcol = brdblank ? 0x000000 : ls->color0;
+	} else {
+		bgcol = brdblank ? 0x000000 : xcolors[ls->color0];
+	}
+	//bgcol = 0xff00;
+
+	uae_u8 *cp = (uae_u8 *)cstart;
+
+	int doubling = hresolution - res;
+	int shift = hresolution;
+	int shift2 = shift + 1;
+	int rshift = RES_MAX - hresolution;
+
+	int delay1 = (ls->bplcon1 & 0x0f) | ((ls->bplcon1 & 0x0c00) >> 6);
+	int fmode = 16 << (((ls->fmode & 3) == 3 ? 2 : (ls->fmode & 3)));
+	int delaymask = (fmode >> res) - 1;
+	int delayoffset = ls->fetchmode_size - (((ls->ddfstrt - 0x18) & ls->fetchstart_mask) << 1);
+	delay1 += delayoffset;
+	delay1 &= delaymask;
+	delay1 <<= 2;
+	int s = r_shift(delay1, RES_MAX - res);
+	cp -= s;
+
+	int hbstrt_offset = ls->hbstrt_offset >> rshift;
+	int hbstop_offset = ls->hbstop_offset >> rshift;
+	int hstrt_offset = ls->hstrt_offset < 0 ? hbstop_offset : ls->hstrt_offset >> rshift;
+	int hstop_offset = ls->hstop_offset < 0 ? hbstrt_offset : ls->hstop_offset >> rshift;
+	int bpl1dat_trigger_offset = (ls->bpl1dat_trigger_offset + (1 << RES_MAX)) >> rshift;
+	int start = 0;
+	int end = internal_pixel_cnt >> rshift;
+	int startoffset = internal_pixel_start_cnt >> rshift;
+	
+	//write_log("%03d %03d %03d %03d %03d %03d %03d\n", vpos, hbstop_offset, hbstrt_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset, delayoffset);
+
+	uae_u8 bxor = ls->bplcon4 >> 8;
+	uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;
+	uae_u32 *colors_aga = (uae_u32*)ls->linecolorstate;
+	buf1 = buf1p;
+	buf2 = buf2p;
+	int cpadd = doubling < 0 ? (doubling < -1 ? 4 : 2) : 1;
+	int bufadd = doubling > 0 ? (doubling > 1 ? 4 : 2) : 1;
+
+	// subpixel handling
+	int subpix = (ls->bplcon1 & 0x0300) >> 8;
+	int cpadds[4] = { 0, 0, 0, 0 };
+	if (doubling <= 0) {
+		cpadds[0] = cpadd;
+	} else if (doubling == 1) {
+		if (subpix & 2) {
+			cp--;
+			cpadds[0] = cpadd;
+		} else {
+			cpadds[1] = cpadd;
+		}
+	} else {
+		if (subpix & 2) {
+			cp--;
+			cpadds[0] = cpadd;
+		} else {
+			cpadds[2] = cpadd;
+		}
+	}
+
+	// TODO: code generator
+	int cnt = start;
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt >= hbstrt_offset) {
+			break;
+		}
+		if (cnt >= startoffset) {
+			if (cnt < hbstop_offset) {
+				buf1 += bufadd;
+				if (buf2) {
+					buf2 += bufadd;
+				}
+			} else if (cnt < hstrt_offset || cnt >= hstop_offset) {
+				*buf1++ = bgcol;
+				if (buf2) {
+					*buf2++ = bgcol;
+				}
+				if (doubling > 0) {
+					*buf1++ = bgcol;
+					if (buf2) {
+						*buf2++ = bgcol;
+					}
+					if (doubling > 1) {
+						*buf1++ = bgcol;
+						*buf1++ = bgcol;
+						if (buf2) {
+							*buf2++ = bgcol;
+							*buf2++ = bgcol;
+						}
+					}
+				}
+			}
+			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
+				bpl = true;
+				uae_u8 c;
+				uae_u32 col;
+				if (aga_mode) {
+					c = *cp;
+					cp += cpadds[0];
+					c ^= bxor;
+					col = colors_aga[c];
+					*buf1++ = col;
+					if (buf2) {
+						*buf2++ = col;
+					}
+					if (doubling > 0) {
+						c = *cp;
+						cp += cpadds[1];
+						c ^= bxor;
+						col = colors_aga[c];
+						*buf1++ = col;
+						if (buf2) {
+							*buf2++ = col;
+						}
+						if (doubling > 1) {
+							c = *cp;
+							cp += cpadds[2];
+							c ^= bxor;
+							col = colors_aga[c];
+							*buf1++ = col;
+							if (buf2) {
+								*buf2++ = col;
+							}
+							c = *cp;
+							cp += cpadds[3];
+							c ^= bxor;
+							col = colors_aga[c];
+							*buf1++ = col;
+							if (buf2) {
+								*buf2++ = col;
+							}
+						}
+					}
+				} else {
+					c = *cp;
+					cp += cpadds[0];
+					col = xcolors[colors_ocs[c]];
+					*buf1++ = col;
+					if (buf2) {
+						*buf2++ = col;
+					}
+					if (doubling > 0) {
+						c = *cp;
+						cp += cpadds[1];
+						col = xcolors[colors_ocs[c]];
+						*buf1++ = col;
+						if (buf2) {
+							*buf2++ = col;
+						}
+						if (doubling > 1) {
+							c = *cp;
+							cp += cpadds[2];
+							col = xcolors[colors_ocs[c]];
+							*buf1++ = col;
+							if (buf2) {
+								*buf2++ = col;
+							}
+							c = *cp;
+							cp += cpadds[3];
+							col = xcolors[colors_ocs[c]];
+							*buf1++ = col;
+							if (buf2) {
+								*buf2++ = col;
+							}
+						}
+					}
+				}
+			}
+		}
+		if (cnt >= bpl1dat_trigger_offset && !bpl) {
+			cp += cpadd;
+		}
+		cnt += bufadd;
+	}
+
+	return true;
+}
+
+#if 0
+
+	int fmode = 16 << (((ls->fmode & 3) == 3 ? 2 : (ls->fmode & 3)));
+	int delaymask = (fmode >> res) - 1;
+	int delay1 = (ls->bplcon1 & 0x0f) | ((ls->bplcon1 & 0x0c00) >> 6);
+	int	delayoffset = ls->fetchmode_size - (((ls->ddfstrt - 0x18) & ls->fetchstart_mask) << 1);
+	delay1 += delayoffset;
+	delay1 &= delaymask;
+	delay1 <<= 2;
+	//delay1 <<= res;
+	//delay1 |= (ls->bplcon1 & 0x0300) >> 8;
+
+	if (vpos == 120)
+		write_log("%03d %03d %03d %03d %03d %03d\n", ls->hbstrt_offset, ls->hbstop_offset, ls->hstrt_offset, ls->hstop_offset, ls->bpl1dat_trigger_offset, delay1);
+
+	int doubling = hresolution - res;
+	int shift = hresolution;
+	int shift2 = shift + 1;
+	int rshift = RES_MAX - hresolution;
+
+	int hbstrt_offset = ls->hbstrt_offset >> shift;
+	int hbstop_offset = ls->hbstop_offset >> shift;
+	int hstrt_offset = ls->hstrt_offset < 0 ? hbstop_offset : ls->hstrt_offset >> shift;
+	int hstop_offset = ls->hstop_offset < 0 ? hbstrt_offset : ls->hstop_offset >> shift;
+	int bpl1dat_trigger_offset = ls->bpl1dat_trigger_offset >> shift;
+#if 0
+	if (exthblankon_ecs || exthblankon_aga) {
+		hbstrt_offset += 1 << shift;
+		hbstop_offset += 1 << shift;
+	}
+#endif
+	uae_u8 *cp = (uae_u8*)cstart;
+	uae_u32 bgcol;
+	uae_u32 *hstrt = buf1p + hstrt_offset + ((denise_hstrt & 3) >> rshift) + (1 << shift);
+	uae_u32 *hstop = buf1p + hstop_offset + ((denise_hstop & 3) >> rshift) + (1 << shift);
+	uae_u32 *hbstrt = buf1p + hbstrt_offset;
+
+	//bgcol = 0xff00;
+
+#if 1
+	int bpldiff = delay1 >> res;
+	if (doubling >= 0) {
+		bpldiff >>= doubling;
+	} else if (doubling < 0) {
+		bpldiff <<= (-doubling);
+	}
+#endif
+#if 0
+	if (hresolution > res) {
+		bpldiff >>= 1;
+	} else if (hresolution < res) {
+		bpldiff <<= 1;
+	}
+	int off = bpl1dat_trigger_offset;
+	if (doubling >= 0) {
+		off += 6 >> doubling;
+	} else if (doubling < 0) {
+		off += 6 << (-doubling);
+	}
+	off += bpldiff;
+#endif
+
+	buf1 = buf1p + hbstop_offset;
+	if (buf2p) {
+		buf2 = buf2p + hbstop_offset;
+	}
+
+	// left border
+	next = hstrt;
+	if (next > hbstrt) {
+		next = hbstrt;
+	}
+	if (buf2) {
+		while (buf1 < next) {
+			*buf1++ = bgcol;
+			*buf2++ = bgcol;
+		}
+	} else {
+		while (buf1 < next) {
+			*buf1++ = bgcol;
+		}
+	}
+
+	// between DIWHSTRT - DDFSTRT
+	uae_u32 *p = buf1p + bpl1dat_trigger_offset;
+	if (buf2) {
+		while (buf1 < p) {
+			*buf1++ = bgcol;
+			*buf2++ = bgcol;
+		}
+	} else {
+		while (buf1 < p) {
+			*buf1++ = bgcol;
+		}
+	}
+	int diff = buf1 - p;
+	if (doubling < 0) {
+		diff <<= (-doubling);
+	} else {
+		diff >>= doubling;
+	}
+	cp += diff;
+	next = hstop;
+	if (next > hbstrt) {
+		next = hbstrt;
+	}
+	if (aga_mode) {
+		uae_u8 bxor = ls->bplcon4 >> 8;
+		uae_u32 *colors = (uae_u32*)ls->linecolorstate;
+		if (doubling > 1) {
+			while (buf1 < next) {
+				uae_u8 c = *cp++;
+				c ^= bxor;
+				uae_u32 col = colors[c];
+				*buf1++ = col;
+				*buf1++ = col;
+				*buf1++ = col;
+				*buf1++ = col;
+				if (buf2) {
+					*buf2++ = col;
+					*buf2++ = col;
+					*buf2++ = col;
+					*buf2++ = col;
+				}
+			}
+		} else if (doubling > 0) {
+			while (buf1 < next) {
+				uae_u8 c = *cp++;
+				c ^= bxor;
+				uae_u32 col = colors[c];
+				*buf1++ = col;
+				*buf1++ = col;
+				if (buf2) {
+					*buf2++ = col;
+					*buf2++ = col;
+				}
+			}
+		} else if (doubling < 0) {
+			while (buf1 < next) {
+				uae_u8 c = *cp++;
+				c ^= bxor;
+				uae_u32 col = colors[c];
+				*buf1++ = col;
+				if (buf2) {
+					*buf2++ = col;
+				}
+				if (doubling < -1) {
+					cp++;
+				}
+				cp++;
+			}
+		} else {
+			while (buf1 < next) {
+				uae_u8 c = *cp++;
+				c ^= bxor;
+				uae_u32 col = colors[c];
+				*buf1++ = col;
+				if (buf2) {
+					*buf2++ = col;
+				}
+			}
+		}
+	} else {
+		uae_u16 *colors = (uae_u16*)ls->linecolorstate;
+		if (doubling > 1) {
+			while (buf1 < next) {
+				uae_u8 c = *cp++;
+				uae_u32 col = xcolors[colors[c]];
+				*buf1++ = col;
+				*buf1++ = col;
+				*buf1++ = col;
+				*buf1++ = col;
+				if (buf2) {
+					*buf2++ = col;
+					*buf2++ = col;
+					*buf2++ = col;
+					*buf2++ = col;
+				}
+			}
+		} else if (doubling > 0) {
+			while (buf1 < next) {
+				uae_u8 c = *cp++;
+				uae_u32 col = xcolors[colors[c]];
+				*buf1++ = col;
+				*buf1++ = col;
+				if (buf2) {
+					*buf2++ = col;
+					*buf2++ = col;
+				}
+			}
+		} else if (doubling < 0) {
+			bool toggle = false;
+			while (buf1 < next) {
+				uae_u8 c = *cp++;
+				uae_u32 col = xcolors[colors[c]];
+				*buf1++ = col;
+				if (buf2) {
+					*buf2++ = col;
+				}
+				if (doubling < -1) {
+					cp++;
+				}
+				cp++;
+			}
+		} else {
+			while (buf1 < next) {
+				uae_u8 c = *cp++;
+				uae_u32 col = xcolors[colors[c]];
+				*buf1++ = col;
+				if (buf2) {
+					*buf2++ = col;
+				}
+			}
+		}
+	}
+
+	// right border
+	if (buf2) {
+		while (buf1 < next) {
+			*buf1++ = bgcol;
+			*buf2++ = bgcol;
+		}
+	} else {
+		while (buf1 < next) {
+			*buf1++ = bgcol;
+		}
+	}
+
+	return true;
+}
+#endif
+
+#if 0
 bool draw_denise_line_fast(uae_u8 *bplpt[8], int bplstart, int bpllen, int gfx_ypos, enum nln_how how, int total, int dstart, int dtotal, bool vblank, struct denise_fastsprite *dfs)
 {
 	int pos;
@@ -5991,6 +6511,7 @@ bool draw_denise_line_fast(uae_u8 *bplpt[8], int bplstart, int bpllen, int gfx_y
 
 	return true;
 }
+#endif
 
 #define RB restore_u8()
 #define SRB restore_s8()
