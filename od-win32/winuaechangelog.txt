@@ -1,7 +1,23 @@
 
+Beta 11:
+
+Some more fast (includes any non-memory cycle-exact mode) optimizations and most remaining missing features added. All normal screenmodes are now supported in fast modes, only remaining always-"slow" is lines with copper activity and sprites. Both probably will be supported in the future but they are not that important. Copper activity only if it does not cause any immediately visible effect on screen (for example color change inside hblank). Previous betas CPU feature restrictions removed.
+
+- BPLCON2 KILLEHB bit disabled EHB without BPLCON0 ECSENA bit.
+- Fast mode drawing now uses mode/doubling/resolution specific optimized generated code (genlinetoscr)
+- HAM6, HAM8, DPF and EHB fast modes fully implemented.
+- Border color lines are also now fast mode drawn if line is still border and only color changed.
+- OCS/ECS invalid PLFxPRI value (>=5) chipset feature supported in fast modes.
+- Sprites were not always correctly visible in fast modes.
+- Fixed shifted display in fast modes if HDIW opened before bitplanes started.
+- Some more fast mode optimization and fixes.
+- CPU requirement is back to SSE2. Normal non-ce chipset modes should be now fast enough (as fast or faster than old version?) with older CPUs now.
+
+Background information: "slow" mode is always used to draw line when line's parameters have changed. When line has been drawn, parameters calculated by slow mode are stored. If line and its parameters have not changed since it was drawn using slow mode: do nothing. If line has changed (or colors changed) or horizontal scrolling has changed but parameters are same: draw it using fast mode using slow mode calculated parameters. This makes fast mode worth the trouble because it does not need do any complex calculations or handle weird special cases and it is very common to have parameter changes only in few lines. (Many demos are obvious exception but they usually need cycle-accurate CPU anyway). ("parameters" = custom registers used to configure display)
+
 Beta 10:
 
-This update includes most planned non-ce mode optimizations. As long as display mode is mostly normal, performance should be quite good even when all lines change every frame. Optimizations still need optimizations (most code is not optimized because it makes testing and fixing much easier. Too early optimization is rarely a good idea.). Part of these optimization can be also used in CE modes but I am not yet sure if it is worth the trouble because cycle based chipset emulation can't be bypassed like it can be in non-ce modes, total performance improvement may be quite small.
+This update includes most planned non-ce mode optimizations. As long as display mode is mostly normal, performance should be quite good even when all lines change every frame. Optimizations still need optimizations (most code is not optimized because it makes testing and fixing much easier. Too early optimization is rarely a good idea.). Part of these optimizations can be also used in CE modes but I am not yet sure if it is worth the trouble because cycle based chipset emulation can't be bypassed like it can be in non-ce modes, total performance improvement may be quite small.
 
 - Added another optimized bitplane mode: if line's parameters (DDF/DIW/BPLCON,FMODE etc. Except BPLCON1) have not changed but content or colors have since previous field: draw the line directly from chip ram (bypassing DMA emulation) using quick line-based mode because it is guaranteed that it is safe to do for this line. Currently only supports normal bitplane modes (no HAM or DPF etc but these will be implemented later). Currently uses very naive planar to chunky conversion code. (Some SSE based would be nice). This should improve performance when most of native mode display changes continuously. Now all non-cycle exact configurations should be as fast or faster than old versions. WARNING: Programs that have "unaligned" DDFSTRT are not yet correct and will have lines with horizontal offset mixed with lines with correct horizontal offset. Subpixel scrolling is not fully supported yet.
 - Reset stored line state (redraw whole screen) when any config change is detected.

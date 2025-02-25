@@ -16,6 +16,7 @@
 static FILE *outfile;
 static int outfile_indent = 0;
 static int aga, outres, res, planes, modes, bplfmode, sprres, oddeven, ecsshres, genlock, ntsc;
+static int isbuf2 = 0;
 static int maxplanes = 8;
 static char funcnames[500000];
 static char *funcnamep;
@@ -854,6 +855,158 @@ static bool gen_head(void)
 	return true;
 }
 
+static bool gen_fasthead(void)
+{
+	char funcname[200];
+	sprintf(funcname, "lts_%s_%s_i%s_d%s_%s",
+		aga ? "aga" : "ecs",
+		modes == 0 ? "n" : (modes == 1 ? "dpf" : (modes == 2 ? "ehb" : (modes == 4 ? "kehb" : "ham"))),
+		res == 0 ? "lores" : (res == 1 ? "hires" : "shres"),
+		outres == 0 ? "lores" : (outres == 1 ? "hires" : "shres"),
+		isbuf2 ? "b2" : "b1");
+	strcpy(funcnamep, funcname);
+	funcnamep += strlen(funcnamep) + 1;
+	*funcnamep = 0;
+	outf("static void %s(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,"
+		"int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)", funcname);
+	outf("{");
+	return true;
+}
+
+static void gen_fastdraw_mode(int off, int total)
+{
+	if (aga) {
+		outf("c = *cp;");
+		outf("cp += cpadds[%d];", off);
+		if (modes == CMODE_DUALPF) {
+			outf("{");
+			outf("uae_u8 dpval = dpf_lookup[c];");
+			outf("if (dpf_lookup_no[c]) {");
+			outf("	dpval += dblpfofs[bpldualpf2of];");
+			outf("}");
+			outf("dpval ^= bxor;");
+			outf("col = colors_aga[dpval];");
+			outf("}");
+		} else if (modes == CMODE_HAM) {
+			outf("col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);");
+		} else if (modes == CMODE_EXTRAHB_ECS_KILLEHB) {
+			outf("c ^= bxor;");
+			outf("col = colors_aga[c & 31];");
+		} else if (modes == CMODE_EXTRAHB) {
+			outf("c ^= bxor;");
+			outf("if (c & 0x20) {");
+			outf("	uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;");
+			outf("	col = CONVERT_RGB(v);");
+			outf("} else {");
+			outf("	col = colors_aga[c];");
+			outf("}");
+		} else {
+			outf("c ^= bxor;");
+			outf("col = colors_aga[c];");
+		}
+	} else {
+		outf("c = *cp;");
+		if (off == total - 1) {
+			outf("cp += cpadd;");
+		}
+		if (modes == CMODE_DUALPF) {
+			outf("{");
+			outf("uae_u8 dpval = dpf_lookup[c];");
+			outf("col = xcolors[colors_ocs[dpval]];");
+			outf("}");
+		} else if (modes == CMODE_HAM) {
+			outf("col = decode_ham_pixel_fast(c, colors_ocs);");
+		} else if (modes == CMODE_EXTRAHB_ECS_KILLEHB) {
+			outf("col = xcolors[colors_ocs[c & 31]];");
+		} else if (modes == CMODE_EXTRAHB) {
+			outf("c &= bplehb_mask;");
+			outf("if (c <= 31) {");
+			outf("	col = xcolors[colors_ocs[c]];");
+			outf("} else {");
+			outf("	col = xcolors[(colors_ocs[c - 32] >> 1) & 0x777];");
+			outf("}");
+		} else {
+			outf("col = xcolors[colors_ocs[c]];");
+		}
+	}
+	outf("*buf1++ = col;");
+	if (isbuf2) {
+		outf("*buf2++ = col;");
+	}
+}
+
+static void gen_fastdraw(void)
+{
+	int doubling = outres - res;
+
+	if (aga) {
+		outf("uae_u32 *colors_aga = (uae_u32*)colors;");
+	} else {
+		outf("uae_u16 *colors_ocs = (uae_u16*)colors;");
+	}
+
+	outf("int cnt = draw_start;");
+	outf("while (cnt < draw_end) {");
+	outf("	bool bpl = false;");
+	outf("	if (cnt >= hbstrt_offset) {");
+	outf("		break;");
+	outf("	}");
+	outf("if (cnt >= draw_startoffset) {");
+	outf("	if (cnt < hbstop_offset) {");
+	outf("		buf1 += bufadd;");
+	if (isbuf2) {
+		outf("	buf2 += bufadd;");
+	}
+	outf("} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {");
+	if (doubling <= 0) {
+		outf("*buf1++ = bgcolor;");
+		if (isbuf2) {
+			outf("*buf2++ = bgcolor;");
+		}
+	} else if (doubling == 1) {
+		outf("*buf1++ = bgcolor;");
+		outf("*buf1++ = bgcolor;");
+		if (isbuf2) {
+			outf("*buf2++ = bgcolor;");
+			outf("*buf2++ = bgcolor;");
+		}
+	} else if (doubling == 2) {
+		outf("*buf1++ = bgcolor;");
+		outf("*buf1++ = bgcolor;");
+		outf("*buf1++ = bgcolor;");
+		outf("*buf1++ = bgcolor;");
+		if (isbuf2) {
+			outf("*buf2++ = bgcolor;");
+			outf("*buf2++ = bgcolor;");
+			outf("*buf2++ = bgcolor;");
+			outf("*buf2++ = bgcolor;");
+		}
+	}
+	outf("}");
+	outf("if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {");
+	outf("bpl = true;");
+	outf("uae_u8 c;");
+	outf("uae_u32 col;");
+	if (doubling <= 0) {
+		gen_fastdraw_mode(0, 1);
+	} else if (doubling == 1) {
+		gen_fastdraw_mode(0, 2);
+		gen_fastdraw_mode(1, 2);
+	} else if (doubling == 2) {
+		gen_fastdraw_mode(0, 4);
+		gen_fastdraw_mode(1, 4);
+		gen_fastdraw_mode(2, 4);
+		gen_fastdraw_mode(3, 4);
+	}
+	outf("}");
+	outf("}");
+	outf("if (cnt >= bpl1dat_trigger_offset && !bpl) {");
+	outf("	cp += cpadd;");
+	outf("}");
+	outf("cnt += bufadd;");
+	outf("}");
+}
+
 static void gen_null(void)
 {
 	outf("lts_null();");
@@ -964,6 +1117,21 @@ static void helperfunctions(void)
 static void write_funcs(const char *name)
 {
 	outf("static LINETOSRC_FUNC %s[] = {", name);
+	char *p = funcnames;
+	while (*p) {
+		outf("%s,", p);
+		p += strlen(p) + 1;
+	}
+	outf("NULL");
+	outf("};");
+
+	funcnamep = funcnames;
+	*funcnamep = 0;
+}
+
+static void write_funcs_fast(const char *name)
+{
+	outf("static LINETOSRC_FUNCF %s[] = {", name);
 	char *p = funcnames;
 	while (*p) {
 		outf("%s,", p);
@@ -1281,6 +1449,46 @@ int main (int argc, char *argv[])
 
 		write_funcs(genlock ? "linetoscr_ecs_shres_genlock_funcs" : "linetoscr_ecs_shres_funcs");
 	}
+
+	// fast drawing
+	set_outfile("../../linetoscr_ecs_fast.cpp");
+	aga = 0;
+	bplfmode = 3;
+	planes = 1;
+	for (isbuf2 = 0; isbuf2 < 2; isbuf2++) {
+		for (outres = 0; outres < 3; outres++) {
+			for (res = 0; res < 3; res++) {
+				for (modes = 0; modes < 5; modes++) {
+					if (gen_fasthead()) {
+						gen_fastdraw();
+					} else {
+						gen_null();
+					}
+					gen_tail();
+				}
+			}
+		}
+	}
+	write_funcs_fast("linetoscr_ecs_fast_funcs");
+
+	set_outfile("../../linetoscr_aga_fast.cpp");
+	aga = 1;
+	for (isbuf2 = 0; isbuf2 < 2; isbuf2++) {
+		for (outres = 0; outres < 3; outres++) {
+			for (res = 0; res < 3; res++) {
+				for (modes = 0; modes < 5; modes++) {
+					if (gen_fasthead()) {
+						gen_fastdraw();
+					} else {
+						gen_null();
+					}
+					gen_tail();
+				}
+			}
+		}
+	}
+	write_funcs_fast("linetoscr_aga_fast_funcs");
+
 
 	closefile();
 

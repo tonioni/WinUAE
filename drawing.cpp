@@ -205,6 +205,7 @@ static struct denise_rga rga_denise_fast[DENISE_RGA_SLOT_FAST_TOTAL];
 typedef void (*LINETOSRC_FUNC)(void);
 static LINETOSRC_FUNC lts;
 static bool lts_changed, lts_request;
+typedef void (*LINETOSRC_FUNCF)(int,int,int,int,int,int,int,int,int,uae_u32,uae_u8*,uae_u8*,int,int*,int,uae_u8, void*);
 
 static int denise_hcounter, denise_hcounter_next, denise_hcounter_new, denise_hcounter_prev;
 static uae_u32 bplxdat[MAX_PLANES], bplxdat2[MAX_PLANES], bplxdat3[MAX_PLANES];
@@ -251,7 +252,7 @@ static int denise_planes, denise_max_planes;
 static bool denise_odd_even, denise_max_odd_even;
 static int pix_prev;
 static int last_bpl_pix;
-static int previous_strobe, previous_strobe_flag;
+static int previous_strobe;
 static bool denise_strlong, agnus_lol, extblank;
 static int lol;
 static int denise_lol_shift_prev, denise_lol_shifted_prev;
@@ -315,7 +316,7 @@ static uae_u8 pixx0, pixx1, pixx2, pixx3;
 static uae_u32 debug_buf[256 * 2 * 4], debug_bufx[256 * 2 * 4];
 static int hbstrt_offset, hbstop_offset;
 static int hstrt_offset, hstop_offset;
-static int bpl1dat_trigger_offset, bpl1dat_hcounter;
+static int bpl1dat_trigger_offset;
 static int internal_pixel_cnt, internal_pixel_start_cnt;
 static bool no_denise_lol;
 
@@ -2443,7 +2444,7 @@ static void setbplmode(void)
 {
 	bplham = (bplcon0_denise & 0x800) != 0;
 	bpldualpf = (bplcon0_denise & 0x400) == 0x400;
-	bplehb = denise_planes == 6 && !bplham && !bpldualpf && (!ecs_denise || !(bplcon2_denise & 0x200));
+	bplehb = denise_planes == 6 && !bplham && !bpldualpf && (!ecs_denise || !(bplcon2_denise & 0x200 || !(bplcon0_denise & 1)));
 
 	// BYPASS: HAM and EHB select bits are ignored
 	bpland = 0xff;
@@ -2800,7 +2801,7 @@ static void expand_bplcon2(uae_u16 v)
 		// Check for KillEHB bit in ECS/AGA
 		bplehb_eke = (bplcon2_denise & 0x0200) != 0;
 	}
-	bplehb_mask = denisea1000_noehb ? 0x1f : 0xff;
+	bplehb_mask = denisea1000_noehb ? 0x1f : 0x3f;
 	if (bplehb_eke_o != bplehb_eke) {
 		setbplmode();
 	}
@@ -3302,7 +3303,6 @@ static void bpldat_docopy(void)
 
 	if (bpl1dat_trigger_offset < 0) {
 		bpl1dat_trigger_offset = internal_pixel_cnt;
-		bpl1dat_hcounter = denise_hcounter;
 	}
 
 	if (debug_bpl_mask != 0xff) {
@@ -3463,7 +3463,6 @@ static void handle_strobes(struct denise_rga *rd)
 		denise_visible_lines++;
 	}
 	previous_strobe = rd->rga;
-	previous_strobe_flag = rd->flags;
 	reset_strlong();
 	spr_nearest();
 }
@@ -3620,6 +3619,47 @@ void denise_update_reg(uae_u16 reg, uae_u16 v)
 	expand_drga_early(&dr);
 	expand_drga(&dr);
 	check_lts_request();
+}
+
+// AGA HAM
+static uae_u32 decode_ham_pixel_aga_fast(uint8_t pw, int planes, uae_u8 bxor, uae_u32 *colors_aga)
+{
+	if (planes >= 7) { /* AGA mode HAM8 */
+		int pv = pw ^ bxor;
+		int pc = pv >> 2;
+		switch (pv & 0x3)
+		{
+			case 0x0: ham_lastcolor = colors_aga[pc]; break;
+			case 0x1: ham_lastcolor &= 0xFFFF03; ham_lastcolor |= (pw & 0xFC); break;
+			case 0x2: ham_lastcolor &= 0x03FFFF; ham_lastcolor |= (pw & 0xFC) << 16; break;
+			case 0x3: ham_lastcolor &= 0xFF03FF; ham_lastcolor |= (pw & 0xFC) << 8; break;
+		}
+	} else { /* AGA mode HAM6 */
+		int pv = pw ^ bxor;
+		uae_u32 pc = ((pw & 0xf) << 0) | ((pw & 0xf) << 4);
+		switch (pv & 0x30)
+		{
+			case 0x00: ham_lastcolor = colors_aga[pv & 0x0f]; break;
+			case 0x10: ham_lastcolor &= 0xFFFF00; ham_lastcolor |= pc << 0; break;
+			case 0x20: ham_lastcolor &= 0x00FFFF; ham_lastcolor |= pc << 16; break;
+			case 0x30: ham_lastcolor &= 0xFF00FF; ham_lastcolor |= pc << 8; break;
+		}
+	}
+	return CONVERT_RGB(ham_lastcolor);
+}
+
+// OCS/ECS HAM
+static uae_u32 decode_ham_pixel_fast(uint8_t pv, uae_u16 *colors_ocs)
+{
+	/* OCS/ECS mode HAM6 */
+	switch (pv & 0x30)
+	{
+		case 0x00: ham_lastcolor = colors_ocs[pv]; break;
+		case 0x10: ham_lastcolor &= 0xFF0; ham_lastcolor |= (pv & 0xF); break;
+		case 0x20: ham_lastcolor &= 0x0FF; ham_lastcolor |= (pv & 0xF) << 8; break;
+		case 0x30: ham_lastcolor &= 0xF0F; ham_lastcolor |= (pv & 0xF) << 4; break;
+	}
+	return xcolors[ham_lastcolor];
 }
 
 // AGA HAM
@@ -4225,10 +4265,15 @@ void denise_handle_quick_strobe(uae_u16 strobe, int offset)
 {
 	struct denise_rga rd = { 0 };
 	rd.rga = strobe;
-	handle_strobes(&rd);
-	// 3 = refresh offset, 2 = pipeline delay
-	denise_hcounter_new = (offset - 3 - 2) * 2 + 2;
+	denise_hcounter_new += maxhpos * 2;
+	denise_hcounter_new &= 511;
 	denise_hcounter = denise_hcounter_new;
+	handle_strobes(&rd);
+	if (denise_hcounter_new == 1 * 2) {
+		// 3 = refresh offset, 2 = pipeline delay
+		denise_hcounter_new = (offset - 3 - 2) * 2 + 2;
+		denise_hcounter = denise_hcounter_new;
+	}
 }
 void denise_handle_quick_disable_hblank(void)
 {
@@ -4954,7 +4999,6 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 	hstrt_offset = -1;
 	hstop_offset = -1;
 	bpl1dat_trigger_offset = -1;
-	bpl1dat_hcounter = -1;
 	internal_pixel_cnt = 0;
 	internal_pixel_start_cnt = 0;
 
@@ -5027,7 +5071,8 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 			ls->hbstrt_offset = hbstrt_offset;
 			ls->hbstop_offset = hbstop_offset;
 			ls->bpl1dat_trigger_offset = bpl1dat_trigger_offset;
-			ls->bpl1dat_hcounter = bpl1dat_hcounter;
+			ls->internal_pixel_cnt = internal_pixel_cnt;
+			ls->internal_pixel_start_cnt = internal_pixel_start_cnt;
 		}
 #if 0
 		static int testtoggle[1000];
@@ -5141,6 +5186,8 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 #include "linetoscr_aga_fm1_genlock.cpp"
 #include "linetoscr_aga_fm2_genlock.cpp"
 #include "linetoscr_ecs_shres.cpp"
+#include "linetoscr_ecs_fast.cpp"
+#include "linetoscr_aga_fast.cpp"
 
 // select linetoscr routine
 static void select_lts(void)
@@ -5736,7 +5783,7 @@ Don't touch this if you don't know what you are doing.  */
 
 #define DOLINE_SWAP 0
 
-#define GETLONG32(P) (*(uae_u32*)P)
+#define GETLONG32(P) (do_get_mem_long((uae_u32*)P))
 #define GETLONG64(P) (*(uae_u64*)P)
 
 STATIC_INLINE void pfield_doline32_1(uae_u32 *pixels, int wordcount, int planes, uae_u8 *real_bplpt[8])
@@ -5827,8 +5874,16 @@ static void NOINLINE pfield_doline32_n7(uae_u32 *data, int count, uae_u8 *real_b
 static void NOINLINE pfield_doline32_n8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 8, real_bplpt); }
 #endif
 
-static void pfield_doline(int planecnt, int wordcount, uae_u8 *real_bplpt[8], uae_u32 *data)
+static void pfield_doline(int planecnt, int wordcount, uae_u8 *datap, struct linestate *ls)
 {
+	uae_u8 **real_bplpt = ls->bplpt;
+	uae_u32 *data = (uae_u32*)datap;
+	uae_u8 *dpt = ls->linedatastate;
+	int len = ls->bpllen;
+	for (int i = 0; i < planecnt; i++) {
+		memcpy(dpt, ls->bplpt[i], len);
+		dpt += len;
+	}
 	switch (planecnt) {
 		default: break;
 		case 0: memset(data, 0, wordcount * 32); break;
@@ -5845,6 +5900,7 @@ static void pfield_doline(int planecnt, int wordcount, uae_u8 *real_bplpt[8], ua
 	}
 }
 
+#if 0
 static void pfield_doline_not_fast_enough_yet(int planecnt, int wordcount, uae_u8 *data, struct linestate *ls)
 {
 	wordcount *= 4;
@@ -5868,10 +5924,12 @@ static void pfield_doline_not_fast_enough_yet(int planecnt, int wordcount, uae_u
 				}
 				v[j] <<= 1;
 			}
+			out &= debug_bpl_mask;
 			*data++ = out;
 		}
 	}
 }
+#endif
 
 static int r_shift(int v, int shift)
 {
@@ -5890,23 +5948,18 @@ static int l_shift(int v, int shift)
 	}
 }
 
-extern int blop;
-static uae_u32 chunky_out[4096];
-bool draw_denise_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls)
+bool draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls)
 {
 	get_line(gfx_ypos, how);
 
 	if (!buf1) {
 		return false;
 	}
-	uae_u32 *buf1p = buf1;
-	uae_u32 *buf2p = buf2 != buf1 ? buf2 : NULL;
-	int planecnt = GET_PLANES(ls->bplcon0);
-	int res = GET_RES_DENISE(ls->bplcon0);
 
-	uae_u32 *cstart = chunky_out + 1024;
-	int len = (ls->bpllen + 3) / 4;
-	pfield_doline_not_fast_enough_yet(planecnt, len, (uae_u8*)cstart, ls);
+	uae_u32 *buf1p = buf1;
+	uae_u32 *buf2p = buf2 != buf1 ? buf2 : buf1;
+
+	int rshift = RES_MAX - hresolution;
 
 	bool ecsena = ecs_denise && (ls->bplcon0 & 1) != 0;
 	bool brdblank = (ls->bplcon3 & 0x20) && ecsena;
@@ -5917,13 +5970,124 @@ bool draw_denise_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls)
 	} else {
 		bgcol = brdblank ? 0x000000 : xcolors[ls->color0];
 	}
+
+	int hbstrt_offset = ls->hbstrt_offset >> rshift;
+	int hbstop_offset = ls->hbstop_offset >> rshift;
+	int draw_start = 0;
+	int draw_end = ls->internal_pixel_cnt >> rshift;
+	int draw_startoffset = ls->internal_pixel_start_cnt >> rshift;
+
+	buf1 = buf1p;
+	buf2 = buf2p;
+
+	for (int cnt = draw_start; cnt < hbstrt_offset; cnt++) {
+		if (cnt >= draw_end) {
+			break;
+		}
+		if (cnt >= draw_startoffset) {
+			if (cnt >= hbstop_offset) {
+				*buf1++ = bgcol;
+				*buf2++ = bgcol;
+			} else {
+				buf1++;
+				buf2++;
+			}
+		}
+	}
+
+	return true;
+}
+
+extern int blop;
+static uae_u32 chunky_out[4096], dpf_chunky_out[4096];
+bool draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls)
+{
+	get_line(gfx_ypos, how);
+
+	if (!buf1) {
+		return false;
+	}
+
+	uae_u32 *buf1p = buf1;
+	uae_u32 *buf2p = buf2 != buf1 ? buf2 : NULL;
+	int planecnt = GET_PLANES(ls->bplcon0);
+	int res = GET_RES_DENISE(ls->bplcon0);
+	bool dpf = (ls->bplcon0 & 0x400) != 0;
+	bool ham = (ls->bplcon0 & 0x800) != 0;
+
+	if (ls->ltsidx < 0) {
+		bool ehb = planecnt == 6 && !bplham && !dpf && (!ecs_denise || !(ls->bplcon0 & 1) || !(ls->bplcon2 & 0x200));
+		int mode = CMODE_NORMAL;
+		if (ham) {
+			mode = CMODE_HAM;
+			ham_lastcolor = 0;
+		} else if (dpf) {
+			mode = CMODE_DUALPF;
+		} else if (ehb) {
+			mode = CMODE_EXTRAHB;
+		}
+		int idx = mode + 5 * res + 5 * 3 * hresolution;
+		if (buf2p) {
+			idx += 5 * 3 * 3;
+		}
+		ls->ltsidx = idx;
+	}
+
+	LINETOSRC_FUNCF ltsf;
+	if (aga_mode) {
+		ltsf = linetoscr_aga_fast_funcs[ls->ltsidx];
+	} else {
+		ltsf = linetoscr_ecs_fast_funcs[ls->ltsidx];
+	}
+
+	uae_u32 *cstart = chunky_out + 1024;
+	int len = (ls->bpllen + 3) / 4;
+	pfield_doline(planecnt, len, (uae_u8*)cstart, ls);
+
+	bool ecsena = ecs_denise && (ls->bplcon0 & 1) != 0;
+	bool brdblank = (ls->bplcon3 & 0x20) && ecsena;
+
+	uae_u32 bgcol;
+	if (aga_mode) {
+		bgcol = brdblank ? 0x000000 : ls->color0;
+	} else {
+		bgcol = brdblank ? 0x000000 : xcolors[ls->color0];
+	}
+	
 	//bgcol = 0xff00;
 
-	uae_u8 *cp = (uae_u8 *)cstart;
+	uae_u8 *cp = (uae_u8*)cstart;
+	uae_u8 *cp2 = cp;
+
+	if (!aga_mode) {
+		// OCS/ECS PF2 >= 5 and bit in plane 5 set: other planes are ignored in color selection.
+		int plf1pri = (ls->bplcon2 >> 0) & 7;
+		int plf2pri = (ls->bplcon2 >> 3) & 7;
+		if (!ham && !dpf && planecnt >= 5 && plf2pri >= 5) {
+			for (int i = 0; i < len * 4 * 8; i++) {
+				if (cp[i] & 0x10) {
+					cp[i] = 0x10;
+				}
+			}
+		}
+		// OCS/ECS DPF feature: if matching plf2pri>=5: value is always 0
+		if (dpf && (plf1pri >= 5 || plf2pri >= 5)) {
+			for (int i = 0; i < len * 4 * 8; i++) {
+				uae_u8 pix = cp[i];
+				uae_u8 mask1 = 0x01 | 0x04 | 0x10;
+				uae_u8 mask2 = 0x02 | 0x08 | 0x20;
+				if (plf1pri >= 5 && (pix & mask1)) {
+					pix |= 0x40;
+				}
+				if (plf2pri >= 5 && (pix & mask2)) {
+					pix |= 0x80;
+				}
+				cp[i] = pix;
+			}
+		}
+	}
 
 	int doubling = hresolution - res;
-	int shift = hresolution;
-	int shift2 = shift + 1;
 	int rshift = RES_MAX - hresolution;
 
 	int delay1 = (ls->bplcon1 & 0x0f) | ((ls->bplcon1 & 0x0c00) >> 6);
@@ -5935,15 +6099,34 @@ bool draw_denise_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls)
 	delay1 <<= 2;
 	int s = r_shift(delay1, RES_MAX - res);
 	cp -= s;
+	if (dpf) {
+		int delay2 = ((ls->bplcon1 & 0xf0) >> 4) | ((ls->bplcon1 & 0xc000) >> 10);
+		delay2 += delayoffset;
+		delay2 &= delaymask;
+		delay2 <<= 2;
+		s = r_shift(delay2, RES_MAX - res);
+		cp2 -= s;
+		// different bitplane delay in DPF? Merge them.
+		if (cp != cp2) {
+			uae_u8 *dpout = (uae_u8*)(dpf_chunky_out + 1024);
+			for (int i = 0; i < len * 8; i++) {
+				uae_u32 pix0 = ((uae_u32*)cp)[i];
+				uae_u32 pix1 = ((uae_u32*)cp2)[i];
+				uae_u32 c = (pix0 & 0x55555555) | (pix1 & 0xaaaaaaaa);
+				((uae_u32*)dpout)[i] = c;
+			}
+			cp = dpout;
+		}
+	}
 
 	int hbstrt_offset = ls->hbstrt_offset >> rshift;
 	int hbstop_offset = ls->hbstop_offset >> rshift;
-	int hstrt_offset = ls->hstrt_offset < 0 ? hbstop_offset : ls->hstrt_offset >> rshift;
+	int hstrt_offset = ls->hstrt_offset < 0 || ls->hstrt_offset >= ls->hbstrt_offset ? hbstop_offset : ls->hstrt_offset >> rshift;
 	int hstop_offset = ls->hstop_offset < 0 ? hbstrt_offset : ls->hstop_offset >> rshift;
 	int bpl1dat_trigger_offset = (ls->bpl1dat_trigger_offset + (1 << RES_MAX)) >> rshift;
-	int start = 0;
-	int end = internal_pixel_cnt >> rshift;
-	int startoffset = internal_pixel_start_cnt >> rshift;
+	int draw_start = 0;
+	int draw_end = ls->internal_pixel_cnt >> rshift;
+	int draw_startoffset = ls->internal_pixel_start_cnt >> rshift;
 	
 	//write_log("%03d %03d %03d %03d %03d %03d %03d\n", vpos, hbstop_offset, hbstrt_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset, delayoffset);
 
@@ -5976,542 +6159,11 @@ bool draw_denise_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls)
 		}
 	}
 
-	// TODO: code generator
-	int cnt = start;
-	while (cnt < end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
-		}
-		if (cnt >= startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				if (buf2) {
-					buf2 += bufadd;
-				}
-			} else if (cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcol;
-				if (buf2) {
-					*buf2++ = bgcol;
-				}
-				if (doubling > 0) {
-					*buf1++ = bgcol;
-					if (buf2) {
-						*buf2++ = bgcol;
-					}
-					if (doubling > 1) {
-						*buf1++ = bgcol;
-						*buf1++ = bgcol;
-						if (buf2) {
-							*buf2++ = bgcol;
-							*buf2++ = bgcol;
-						}
-					}
-				}
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				if (aga_mode) {
-					c = *cp;
-					cp += cpadds[0];
-					c ^= bxor;
-					col = colors_aga[c];
-					*buf1++ = col;
-					if (buf2) {
-						*buf2++ = col;
-					}
-					if (doubling > 0) {
-						c = *cp;
-						cp += cpadds[1];
-						c ^= bxor;
-						col = colors_aga[c];
-						*buf1++ = col;
-						if (buf2) {
-							*buf2++ = col;
-						}
-						if (doubling > 1) {
-							c = *cp;
-							cp += cpadds[2];
-							c ^= bxor;
-							col = colors_aga[c];
-							*buf1++ = col;
-							if (buf2) {
-								*buf2++ = col;
-							}
-							c = *cp;
-							cp += cpadds[3];
-							c ^= bxor;
-							col = colors_aga[c];
-							*buf1++ = col;
-							if (buf2) {
-								*buf2++ = col;
-							}
-						}
-					}
-				} else {
-					c = *cp;
-					cp += cpadds[0];
-					col = xcolors[colors_ocs[c]];
-					*buf1++ = col;
-					if (buf2) {
-						*buf2++ = col;
-					}
-					if (doubling > 0) {
-						c = *cp;
-						cp += cpadds[1];
-						col = xcolors[colors_ocs[c]];
-						*buf1++ = col;
-						if (buf2) {
-							*buf2++ = col;
-						}
-						if (doubling > 1) {
-							c = *cp;
-							cp += cpadds[2];
-							col = xcolors[colors_ocs[c]];
-							*buf1++ = col;
-							if (buf2) {
-								*buf2++ = col;
-							}
-							c = *cp;
-							cp += cpadds[3];
-							col = xcolors[colors_ocs[c]];
-							*buf1++ = col;
-							if (buf2) {
-								*buf2++ = col;
-							}
-						}
-					}
-				}
-			}
-		}
-		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
-		}
-		cnt += bufadd;
-	}
+	ltsf(draw_start, draw_end, draw_startoffset, hbstrt_offset, hbstop_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset,
+		planecnt, bgcol, cp, cp2, cpadd, cpadds, bufadd, bxor, ls->linecolorstate);
 
 	return true;
 }
-
-#if 0
-
-	int fmode = 16 << (((ls->fmode & 3) == 3 ? 2 : (ls->fmode & 3)));
-	int delaymask = (fmode >> res) - 1;
-	int delay1 = (ls->bplcon1 & 0x0f) | ((ls->bplcon1 & 0x0c00) >> 6);
-	int	delayoffset = ls->fetchmode_size - (((ls->ddfstrt - 0x18) & ls->fetchstart_mask) << 1);
-	delay1 += delayoffset;
-	delay1 &= delaymask;
-	delay1 <<= 2;
-	//delay1 <<= res;
-	//delay1 |= (ls->bplcon1 & 0x0300) >> 8;
-
-	if (vpos == 120)
-		write_log("%03d %03d %03d %03d %03d %03d\n", ls->hbstrt_offset, ls->hbstop_offset, ls->hstrt_offset, ls->hstop_offset, ls->bpl1dat_trigger_offset, delay1);
-
-	int doubling = hresolution - res;
-	int shift = hresolution;
-	int shift2 = shift + 1;
-	int rshift = RES_MAX - hresolution;
-
-	int hbstrt_offset = ls->hbstrt_offset >> shift;
-	int hbstop_offset = ls->hbstop_offset >> shift;
-	int hstrt_offset = ls->hstrt_offset < 0 ? hbstop_offset : ls->hstrt_offset >> shift;
-	int hstop_offset = ls->hstop_offset < 0 ? hbstrt_offset : ls->hstop_offset >> shift;
-	int bpl1dat_trigger_offset = ls->bpl1dat_trigger_offset >> shift;
-#if 0
-	if (exthblankon_ecs || exthblankon_aga) {
-		hbstrt_offset += 1 << shift;
-		hbstop_offset += 1 << shift;
-	}
-#endif
-	uae_u8 *cp = (uae_u8*)cstart;
-	uae_u32 bgcol;
-	uae_u32 *hstrt = buf1p + hstrt_offset + ((denise_hstrt & 3) >> rshift) + (1 << shift);
-	uae_u32 *hstop = buf1p + hstop_offset + ((denise_hstop & 3) >> rshift) + (1 << shift);
-	uae_u32 *hbstrt = buf1p + hbstrt_offset;
-
-	//bgcol = 0xff00;
-
-#if 1
-	int bpldiff = delay1 >> res;
-	if (doubling >= 0) {
-		bpldiff >>= doubling;
-	} else if (doubling < 0) {
-		bpldiff <<= (-doubling);
-	}
-#endif
-#if 0
-	if (hresolution > res) {
-		bpldiff >>= 1;
-	} else if (hresolution < res) {
-		bpldiff <<= 1;
-	}
-	int off = bpl1dat_trigger_offset;
-	if (doubling >= 0) {
-		off += 6 >> doubling;
-	} else if (doubling < 0) {
-		off += 6 << (-doubling);
-	}
-	off += bpldiff;
-#endif
-
-	buf1 = buf1p + hbstop_offset;
-	if (buf2p) {
-		buf2 = buf2p + hbstop_offset;
-	}
-
-	// left border
-	next = hstrt;
-	if (next > hbstrt) {
-		next = hbstrt;
-	}
-	if (buf2) {
-		while (buf1 < next) {
-			*buf1++ = bgcol;
-			*buf2++ = bgcol;
-		}
-	} else {
-		while (buf1 < next) {
-			*buf1++ = bgcol;
-		}
-	}
-
-	// between DIWHSTRT - DDFSTRT
-	uae_u32 *p = buf1p + bpl1dat_trigger_offset;
-	if (buf2) {
-		while (buf1 < p) {
-			*buf1++ = bgcol;
-			*buf2++ = bgcol;
-		}
-	} else {
-		while (buf1 < p) {
-			*buf1++ = bgcol;
-		}
-	}
-	int diff = buf1 - p;
-	if (doubling < 0) {
-		diff <<= (-doubling);
-	} else {
-		diff >>= doubling;
-	}
-	cp += diff;
-	next = hstop;
-	if (next > hbstrt) {
-		next = hbstrt;
-	}
-	if (aga_mode) {
-		uae_u8 bxor = ls->bplcon4 >> 8;
-		uae_u32 *colors = (uae_u32*)ls->linecolorstate;
-		if (doubling > 1) {
-			while (buf1 < next) {
-				uae_u8 c = *cp++;
-				c ^= bxor;
-				uae_u32 col = colors[c];
-				*buf1++ = col;
-				*buf1++ = col;
-				*buf1++ = col;
-				*buf1++ = col;
-				if (buf2) {
-					*buf2++ = col;
-					*buf2++ = col;
-					*buf2++ = col;
-					*buf2++ = col;
-				}
-			}
-		} else if (doubling > 0) {
-			while (buf1 < next) {
-				uae_u8 c = *cp++;
-				c ^= bxor;
-				uae_u32 col = colors[c];
-				*buf1++ = col;
-				*buf1++ = col;
-				if (buf2) {
-					*buf2++ = col;
-					*buf2++ = col;
-				}
-			}
-		} else if (doubling < 0) {
-			while (buf1 < next) {
-				uae_u8 c = *cp++;
-				c ^= bxor;
-				uae_u32 col = colors[c];
-				*buf1++ = col;
-				if (buf2) {
-					*buf2++ = col;
-				}
-				if (doubling < -1) {
-					cp++;
-				}
-				cp++;
-			}
-		} else {
-			while (buf1 < next) {
-				uae_u8 c = *cp++;
-				c ^= bxor;
-				uae_u32 col = colors[c];
-				*buf1++ = col;
-				if (buf2) {
-					*buf2++ = col;
-				}
-			}
-		}
-	} else {
-		uae_u16 *colors = (uae_u16*)ls->linecolorstate;
-		if (doubling > 1) {
-			while (buf1 < next) {
-				uae_u8 c = *cp++;
-				uae_u32 col = xcolors[colors[c]];
-				*buf1++ = col;
-				*buf1++ = col;
-				*buf1++ = col;
-				*buf1++ = col;
-				if (buf2) {
-					*buf2++ = col;
-					*buf2++ = col;
-					*buf2++ = col;
-					*buf2++ = col;
-				}
-			}
-		} else if (doubling > 0) {
-			while (buf1 < next) {
-				uae_u8 c = *cp++;
-				uae_u32 col = xcolors[colors[c]];
-				*buf1++ = col;
-				*buf1++ = col;
-				if (buf2) {
-					*buf2++ = col;
-					*buf2++ = col;
-				}
-			}
-		} else if (doubling < 0) {
-			bool toggle = false;
-			while (buf1 < next) {
-				uae_u8 c = *cp++;
-				uae_u32 col = xcolors[colors[c]];
-				*buf1++ = col;
-				if (buf2) {
-					*buf2++ = col;
-				}
-				if (doubling < -1) {
-					cp++;
-				}
-				cp++;
-			}
-		} else {
-			while (buf1 < next) {
-				uae_u8 c = *cp++;
-				uae_u32 col = xcolors[colors[c]];
-				*buf1++ = col;
-				if (buf2) {
-					*buf2++ = col;
-				}
-			}
-		}
-	}
-
-	// right border
-	if (buf2) {
-		while (buf1 < next) {
-			*buf1++ = bgcol;
-			*buf2++ = bgcol;
-		}
-	} else {
-		while (buf1 < next) {
-			*buf1++ = bgcol;
-		}
-	}
-
-	return true;
-}
-#endif
-
-#if 0
-bool draw_denise_line_fast(uae_u8 *bplpt[8], int bplstart, int bpllen, int gfx_ypos, enum nln_how how, int total, int dstart, int dtotal, bool vblank, struct denise_fastsprite *dfs)
-{
-	int pos;
-	int pixtotal = dtotal * 4;
-	int end = dstart + pixtotal;
-	uae_u8 *c = (uae_u8*)chunky_out;
-
-	denise_hcounter_prev = -1;
-	denise_pixtotal = dtotal;
-	denise_total = total;
-	denise_cck = 0;
-
-	get_line(gfx_ypos, how);
-
-	if (!buf1) {
-		return true;
-	}
-
-	if (vblank) {
-		memset(buf1, 0, pixtotal * sizeof(uae_u32));
-		if (buf1 != buf2) {
-			memset(buf2, 0, pixtotal * sizeof(uae_u32));
-		}
-		return true;
-	}
-
-	uae_u32 *buf1p = buf1;
-	uae_u32 *buf2p = buf2;
-	uae_u32* buf1e = buf1 + (end - dstart);
-
-	if (bpllen > 0) {
-		pfield_doline(denise_planes, bpllen, bplpt, chunky_out);
-	}
-
-	int hstrt = denise_hstrt >> 1;
-	int hstop = denise_hstop >> 1;
-	int hbstrt = denise_hbstrt_lores * 2;
-	int hbstop = denise_hbstop_lores * 2;
-	if (hbstrt < hbstop) {
-		hbstrt += maxhpos * 2 * 2;
-	}
-	bplstart *= 2;
-
-	// bitplanes
-	int bplstoppos = -1;
-	if (bpllen > 0) {
-		pos = bplstart;
-		buf1 = buf1p + (pos - dstart);
-		buf2 = buf2p + (pos - dstart);
-		int shift = bplcon1_shift[0];// << denise_res;
-		int delay = shift;
-		while (1 && delay > 0) {
-			*buf1++ = bordercolor;
-			*buf2++ = bordercolor;
-			pos++;
-			delay--;
-		}
-		while (pos < hstop && pos < end) {
-			for (int i = 0; i < 4; i++) {
-				for (int j = 0; j < 8; j++) {
-					uae_u8 pixc = c[(3 - i) * 8 + j];
-					uae_u32 pix = denise_colors.acolors[pixc];
-					*buf1++ = pix;
-					*buf2++ = pix;
-					pos++;
-					if (denise_res == 0) {
-						*buf1++ = pix;
-						*buf2++ = pix;
-						pos++;
-					}
-				}
-			}
-			c += 32;
-		}
-		bplstoppos = pos;
-	}
-
-	// sprites
-	if (dfs && (bpllen > 0 || bordersprite)) {
-		for (int i = MAX_SPRITES - 1; i >= 0; i--) {
-			struct denise_fastsprite *fs = &dfs[i];
-			if (fs->active) {
-				int sprxp = (fs->pos & 0xff) * 2 + (fs->ctl & 1);
-				sprxp += 1;
-				sprxp *= 2;
-				buf1 = buf1p + (sprxp - dstart);
-				buf2 = buf2p + (sprxp - dstart);
-				if (denise_sprfmode < 2) {
-					int max = denise_sprfmode ? 32 : 16;
-					int shift = max - 1;
-					uae_u32 v0 = fs->data[0];
-					uae_u32 v1 = fs->data[1];
-					for (int p = 0; p < max && buf1 < buf1e; p++) {
-						int b1 = (v0 >> shift) & 1;
-						int b2 = (v1 >> shift) & 1;
-						v0 <<= 1;
-						v1 <<= 1;
-						int c = b2 * 2 + b1;
-						if (c) {
-							uae_u32 pix = denise_colors.acolors[c + sbasecol[i & 1]];
-							*buf1++ = pix;
-							*buf2++ = pix;
-							if (denise_sprres == 0) {
-								*buf1++ = pix;
-								*buf2++ = pix;
-							}
-						} else {
-							buf1++;
-							buf2++;
-							if (denise_sprres == 0) {
-								buf1++;
-								buf2++;
-							}
-						}
-					}
-				} else {
-					uae_u64 v0 = fs->data64[0];
-					uae_u64 v1 = fs->data64[1];
-					for (int p = 0; p < 64 && buf1 < buf1e; p++) {
-						int b1 = (v0 >> 63) & 1;
-						int b2 = (v1 >> 63) & 1;
-						v0 <<= 1;
-						v1 <<= 1;
-						int c = b2 * 2 + b1;
-						if (c) {
-							uae_u32 pix = denise_colors.acolors[c + sbasecol[i & 1]];
-							*buf1++ = pix;
-							*buf2++ = pix;
-							if (denise_sprres == 0) {
-								*buf1++ = pix;
-								*buf2++ = pix;
-							}
-						} else {
-							buf1++;
-							buf2++;
-							if (denise_sprres == 0) {
-								buf1++;
-								buf2++;
-							}
-						}
-					}
-				}
-			}
-		}
-
-	}
-
-	// borders and blanking
-	pos = dstart;
-	buf1 = buf1p;
-	buf2 = buf2p;
-	while (pos < hbstop && pos < end) {
-		*buf1++ = 0xff00ff;
-		*buf2++ = 0xff00ff;
-		pos++;
-	}
-	while (pos < hstrt && pos < end) {
-		*buf1++ = bordercolor;
-		*buf2++ = bordercolor;
-		pos++;
-	}
-	if (bplstoppos > 0) {
-		int opos = pos;
-		pos = bplstoppos;
-		if (pos > hstop) {
-			pos = hstop;
-		}
-		buf1 += pos - opos;
-		buf2 += pos - opos;
-	}
-	while (pos < hbstrt && pos < end) {
-		*buf1++ = bordercolor;
-		*buf2++ = bordercolor;
-		pos++;
-	}
-	while (pos < end) {
-		*buf1++ = 0xff00ff;
-		*buf2++ = 0xff00ff;
-		pos++;
-	}
-
-	return true;
-}
-#endif
 
 #define RB restore_u8()
 #define SRB restore_s8()

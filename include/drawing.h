@@ -186,13 +186,16 @@ struct linestate
 	int hbstrt_offset, hbstop_offset;
 	int hstrt_offset, hstop_offset;
 	int bpl1dat_trigger_offset;
-	int bpl1dat_hcounter;
+	int internal_pixel_cnt;
+	int internal_pixel_start_cnt;
 	int fetchmode_size, fetchstart_mask;
+	int ltsidx;
 };
 
 extern struct color_entry denise_colors;
 void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, struct linestate *ls);
-bool draw_denise_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
+bool draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
+bool draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
 bool start_draw_denise(void);
 void end_draw_denise(void);
 void denise_update_reg(uae_u16 reg, uae_u16 v);
