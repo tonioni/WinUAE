@@ -3523,8 +3523,8 @@ static void BPLCON0(uae_u16 v)
 		return;
 	}
 
-	// HAM, DPF, UHRES, BYPASS
-	if (va & (0x0800 | 0x0400 | 0x0080 | 0x0020)) {
+	// UHRES, BYPASS
+	if (va & (0x0080 | 0x0020)) {
 		not_safe_mode |= 1;
 	} else {
 		not_safe_mode &= ~1;
@@ -10281,6 +10281,7 @@ static int getlinetype(void)
 static int getcolorcount(int planes)
 {
 	bool ham = (bplcon0 & 0x800) != 0;
+	bool dpf = (bplcon0 & 0x400) != 0;
 	if (aga_mode) {
 		if (ham) {
 			if (planes < 8) {
@@ -10288,9 +10289,19 @@ static int getcolorcount(int planes)
 			}
 			return 64;
 		}
+		if (dpf) {
+			int pf2of2 = (bplcon3 >> 10) & 7;
+			if (!pf2of2) {
+				return 16;
+			}
+			return (1 << pf2of2) + 16;
+		}
 		return 1 << planes;
 	}
 	if (ham) {
+		return 16;
+	}
+	if (dpf) {
 		return 16;
 	}
 	if (planes > 5) {
@@ -10373,24 +10384,29 @@ static int checkprevfieldlinestateequalbpl(struct linestate *l)
 	return 0;
 }
 
-static void storelinestate(void);
-// draw line quickly (no copper, no sprites, no weird things, normal mode)
+// draw border line quickly (no copper, no sprites, no weird things, normal mode)
+static bool draw_border_fast(struct linestate *l)
+{
+	if (l->hbstrt_offset < 0 || l->hbstop_offset < 0) {
+		return false;
+	}
+	l->color0 = aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0];
+	int dvp = calculate_linetype(linear_display_vpos + 1);
+	return draw_denise_border_line_fast(dvp, nextline_how, l);
+}
+// draw bitplane line quickly (no copper, no sprites, no weird things, normal mode)
 static int draw_line_fast(struct linestate *l)
 {
 	if (l->bpl1dat_trigger_offset < 0) {
 		return 0;
 	}
-	// no HAM or DPF supported yet
-	if (bplcon0 & (0x800 | 0x400)) {
+	// no HAM+DPF
+	if ((bplcon0 & (0x800 | 0x400)) == (0x800 | 0x400)) {
 		return 0;
 	}
 	int planes = GET_PLANES(bplcon0);
-	// no EHB
-	if (planes == 6 && (!(bplcon0 & 1) || !(bplcon2 & 0x200))) {
-		return 0;
-	}
-	// no odd/even scroll
-	if ((bplcon1 & 0x0f0f) != ((bplcon1 >> 4) & 0x0f0f)) {
+	// no odd/even scroll if not DPF
+	if (!(bplcon0 & 0x400) && (bplcon1 & 0x0f0f) != ((bplcon1 >> 4) & 0x0f0f)) {
 		return 0;
 	}
 
@@ -10412,7 +10428,7 @@ static int draw_line_fast(struct linestate *l)
 	l->linecolorstate = dpt;
 	// draw quickly, store new state
 	int dvp = calculate_linetype(linear_display_vpos + 1);
-	if (draw_denise_line_fast(dvp, nextline_how, l)) {
+	if (draw_denise_bitplane_line_fast(dvp, nextline_how, l)) {
 		// advance bpl pointers
 		int len = l->bpllen;
 		for (int i = 0; i < planes; i++) {
@@ -10443,6 +10459,8 @@ static bool checkprevfieldlinestateequal(void)
 				uae_u32 c = aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0];
 				if (c == l->color0) {
 					ret = true;
+				} else {
+					ret = draw_border_fast(l);
 				}
 			}
 		} else if (type == LINETYPE_BPL) {
@@ -10466,7 +10484,7 @@ static void resetlinestate(void)
 	}
 	struct linestate *l = &lines[linear_vpos][lof_display];
 	l->type = 0;
-
+	l->cnt = displayresetcnt - 1;
 }
 
 #define MAX_STORED_BPL_DATA 204
@@ -10494,6 +10512,7 @@ static void storelinestate(void)
 	l->bplcon4 = bplcon4;
 	l->diwhigh = diwhigh;
 	l->fmode = fmode;
+	l->ltsidx = -1;
 
 	if (l->type == LINETYPE_BPL) {
 		if (!l->linedatastate) {
@@ -10739,7 +10758,7 @@ static void quick_denise_rga(void)
 		}
 	}
 	uae_u16 strobe = get_strobe_reg(0);
-	denise_handle_quick_strobe(strobe, display_hstart_fastmode);
+	//denise_handle_quick_strobe(strobe, display_hstart_fastmode);
 }
 
 static void do_draw_line(void)
@@ -10875,7 +10894,7 @@ static int can_fast_custom(void)
 			return 0;
 		}
 		int type = getlinetype();
-		if (type == LINETYPE_BPL || (type == LINETYPE_BORDER && (bplcon0 & 1) && (bplcon3 & 0x02) && !(bplcon3 & 0x20))) {
+		if (type != LINETYPE_BLANK) {
 			for (int i = 0; i < MAX_SPRITES; i++) {
 				struct sprite *s = &spr[i];
 				if (s->vstart == vpos || s->vstop == vpos) {
@@ -12104,17 +12123,6 @@ static void sync_fast_evhandler(void)
 }
 #endif
 
-static void fast_strobe(void)
-{
-	uae_u16 str = get_strobe_reg(0);
-	write_drga(str, NULL, 0);
-	if (prev_strobe == 0x3c && str != 0x3c) {
-		INTREQ_INT(5, 0);
-	}
-	denise_handle_quick_strobe(str, display_hstart_fastmode);
-	prev_strobe = str;
-}
-
 // horizontal sync callback when line not changed + fast cpu
 static void sync_equalline_handler(void)
 {
@@ -12129,7 +12137,13 @@ static void sync_equalline_handler(void)
 
 	rga_denise_cycle += rdc_offset;
 	rga_denise_cycle &= DENISE_RGA_SLOT_MASK;
-	fast_strobe();
+
+	uae_u16 str = get_strobe_reg(0);
+	write_drga(str, NULL, 0);
+	if (prev_strobe == 0x3c && str != 0x3c) {
+		INTREQ_INT(5, 0);
+	}
+	prev_strobe = str;
 
 	int diff = display_hstart_fastmode - hpos_delta;
 	linear_hpos += diff;
@@ -12143,6 +12157,7 @@ static void sync_equalline_handler(void)
 		do_draw_line();
 		rga_denise_cycle = rdc;
 	} else {
+		denise_handle_quick_strobe(str, display_hstart_fastmode);
 		next_denise_rga();
 		decide_line_end();
 	}
