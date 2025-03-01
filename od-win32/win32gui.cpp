@@ -5952,17 +5952,11 @@ static int addConfigFolder(HWND hDlg, const TCHAR *s, bool directory)
 	return idx;
 }
 
-static HTREEITEM AddConfigNode (HWND hDlg, struct ConfigStruct *config, const TCHAR *name, const TCHAR *desc, const TCHAR *path, int isdir, int expand, HTREEITEM parent)
+static HTREEITEM AddConfigNode(HWND hDlg, struct ConfigStruct *config, const TCHAR *name, const TCHAR *desc, const TCHAR *path, int isdir, int expand, HTREEITEM parent, TCHAR *file_name, TCHAR *file_path, HWND TVhDlg)
 {
-	TVINSERTSTRUCT is;
-	HWND TVhDlg;
+	TVINSERTSTRUCT is = { 0 };
 	TCHAR s[MAX_DPATH] = _T("");
-	TCHAR file_name[MAX_DPATH] = _T(""), file_path[MAX_DPATH] = _T("");
 
-	GetDlgItemText (hDlg, IDC_EDITNAME, file_name, MAX_DPATH);
-	GetDlgItemText (hDlg, IDC_EDITPATH, file_path, MAX_DPATH);
-	TVhDlg = GetDlgItem (hDlg, IDC_CONFIGTREE);
-	memset (&is, 0, sizeof (is));
 	is.hInsertAfter = isdir < 0 ? TVI_ROOT : TVI_SORT;
 	is.hParent = parent;
 	is.itemex.mask = TVIF_TEXT | TVIF_STATE | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
@@ -6069,6 +6063,12 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 				return cnt;
 		}
 	}
+
+	TCHAR file_name[MAX_DPATH] = _T(""), file_path[MAX_DPATH] = _T("");
+	GetDlgItemText(hDlg, IDC_EDITNAME, file_name, MAX_DPATH);
+	GetDlgItemText(hDlg, IDC_EDITPATH, file_path, MAX_DPATH);
+	HWND TVhDlg = GetDlgItem(hDlg, IDC_CONFIGTREE);
+
 	cparent = configstore[idx]->Parent;
 	idx = 0;
 	while (idx < configstoresize) {
@@ -6101,7 +6101,7 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 						expand = true;
 					}
 					stridx = addConfigFolder(hDlg, config->Path, true);
-					HTREEITEM par = AddConfigNode(hDlg, config, config->Name, NULL, config->Path, 1, expand, parent);
+					HTREEITEM par = AddConfigNode(hDlg, config, config->Name, NULL, config->Path, 1, expand, parent, file_name, file_path, TVhDlg);
 					int idx2 = 0;
 					for (;;) {
 						if (configstore[idx2] == config->Child) {
@@ -6121,7 +6121,7 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 					}
 				} else if (!config->Directory) {
 					if (((config->Type == 0 || config->Type == 3) && configtype == 0) || (config->Type == configtype)) {
-						config->item = AddConfigNode(hDlg, config, config->Name, config->Description, config->Path, 0, 0, parent);
+						config->item = AddConfigNode(hDlg, config, config->Name, config->Description, config->Path, 0, 0, parent, file_name, file_path, TVhDlg);
 						cnt++;
 					}
 				}
@@ -6196,7 +6196,7 @@ static HTREEITEM InitializeConfigTreeView (HWND hDlg)
 	}
 	DeleteConfigTree (hDlg);
 	GetConfigPath (path, NULL, FALSE);
-	parent = AddConfigNode (hDlg, NULL, path, NULL, NULL, 0, 1, NULL);
+	parent = AddConfigNode (hDlg, NULL, path, NULL, NULL, 0, 1, NULL, NULL, NULL, TVhDlg);
 	LoadConfigTreeView (hDlg, -1, parent);
 	ew(hDlg, IDC_CONFIGFOLDER, xSendDlgItemMessage(hDlg, IDC_CONFIGFOLDER, CB_GETCOUNT, 0, 0L) > 1);
 	return parent;
