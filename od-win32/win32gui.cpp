@@ -10850,6 +10850,31 @@ static const int scsiromselectedmask[] = {
 	EXPANSIONTYPE_PCI_BRIDGE, EXPANSIONTYPE_X86_BRIDGE, EXPANSIONTYPE_RTG,
 	EXPANSIONTYPE_SOUND, EXPANSIONTYPE_NET, EXPANSIONTYPE_FLOPPY, EXPANSIONTYPE_X86_EXPANSION
 };
+static void init_expansion_scsi_id(HWND hDlg)
+{
+	int index;
+	struct boardromconfig *brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
+	const struct expansionromtype *ert = &expansionroms[scsiromselected];
+	if (brc && ert && ert->id_jumper) {
+		if (SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_GETCOUNT, 0, 0) < 8) {
+			xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_RESETCONTENT, 0, 0);
+			for (int i = 0; i < 8; i++) {
+				TCHAR tmp[10];
+				_stprintf(tmp, _T("%d"), i);
+				xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_ADDSTRING, 0, (LPARAM)tmp);
+			}
+		}
+		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, brc->roms[index].device_id, 0);
+		ew(hDlg, IDC_SCSIROMID, 1);
+	} else {
+		if (SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_GETCOUNT, 0, 0) != 1) {
+			xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_RESETCONTENT, 0, 0);
+			xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_ADDSTRING, 0, (LPARAM)_T("-"));
+		}
+		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, 0, 0);
+		ew(hDlg, IDC_SCSIROMID, 0);
+	}
+}
 static void init_expansion2(HWND hDlg, bool init)
 {
 	static int first = -1;
@@ -10965,22 +10990,7 @@ static void init_expansion2(HWND hDlg, bool init)
 	if (scsiromselected > 0)
 		gui_set_string_cursor(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, scsiromselected);
 	xSendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_SETCURSEL, scsiromselectedcatnum, 0);
-
-	xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_RESETCONTENT, 0, 0);
-	int index;
-	struct boardromconfig *brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
-	const struct expansionromtype *ert = &expansionroms[scsiromselected];
-	if (brc && ert && ert->id_jumper) {
-		for (int i = 0; i < 8; i++) {
-			TCHAR tmp[10];
-			_stprintf(tmp, _T("%d"), i);
-			xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_ADDSTRING, 0, (LPARAM)tmp);
-		}
-	} else {
-		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_ADDSTRING, 0, (LPARAM)_T("-"));
-		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, 0, 0);
-		ew(hDlg, IDC_SCSIROMID, 0);
-	}
+	init_expansion_scsi_id(hDlg);
 }
 
 
@@ -11000,14 +11010,18 @@ static void values_to_expansion2dlg_sub(HWND hDlg)
 	}
 	int index;
 	struct boardromconfig *brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
-	if (brc && er->subtypes) {
-		xSendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_SETCURSEL, brc->roms[index].subtype, 0);
-		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, brc->roms[index].device_id, 0);
-		deviceflags |= er->subtypes[brc->roms[index].subtype].deviceflags;
+	if (brc) {
+		if (er->subtypes) {
+			xSendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_SETCURSEL, brc->roms[index].subtype, 0);
+			deviceflags |= er->subtypes[brc->roms[index].subtype].deviceflags;
+		}
 	} else if (srt) {
 		xSendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_SETCURSEL, 0, 0);
-		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, 0, 0);
+	} else {
+		ew(hDlg, IDC_SCSIROMID, FALSE);
 	}
+	init_expansion_scsi_id(hDlg);
+
 	xSendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_RESETCONTENT, 0, 0);
 	if (deviceflags & EXPANSIONTYPE_CLOCKPORT) {
 		xSendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_ADDSTRING, 0, (LPARAM)_T("-"));
