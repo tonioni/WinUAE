@@ -2205,7 +2205,7 @@ static void box_art_check(struct uae_prefs *p, const TCHAR *config)
 }
 
 struct ConfigStruct {
-	TCHAR Name[MAX_DPATH];
+	TCHAR Name[MAX_PATH];
 	TCHAR Path[MAX_DPATH];
 	TCHAR Fullpath[MAX_DPATH];
 	TCHAR HostLink[MAX_DPATH];
@@ -2217,6 +2217,7 @@ struct ConfigStruct {
 	int Type, Directory;
 	struct ConfigStruct *Parent, *Child;
 	int host, hardware;
+	bool expanded;
 	HTREEITEM item;
 	FILETIME t;
 };
@@ -5804,6 +5805,34 @@ static void ConfigToRegistry(struct ConfigStruct *config, int type)
 	}
 	regsetstr(NULL, configregfolder[type], config_folder);
 	regsetstr(NULL, configregsearch[type], config_search);
+	int idx = 0;
+	int exp = 1;
+	UAEREG *fkey = NULL;
+	while (idx < configstoresize) {
+		config = configstore[idx];
+		if (config->Directory && config->expanded) {
+			if (!fkey) {
+				fkey = regcreatetree(NULL, _T("ConfigurationListView"));
+			}
+			if (fkey) {
+				TCHAR tmp[100];
+				_stprintf(tmp, _T("Expanded%03d"), exp++);
+				regsetstr(fkey, tmp, config->Path);
+			}
+		}
+		idx++;
+	}
+	if (fkey) {
+		while (exp < 1000) {
+			TCHAR tmp[100];
+			_stprintf(tmp, _T("Expanded%03d"), exp++);
+			if (!regexists(fkey, tmp)) {
+				break;
+			}
+			regdelete(fkey, tmp);
+		}
+	}
+	regclosetree(fkey);
 }
 static void ConfigToRegistry2(DWORD ct, int type, DWORD noauto)
 {
@@ -6242,6 +6271,38 @@ static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config
 		if (config2)
 			config = config2;
 	}
+
+	if (regexiststree(NULL, _T("ConfigurationListView"))) {
+		UAEREG *fkey = regcreatetree(NULL, _T("ConfigurationListView"));
+		if (fkey) {
+			int exp = 1;
+			while (exp < 1000) {
+				TCHAR tmp[100];
+				TCHAR name[MAX_DPATH];
+				_stprintf(tmp, _T("Expanded%03d"), exp++);
+				if (!regexists(fkey, tmp)) {
+					break;
+				}
+				int size = sizeof(name) / sizeof(TCHAR);
+				if (regquerystr(fkey, tmp, name, &size)) {
+					int idx = 0;
+					while (idx < configstoresize) {
+						struct ConfigStruct *config2 = configstore[idx];
+						if (config2->Directory) {
+							if (!_tcscmp(name, config2->Path)) {
+								TreeView_Expand(lv, config2->item, TVE_EXPAND);
+								config2->expanded = true;
+								break;
+							}
+						}
+						idx++;
+					}
+				}
+			}
+			regclosetree(fkey);
+		}
+	}
+
 	config = fixloadconfig (hDlg, config);
 
 	SetWindowRedraw(lv, TRUE);
@@ -6518,10 +6579,22 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 						return TRUE;
 					}
 					break;
+				case TVN_ITEMEXPANDED:
+					{
+						LPNMTREEVIEW tv = (LPNMTREEVIEW)lParam;
+						struct ConfigStruct *c = (struct ConfigStruct*)tv->itemNew.lParam;
+						if (tv->action == TVE_EXPAND) {
+							c->expanded = true;
+						} else if (tv->action == TVE_COLLAPSE) {
+							c->expanded = false;
+						}
+						break;
+					}
 				}
+				break;
 			}
-			break;
 		}
+		break;
 	}
 
 	return FALSE;
@@ -6792,6 +6865,7 @@ static void rewritepaths(void)
 static void resetregistry (void)
 {
 	regdeletetree(NULL, _T("DetectedROMs"));
+	regdeletetree(NULL, _T("ConfigurationListView"));
 	regdelete(NULL, _T("QuickStartMode"));
 	regdelete(NULL, _T("ConfigFile"));
 	regdelete(NULL, _T("ConfigFileHardware"));
