@@ -1,4 +1,19 @@
 
+Beta 12:
+
+- Cycle-exact mode drawing optimizations partially implemented.
+- Programmed native display mode fast mode optimization fixes (both CE and non-CE).
+- Added Optimizations select menu to Chipset panel (so far only meant for testing and debugging). Subpixel option does not anymore affect it (and possibly goes away soon). Full = do not redraw lines that have not changed, draw in simple mode if changed and display parameters have not changed. Partial = do not redraw line if not changed. Note that Full can't handle condition where bitplane crosses strobe (horizontal counter reset), usual effect is to have garbage there instead of border color. I am not yet sure how to solve this.
+- Field+ display modes fixed in fast modes. (Disables also optimization of not drawing when line has not changed)
+- ERSY=1 stuck stopped condition didn't check for input events and didn't do display refresh etc.
+- If real HD/memory card has Windows supported partition table and partition metadata can be queried without administrator privileges (always normally possible?) but administrator privileges are needed to read/write partition data, list partition(s) in Add Harddrive dialog with "ACCESS DENIED" text. Previously partition(s) were not listed. Maybe this is less confusing than hiding them completely when administrator privileges are needed.
+- Expansion panel SCSI controller ID selection enable/disable/selection fixed. (For example A4091)
+- Configuration file list's expanded tree nodes are stored in registry/ini and are loaded and expanded automatically in following sessions.
+- Autoscale coordinate fixes (still might work strangely in some situations). Auto integer scale still has issues.
+
+Performance testing: first check that running program is using optimized code paths enough (xxx% in log is at least 30% or higher = not too much Denise related copper activity or sprites), then check CPU usage or max warp mode FPS using different optimization settings.
+
+
 Beta 11:
 
 Some more fast (includes any non-memory cycle-exact mode) optimizations and most remaining missing features added. All normal screenmodes are now supported in fast modes, only remaining always-"slow" is lines with copper activity and sprites. Both probably will be supported in the future but they are not that important. Copper activity only if it does not cause any immediately visible effect on screen (for example color change inside hblank). Previous betas CPU feature restrictions removed.
