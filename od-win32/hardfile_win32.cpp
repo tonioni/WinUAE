@@ -243,7 +243,7 @@ static int ismounted(const TCHAR *name, HANDLE hd, int *typep)
 			if (DeviceIoControl (d, FSCTL_IS_VOLUME_MOUNTED, NULL, 0, NULL, 0, &written, NULL)) {
 				VOLUME_DISK_EXTENTS *vde;
 				NTFS_VOLUME_DATA_BUFFER ntfs;
-				hfd_log(_T("FSCTL_IS_VOLUME_MOUNTED returned is mounted\n"));
+				hfd_log(_T("FSCTL_IS_VOLUME_MOUNTED(%s) returned is mounted\n"), volname);
 				if (DeviceIoControl (d, FSCTL_GET_NTFS_VOLUME_DATA, NULL, 0, &ntfs, sizeof ntfs, &written, NULL)) {
 					isntfs = 1;
 				}
@@ -2999,7 +2999,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	int gli_ok;
 	BOOL                                status;
 	ULONG                               length = 0, returned = 0, returnedLength;
-	BOOL showonly = FALSE;
+	BOOL readonly = FALSE;
 	struct uae_driveinfo tmpudi = { 0 };
 	struct uae_driveinfo* udi2;
 	udi = &tmpudi;
@@ -3057,7 +3057,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			ret = 1;
 			goto end;
 		}
-		showonly = TRUE;
+		readonly = TRUE;
 	}
 
 	memset (outBuf, 0, sizeof outBuf);
@@ -3123,7 +3123,8 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	udi->offset = 0;
 	udi->size = 0;
 
-	if (showonly) {
+#if 0
+	if (readonly) {
 		memset(outBuf, 0, sizeof(outBuf));
 		status = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_LAYOUT_EX, NULL, 0,
 			&outBuf, sizeof(outBuf), &returnedLength, NULL);
@@ -3132,6 +3133,8 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			if (dli->PartitionCount && dli->PartitionStyle == PARTITION_STYLE_MBR) {
 				write_log("MBR but access denied\n");
 				ret = 1;
+				udi->dangerous = -10;
+				udi->readonly = -1;
 				goto end;
 			}
 			if (dli->PartitionCount && dli->PartitionStyle == PARTITION_STYLE_GPT) {
@@ -3145,6 +3148,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		ret = 1;
 		goto end;
 	}
+#endif
 
 	gli_ok = 1;
 	gli.Length.QuadPart = 0;
@@ -3220,11 +3224,13 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 					pi->PartitionNumber, pi->Mbr.PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
 				if (pi->Mbr.RecognizedPartition == 0) {
 					write_log (_T("unrecognized\n"));
+					udi->readonly = readonly ? 2 : 0;
 					continue;
 				}
 				nonzeropart++;
 				if (pi->Mbr.PartitionType != 0x76 && pi->Mbr.PartitionType != 0x30) {
 					write_log (_T("type not 0x76 or 0x30\n"));
+					udi->readonly = readonly ? 2 : 0;
 					continue;
 				}
 				write_log (_T("%d, selected\n"), *index2);
@@ -3573,8 +3579,9 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 			if (dangerousdrive)
 				*dangerousdrive &= ~1;
 		}
-
-		if (udi->readonly) {
+		if (udi->readonly > 1) {
+			rw = _T("ACCESS DENIED");
+		} else if (udi->readonly) {
 			rw = _T("RO");
 			if (dangerousdrive && !nomedia)
 				*dangerousdrive |= 2;
