@@ -8,3645 +8,4725 @@ static void lts_aga_n_ilores_dlores_b1(int draw_start, int draw_end, int draw_st
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ilores_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ilores_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ilores_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ilores_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ihires_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ihires_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ihires_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ihires_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ihires_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ishres_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ishres_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ishres_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ishres_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ishres_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ilores_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ilores_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
-				}
-				*buf1++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
+				}
+				dpval ^= bxor;
+				col = colors_aga[dpval];
+			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ilores_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ilores_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ilores_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ihires_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ihires_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ihires_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ihires_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ihires_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ishres_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ishres_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ishres_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ishres_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ishres_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ilores_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[2];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[3];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[2];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[3];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ilores_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
+				}
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
-				}
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[2];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
-				}
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[3];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
-				}
-				*buf1++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[2];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
+				}
+				dpval ^= bxor;
+				col = colors_aga[dpval];
+			}
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[3];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
+				}
+				dpval ^= bxor;
+				col = colors_aga[dpval];
+			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ilores_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[2];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[3];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[2];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
+			}
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[3];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
+			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ilores_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[2];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[3];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[2];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[3];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ilores_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[2];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[3];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[2];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[3];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ihires_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ihires_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
-				}
-				*buf1++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
+				}
+				dpval ^= bxor;
+				col = colors_aga[dpval];
+			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ihires_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ihires_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ihires_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ishres_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ishres_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ishres_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-			}
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ishres_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ishres_dshres_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ilores_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ilores_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				*buf2++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ilores_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ilores_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ilores_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ihires_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ihires_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				*buf2++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ihires_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ihires_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ihires_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ishres_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ishres_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				*buf2++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ishres_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ishres_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ishres_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ilores_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ilores_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
+				}
+				dpval ^= bxor;
+				col = colors_aga[dpval];
+			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ilores_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ilores_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ilores_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ihires_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ihires_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				*buf2++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ihires_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ihires_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ihires_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ishres_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ishres_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				*buf2++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ishres_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ishres_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ishres_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ilores_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[2];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[3];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[2];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[3];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ilores_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
+				}
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[2];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[3];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[2];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
+				}
+				dpval ^= bxor;
+				col = colors_aga[dpval];
+			}
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[3];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
+				}
+				dpval ^= bxor;
+				col = colors_aga[dpval];
+			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ilores_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[2];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[3];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[2];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
+			}
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[3];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
+			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ilores_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[2];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[3];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[2];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[3];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ilores_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[2];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[3];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[2];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[3];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ihires_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ihires_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
+				}
+				dpval ^= bxor;
+				col = colors_aga[dpval];
+			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ihires_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ihires_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ihires_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-				c = *cp;
-				cp += cpadds[1];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
+			c = *cp;
+			cp += cpadds[1];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_n_ishres_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_dpf_ishres_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				{
-					uae_u8 dpval = dpf_lookup[c];
-					if (dpf_lookup_no[c]) {
-						dpval += dblpfofs[bpldualpf2of];
-					}
-					dpval ^= bxor;
-					col = colors_aga[dpval];
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			{
+				uae_u8 dpval = dpf_lookup[c];
+				if (dpf_lookup_no[c]) {
+					dpval += dblpfofs[bpldualpf2of];
 				}
-				*buf1++ = col;
-				*buf2++ = col;
+				dpval ^= bxor;
+				col = colors_aga[dpval];
 			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ehb_ishres_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			if (c & 0x20) {
+				uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
+				col = CONVERT_RGB(v);
+			} else {
+				col = colors_aga[c];
 			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				if (c & 0x20) {
-					uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;
-					col = CONVERT_RGB(v);
-				} else {
-					col = colors_aga[c];
-				}
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_ham_ishres_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static void lts_aga_kehb_ishres_dshres_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, uae_u8 bxor, void *colors)
 {
 	uae_u32 *colors_aga = (uae_u32*)colors;
 	int cnt = draw_start;
-	while (cnt < draw_end) {
-		bool bpl = false;
-		if (cnt >= hbstrt_offset) {
-			break;
+	if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {
+		cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;
+		if (cnt > hbstop_offset) {
+			cnt = hbstop_offset;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt < hbstop_offset) {
-				buf1 += bufadd;
-				buf2 += bufadd;
-			} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-				*buf1++ = bgcolor;
-				*buf2++ = bgcolor;
-			}
-			if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
-				bpl = true;
-				uae_u8 c;
-				uae_u32 col;
-				c = *cp;
-				cp += cpadds[0];
-				c ^= bxor;
-				col = colors_aga[c & 31];
-				*buf1++ = col;
-				*buf2++ = col;
-			}
+	}
+	int end = draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	if (cnt < draw_startoffset) {
+		int d = (draw_startoffset - cnt) >> bufadd;
+		cp += d << cpadd;
+		cnt = draw_startoffset;
+	}
+	if (cnt < hbstop_offset) {
+		int d = (hbstop_offset - cnt) >> bufadd;
+		buf1 += d << bufadd;
+		buf2 += d << bufadd;
+		cnt = hbstop_offset;
+	}
+	while (cnt < end) {
+		bool bpl = false;
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcolor;
+			*buf2++ = bgcolor;
+		} else {
+			bpl = true;
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c & 31];
+			*buf1++ = col;
+			*buf2++ = col;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpadd;
+			cp += 1 << cpadd;
 		}
-		cnt += bufadd;
+		cnt += 1 << bufadd;
 	}
 }
 static LINETOSRC_FUNCF linetoscr_aga_fast_funcs[] = {

@@ -16,7 +16,7 @@ static void lts_ecs_fm0_n0_p2_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -74,7 +74,7 @@ static void lts_ecs_fm0_n1_p2_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -135,7 +135,7 @@ static void lts_ecs_fm0_dpf0_p2_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -194,7 +194,7 @@ static void lts_ecs_fm0_dpf1_p2_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -272,7 +272,7 @@ static void lts_ecs_fm0_n0_p4_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -330,7 +330,7 @@ static void lts_ecs_fm0_n1_p4_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -391,7 +391,7 @@ static void lts_ecs_fm0_dpf0_p4_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -450,7 +450,7 @@ static void lts_ecs_fm0_dpf1_p4_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -528,7 +528,7 @@ static void lts_ecs_fm0_n0_p5_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -589,7 +589,7 @@ static void lts_ecs_fm0_n1_p5_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -653,7 +653,7 @@ static void lts_ecs_fm0_dpf0_p5_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -715,7 +715,7 @@ static void lts_ecs_fm0_dpf1_p5_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -788,7 +788,7 @@ static void lts_ecs_fm0_ham0_p5_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -849,7 +849,7 @@ static void lts_ecs_fm0_ham1_p5_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -913,7 +913,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -974,7 +974,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1038,7 +1038,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1100,7 +1100,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1165,7 +1165,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1231,7 +1231,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1300,7 +1300,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1361,7 +1361,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1426,7 +1426,7 @@ static void lts_ecs_fm0_n0_p2_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1499,7 +1499,7 @@ static void lts_ecs_fm0_n1_p2_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1575,7 +1575,7 @@ static void lts_ecs_fm0_dpf0_p2_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1649,7 +1649,7 @@ static void lts_ecs_fm0_dpf1_p2_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1742,7 +1742,7 @@ static void lts_ecs_fm0_n0_p4_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1815,7 +1815,7 @@ static void lts_ecs_fm0_n1_p4_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1891,7 +1891,7 @@ static void lts_ecs_fm0_dpf0_p4_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -1965,7 +1965,7 @@ static void lts_ecs_fm0_dpf1_p4_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2058,7 +2058,7 @@ static void lts_ecs_fm0_n0_p5_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2134,7 +2134,7 @@ static void lts_ecs_fm0_n1_p5_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2213,7 +2213,7 @@ static void lts_ecs_fm0_dpf0_p5_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2290,7 +2290,7 @@ static void lts_ecs_fm0_dpf1_p5_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2378,7 +2378,7 @@ static void lts_ecs_fm0_ham0_p5_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2454,7 +2454,7 @@ static void lts_ecs_fm0_ham1_p5_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2533,7 +2533,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2609,7 +2609,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2688,7 +2688,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2765,7 +2765,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2845,7 +2845,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -2926,7 +2926,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3010,7 +3010,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3086,7 +3086,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3164,7 +3164,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3177,7 +3177,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dlores_ntsc(void)
 			shiftbpl2();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3235,7 +3235,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3248,7 +3248,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dlores_ntsc(void)
 			shiftbpl2();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3309,7 +3309,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3323,7 +3323,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dlores_ntsc(void)
 			shiftbpl2();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3382,7 +3382,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3396,7 +3396,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dlores_ntsc(void)
 			shiftbpl2();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3474,7 +3474,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3487,7 +3487,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_ntsc(void)
 			shiftbpl4();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3545,7 +3545,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3558,7 +3558,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_ntsc(void)
 			shiftbpl4();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3619,7 +3619,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3633,7 +3633,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_ntsc(void)
 			shiftbpl4();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3692,7 +3692,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3706,7 +3706,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_ntsc(void)
 			shiftbpl4();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3849,7 +3849,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3870,7 +3870,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dlores_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3935,7 +3935,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -3956,7 +3956,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dlores_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4024,7 +4024,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4046,7 +4046,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dlores_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4112,7 +4112,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4134,7 +4134,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dlores_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4219,7 +4219,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4240,7 +4240,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4305,7 +4305,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4326,7 +4326,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4394,7 +4394,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4416,7 +4416,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4482,7 +4482,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4504,7 +4504,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4652,7 +4652,7 @@ static void lts_ecs_fm0_n0_p2_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4725,7 +4725,7 @@ static void lts_ecs_fm0_n1_p2_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4801,7 +4801,7 @@ static void lts_ecs_fm0_dpf0_p2_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4875,7 +4875,7 @@ static void lts_ecs_fm0_dpf1_p2_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -4968,7 +4968,7 @@ static void lts_ecs_fm0_n0_p4_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5041,7 +5041,7 @@ static void lts_ecs_fm0_n1_p4_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5117,7 +5117,7 @@ static void lts_ecs_fm0_dpf0_p4_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5191,7 +5191,7 @@ static void lts_ecs_fm0_dpf1_p4_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5284,7 +5284,7 @@ static void lts_ecs_fm0_n0_p5_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5360,7 +5360,7 @@ static void lts_ecs_fm0_n1_p5_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5439,7 +5439,7 @@ static void lts_ecs_fm0_dpf0_p5_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5516,7 +5516,7 @@ static void lts_ecs_fm0_dpf1_p5_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5604,7 +5604,7 @@ static void lts_ecs_fm0_ham0_p5_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5680,7 +5680,7 @@ static void lts_ecs_fm0_ham1_p5_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5759,7 +5759,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5835,7 +5835,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5914,7 +5914,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -5991,7 +5991,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -6071,7 +6071,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -6152,7 +6152,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -6236,7 +6236,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -6312,7 +6312,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -6392,7 +6392,7 @@ static void lts_ecs_fm0_n0_p2_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -6481,7 +6481,7 @@ static void lts_ecs_fm0_n1_p2_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -6573,7 +6573,7 @@ static void lts_ecs_fm0_dpf0_p2_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -6663,7 +6663,7 @@ static void lts_ecs_fm0_dpf1_p2_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -6772,7 +6772,7 @@ static void lts_ecs_fm0_n0_p4_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -6861,7 +6861,7 @@ static void lts_ecs_fm0_n1_p4_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -6953,7 +6953,7 @@ static void lts_ecs_fm0_dpf0_p4_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -7043,7 +7043,7 @@ static void lts_ecs_fm0_dpf1_p4_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -7152,7 +7152,7 @@ static void lts_ecs_fm0_n0_p5_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -7244,7 +7244,7 @@ static void lts_ecs_fm0_n1_p5_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -7339,7 +7339,7 @@ static void lts_ecs_fm0_dpf0_p5_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -7432,7 +7432,7 @@ static void lts_ecs_fm0_dpf1_p5_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -7536,7 +7536,7 @@ static void lts_ecs_fm0_ham0_p5_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -7628,7 +7628,7 @@ static void lts_ecs_fm0_ham1_p5_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -7723,7 +7723,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -7815,7 +7815,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -7910,7 +7910,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8003,7 +8003,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8099,7 +8099,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8196,7 +8196,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8296,7 +8296,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8388,7 +8388,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8482,7 +8482,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8495,7 +8495,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dhires_ntsc(void)
 			shiftbpl2();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8565,7 +8565,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8578,7 +8578,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dhires_ntsc(void)
 			shiftbpl2();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8651,7 +8651,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8665,7 +8665,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dhires_ntsc(void)
 			shiftbpl2();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8736,7 +8736,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8750,7 +8750,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dhires_ntsc(void)
 			shiftbpl2();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8840,7 +8840,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8853,7 +8853,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_ntsc(void)
 			shiftbpl4();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8923,7 +8923,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -8936,7 +8936,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_ntsc(void)
 			shiftbpl4();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9009,7 +9009,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9023,7 +9023,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_ntsc(void)
 			shiftbpl4();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9094,7 +9094,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dhires_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9108,7 +9108,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dhires_ntsc(void)
 			shiftbpl4();
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9263,7 +9263,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9284,7 +9284,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dhires_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9362,7 +9362,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9383,7 +9383,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dhires_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9464,7 +9464,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9486,7 +9486,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dhires_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9565,7 +9565,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9587,7 +9587,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dhires_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9685,7 +9685,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9706,7 +9706,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9784,7 +9784,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9805,7 +9805,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9886,7 +9886,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9908,7 +9908,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -9987,7 +9987,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dhires_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -10009,7 +10009,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dhires_spr_ntsc(void)
 			}
 			internal_pixel_cnt += 2;
 			uae_u8 pix1 = 0;
-			uae_u32 dpix_val1 = 0;
+			uae_u32 dpix_val1 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val1 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -10170,7 +10170,7 @@ static void lts_ecs_fm0_n0_p2_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -10273,7 +10273,7 @@ static void lts_ecs_fm0_n1_p2_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -10379,7 +10379,7 @@ static void lts_ecs_fm0_dpf0_p2_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -10483,7 +10483,7 @@ static void lts_ecs_fm0_dpf1_p2_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -10606,7 +10606,7 @@ static void lts_ecs_fm0_n0_p4_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -10709,7 +10709,7 @@ static void lts_ecs_fm0_n1_p4_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -10815,7 +10815,7 @@ static void lts_ecs_fm0_dpf0_p4_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -10919,7 +10919,7 @@ static void lts_ecs_fm0_dpf1_p4_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -11042,7 +11042,7 @@ static void lts_ecs_fm0_n0_p5_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -11148,7 +11148,7 @@ static void lts_ecs_fm0_n1_p5_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -11257,7 +11257,7 @@ static void lts_ecs_fm0_dpf0_p5_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -11364,7 +11364,7 @@ static void lts_ecs_fm0_dpf1_p5_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -11482,7 +11482,7 @@ static void lts_ecs_fm0_ham0_p5_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -11588,7 +11588,7 @@ static void lts_ecs_fm0_ham1_p5_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -11697,7 +11697,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -11803,7 +11803,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -11912,7 +11912,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -12019,7 +12019,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -12129,7 +12129,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -12240,7 +12240,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -12354,7 +12354,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -12460,7 +12460,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -12570,7 +12570,7 @@ static void lts_ecs_fm0_n0_p2_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -12691,7 +12691,7 @@ static void lts_ecs_fm0_n1_p2_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -12815,7 +12815,7 @@ static void lts_ecs_fm0_dpf0_p2_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -12937,7 +12937,7 @@ static void lts_ecs_fm0_dpf1_p2_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -13078,7 +13078,7 @@ static void lts_ecs_fm0_n0_p4_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -13199,7 +13199,7 @@ static void lts_ecs_fm0_n1_p4_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -13323,7 +13323,7 @@ static void lts_ecs_fm0_dpf0_p4_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -13445,7 +13445,7 @@ static void lts_ecs_fm0_dpf1_p4_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -13586,7 +13586,7 @@ static void lts_ecs_fm0_n0_p5_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -13710,7 +13710,7 @@ static void lts_ecs_fm0_n1_p5_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -13837,7 +13837,7 @@ static void lts_ecs_fm0_dpf0_p5_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -13962,7 +13962,7 @@ static void lts_ecs_fm0_dpf1_p5_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -14098,7 +14098,7 @@ static void lts_ecs_fm0_ham0_p5_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -14222,7 +14222,7 @@ static void lts_ecs_fm0_ham1_p5_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -14349,7 +14349,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -14473,7 +14473,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -14600,7 +14600,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -14725,7 +14725,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -14853,7 +14853,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -14982,7 +14982,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15114,7 +15114,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15238,7 +15238,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15364,7 +15364,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15378,7 +15378,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dshres_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15477,7 +15477,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15491,7 +15491,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dshres_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15593,7 +15593,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15608,7 +15608,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dshres_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15708,7 +15708,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15723,7 +15723,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dshres_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15842,7 +15842,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15856,7 +15856,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15955,7 +15955,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -15969,7 +15969,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16071,7 +16071,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16086,7 +16086,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16186,7 +16186,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dshres_ntsc(void)
 			int cnt = denise_hcounter << 2;
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16201,7 +16201,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dshres_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16385,7 +16385,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16407,7 +16407,7 @@ static void lts_ecs_fm0_n0_p2_ihires_dshres_spr_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16516,7 +16516,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16538,7 +16538,7 @@ static void lts_ecs_fm0_n1_p2_ihires_dshres_spr_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16650,7 +16650,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16673,7 +16673,7 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dshres_spr_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16783,7 +16783,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16806,7 +16806,7 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dshres_spr_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16935,7 +16935,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -16957,7 +16957,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_spr_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -17066,7 +17066,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -17088,7 +17088,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_spr_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -17200,7 +17200,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -17223,7 +17223,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_spr_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -17333,7 +17333,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dshres_spr_ntsc(void)
 			if (checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites(cnt + 0);
 			uae_u8 pix0 = 0;
-			uae_u32 dpix_val0 = 0;
+			uae_u32 dpix_val0 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val0 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {
@@ -17356,7 +17356,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dshres_spr_ntsc(void)
 			internal_pixel_cnt += 1;
 			internal_pixel_cnt += 1;
 			uae_u8 pix2 = 0;
-			uae_u32 dpix_val2 = 0;
+			uae_u32 dpix_val2 = BLANK_COLOR;
 			if (!denise_blank_active) {
 				dpix_val2 = bordercolor;
 				if (denise_hdiw && bpl1dat_trigger) {

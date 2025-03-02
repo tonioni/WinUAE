@@ -9337,6 +9337,7 @@ static void values_to_chipsetdlg (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
 	CheckDlgButton(hDlg, IDC_CYCLEEXACTMEMORY, workprefs.cpu_memory_cycle_exact);
 	xSendDlgItemMessage(hDlg, IDC_CS_EXT, CB_SETCURSEL, workprefs.cs_compatible, 0);
+	xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_SETCURSEL, workprefs.cs_optimizations, 0);
 	xSendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_SETCURSEL, workprefs.monitoremu, 0);
 	xSendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_SETCURSEL, workprefs.monitoremu_mon, 0);
 	xSendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_SETCURSEL, workprefs.genlock_image, 0);
@@ -9435,6 +9436,10 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		cs_compatible = nn;
 		built_in_chipset_prefs (&workprefs);
 	}
+	nn = xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_GETCURSEL, 0, 0);
+	if (nn != CB_ERR) {
+		workprefs.cs_optimizations = nn;
+	}
 	nn = xSendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_GETCURSEL, 0, 0);
 	if (nn != CB_ERR)
 		workprefs.monitoremu = nn;
@@ -9524,6 +9529,11 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		_tcscpy(tmp, _T("A2000/A3000/A4000 (6570-036 MCU)"));
 		appendkbmcurom(tmp, has657036);
 		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
+
+		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_RESETCONTENT, 0, 0);
+		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)_T("Full"));
+		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)_T("Partial"));
+		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)_T("None"));
 
 		xSendDlgItemMessage(hDlg, IDC_CS_EXT, CB_RESETCONTENT, 0, 0);
 		xSendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));

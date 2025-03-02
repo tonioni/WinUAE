@@ -505,6 +505,10 @@ struct monconfig
 #define KB_A2000_8039 6
 #define KB_Ax000_6570 7
 
+#define DISPLAY_OPTIMIZATIONS_FULL 0
+#define DISPLAY_OPTIMIZATIONS_PARTIAL 1
+#define DISPLAY_OPTIMIZATIONS_NONE 2
+
 struct uae_prefs {
 
 	struct strlist *all_lines;
@@ -749,6 +753,7 @@ struct uae_prefs {
 	bool cs_ipldelay;
 	bool cs_floppydatapullup;
 	uae_u32 seed;
+	int cs_optimizations;
 
 	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];
 

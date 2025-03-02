@@ -189,6 +189,7 @@ static const TCHAR *cscompa[] = {
 	_T("Velvet"), _T("Casablanca"), _T("DraCo"),
 	NULL
 };
+static const TCHAR *displayopts[] = { _T("full"), _T("partial"), _T("none"), NULL };
 static const TCHAR *qsmodes[] = {
 	_T("A500"), _T("A500+"), _T("A600"), _T("A1000"), _T("A1200"), _T("A3000"), _T("A4000"), _T(""), _T("CD32"), _T("CDTV"), _T("CDTV-CR"), _T("ARCADIA"), NULL };
 /* 3-state boolean! */
@@ -2757,6 +2758,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_strarr(f, _T("collision_level"), collmode, p->collision_level);
 
 	cfgfile_write_strarr(f, _T("chipset_compatible"), cscompa, p->cs_compatible);
+	cfgfile_write_strarr(f, _T("display_optimizations"), displayopts, p->cs_optimizations);
 	cfgfile_dwrite_strarr(f, _T("ciaatod"), ciaatodmode, p->cs_ciaatod);
 	cfgfile_dwrite_strarr(f, _T("rtc"), rtctype, p->cs_rtc);
 	cfgfile_dwrite(f, _T("chipset_rtc_adjust"), _T("%d"), p->cs_rtc_adjust);
@@ -6319,8 +6321,11 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 	}
 
-	if (cfgfile_strval (option, value, _T("chipset_compatible"), &p->cs_compatible, cscompa, 0)) {
-		built_in_chipset_prefs (p);
+	if (cfgfile_strval(option, value, _T("chipset_compatible"), &p->cs_compatible, cscompa, 0)) {
+		built_in_chipset_prefs(p);
+		return 1;
+	}
+	if (cfgfile_strval(option, value, _T("display_optimizations"), &p->cs_optimizations, displayopts, 0)) {
 		return 1;
 	}
 

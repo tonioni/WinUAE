@@ -2,8 +2,8 @@
 //
 #pragma code_page(65001)
 
-#include "resource.h"
 #include "winres.h"
+#include "resource.h"
 /////////////////////////////////////////////////////////////////////////////
 // English (United Kingdom) resources
 
@@ -769,8 +769,8 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,12,92,194,10
     CONTROL         "Cycle-exact (DMA/Memory accesses)",IDC_CYCLEEXACTMEMORY,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,12,105,194,10
-    RTEXT           "Chipset Extra:",IDC_STATIC,226,65,61,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_CS_EXT,295,65,88,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Chipset Extra:",IDC_STATIC,226,75,61,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_CS_EXT,295,75,88,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Options",IDC_STATIC,221,4,173,175
     CONTROL         "Subpixel display emulation",IDC_SUBPIXEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,16,150,10
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
@@ -806,6 +806,8 @@ BEGIN
     CONTROL         "Keyboard N-key rollover [] Always emulate n-key rollover (no key ghosting or jamming when pressing multiple keys at the same time) even if selected emulated keyboard model does not support it.",IDC_KEYBOARDNKRO,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,162,150,10
     GROUPBOX        "Keyboard",IDC_STATIC,0,125,215,53
+    RTEXT           "Optimizations:",IDC_STATIC,226,55,61,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_DISPLAY_OPTIMIZATION,295,57,88,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_CHIPSET2 DIALOGEX 0, 0, 396, 316
