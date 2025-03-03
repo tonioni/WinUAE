@@ -2205,7 +2205,7 @@ static void box_art_check(struct uae_prefs *p, const TCHAR *config)
 }
 
 struct ConfigStruct {
-	TCHAR Name[MAX_DPATH];
+	TCHAR Name[MAX_PATH];
 	TCHAR Path[MAX_DPATH];
 	TCHAR Fullpath[MAX_DPATH];
 	TCHAR HostLink[MAX_DPATH];
@@ -2217,6 +2217,7 @@ struct ConfigStruct {
 	int Type, Directory;
 	struct ConfigStruct *Parent, *Child;
 	int host, hardware;
+	bool expanded;
 	HTREEITEM item;
 	FILETIME t;
 };
@@ -5804,6 +5805,34 @@ static void ConfigToRegistry(struct ConfigStruct *config, int type)
 	}
 	regsetstr(NULL, configregfolder[type], config_folder);
 	regsetstr(NULL, configregsearch[type], config_search);
+	int idx = 0;
+	int exp = 1;
+	UAEREG *fkey = NULL;
+	while (idx < configstoresize) {
+		config = configstore[idx];
+		if (config->Directory && config->expanded) {
+			if (!fkey) {
+				fkey = regcreatetree(NULL, _T("ConfigurationListView"));
+			}
+			if (fkey) {
+				TCHAR tmp[100];
+				_stprintf(tmp, _T("Expanded%03d"), exp++);
+				regsetstr(fkey, tmp, config->Path);
+			}
+		}
+		idx++;
+	}
+	if (fkey) {
+		while (exp < 1000) {
+			TCHAR tmp[100];
+			_stprintf(tmp, _T("Expanded%03d"), exp++);
+			if (!regexists(fkey, tmp)) {
+				break;
+			}
+			regdelete(fkey, tmp);
+		}
+	}
+	regclosetree(fkey);
 }
 static void ConfigToRegistry2(DWORD ct, int type, DWORD noauto)
 {
@@ -5952,17 +5981,11 @@ static int addConfigFolder(HWND hDlg, const TCHAR *s, bool directory)
 	return idx;
 }
 
-static HTREEITEM AddConfigNode (HWND hDlg, struct ConfigStruct *config, const TCHAR *name, const TCHAR *desc, const TCHAR *path, int isdir, int expand, HTREEITEM parent)
+static HTREEITEM AddConfigNode(HWND hDlg, struct ConfigStruct *config, const TCHAR *name, const TCHAR *desc, const TCHAR *path, int isdir, int expand, HTREEITEM parent, TCHAR *file_name, TCHAR *file_path, HWND TVhDlg)
 {
-	TVINSERTSTRUCT is;
-	HWND TVhDlg;
+	TVINSERTSTRUCT is = { 0 };
 	TCHAR s[MAX_DPATH] = _T("");
-	TCHAR file_name[MAX_DPATH] = _T(""), file_path[MAX_DPATH] = _T("");
 
-	GetDlgItemText (hDlg, IDC_EDITNAME, file_name, MAX_DPATH);
-	GetDlgItemText (hDlg, IDC_EDITPATH, file_path, MAX_DPATH);
-	TVhDlg = GetDlgItem (hDlg, IDC_CONFIGTREE);
-	memset (&is, 0, sizeof (is));
 	is.hInsertAfter = isdir < 0 ? TVI_ROOT : TVI_SORT;
 	is.hParent = parent;
 	is.itemex.mask = TVIF_TEXT | TVIF_STATE | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
@@ -6069,6 +6092,12 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 				return cnt;
 		}
 	}
+
+	TCHAR file_name[MAX_DPATH] = _T(""), file_path[MAX_DPATH] = _T("");
+	GetDlgItemText(hDlg, IDC_EDITNAME, file_name, MAX_DPATH);
+	GetDlgItemText(hDlg, IDC_EDITPATH, file_path, MAX_DPATH);
+	HWND TVhDlg = GetDlgItem(hDlg, IDC_CONFIGTREE);
+
 	cparent = configstore[idx]->Parent;
 	idx = 0;
 	while (idx < configstoresize) {
@@ -6101,7 +6130,7 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 						expand = true;
 					}
 					stridx = addConfigFolder(hDlg, config->Path, true);
-					HTREEITEM par = AddConfigNode(hDlg, config, config->Name, NULL, config->Path, 1, expand, parent);
+					HTREEITEM par = AddConfigNode(hDlg, config, config->Name, NULL, config->Path, 1, expand, parent, file_name, file_path, TVhDlg);
 					int idx2 = 0;
 					for (;;) {
 						if (configstore[idx2] == config->Child) {
@@ -6121,7 +6150,7 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 					}
 				} else if (!config->Directory) {
 					if (((config->Type == 0 || config->Type == 3) && configtype == 0) || (config->Type == configtype)) {
-						config->item = AddConfigNode(hDlg, config, config->Name, config->Description, config->Path, 0, 0, parent);
+						config->item = AddConfigNode(hDlg, config, config->Name, config->Description, config->Path, 0, 0, parent, file_name, file_path, TVhDlg);
 						cnt++;
 					}
 				}
@@ -6196,7 +6225,7 @@ static HTREEITEM InitializeConfigTreeView (HWND hDlg)
 	}
 	DeleteConfigTree (hDlg);
 	GetConfigPath (path, NULL, FALSE);
-	parent = AddConfigNode (hDlg, NULL, path, NULL, NULL, 0, 1, NULL);
+	parent = AddConfigNode (hDlg, NULL, path, NULL, NULL, 0, 1, NULL, NULL, NULL, TVhDlg);
 	LoadConfigTreeView (hDlg, -1, parent);
 	ew(hDlg, IDC_CONFIGFOLDER, xSendDlgItemMessage(hDlg, IDC_CONFIGFOLDER, CB_GETCOUNT, 0, 0L) > 1);
 	return parent;
@@ -6242,6 +6271,38 @@ static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config
 		if (config2)
 			config = config2;
 	}
+
+	if (regexiststree(NULL, _T("ConfigurationListView"))) {
+		UAEREG *fkey = regcreatetree(NULL, _T("ConfigurationListView"));
+		if (fkey) {
+			int exp = 1;
+			while (exp < 1000) {
+				TCHAR tmp[100];
+				TCHAR name[MAX_DPATH];
+				_stprintf(tmp, _T("Expanded%03d"), exp++);
+				if (!regexists(fkey, tmp)) {
+					break;
+				}
+				int size = sizeof(name) / sizeof(TCHAR);
+				if (regquerystr(fkey, tmp, name, &size)) {
+					int idx = 0;
+					while (idx < configstoresize) {
+						struct ConfigStruct *config2 = configstore[idx];
+						if (config2->Directory) {
+							if (!_tcscmp(name, config2->Path)) {
+								TreeView_Expand(lv, config2->item, TVE_EXPAND);
+								config2->expanded = true;
+								break;
+							}
+						}
+						idx++;
+					}
+				}
+			}
+			regclosetree(fkey);
+		}
+	}
+
 	config = fixloadconfig (hDlg, config);
 
 	SetWindowRedraw(lv, TRUE);
@@ -6518,10 +6579,22 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 						return TRUE;
 					}
 					break;
+				case TVN_ITEMEXPANDED:
+					{
+						LPNMTREEVIEW tv = (LPNMTREEVIEW)lParam;
+						struct ConfigStruct *c = (struct ConfigStruct*)tv->itemNew.lParam;
+						if (tv->action == TVE_EXPAND) {
+							c->expanded = true;
+						} else if (tv->action == TVE_COLLAPSE) {
+							c->expanded = false;
+						}
+						break;
+					}
 				}
+				break;
 			}
-			break;
 		}
+		break;
 	}
 
 	return FALSE;
@@ -6792,6 +6865,7 @@ static void rewritepaths(void)
 static void resetregistry (void)
 {
 	regdeletetree(NULL, _T("DetectedROMs"));
+	regdeletetree(NULL, _T("ConfigurationListView"));
 	regdelete(NULL, _T("QuickStartMode"));
 	regdelete(NULL, _T("ConfigFile"));
 	regdelete(NULL, _T("ConfigFileHardware"));
@@ -9263,6 +9337,7 @@ static void values_to_chipsetdlg (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
 	CheckDlgButton(hDlg, IDC_CYCLEEXACTMEMORY, workprefs.cpu_memory_cycle_exact);
 	xSendDlgItemMessage(hDlg, IDC_CS_EXT, CB_SETCURSEL, workprefs.cs_compatible, 0);
+	xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_SETCURSEL, workprefs.cs_optimizations, 0);
 	xSendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_SETCURSEL, workprefs.monitoremu, 0);
 	xSendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_SETCURSEL, workprefs.monitoremu_mon, 0);
 	xSendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_SETCURSEL, workprefs.genlock_image, 0);
@@ -9361,6 +9436,10 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		cs_compatible = nn;
 		built_in_chipset_prefs (&workprefs);
 	}
+	nn = xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_GETCURSEL, 0, 0);
+	if (nn != CB_ERR) {
+		workprefs.cs_optimizations = nn;
+	}
 	nn = xSendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_GETCURSEL, 0, 0);
 	if (nn != CB_ERR)
 		workprefs.monitoremu = nn;
@@ -9450,6 +9529,11 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		_tcscpy(tmp, _T("A2000/A3000/A4000 (6570-036 MCU)"));
 		appendkbmcurom(tmp, has657036);
 		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
+
+		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_RESETCONTENT, 0, 0);
+		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)_T("Full"));
+		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)_T("Partial"));
+		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)_T("None"));
 
 		xSendDlgItemMessage(hDlg, IDC_CS_EXT, CB_RESETCONTENT, 0, 0);
 		xSendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));
@@ -10850,6 +10934,31 @@ static const int scsiromselectedmask[] = {
 	EXPANSIONTYPE_PCI_BRIDGE, EXPANSIONTYPE_X86_BRIDGE, EXPANSIONTYPE_RTG,
 	EXPANSIONTYPE_SOUND, EXPANSIONTYPE_NET, EXPANSIONTYPE_FLOPPY, EXPANSIONTYPE_X86_EXPANSION
 };
+static void init_expansion_scsi_id(HWND hDlg)
+{
+	int index;
+	struct boardromconfig *brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
+	const struct expansionromtype *ert = &expansionroms[scsiromselected];
+	if (brc && ert && ert->id_jumper) {
+		if (SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_GETCOUNT, 0, 0) < 8) {
+			xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_RESETCONTENT, 0, 0);
+			for (int i = 0; i < 8; i++) {
+				TCHAR tmp[10];
+				_stprintf(tmp, _T("%d"), i);
+				xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_ADDSTRING, 0, (LPARAM)tmp);
+			}
+		}
+		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, brc->roms[index].device_id, 0);
+		ew(hDlg, IDC_SCSIROMID, 1);
+	} else {
+		if (SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_GETCOUNT, 0, 0) != 1) {
+			xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_RESETCONTENT, 0, 0);
+			xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_ADDSTRING, 0, (LPARAM)_T("-"));
+		}
+		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, 0, 0);
+		ew(hDlg, IDC_SCSIROMID, 0);
+	}
+}
 static void init_expansion2(HWND hDlg, bool init)
 {
 	static int first = -1;
@@ -10965,22 +11074,7 @@ static void init_expansion2(HWND hDlg, bool init)
 	if (scsiromselected > 0)
 		gui_set_string_cursor(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, scsiromselected);
 	xSendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_SETCURSEL, scsiromselectedcatnum, 0);
-
-	xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_RESETCONTENT, 0, 0);
-	int index;
-	struct boardromconfig *brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
-	const struct expansionromtype *ert = &expansionroms[scsiromselected];
-	if (brc && ert && ert->id_jumper) {
-		for (int i = 0; i < 8; i++) {
-			TCHAR tmp[10];
-			_stprintf(tmp, _T("%d"), i);
-			xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_ADDSTRING, 0, (LPARAM)tmp);
-		}
-	} else {
-		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_ADDSTRING, 0, (LPARAM)_T("-"));
-		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, 0, 0);
-		ew(hDlg, IDC_SCSIROMID, 0);
-	}
+	init_expansion_scsi_id(hDlg);
 }
 
 
@@ -11000,14 +11094,18 @@ static void values_to_expansion2dlg_sub(HWND hDlg)
 	}
 	int index;
 	struct boardromconfig *brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
-	if (brc && er->subtypes) {
-		xSendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_SETCURSEL, brc->roms[index].subtype, 0);
-		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, brc->roms[index].device_id, 0);
-		deviceflags |= er->subtypes[brc->roms[index].subtype].deviceflags;
+	if (brc) {
+		if (er->subtypes) {
+			xSendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_SETCURSEL, brc->roms[index].subtype, 0);
+			deviceflags |= er->subtypes[brc->roms[index].subtype].deviceflags;
+		}
 	} else if (srt) {
 		xSendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_SETCURSEL, 0, 0);
-		xSendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, 0, 0);
+	} else {
+		ew(hDlg, IDC_SCSIROMID, FALSE);
 	}
+	init_expansion_scsi_id(hDlg);
+
 	xSendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_RESETCONTENT, 0, 0);
 	if (deviceflags & EXPANSIONTYPE_CLOCKPORT) {
 		xSendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_ADDSTRING, 0, (LPARAM)_T("-"));

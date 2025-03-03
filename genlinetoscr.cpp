@@ -383,7 +383,7 @@ static void gen_prepix(int i)
 	if (genlock) {
 		outf("uae_u16 gpix%d = 0xffff;", i);
 	}
-	outf("uae_u32 dpix_val%d = 0;", i);
+	outf("uae_u32 dpix_val%d = BLANK_COLOR;", i);
 }
 
 static void gen_copybpl_lines(int oddeven)
@@ -907,7 +907,7 @@ static void gen_fastdraw_mode(int off, int total)
 	} else {
 		outf("c = *cp;");
 		if (off == total - 1) {
-			outf("cp += cpadd;");
+			outf("cp += 1 << cpadd;");
 		}
 		if (modes == CMODE_DUALPF) {
 			outf("{");
@@ -946,18 +946,35 @@ static void gen_fastdraw(void)
 	}
 
 	outf("int cnt = draw_start;");
-	outf("while (cnt < draw_end) {");
-	outf("	bool bpl = false;");
-	outf("	if (cnt >= hbstrt_offset) {");
-	outf("		break;");
+	outf("if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {");
+	outf("	cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;");
+	outf("  if (cnt > hbstop_offset) {");
+	outf("		cnt = hbstop_offset;");
 	outf("	}");
-	outf("if (cnt >= draw_startoffset) {");
+	outf("}");
+	outf("int end = draw_end;");
+	outf("if (end > hbstrt_offset) {");
+	outf("	end = hbstrt_offset;");
+	outf("}");
+	outf("if (cnt < draw_startoffset) {");
+	outf("	int d = (draw_startoffset - cnt) >> bufadd;");
+	outf("	cp += d << cpadd;");
+	outf("	cnt = draw_startoffset;");
+	outf("}");
+
 	outf("	if (cnt < hbstop_offset) {");
-	outf("		buf1 += bufadd;");
+	outf("		int d = (hbstop_offset - cnt) >> bufadd;");
+	outf("		buf1 += d << bufadd;");
 	if (isbuf2) {
-		outf("	buf2 += bufadd;");
+		outf("	buf2 += d << bufadd;");
 	}
-	outf("} else if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {");
+	outf("	cnt = hbstop_offset;");
+	outf("}");
+
+
+	outf("while (cnt < end) {");
+	outf("	bool bpl = false;");
+	outf("	if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {");
 	if (doubling <= 0) {
 		outf("*buf1++ = bgcolor;");
 		if (isbuf2) {
@@ -982,8 +999,7 @@ static void gen_fastdraw(void)
 			outf("*buf2++ = bgcolor;");
 		}
 	}
-	outf("}");
-	outf("if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {");
+	outf("} else {");
 	outf("bpl = true;");
 	outf("uae_u8 c;");
 	outf("uae_u32 col;");
@@ -999,11 +1015,10 @@ static void gen_fastdraw(void)
 		gen_fastdraw_mode(3, 4);
 	}
 	outf("}");
-	outf("}");
 	outf("if (cnt >= bpl1dat_trigger_offset && !bpl) {");
-	outf("	cp += cpadd;");
+	outf("	cp += 1 << cpadd;");
 	outf("}");
-	outf("cnt += bufadd;");
+	outf("cnt += 1 << bufadd;");
 	outf("}");
 }
 

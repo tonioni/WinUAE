@@ -1132,6 +1132,7 @@
 #define IDC_KEYBOARDMODE                1717
 #define IDC_CS_CD32C2P                  1718
 #define IDC_SOUND_PORTAUDIO             1718
+#define IDC_DISPLAY_OPTIMIZATION        1718
 #define IDC_CS_CD32NVRAM                1719
 #define IDC_CS_CDTVCD                   1720
 #define IDC_CS_CDTVRAM                  1721

@@ -40,6 +40,9 @@ extern bool exthblanken;
 
 #define CCK_SHRES_SHIFT 3
 
+#define MAX_STORED_BPL_DATA 204
+#define MAX_STORED_BPL_DATA_BYTES (MAX_STORED_BPL_DATA * sizeof(uae_u64))
+
 /* color values in two formats: 12 (OCS/ECS) or 24 (AGA) bit Amiga RGB (color_regs),
 * and the native color value; both for each Amiga hardware color register.
 *
@@ -190,6 +193,7 @@ struct linestate
 	int internal_pixel_start_cnt;
 	int fetchmode_size, fetchstart_mask;
 	int ltsidx;
+	bool vb;
 };
 
 extern struct color_entry denise_colors;
@@ -205,7 +209,7 @@ void denise_store_registers(void);
 void denise_restore_registers(void);
 void denise_set_line(int gfx_ypos);
 void denise_mark_last_line(void);
-void denise_handle_quick_disable_hblank(void);
 void denise_handle_quick_strobe(uae_u16 strobe, int offset);
+bool denise_is_vb(void);
 
 #endif /* UAE_DRAWING_H */

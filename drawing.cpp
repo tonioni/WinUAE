@@ -39,6 +39,8 @@
 #include "devices.h"
 #include "gfxboard.h"
 
+#define BLANK_COLOR 0x000000
+
 #define AUTOSCALE_SPRITES 1
 #define LOL_SHIFT_COLORS 0
 
@@ -115,6 +117,7 @@ static int sprite_offs[256];
 /* OCS/ECS color lookup table. */
 xcolnr xcolors[4096];
 
+static uae_u32 chunky_out[4096], dpf_chunky_out[4096];
 
 #ifdef AGA
 /* AGA mode color lookup tables */
@@ -3023,6 +3026,8 @@ void denise_reset(bool hard)
 
 	dummyint = 0;
 	memset(&dummydrec, 0, sizeof(dummydrec));
+	memset(chunky_out, 0, sizeof(chunky_out));
+	memset(dpf_chunky_out, 0, sizeof(dpf_chunky_out));
 	debug_dma_dhpos_odd = &dummyint;
 	debug_dma_ptr = &dummydrec;
 	denise_cycle_half = 0;
@@ -3405,6 +3410,16 @@ static void expand_drga_blanken(struct denise_rga *rd)
 			}
 		}
 	}
+}
+
+bool denise_is_vb(void)
+{
+	if (delayed_vblank_ecs > 0) {
+		return true;
+	} else if (delayed_vblank_ecs < 0) {
+		return false;
+	}
+	return denise_vblank;
 }
 
 static void handle_strobes(struct denise_rga *rd)
@@ -4061,6 +4076,15 @@ static uae_u32 denise_render_sprites_ecs_shres(void)
 	return v;
 }
 
+static void do_hb(void)
+{
+	denise_hblank_active = denise_hblank;
+	denise_vblank_active = denise_vblank;
+	denise_blank_active2 = denise_hblank_active || denise_vblank_active;
+	denise_blank_active = denise_blank_enabled ? denise_blank_active2 : false;
+	denise_sprite_blank_active = denise_blank_active;
+}
+
 static void do_hbstrt(int cnt)
 {
 	denise_hblank = true;
@@ -4075,11 +4099,7 @@ static void do_hbstrt(int cnt)
 			denise_vblank = true;
 			delayed_vblank_ecs = 0;
 		}
-		denise_hblank_active = denise_hblank;
-		denise_vblank_active = denise_vblank;
-		denise_blank_active2 = denise_hblank_active || denise_vblank_active;
-		denise_blank_active = denise_blank_enabled ? denise_blank_active2 : false;
-		denise_sprite_blank_active = denise_blank_active;
+		do_hb();
 		hstart_new();
 		linear_denise_hbstrt = cnt;
 	}
@@ -4103,11 +4123,7 @@ static void do_hbstop(int cnt)
 			denise_vblank = false;
 			delayed_vblank_ecs = 0;
 		}
-		denise_hblank_active = denise_hblank;
-		denise_vblank_active = denise_vblank;
-		denise_blank_active2 = denise_hblank_active || denise_vblank_active;
-		denise_blank_active = denise_blank_enabled ? denise_blank_active2 : false;
-		denise_sprite_blank_active = denise_blank_active;
+		do_hb();
 		linear_denise_hbstop = cnt;
 	}
 #ifdef DEBUGGER
@@ -4260,6 +4276,43 @@ static void do_hstop_ecs(int cnt)
 #endif
 }
 
+// fast mode hblank handling
+static void check_fast_hb(void)
+{
+	if (!exthblankon_aga && !exthblankon_ecs) {
+		if (delayed_vblank_ecs > 0) {
+			denise_vblank = true;
+			delayed_vblank_ecs = 0;
+		} else if (delayed_vblank_ecs < 0) {
+			denise_vblank = false;
+			delayed_vblank_ecs = 0;
+		}
+		denise_hblank = true;
+		do_hb();
+	} else {
+		if (delayed_vblank_ecs > 0) {
+			denise_pvblank = true;
+			delayed_vblank_ecs = 0;
+			denise_vblank_active = denise_pvblank;
+			denise_blank_active2 = denise_hblank_active || denise_vblank_active;
+			denise_blank_active = denise_blank_enabled ? denise_blank_active2 : false;
+		}
+		if (delayed_vblank_ecs < 0) {
+			denise_pvblank = false;
+			delayed_vblank_ecs = 0;
+			denise_vblank_active = denise_pvblank;
+			denise_blank_active2 = denise_hblank_active || denise_vblank_active;
+			denise_blank_active = denise_blank_enabled ? denise_blank_active2 : false;
+		}
+		if (exthblankon_aga) {
+			do_exthblankon_aga();
+		}
+		denise_phblank = true;
+	}
+	hstart_new();
+}
+
+
 // fix strobe position after fast mode
 void denise_handle_quick_strobe(uae_u16 strobe, int offset)
 {
@@ -4273,12 +4326,8 @@ void denise_handle_quick_strobe(uae_u16 strobe, int offset)
 		// 3 = refresh offset, 2 = pipeline delay
 		denise_hcounter_new = (offset - 3 - 2) * 2 + 2;
 		denise_hcounter = denise_hcounter_new;
+		check_fast_hb();
 	}
-}
-void denise_handle_quick_disable_hblank(void)
-{
-	do_hbstop(linear_denise_hbstop);
-	do_phbstop_aga(linear_denise_hbstop);
 }
 
 bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 cycle)
@@ -5065,15 +5114,6 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 			lts_changed = false;
 		}
 
-		if (ls) {
-			ls->hstrt_offset = hstrt_offset;
-			ls->hstop_offset = hstop_offset;
-			ls->hbstrt_offset = hbstrt_offset;
-			ls->hbstop_offset = hbstop_offset;
-			ls->bpl1dat_trigger_offset = bpl1dat_trigger_offset;
-			ls->internal_pixel_cnt = internal_pixel_cnt;
-			ls->internal_pixel_start_cnt = internal_pixel_start_cnt;
-		}
 #if 0
 		static int testtoggle[1000];
 		testtoggle[gfx_ypos]++;
@@ -5169,6 +5209,18 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 			emulate_black_level_calibration(buf1t, buf2t, bufdt, total, calib_start, calib_len);
 		}
 	}
+
+	if (ls) {
+		ls->hstrt_offset = hstrt_offset;
+		ls->hstop_offset = hstop_offset;
+		ls->hbstrt_offset = hbstrt_offset;
+		ls->hbstop_offset = hbstop_offset;
+		ls->bpl1dat_trigger_offset = bpl1dat_trigger_offset;
+		ls->internal_pixel_cnt = internal_pixel_cnt;
+		ls->internal_pixel_start_cnt = internal_pixel_start_cnt;
+		ls->vb = denise_vblank;
+	}
+
 	resolution_count[denise_res]++;
 	lines_count++;
 }
@@ -5403,7 +5455,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 
 		// bitplanes
 		uae_u8 pix = 0;
-		uae_u32 dpix_val = 0;
+		uae_u32 dpix_val = BLANK_COLOR;
 		uae_u16 gpix = 0xffff;
 		if (!denise_blank_active) {
 			// borderblank ends 1 shres pixel early
@@ -5622,13 +5674,14 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 		}
 
 		// bitplanes
-		uae_u32 dpix_val = 0;
+		uae_u32 dpix_val = BLANK_COLOR;
 		uae_u8 pix = 0;
 		uae_u16 gpix = 0xffff;
 		if (!denise_blank_active) {
 			gpix = 0;
 			// borderblank ends 1 shres pixel early
 			dpix_val = cnt == denise_brdstop ? denise_colors.acolors[0] : bordercolor;
+
 			if (denise_hdiw && bpl1dat_trigger) {
 				pix = getbpl6();
 
@@ -5783,10 +5836,19 @@ Don't touch this if you don't know what you are doing.  */
 
 #define DOLINE_SWAP 0
 
-#define GETLONG32(P) (do_get_mem_long((uae_u32*)P))
+STATIC_INLINE uae_u32 GETLONG32_16(uae_u8 *P)
+{
+	uae_u32 v = (*(uae_u32 *)P);
+	v = (v >> 16) | (v << 16);
+	return v;
+}
+#define GETLONG32_8(P) (do_get_mem_long((uae_u32*)P))
+#define GETLONG32_32(P) (*((uae_u32*)P))
+#define GETLONG32_64(P) (*((uae_u32*)P))
 #define GETLONG64(P) (*(uae_u64*)P)
 
-STATIC_INLINE void pfield_doline32_1(uae_u32 *pixels, int wordcount, int planes, uae_u8 *real_bplpt[8])
+
+STATIC_INLINE void pfield_doline32_8(uae_u32 *pixels, int wordcount, int planes, uae_u8 *real_bplpt[8])
 {
 	while (wordcount-- > 0) {
 		uae_u32 b0, b1, b2, b3, b4, b5, b6, b7;
@@ -5794,15 +5856,15 @@ STATIC_INLINE void pfield_doline32_1(uae_u32 *pixels, int wordcount, int planes,
 		b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, b7 = 0;
 		switch (planes) {
 #ifdef AGA
-			case 8: b0 = GETLONG32(real_bplpt[7]); real_bplpt[7] += 4;
-			case 7: b1 = GETLONG32(real_bplpt[6]); real_bplpt[6] += 4;
+			case 8: b0 = GETLONG32_8(real_bplpt[7]); real_bplpt[7] += 4;
+			case 7: b1 = GETLONG32_8(real_bplpt[6]); real_bplpt[6] += 4;
 #endif
-			case 6: b2 = GETLONG32(real_bplpt[5]); real_bplpt[5] += 4;
-			case 5: b3 = GETLONG32(real_bplpt[4]); real_bplpt[4] += 4;
-			case 4: b4 = GETLONG32(real_bplpt[3]); real_bplpt[3] += 4;
-			case 3: b5 = GETLONG32(real_bplpt[2]); real_bplpt[2] += 4;
-			case 2: b6 = GETLONG32(real_bplpt[1]); real_bplpt[1] += 4;
-			case 1: b7 = GETLONG32(real_bplpt[0]); real_bplpt[0] += 4;
+			case 6: b2 = GETLONG32_8(real_bplpt[5]); real_bplpt[5] += 4;
+			case 5: b3 = GETLONG32_8(real_bplpt[4]); real_bplpt[4] += 4;
+			case 4: b4 = GETLONG32_8(real_bplpt[3]); real_bplpt[3] += 4;
+			case 3: b5 = GETLONG32_8(real_bplpt[2]); real_bplpt[2] += 4;
+			case 2: b6 = GETLONG32_8(real_bplpt[1]); real_bplpt[1] += 4;
+			case 1: b7 = GETLONG32_8(real_bplpt[0]); real_bplpt[0] += 4;
 		}
 
 		MERGE32(b0, b1, 0x55555555, 1);
@@ -5861,20 +5923,275 @@ STATIC_INLINE void pfield_doline32_1(uae_u32 *pixels, int wordcount, int planes,
 	}
 }
 
+STATIC_INLINE void pfield_doline32_16(uae_u32 *pixels, int wordcount, int planes, uae_u8 *real_bplpt[8])
+{
+	while (wordcount-- > 0) {
+		uae_u32 b0, b1, b2, b3, b4, b5, b6, b7;
+
+		b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, b7 = 0;
+		switch (planes) {
+#ifdef AGA
+			case 8: b0 = GETLONG32_16(real_bplpt[7]); real_bplpt[7] += 4;
+			case 7: b1 = GETLONG32_16(real_bplpt[6]); real_bplpt[6] += 4;
+#endif
+			case 6: b2 = GETLONG32_16(real_bplpt[5]); real_bplpt[5] += 4;
+			case 5: b3 = GETLONG32_16(real_bplpt[4]); real_bplpt[4] += 4;
+			case 4: b4 = GETLONG32_16(real_bplpt[3]); real_bplpt[3] += 4;
+			case 3: b5 = GETLONG32_16(real_bplpt[2]); real_bplpt[2] += 4;
+			case 2: b6 = GETLONG32_16(real_bplpt[1]); real_bplpt[1] += 4;
+			case 1: b7 = GETLONG32_16(real_bplpt[0]); real_bplpt[0] += 4;
+		}
+
+		MERGE32(b0, b1, 0x55555555, 1);
+		MERGE32(b2, b3, 0x55555555, 1);
+		MERGE32(b4, b5, 0x55555555, 1);
+		MERGE32(b6, b7, 0x55555555, 1);
+
+		MERGE32(b0, b2, 0x33333333, 2);
+		MERGE32(b1, b3, 0x33333333, 2);
+		MERGE32(b4, b6, 0x33333333, 2);
+		MERGE32(b5, b7, 0x33333333, 2);
+
+		MERGE32(b0, b4, 0x0f0f0f0f, 4);
+		MERGE32(b1, b5, 0x0f0f0f0f, 4);
+		MERGE32(b2, b6, 0x0f0f0f0f, 4);
+		MERGE32(b3, b7, 0x0f0f0f0f, 4);
+
+		MERGE32(b0, b1, 0x00ff00ff, 8);
+		MERGE32(b2, b3, 0x00ff00ff, 8);
+		MERGE32(b4, b5, 0x00ff00ff, 8);
+		MERGE32(b6, b7, 0x00ff00ff, 8);
+
+		MERGE32(b0, b2, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[0] = b0;
+		pixels[4] = b2;
+#else
+		do_put_mem_long(pixels + 0, b0);
+		do_put_mem_long(pixels + 4, b2);
+#endif
+		MERGE32(b1, b3, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[2] = b1;
+		pixels[6] = b3;
+#else
+		do_put_mem_long(pixels + 2, b1);
+		do_put_mem_long(pixels + 6, b3);
+#endif
+		MERGE32(b4, b6, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[1] = b4;
+		pixels[5] = b6;
+#else
+		do_put_mem_long(pixels + 1, b4);
+		do_put_mem_long(pixels + 5, b6);
+#endif
+		MERGE32(b5, b7, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[3] = b5;
+		pixels[7] = b7;
+#else
+		do_put_mem_long(pixels + 3, b5);
+		do_put_mem_long(pixels + 7, b7);
+#endif
+		pixels += 8;
+	}
+}
+
+STATIC_INLINE void pfield_doline32_32(uae_u32 *pixels, int wordcount, int planes, uae_u8 *real_bplpt[8])
+{
+	while (wordcount-- > 0) {
+		uae_u32 b0, b1, b2, b3, b4, b5, b6, b7;
+
+		b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, b7 = 0;
+		switch (planes) {
+#ifdef AGA
+			case 8: b0 = GETLONG32_32(real_bplpt[7]); real_bplpt[7] += 4;
+			case 7: b1 = GETLONG32_32(real_bplpt[6]); real_bplpt[6] += 4;
+#endif
+			case 6: b2 = GETLONG32_32(real_bplpt[5]); real_bplpt[5] += 4;
+			case 5: b3 = GETLONG32_32(real_bplpt[4]); real_bplpt[4] += 4;
+			case 4: b4 = GETLONG32_32(real_bplpt[3]); real_bplpt[3] += 4;
+			case 3: b5 = GETLONG32_32(real_bplpt[2]); real_bplpt[2] += 4;
+			case 2: b6 = GETLONG32_32(real_bplpt[1]); real_bplpt[1] += 4;
+			case 1: b7 = GETLONG32_32(real_bplpt[0]); real_bplpt[0] += 4;
+		}
+
+		MERGE32(b0, b1, 0x55555555, 1);
+		MERGE32(b2, b3, 0x55555555, 1);
+		MERGE32(b4, b5, 0x55555555, 1);
+		MERGE32(b6, b7, 0x55555555, 1);
+
+		MERGE32(b0, b2, 0x33333333, 2);
+		MERGE32(b1, b3, 0x33333333, 2);
+		MERGE32(b4, b6, 0x33333333, 2);
+		MERGE32(b5, b7, 0x33333333, 2);
+
+		MERGE32(b0, b4, 0x0f0f0f0f, 4);
+		MERGE32(b1, b5, 0x0f0f0f0f, 4);
+		MERGE32(b2, b6, 0x0f0f0f0f, 4);
+		MERGE32(b3, b7, 0x0f0f0f0f, 4);
+
+		MERGE32(b0, b1, 0x00ff00ff, 8);
+		MERGE32(b2, b3, 0x00ff00ff, 8);
+		MERGE32(b4, b5, 0x00ff00ff, 8);
+		MERGE32(b6, b7, 0x00ff00ff, 8);
+
+		MERGE32(b0, b2, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[0] = b0;
+		pixels[4] = b2;
+#else
+		do_put_mem_long(pixels + 0, b0);
+		do_put_mem_long(pixels + 4, b2);
+#endif
+		MERGE32(b1, b3, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[2] = b1;
+		pixels[6] = b3;
+#else
+		do_put_mem_long(pixels + 2, b1);
+		do_put_mem_long(pixels + 6, b3);
+#endif
+		MERGE32(b4, b6, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[1] = b4;
+		pixels[5] = b6;
+#else
+		do_put_mem_long(pixels + 1, b4);
+		do_put_mem_long(pixels + 5, b6);
+#endif
+		MERGE32(b5, b7, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[3] = b5;
+		pixels[7] = b7;
+#else
+		do_put_mem_long(pixels + 3, b5);
+		do_put_mem_long(pixels + 7, b7);
+#endif
+		pixels += 8;
+	}
+}
+
+
+STATIC_INLINE void pfield_doline32_64(uae_u32 *pixels, int wordcount, int planes, uae_u8 *real_bplpt[8])
+{
+	int w = 4;
+	while (wordcount-- > 0) {
+		uae_u32 b0, b1, b2, b3, b4, b5, b6, b7;
+
+		b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, b7 = 0;
+		switch (planes) {
+#ifdef AGA
+			case 8: real_bplpt[7] += w; b0 = GETLONG32_64(real_bplpt[7]); real_bplpt[7] += 8;
+			case 7: real_bplpt[6] += w; b1 = GETLONG32_64(real_bplpt[6]); real_bplpt[6] += 8;
+#endif
+			case 6: real_bplpt[5] += w; b2 = GETLONG32_64(real_bplpt[5]); real_bplpt[5] += 8;
+			case 5: real_bplpt[4] += w; b3 = GETLONG32_64(real_bplpt[4]); real_bplpt[4] += 8;
+			case 4: real_bplpt[3] += w; b4 = GETLONG32_64(real_bplpt[3]); real_bplpt[3] += 8;
+			case 3: real_bplpt[2] += w; b5 = GETLONG32_64(real_bplpt[2]); real_bplpt[2] += 8;
+			case 2: real_bplpt[1] += w; b6 = GETLONG32_64(real_bplpt[1]); real_bplpt[1] += 8;
+			case 1: real_bplpt[0] += w; b7 = GETLONG32_64(real_bplpt[0]); real_bplpt[0] += 8;
+		}
+		w = w > 0 ? -12 : 4;
+
+		MERGE32(b0, b1, 0x55555555, 1);
+		MERGE32(b2, b3, 0x55555555, 1);
+		MERGE32(b4, b5, 0x55555555, 1);
+		MERGE32(b6, b7, 0x55555555, 1);
+
+		MERGE32(b0, b2, 0x33333333, 2);
+		MERGE32(b1, b3, 0x33333333, 2);
+		MERGE32(b4, b6, 0x33333333, 2);
+		MERGE32(b5, b7, 0x33333333, 2);
+
+		MERGE32(b0, b4, 0x0f0f0f0f, 4);
+		MERGE32(b1, b5, 0x0f0f0f0f, 4);
+		MERGE32(b2, b6, 0x0f0f0f0f, 4);
+		MERGE32(b3, b7, 0x0f0f0f0f, 4);
+
+		MERGE32(b0, b1, 0x00ff00ff, 8);
+		MERGE32(b2, b3, 0x00ff00ff, 8);
+		MERGE32(b4, b5, 0x00ff00ff, 8);
+		MERGE32(b6, b7, 0x00ff00ff, 8);
+
+		MERGE32(b0, b2, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[0] = b0;
+		pixels[4] = b2;
+#else
+		do_put_mem_long(pixels + 0, b0);
+		do_put_mem_long(pixels + 4, b2);
+#endif
+		MERGE32(b1, b3, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[2] = b1;
+		pixels[6] = b3;
+#else
+		do_put_mem_long(pixels + 2, b1);
+		do_put_mem_long(pixels + 6, b3);
+#endif
+		MERGE32(b4, b6, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[1] = b4;
+		pixels[5] = b6;
+#else
+		do_put_mem_long(pixels + 1, b4);
+		do_put_mem_long(pixels + 5, b6);
+#endif
+		MERGE32(b5, b7, 0x0000ffff, 16);
+#if DOLINE_SWAP
+		pixels[3] = b5;
+		pixels[7] = b7;
+#else
+		do_put_mem_long(pixels + 3, b5);
+		do_put_mem_long(pixels + 7, b7);
+#endif
+		pixels += 8;
+	}
+}
 /* See above for comments on inlining.  These functions should _not_
 be inlined themselves.  */
-static void NOINLINE pfield_doline32_n1(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 1, real_bplpt); }
-static void NOINLINE pfield_doline32_n2(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 2, real_bplpt); }
-static void NOINLINE pfield_doline32_n3(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 3, real_bplpt); }
-static void NOINLINE pfield_doline32_n4(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 4, real_bplpt); }
-static void NOINLINE pfield_doline32_n5(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 5, real_bplpt); }
-static void NOINLINE pfield_doline32_n6(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 6, real_bplpt); }
+static void NOINLINE pfield_doline32_n1_8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_8(data, count, 1, real_bplpt); }
+static void NOINLINE pfield_doline32_n2_8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_8(data, count, 2, real_bplpt); }
+static void NOINLINE pfield_doline32_n3_8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_8(data, count, 3, real_bplpt); }
+static void NOINLINE pfield_doline32_n4_8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_8(data, count, 4, real_bplpt); }
+static void NOINLINE pfield_doline32_n5_8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_8(data, count, 5, real_bplpt); }
+static void NOINLINE pfield_doline32_n6_8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_8(data, count, 6, real_bplpt); }
 #ifdef AGA
-static void NOINLINE pfield_doline32_n7(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 7, real_bplpt); }
-static void NOINLINE pfield_doline32_n8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 8, real_bplpt); }
+static void NOINLINE pfield_doline32_n7_8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_8(data, count, 7, real_bplpt); }
+static void NOINLINE pfield_doline32_n8_8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_8(data, count, 8, real_bplpt); }
+#endif
+static void NOINLINE pfield_doline32_n1_16(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_16(data, count, 1, real_bplpt); }
+static void NOINLINE pfield_doline32_n2_16(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_16(data, count, 2, real_bplpt); }
+static void NOINLINE pfield_doline32_n3_16(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_16(data, count, 3, real_bplpt); }
+static void NOINLINE pfield_doline32_n4_16(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_16(data, count, 4, real_bplpt); }
+static void NOINLINE pfield_doline32_n5_16(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_16(data, count, 5, real_bplpt); }
+static void NOINLINE pfield_doline32_n6_16(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_16(data, count, 6, real_bplpt); }
+#ifdef AGA
+static void NOINLINE pfield_doline32_n7_16(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_16(data, count, 7, real_bplpt); }
+static void NOINLINE pfield_doline32_n8_16(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_16(data, count, 8, real_bplpt); }
+#endif
+#ifdef AGA
+static void NOINLINE pfield_doline32_n1_32(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_32(data, count, 1, real_bplpt); }
+static void NOINLINE pfield_doline32_n2_32(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_32(data, count, 2, real_bplpt); }
+static void NOINLINE pfield_doline32_n3_32(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_32(data, count, 3, real_bplpt); }
+static void NOINLINE pfield_doline32_n4_32(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_32(data, count, 4, real_bplpt); }
+static void NOINLINE pfield_doline32_n5_32(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_32(data, count, 5, real_bplpt); }
+static void NOINLINE pfield_doline32_n6_32(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_32(data, count, 6, real_bplpt); }
+static void NOINLINE pfield_doline32_n7_32(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_32(data, count, 7, real_bplpt); }
+static void NOINLINE pfield_doline32_n8_32(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_32(data, count, 8, real_bplpt); }
+static void NOINLINE pfield_doline32_n1_64(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_64(data, count, 1, real_bplpt); }
+static void NOINLINE pfield_doline32_n2_64(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_64(data, count, 2, real_bplpt); }
+static void NOINLINE pfield_doline32_n3_64(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_64(data, count, 3, real_bplpt); }
+static void NOINLINE pfield_doline32_n4_64(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_64(data, count, 4, real_bplpt); }
+static void NOINLINE pfield_doline32_n5_64(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_64(data, count, 5, real_bplpt); }
+static void NOINLINE pfield_doline32_n6_64(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_64(data, count, 6, real_bplpt); }
+static void NOINLINE pfield_doline32_n7_64(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_64(data, count, 7, real_bplpt); }
+static void NOINLINE pfield_doline32_n8_64(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_64(data, count, 8, real_bplpt); }
 #endif
 
-static void pfield_doline(int planecnt, int wordcount, uae_u8 *datap, struct linestate *ls)
+static void pfield_doline_8(int planecnt, int wordcount, uae_u8 *datap, struct linestate *ls)
 {
 	uae_u8 **real_bplpt = ls->bplpt;
 	uae_u32 *data = (uae_u32*)datap;
@@ -5887,15 +6204,89 @@ static void pfield_doline(int planecnt, int wordcount, uae_u8 *datap, struct lin
 	switch (planecnt) {
 		default: break;
 		case 0: memset(data, 0, wordcount * 32); break;
-		case 1: pfield_doline32_n1(data, wordcount, real_bplpt); break;
-		case 2: pfield_doline32_n2(data, wordcount, real_bplpt); break;
-		case 3: pfield_doline32_n3(data, wordcount, real_bplpt); break;
-		case 4: pfield_doline32_n4(data, wordcount, real_bplpt); break;
-		case 5: pfield_doline32_n5(data, wordcount, real_bplpt); break;
-		case 6: pfield_doline32_n6(data, wordcount, real_bplpt); break;
+		case 1: pfield_doline32_n1_8(data, wordcount, real_bplpt); break;
+		case 2: pfield_doline32_n2_8(data, wordcount, real_bplpt); break;
+		case 3: pfield_doline32_n3_8(data, wordcount, real_bplpt); break;
+		case 4: pfield_doline32_n4_8(data, wordcount, real_bplpt); break;
+		case 5: pfield_doline32_n5_8(data, wordcount, real_bplpt); break;
+		case 6: pfield_doline32_n6_8(data, wordcount, real_bplpt); break;
 #ifdef AGA
-		case 7: pfield_doline32_n7(data, wordcount, real_bplpt); break;
-		case 8: pfield_doline32_n8(data, wordcount, real_bplpt); break;
+		case 7: pfield_doline32_n7_8(data, wordcount, real_bplpt); break;
+		case 8: pfield_doline32_n8_8(data, wordcount, real_bplpt); break;
+#endif
+	}
+}static void pfield_doline_16(int planecnt, int wordcount, uae_u8 *datap, struct linestate *ls)
+{
+	uae_u8 **real_bplpt = ls->bplpt;
+	uae_u32 *data = (uae_u32*)datap;
+	uae_u8 *dpt = ls->linedatastate;
+	int len = ls->bpllen;
+	for (int i = 0; i < planecnt; i++) {
+		memcpy(dpt, ls->bplpt[i], len);
+		dpt += len;
+	}
+	switch (planecnt) {
+		default: break;
+		case 0: memset(data, 0, wordcount * 32); break;
+		case 1: pfield_doline32_n1_16(data, wordcount, real_bplpt); break;
+		case 2: pfield_doline32_n2_16(data, wordcount, real_bplpt); break;
+		case 3: pfield_doline32_n3_16(data, wordcount, real_bplpt); break;
+		case 4: pfield_doline32_n4_16(data, wordcount, real_bplpt); break;
+		case 5: pfield_doline32_n5_16(data, wordcount, real_bplpt); break;
+		case 6: pfield_doline32_n6_16(data, wordcount, real_bplpt); break;
+#ifdef AGA
+		case 7: pfield_doline32_n7_16(data, wordcount, real_bplpt); break;
+		case 8: pfield_doline32_n8_16(data, wordcount, real_bplpt); break;
+#endif
+	}
+}
+static void pfield_doline_32(int planecnt, int wordcount, uae_u8 *datap, struct linestate *ls)
+{
+	uae_u8 **real_bplpt = ls->bplpt;
+	uae_u32 *data = (uae_u32*)datap;
+	uae_u8 *dpt = ls->linedatastate;
+	int len = ls->bpllen;
+	for (int i = 0; i < planecnt; i++) {
+		memcpy(dpt, ls->bplpt[i], len);
+		dpt += len;
+	}
+	switch (planecnt) {
+		default: break;
+		case 0: memset(data, 0, wordcount * 32); break;
+		case 1: pfield_doline32_n1_32(data, wordcount, real_bplpt); break;
+		case 2: pfield_doline32_n2_32(data, wordcount, real_bplpt); break;
+		case 3: pfield_doline32_n3_32(data, wordcount, real_bplpt); break;
+		case 4: pfield_doline32_n4_32(data, wordcount, real_bplpt); break;
+		case 5: pfield_doline32_n5_32(data, wordcount, real_bplpt); break;
+		case 6: pfield_doline32_n6_32(data, wordcount, real_bplpt); break;
+#ifdef AGA
+		case 7: pfield_doline32_n7_32(data, wordcount, real_bplpt); break;
+		case 8: pfield_doline32_n8_32(data, wordcount, real_bplpt); break;
+#endif
+	}
+}
+static void pfield_doline_64(int planecnt, int wordcount, uae_u8 *datap, struct linestate *ls)
+{
+	uae_u8 **real_bplpt = ls->bplpt;
+	uae_u32 *data = (uae_u32*)datap;
+	uae_u8 *dpt = ls->linedatastate;
+	int len = ls->bpllen;
+	for (int i = 0; i < planecnt; i++) {
+		memcpy(dpt, ls->bplpt[i], len);
+		dpt += len;
+	}
+	switch (planecnt) {
+		default: break;
+		case 0: memset(data, 0, wordcount * 32); break;
+		case 1: pfield_doline32_n1_64(data, wordcount, real_bplpt); break;
+		case 2: pfield_doline32_n2_64(data, wordcount, real_bplpt); break;
+		case 3: pfield_doline32_n3_64(data, wordcount, real_bplpt); break;
+		case 4: pfield_doline32_n4_64(data, wordcount, real_bplpt); break;
+		case 5: pfield_doline32_n5_64(data, wordcount, real_bplpt); break;
+		case 6: pfield_doline32_n6_64(data, wordcount, real_bplpt); break;
+#ifdef AGA
+		case 7: pfield_doline32_n7_64(data, wordcount, real_bplpt); break;
+		case 8: pfield_doline32_n8_64(data, wordcount, real_bplpt); break;
 #endif
 	}
 }
@@ -5948,6 +6339,7 @@ static int l_shift(int v, int shift)
 	}
 }
 
+// draw border from hb to hb
 bool draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls)
 {
 	get_line(gfx_ypos, how);
@@ -5957,7 +6349,7 @@ bool draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 	}
 
 	uae_u32 *buf1p = buf1;
-	uae_u32 *buf2p = buf2 != buf1 ? buf2 : buf1;
+	uae_u32 *buf2p = buf2 != buf1 ? buf2 : NULL;
 
 	int rshift = RES_MAX - hresolution;
 
@@ -5973,33 +6365,74 @@ bool draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 
 	int hbstrt_offset = ls->hbstrt_offset >> rshift;
 	int hbstop_offset = ls->hbstop_offset >> rshift;
-	int draw_start = 0;
 	int draw_end = ls->internal_pixel_cnt >> rshift;
 	int draw_startoffset = ls->internal_pixel_start_cnt >> rshift;
+
+	//write_log("%d %08x %03d %03d %03d %03d\n", vpos, ls->color0, hbstrt_offset, hbstop_offset, draw_startoffset, draw_end);
 
 	buf1 = buf1p;
 	buf2 = buf2p;
 
-	for (int cnt = draw_start; cnt < hbstrt_offset; cnt++) {
-		if (cnt >= draw_end) {
-			break;
+	int start = draw_startoffset;
+	if (start < hbstop_offset) {
+		int diff = hbstop_offset - start;
+		buf1 += diff;
+		buf2 += diff;
+		start = hbstop_offset;
+	}
+	int end = draw_end > hbstrt_offset ? hbstrt_offset : draw_end;
+	int total = end - start;
+
+	if (buf2p) {
+		while (total >= 8) {
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+
+			*buf2++ = bgcol;
+			*buf2++ = bgcol;
+			*buf2++ = bgcol;
+			*buf2++ = bgcol;
+			*buf2++ = bgcol;
+			*buf2++ = bgcol;
+			*buf2++ = bgcol;
+			*buf2++ = bgcol;
+
+			total -= 8;
 		}
-		if (cnt >= draw_startoffset) {
-			if (cnt >= hbstop_offset) {
-				*buf1++ = bgcol;
-				*buf2++ = bgcol;
-			} else {
-				buf1++;
-				buf2++;
-			}
+		while (total > 0) {
+			*buf1++ = bgcol;
+			*buf2++ = bgcol;
+			total--;
+		}
+	} else {
+		while (total >= 8) {
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			*buf1++ = bgcol;
+			total -= 8;
+		}
+		while (total > 0) {
+			*buf1++ = bgcol;
+			total--;
 		}
 	}
 
 	return true;
 }
 
-extern int blop;
-static uae_u32 chunky_out[4096], dpf_chunky_out[4096];
+static int previous_c_len;
+
 bool draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls)
 {
 	get_line(gfx_ypos, how);
@@ -6014,6 +6447,7 @@ bool draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	int res = GET_RES_DENISE(ls->bplcon0);
 	bool dpf = (ls->bplcon0 & 0x400) != 0;
 	bool ham = (ls->bplcon0 & 0x800) != 0;
+	int fmode = 16 << (((ls->fmode & 3) == 3 ? 2 : (ls->fmode & 3)));
 
 	if (ls->ltsidx < 0) {
 		bool ehb = planecnt == 6 && !bplham && !dpf && (!ecs_denise || !(ls->bplcon0 & 1) || !(ls->bplcon2 & 0x200));
@@ -6042,7 +6476,17 @@ bool draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 
 	uae_u32 *cstart = chunky_out + 1024;
 	int len = (ls->bpllen + 3) / 4;
-	pfield_doline(planecnt, len, (uae_u8*)cstart, ls);
+	if (currprefs.cpu_memory_cycle_exact) {
+		if (fmode == 16) {
+			pfield_doline_16(planecnt, len, (uae_u8*)cstart, ls);
+		} else if (fmode == 32) {
+			pfield_doline_32(planecnt, len, (uae_u8*)cstart, ls);
+		} else {
+			pfield_doline_64(planecnt, len, (uae_u8*)cstart, ls);
+		}
+	} else {
+		pfield_doline_8(planecnt, len, (uae_u8*)cstart, ls);
+	}
 
 	bool ecsena = ecs_denise && (ls->bplcon0 & 1) != 0;
 	bool brdblank = (ls->bplcon3 & 0x20) && ecsena;
@@ -6091,7 +6535,6 @@ bool draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	int rshift = RES_MAX - hresolution;
 
 	int delay1 = (ls->bplcon1 & 0x0f) | ((ls->bplcon1 & 0x0c00) >> 6);
-	int fmode = 16 << (((ls->fmode & 3) == 3 ? 2 : (ls->fmode & 3)));
 	int delaymask = (fmode >> res) - 1;
 	int delayoffset = ls->fetchmode_size - (((ls->ddfstrt - 0x18) & ls->fetchstart_mask) << 1);
 	delay1 += delayoffset;
@@ -6121,7 +6564,8 @@ bool draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 
 	int hbstrt_offset = ls->hbstrt_offset >> rshift;
 	int hbstop_offset = ls->hbstop_offset >> rshift;
-	int hstrt_offset = ls->hstrt_offset < 0 || ls->hstrt_offset >= ls->hbstrt_offset ? hbstop_offset : ls->hstrt_offset >> rshift;
+	// negative checks are needed to handle always-on HDIW
+	int hstrt_offset = ls->hstrt_offset < 0 || ls->hstop_offset < 0 || ls->hstrt_offset >= ls->hbstrt_offset ? hbstop_offset : ls->hstrt_offset >> rshift;
 	int hstop_offset = ls->hstop_offset < 0 ? hbstrt_offset : ls->hstop_offset >> rshift;
 	int bpl1dat_trigger_offset = (ls->bpl1dat_trigger_offset + (1 << RES_MAX)) >> rshift;
 	int draw_start = 0;
@@ -6135,33 +6579,76 @@ bool draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	uae_u32 *colors_aga = (uae_u32*)ls->linecolorstate;
 	buf1 = buf1p;
 	buf2 = buf2p;
-	int cpadd = doubling < 0 ? (doubling < -1 ? 4 : 2) : 1;
-	int bufadd = doubling > 0 ? (doubling > 1 ? 4 : 2) : 1;
+//	int cpadd = doubling < 0 ? (doubling < -1 ? 4 : 2) : 1;
+//	int bufadd = doubling > 0 ? (doubling > 1 ? 4 : 2) : 1;
+
+	int cpadd = doubling < 0 ? (doubling < -1 ? 2 : 1) : 0;
+	int bufadd = doubling > 0 ? (doubling > 1 ? 2 : 1) : 0;
+
 
 	// subpixel handling
 	int subpix = (ls->bplcon1 & 0x0300) >> 8;
 	int cpadds[4] = { 0, 0, 0, 0 };
 	if (doubling <= 0) {
-		cpadds[0] = cpadd;
+		cpadds[0] = 1 << cpadd;
 	} else if (doubling == 1) {
 		if (subpix & 2) {
 			cp--;
-			cpadds[0] = cpadd;
+			cpadds[0] = 1 << cpadd;
 		} else {
-			cpadds[1] = cpadd;
+			cpadds[1] = 1 << cpadd;
 		}
 	} else {
 		if (subpix & 2) {
 			cp--;
-			cpadds[0] = cpadd;
+			cpadds[0] = 1 << cpadd;
 		} else {
-			cpadds[2] = cpadd;
+			cpadds[2] = 1 << cpadd;
 		}
 	}
 
+#if 1
+	
 	ltsf(draw_start, draw_end, draw_startoffset, hbstrt_offset, hbstop_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset,
 		planecnt, bgcol, cp, cp2, cpadd, cpadds, bufadd, bxor, ls->linecolorstate);
 
+#else
+
+	int cnt = draw_start;
+
+	if (hstrt_offset > bpl1dat_trigger_offset) {
+		int d = hstrt_offset - bpl1dat_trigger_offset;
+		cp += cpadd * d;
+	}
+	cnt = draw_startoffset;
+	if (cnt < hbstop_offset) {
+		int d = hbstop_offset - cnt;
+		buf1 += bufadd * d;
+		buf2 += bufadd * d;
+		cnt = hbstop_offset;
+	}
+	if (draw_end > hbstrt_offset) {
+		draw_end = hbstrt_offset;
+	}
+
+	while (cnt < draw_end) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+			*buf1++ = bgcol;
+			*buf2++ = bgcol;
+		}
+		if (cnt >= bpl1dat_trigger_offset && cnt >= hstrt_offset && cnt < hstop_offset) {
+			uae_u8 c;
+			uae_u32 col;
+			c = *cp;
+			cp += cpadds[0];
+			c ^= bxor;
+			col = colors_aga[c];
+			*buf1++ = col;
+			*buf2++ = col;
+		}
+		cnt += bufadd;
+	}
+#endif
 	return true;
 }
 
