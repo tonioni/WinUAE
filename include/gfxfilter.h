@@ -9,6 +9,7 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned long u32;
 
+#if 0
 extern void S2X_refresh(int);
 extern void S2X_render(int, int, int);
 extern bool S2X_init (int, int dw, int dh, int dd);
@@ -19,11 +20,13 @@ extern int S2X_getmult(int);
 extern void PAL_init(int monid);
 extern void PAL_1x1_32 (uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, int height);
 extern void PAL_1x1_16 (uae_u16 *src, int pitchs, uae_u16 *trg, int pitcht, int width, int height);
+#endif
 
 #ifndef __cplusplus
 typedef int bool;
 #endif
 
+#if 0
 extern "C"
 {
 	extern void S2X_configure(int, int rb, int gb, int bb, int rs, int gs, int bs);
@@ -48,6 +51,7 @@ extern "C"
 	extern void _cdecl hq4x_16 (unsigned char*, unsigned char*, DWORD, DWORD, DWORD);
 	extern void _cdecl hq4x_32 (unsigned char*, unsigned char*, DWORD, DWORD, DWORD);
 }
+#endif
 
 #define UAE_FILTER_NULL 1
 #define UAE_FILTER_SCALE2X 2
@@ -60,13 +64,14 @@ extern "C"
 #define UAE_FILTER_PAL 9
 #define UAE_FILTER_LAST 9
 
+#if 0
 #define UAE_FILTER_MODE_16 16
 #define UAE_FILTER_MODE_16_16 16
 #define UAE_FILTER_MODE_16_32 (16 | 8)
 #define UAE_FILTER_MODE_32 32
 #define UAE_FILTER_MODE_32_32 32
 #define UAE_FILTER_MODE_32_16 (32 | 8)
-
+#endif
 
 struct uae_filter
 {

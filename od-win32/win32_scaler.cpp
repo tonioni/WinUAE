@@ -21,7 +21,8 @@
 
 struct uae_filter uaefilters[] =
 {
-	{ UAE_FILTER_NULL, 0, 1, _T("Null filter"), _T("null"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
+#if 0
+	{ UAE_FILTER_NULL, 0, 1, _T("-"), _T("null"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
 
 	{ UAE_FILTER_SCALE2X, 0, 2, _T("Scale2X"), _T("scale2x"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
 
@@ -38,7 +39,7 @@ struct uae_filter uaefilters[] =
 	{ UAE_FILTER_2XSAI, 0, 2, _T("2xSaI"), _T("2xsai"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
 	{ UAE_FILTER_PAL, 1, 1, _T("PAL"), _T("pal"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
-
+#endif
 	{ 0 }
 };
 
@@ -898,6 +899,7 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 #endif
 }
 
+#if 0
 void S2X_configure(int monid, int rb, int gb, int bb, int rs, int gs, int bs)
 {
 	if (monid)
@@ -1226,5 +1228,7 @@ int S2X_getmult(int monid)
 		return 1;
 	return usedfilter->intmul;
 }
+
+#endif
 
 #endif

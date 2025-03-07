@@ -23,7 +23,7 @@ static unsigned char blttbl[]= {
 static void generate_include(void)
 {
     int minterm;
-    printf("STATIC_INLINE uae_u32 blit_func(uae_u32 srca, uae_u32 srcb, uae_u32 srcc, uae_u8 mt)\n{\nswitch(mt){\n");
+    printf("static uae_u32 blit_func(uae_u32 srca, uae_u32 srcb, uae_u32 srcc, uae_u8 mt)\n{\nswitch(mt){\n");
     for (minterm = 0; minterm < 256; minterm++) {
 	printf("case 0x%x:\n", minterm);
 	printf("\treturn %s;\n", blitops[minterm].s);

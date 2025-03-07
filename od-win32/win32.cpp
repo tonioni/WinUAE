@@ -135,6 +135,7 @@ int pissoff_value = 15000 * CYCLE_UNIT;
 unsigned int fpucontrol;
 int extraframewait, extraframewait2;
 int busywait;
+int multithread_enabled = 1;
 static int noNtDelayExecution;
 
 extern FILE *debugfile;
@@ -7030,6 +7031,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp(arg, _T("on_screen_keyboard"))) {
 		on_screen_keyboard = 1;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("nomt"))) {
+		multithread_enabled = 0;
 		return 1;
 	}
 

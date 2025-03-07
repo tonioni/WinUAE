@@ -11,13 +11,6 @@
 
 #include "uae/types.h"
 
-#define SMART_UPDATE 1
-
-#ifdef SUPPORT_PENGUINS
-#undef SMART_UPDATE
-#define SMART_UPDATE 1
-#endif
-
 #ifdef AGA
 #define MAX_PLANES 8
 #else
@@ -95,22 +88,8 @@ STATIC_INLINE int color_reg_get (struct color_entry *ce, int c)
 #endif
 		return ce->color_regs_ecs[c];
 }
-STATIC_INLINE void color_reg_set (struct color_entry *ce, int c, int v)
-{
-#ifdef AGA
-	if (aga_mode)
-		ce->color_regs_aga[c] = v;
-	else
-#endif
-		ce->color_regs_ecs[c] = v;
-}
 
-/* 440 rather than 880, since sprites are always lores.  */
-#ifdef UAE_MINI
-#define MAX_PIXELS_PER_LINE 880
-#else
 #define MAX_PIXELS_PER_LINE 2304
-#endif
 
 /* Functions in drawing.c.  */
 extern int coord_native_to_amiga_y (int);
@@ -194,12 +173,17 @@ struct linestate
 	int fetchmode_size, fetchstart_mask;
 	int ltsidx;
 	bool vb;
+	uae_u16 strobe;
+	int strobe_pos;
 };
 
 extern struct color_entry denise_colors;
 void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, struct linestate *ls);
-bool draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
-bool draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
+void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int endpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, struct linestate *ls);
+void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
+void draw_denise_bitplane_line_fast_queue(int gfx_ypos, enum nln_how how, struct linestate *ls);
+void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
+void draw_denise_border_line_fast_queue(int gfx_ypos, enum nln_how how, struct linestate *ls);
 bool start_draw_denise(void);
 void end_draw_denise(void);
 void denise_update_reg(uae_u16 reg, uae_u16 v);
@@ -209,7 +193,9 @@ void denise_store_registers(void);
 void denise_restore_registers(void);
 void denise_set_line(int gfx_ypos);
 void denise_mark_last_line(void);
-void denise_handle_quick_strobe(uae_u16 strobe, int offset);
 bool denise_is_vb(void);
+void draw_denise_line_queue_flush(void);
+void quick_denise_rga_queue(int linecnt, int startpos, int endpos);
+void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos);
 
 #endif /* UAE_DRAWING_H */

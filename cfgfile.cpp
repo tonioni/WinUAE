@@ -6141,7 +6141,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 	}
 
-	if (cfgfile_readromboard(option, value, &p->romboards[0])) {
+	if (cfgfile_readromboard(option, value, p->romboards)) {
 		return 1;
 	}
 
@@ -6151,7 +6151,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 	if (cfgfile_readramboard(option, value, _T("bogomem"), &p->bogomem)) {
 		return 1;
 	}
-	if (cfgfile_readramboard(option, value, _T("fastmem"), &p->fastmem[0])) {
+	if (cfgfile_readramboard(option, value, _T("fastmem"), p->fastmem)) {
 		return 1;
 	}
 	if (cfgfile_readramboard(option, value, _T("mem25bit"), &p->mem25bit)) {
@@ -6163,7 +6163,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 	if (cfgfile_readramboard(option, value, _T("mbresmem"), &p->mbresmem_high)) {
 		return 1;
 	}
-	if (cfgfile_readramboard(option, value, _T("z3mem"), &p->z3fastmem[0])) {
+	if (cfgfile_readramboard(option, value, _T("z3mem"), p->z3fastmem)) {
 		return 1;
 	}
 	if (cfgfile_readramboard(option, value, _T("megachipmem"), &p->z3chipmem)) {

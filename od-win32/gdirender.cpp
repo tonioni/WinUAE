@@ -253,7 +253,7 @@ static bool gdi_alloctexture(int monid, int w, int h)
 		SetDCPenColor(gdi->hdc, RGB(0, 0, 0));
 		SetDCBrushColor(gdi->hdc, RGB(0, 0, 0));
 		if (allocsprite(gdi, &gdi->bm, w, h)) {
-			gdi->dmult = S2X_getmult(monid);
+			gdi->dmult = 1; // S2X_getmult(monid);
 			setupscenecoords(gdi, monid);
 			return true;
 		}

@@ -172,14 +172,7 @@ extern evt_t frametime;
 extern uae_u16 htotal, vtotal, beamcon0, new_beamcon0;
 extern uae_u16 bemcon0_hsync_mask, bemcon0_vsync_mask;
 
-// 100 words give you 1600 horizontal pixels. Should be more than enough for superhires. 
-// Extreme overscan superhires needs more.
-// must be divisible by 8
-#ifdef CUSTOM_SIMPLE
-#define MAX_WORDS_PER_LINE 56
-#else
 #define MAX_WORDS_PER_LINE 112
-#endif
 
 #ifdef AGA
 /* AGA mode color lookup tables */
@@ -276,8 +269,10 @@ extern struct custom_store custom_storage[256];
 
 struct denise_rga
 {
-	uae_u64 v64;
-	uae_u32 v;
+	union {
+		uae_u64 v64;
+		uae_u32 v;
+	};
 	uae_u16 rga;
 	uae_u32 line;
 	uae_u32 flags;
@@ -287,14 +282,18 @@ struct denise_rga
 #endif
 };
 
-#define DENISE_RGA_SLOT_TOTAL 512
+#define DENISE_RGA_SLOT_CHUNKS 8
+#define DENISE_RGA_SLOT_CHUNKS_MASK (DENISE_RGA_SLOT_CHUNKS - 1)
+#define DENISE_RGA_SLOT_TOTAL (512 * DENISE_RGA_SLOT_CHUNKS)
 #define DENISE_RGA_SLOT_MASK (DENISE_RGA_SLOT_TOTAL - 1)
 extern struct denise_rga rga_denise[DENISE_RGA_SLOT_TOTAL];
 
 struct denise_fastsprite
 {
-	uae_u64 data64[2];
-	uae_u32 data[2];
+	union {
+		uae_u64 data64[2];
+		uae_u32 data[2];
+	};
 	uae_u16 pos, ctl;
 	bool active;
 };

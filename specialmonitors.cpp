@@ -2697,16 +2697,17 @@ static bool do_grayscale(struct vidbuffer *src, struct vidbuffer *dst, bool doub
 	uae_u8 r = 0, g = 0, b = 0;
 	for (y = ystart; y < yend; y++) {
 		int yoff = (((y * 2 + oddlines) - src->yoffset) >> vdbl);
-		if (yoff < 0)
+		int dyoff = (((y * 2 + oddlines) - dst->yoffset) >> vdbl);
+		if (yoff < 0 || dyoff < 0)
 			continue;
-		if (yoff >= src->inheight)
+		if (yoff >= src->inheight || dyoff >= dst->inheight)
 			continue;
 
 		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
-		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) >> vdbl) * dst->rowbytes;
+		uae_u8 *dstline = dst->bufmem + dyoff * dst->rowbytes;
 		uae_u8 line_colorburst = currprefs.gfx_grayscale ? 0 : row_map_color_burst_buffer[yoff];
 
-		for (x = 0; x < src->inwidth; x++) {
+		for (x = 0; x < src->inwidth && x < dst->inwidth; x++) {
 			uae_u8 *s = line + x * src->pixbytes;
 			uae_u8 *d = dstline + x * dst->pixbytes;
 			uae_u8 *s2 = s + src->rowbytes;

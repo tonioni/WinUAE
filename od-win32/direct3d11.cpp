@@ -5072,7 +5072,7 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 	d3d->m_bitmapHeight = h;
 	d3d->m_bitmapWidth2 = d3d->m_bitmapWidth;
 	d3d->m_bitmapHeight2 = d3d->m_bitmapHeight;
-	d3d->dmult = S2X_getmult(monid);
+	d3d->dmult = 1; // S2X_getmult(monid);
 	d3d->m_bitmapWidthX = d3d->m_bitmapWidth * d3d->dmultxh;
 	d3d->m_bitmapHeightX = d3d->m_bitmapHeight * d3d->dmultxv;
 

@@ -127,9 +127,6 @@
     <ClCompile Include="..\hardfile_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\hq2x_d3d.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
     <ClCompile Include="..\ioport.cpp">
       <Filter>win32</Filter>
     </ClCompile>
@@ -161,12 +158,6 @@
       <Filter>win32</Filter>
     </ClCompile>
     <ClCompile Include="..\rp.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
-    <ClCompile Include="..\scaler.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
-    <ClCompile Include="..\scaler_more.cpp">
       <Filter>win32</Filter>
     </ClCompile>
     <ClCompile Include="..\screenshot.cpp">
@@ -1054,6 +1045,9 @@
     <ClCompile Include="..\..\pcem\vid_tvp3026_ramdac.cpp">
       <Filter>pcem</Filter>
     </ClCompile>
+    <ClCompile Include="..\hq2x_d3d.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">
@@ -1182,11 +1176,5 @@
       <Filter>nasm</Filter>
     </CustomBuild>
     <CustomBuild Include="..\fpux86_80.asm" />
-    <CustomBuild Include="..\hq2x16.asm" />
-    <CustomBuild Include="..\hq2x32.asm" />
-    <CustomBuild Include="..\hq3x16.asm" />
-    <CustomBuild Include="..\hq3x32.asm" />
-    <CustomBuild Include="..\hq4x16.asm" />
-    <CustomBuild Include="..\hq4x32.asm" />
   </ItemGroup>
 </Project>
