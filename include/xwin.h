@@ -54,7 +54,7 @@ extern bool render_screen(int monid, int, bool);
 extern void show_screen(int monid, int mode);
 extern bool show_screen_maybe(int monid, bool);
 
-extern int lockscr(struct vidbuffer*, bool, bool, bool);
+extern int lockscr(struct vidbuffer*, bool, bool);
 extern void unlockscr(struct vidbuffer*, int, int);
 extern bool target_graphics_buffer_update(int monid, bool force);
 extern float target_adjust_vblank_hz(int monid, float);
@@ -105,6 +105,8 @@ struct vidbuffer
     uae_u8 *realbufmem;
 	uae_u8 *bufmem_allocated;
 	bool bufmem_lockable;
+	bool locked;
+	bool vram_buffer;
     int rowbytes; /* Bytes per row in the memory pointed at by bufmem. */
     int pixbytes; /* Bytes per pixel. */
 	/* size of this buffer */
@@ -121,8 +123,6 @@ struct vidbuffer
 	int inheight2;
 	/* use drawbuffer instead */
 	bool nativepositioning;
-	/* tempbuffer in use */
-	bool tempbufferinuse;
 	/* extra width, chipset hpos extra in right border */
 	int extrawidth, extraheight;
 
