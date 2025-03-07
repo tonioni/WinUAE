@@ -236,12 +236,6 @@ static uae_s32 get_cr(int monid, int r, int g, int b)
 	return limit256rb(monid, 0.5f * r - 0.418688f * g - 0.081312f * b);
 }
 
-extern uae_s32 tyhrgb[65536];
-extern uae_s32 tylrgb[65536];
-extern uae_s32 tcbrgb[65536];
-extern uae_s32 tcrrgb[65536];
-extern uae_u32 redc[3 * 256], grec[3 * 256], bluc[3 * 256];
-
 static uae_u32 lowbits (int v, int shift, int lsize)
 {
 	v >>= shift;
@@ -428,18 +422,6 @@ void alloc_colors64k(int monid, int rw, int gw, int bw, int rs, int gs, int bs, 
 
 #if defined(AGA) || defined(GFXFILTER)
 	alloc_colors_rgb (rw, gw, bw, rs, gs, bs, aw, as, alpha, byte_swap, xredcolors, xgreencolors, xbluecolors);
-	/* copy original color table */
-	for (i = 0; i < 256; i++) {
-		redc[0 * 256 + i] = xredcolors[0];
-		grec[0 * 256 + i] = xgreencolors[0];
-		bluc[0 * 256 + i] = xbluecolors[0];
-		redc[1 * 256 + i] = xredcolors[i];
-		grec[1 * 256 + i] = xgreencolors[i];
-		bluc[1 * 256 + i] = xbluecolors[i];
-		redc[2 * 256 + i] = xredcolors[255];
-		grec[2 * 256 + i] = xgreencolors[255];
-		bluc[2 * 256 + i] = xbluecolors[255];
-	}
 #ifdef GFXFILTER
 	if (yuv) {
 		/* create internal 5:6:5 color tables */
@@ -482,21 +464,6 @@ void alloc_colors64k(int monid, int rw, int gw, int bw, int rs, int gs, int bs, 
 				* with a copy of the colour. */
 				xcolors[i] |= xcolors[i] * 0x00010001;
 			}
-		}
-
-		/* create RGB 5:6:5 -> YUV tables */
-		for (i = 0; i < 65536; i++) {
-			uae_u32 r, g, b;
-			r = (((i >> 11) & 31) << 3) | lowbits (i, 11, 3);
-			r = gamma[r + 256][0];
-			g = (((i >>  5) & 63) << 2) | lowbits (i,  5, 2);
-			g = gamma[g + 256][1];
-			b = (((i >>  0) & 31) << 3) | lowbits (i,  0, 3);
-			b = gamma[b + 256][2];
-			tyhrgb[i] = get_yh(monid, r, g, b) * 256 * 256;
-			tylrgb[i] = get_yl(monid, r, g, b) * 256 * 256;
-			tcbrgb[i] = ((uae_s8)get_cb(monid, r, g, b)) * 256;
-			tcrrgb[i] = ((uae_s8)get_cr(monid, r, g, b)) * 256;
 		}
 	}
 #endif

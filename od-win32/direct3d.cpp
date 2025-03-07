@@ -2940,7 +2940,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 
 	d3d->dmultxh = mmulth;
 	d3d->dmultxv = mmultv;
-	d3d->dmult = S2X_getmult(d3d->num);
+	d3d->dmult = 1; // S2X_getmult(d3d->num);
 
 	d3d->window_w = w_w;
 	d3d->window_h = w_h;
