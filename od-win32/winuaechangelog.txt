@@ -1,4 +1,18 @@
 
+Beta 13:
+
+Major performance improvement! Finally faster than older versions!
+
+- Denise side processing is now in separate thread (bitplane shifting, sprite shifting, bitplane/sprite planar to chunky, special modes, bitplane/sprite priorities, strobes/blanking, RGB out etc). Line-based Denise RGA buffering made this possible because it cleanly separates Agnus and Denise logic and Denise is almost fully "fire and forget". Only exception is CLXDAT collision register reads which needs to flush all queued lines (and isn't cycle-accurate yet anyway). AGA color reads don't cause problems because they are can be done in Agnus side emulation. Line queue is quite small (max ~10 lines), it won't cause any latency problems. Compatibility is not affected. (In previous UAE versions Agnus side processed whole frame, then Denise side did the rest which was not very optimal because temporary frame data needed huge RAM buffers)
+- -nomt command line disables multithreaded Denise emulation.
+- Previously always used temporary graphics buffering is only done if needed: display port adapter enabled (which also includes genlock in image mode, grayscale and CD32 FMV). This also increases performance. Only affects native chipset modes. When using display port adapter: complete chipset display frame is drawn to temporary RAM buffer, then display port adapter emulation merges it with any display port adapter graphics and writes the result to D3D texture. When this is bypassed, chipset graphics is directly drawn to D3D texture in single pass.
+- Any enabled display port adapter (including genlock in image mode, grayscale or CD32 FMV) or enabled light pen disables non-CE border/bitplane optimizations.
+- All software filters removed. Removal of always-enabled temporary graphics buffer makes software filter support annoying and they are obsolete anyway.
+- b12 CE mode bitplane optimizations disabled (commented out), they are not needed anymore and they caused side-effects and glitches that are really difficult to fix completely without making optimizations useless. Non-CE mode optimizations are supported and will not be removed.
+- Disable NTSC STRLONG strobe emulation if no STRLONG strobes have not been seen since last frame. Switching to NTSC and then back to PAL won't anymore cause slightly reduced performance (Accurate STRLONG emulation needs more complex line drawing code). NTSC still have right edge glitches on fast modes.
+- Tiny blitter optimization.
+- Adjusted non-fastest possible CPU mode frame waiting behavior (timing is different because now drawing is done after line has been emulated, in previous versions all lines were emulated first, then drawn in separate pass)
+
 Beta 12:
 
 - Cycle-exact mode drawing optimizations partially implemented.
@@ -12,7 +26,6 @@ Beta 12:
 - Autoscale coordinate fixes (still might work strangely in some situations). Auto integer scale still has issues.
 
 Performance testing: first check that running program is using optimized code paths enough (xxx% in log is at least 30% or higher = not too much Denise related copper activity or sprites), then check CPU usage or max warp mode FPS using different optimization settings.
-
 
 Beta 11:
 
