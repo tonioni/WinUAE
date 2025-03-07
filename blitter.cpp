@@ -95,8 +95,8 @@ static bool shifter_skip_b, shifter_skip_y;
 static bool shifter_skip_b_old, shifter_skip_y_old;
 static uae_u16 bltcon0_old, bltcon1_old;
 static bool shifter[4], shifter_out;
-static bool shifter_d[4], shifter_d_armed;
-static bool shifter_d_aga[3];
+static bool shifter_d_armed;
+static uae_u32 shifter_d1, shifter_d2, shifter_d_aga;
 static bool blitline_c, blitfill_c;
 
 static int blitter_delayed_debug;
@@ -390,8 +390,8 @@ void blitter_debugdump(void)
 static bool blit_pending(void)
 {
 	if (shifter_d_armed || shifter[0] || shifter[1] || shifter[2] || shifter[3] ||
-		shifter_d[0] || shifter_d[1] || shifter_d[2] || shifter_d[3] ||
-		shifter_d_aga[0] || shifter_d_aga[1] || shifter_d_aga[2]) {
+		shifter_d1 || shifter_d2 ||
+		shifter_d_aga) {
 		return true;
 	}
 	return false;
@@ -1264,20 +1264,20 @@ static int get_current_channel(void)
 // latches/shifters that run every CCK
 static void blitter_next_cycle_always(void)
 {
-	if (shifter_d[2]) {
+	if (shifter_d2) {
 		if (!blitline && (blt_info.bltcon0 & BLTCHD)) {
 			shifter_d_armed = true;
 		}
 	}
-	shifter_d[2] = shifter_d[0] && !shifter_d[1];
-	shifter_d[1] = shifter_d[0];
+	shifter_d2 = (shifter_d1 & 3) == 1;
+	shifter_d1 <<= 1;
+	shifter_d1 &= 3;
 
 	if (aga_mode) {
 		// AGA 2 CCK delay busy fix
-		shifter_d_aga[2] = shifter_d_aga[1];
-		shifter_d_aga[1] = shifter_d_aga[0];
-		shifter_d_aga[0] = false;
-		if (shifter_d_aga[2] && blt_info.blit_count_done) {
+		shifter_d_aga <<= 1;
+		shifter_d_aga &= 7;
+		if ((shifter_d_aga & (1 << 2)) && blt_info.blit_count_done) {
 			blitter_done_all(false);
 		}
 	}
@@ -1320,7 +1320,8 @@ static int blitter_next_cycle(bool injectbit)
 		blitchanged = true;
 	}
 
-	shifter_d[0] = shifter_out;
+	shifter_d1 &= ~1;
+	shifter_d1 |= shifter_out ? 1 : 0;
 	if (shifter_out) {
 		dodat = true;
 		if (blt_info.blit_count_done) {
@@ -1703,8 +1704,8 @@ static bool is_done(void)
 		return true;
 	}
 	if (!shifter_d_armed && blt_info.blit_count_done && !shifter[0] && !shifter[1] && !shifter[2] && !shifter[3] &&
-		!shifter_d[0] && !shifter_d[1] && !shifter_d[2] && !shifter_d[3] &&
-		!shifter_d_aga[0] && !shifter_d_aga[1] && !shifter_d_aga[2]) {
+		!shifter_d1 && !shifter_d2 &&
+		!shifter_d_aga) {
 		return true;
 	}
 	return false;
@@ -1722,26 +1723,27 @@ void generate_blitter(void)
 
 	blitter_next_cycle_always();
 
-	bool ena = blitter_cant_access() == 0;
-	bool alloc = check_rga_free_slot_in() == false;
-	bool pri = (dmacon & DMA_BLITPRI) != 0;
-	bool bstreq = blt_info.nasty_cnt >= BLIT_NASTY_CPU_STEAL_CYCLE_COUNT && !pri;
-
 	// fully idle?
 	if (!shifter_d_armed && blt_info.blit_count_done && !shifter[0] && !shifter[1] && !shifter[2] && !shifter[3] &&
-		!shifter_d[0] && !shifter_d[1] && !shifter_d[2] && !shifter_d[3] &&
-		!shifter_d_aga[0] && !shifter_d_aga[1] && !shifter_d_aga[2]) {
+		!shifter_d1 && !shifter_d2 &&
+		!shifter_d_aga) {
 		if (blt_info.blit_queued == 1) {
 			blitter_end();
 			goto end;
 		}
 	}
 
+
 	if (!blt_info.blit_count_done) {
 		blt_info.blit_queued = BLITTER_MAX_PIPELINED_CYCLES;
 	}
 
 	if (blt_info.blit_queued) {
+
+		bool ena = blitter_cant_access() == 0;
+		bool alloc = check_rga_free_slot_in() == false;
+		bool pri = (dmacon & DMA_BLITPRI) != 0;
+		bool bstreq = blt_info.nasty_cnt >= BLIT_NASTY_CPU_STEAL_CYCLE_COUNT && !pri;
 
 		// CPU steals the cycle if CPU has waited long enough and current cyle is not free.
 		if (!ena || alloc || bstreq) {
@@ -1878,7 +1880,7 @@ void generate_blitter(void)
 				blitter_done_all(false);
 			} else {
 				// AGA and blit has final D write: delay busy clear by 2 CCKs
-				shifter_d_aga[0] = true;
+				shifter_d_aga |= 1;
 			}
 		}
 
@@ -2284,8 +2286,8 @@ void blitter_reset(void)
 	blitter_cycle_exact = currprefs.blitter_cycle_exact;
 	immediate_blits = currprefs.immediate_blits;
 	shifter[0] = shifter[1] = shifter[2] = shifter[3] = false;
-	shifter_d[0] = shifter_d[1] = shifter_d[2] = shifter_d[3] = false;
-	shifter_d_aga[0] = shifter_d_aga[1] = shifter_d_aga[2] = false;
+	shifter_d1 = shifter_d2 = 0;
+	shifter_d_aga = 0;
 	shifter_d_armed = false;
 	shifter_skip_b = false;
 	shifter_skip_y = false;
@@ -2401,8 +2403,8 @@ uae_u8 *save_blitter(size_t *len, uae_u8 *dstptr, bool newstate)
 	save_u16(blt_info.bltdmod_next);
 	save_u16(bltcon0_next);
 	save_u16(bltcon1_next);
-	save_u8((shifter_d[0] ? 1 : 0) | (shifter_d[1] ? 2 : 0) | (shifter_d[2] ? 4 : 0) | (shifter_d[3] ? 8 : 0) | (shifter_d_armed ? 128 : 0));
-	save_u8((shifter_d_aga[0] ? 1 : 0) | (shifter_d_aga[1] ? 2 : 0) | (shifter_d_aga[2] ? 4 : 0));
+	save_u8((shifter_d1 << 0) | (shifter_d2 << 2) | (shifter_d_armed ? 128 : 0));
+	save_u8(shifter_d_aga);
 	save_u64(blt_info.blt_mod_cycles[0]);
 	save_u64(blt_info.blt_mod_cycles[1]);
 	save_u64(blt_info.blt_mod_cycles[2]);
@@ -2569,15 +2571,11 @@ uae_u8 *restore_blitter_new(uae_u8 *src)
 		bltcon0_next = restore_u16();
 		bltcon1_next = restore_u16();
 		tmp = restore_u8();
-		shifter_d[0] = (tmp & 1) != 0;
-		shifter_d[1] = (tmp & 2) != 0;
-		shifter_d[2] = (tmp & 4) != 0;
-		shifter_d[3] = (tmp & 4) != 0;
+		shifter_d1 = tmp & 3;
+		shifter_d2 = (tmp >> 2) & 3;
 		shifter_d_armed = (tmp & 128) != 0;
 		tmp = restore_u8();
-		shifter_d_aga[0] = (tmp & 1) != 0;
-		shifter_d_aga[1] = (tmp & 2) != 0;
-		shifter_d_aga[2] = (tmp & 4) != 0;
+		shifter_d_aga = tmp & 7;
 		tmp = restore_u32();
 		blt_info.finishcycle_dmacon = restore_u64();
 		blt_info.finishcycle_copper = restore_u64();
@@ -2692,12 +2690,12 @@ uae_u8 *save_blitter_new(size_t *len, uae_u8 *dstptr)
 	save_u8(blt_info.wait_nasty);
 
 	save_u8(0);
-	save_u8(0xff);//blt_info.finishhpos);
+	save_u8(0xff); //blt_info.finishhpos);
 
 	save_u32(blit_cyclecounter);
 
 	for (int i = 0; i < 4; i++) {
-		save_u16(0); //		save_u16(blitter_pipe[i]);
+		save_u16(0); //save_u16(blitter_pipe[i]);
 		save_u16(0); //cycle_line_pipe[i]);
 		save_u8(0); //cycle_line_slot[i]);
 	}
@@ -2709,8 +2707,8 @@ uae_u8 *save_blitter_new(size_t *len, uae_u8 *dstptr)
 	save_u16(blt_info.bltdmod_next);
 	save_u16(bltcon0_next);
 	save_u16(bltcon1_next);
-	save_u8((shifter_d[0] ? 1 : 0) | (shifter_d[1] ? 2 : 0) | (shifter_d[2] ? 4 : 0) | (shifter_d[3] ? 8 : 0) | (shifter_d_armed ? 128 : 0));
-	save_u8((shifter_d_aga[0] ? 1 : 0) | (shifter_d_aga[1] ? 2 : 0) | (shifter_d_aga[2] ? 4 : 0));
+	save_u8((shifter_d1 << 0) | (shifter_d2 << 2) | (shifter_d_armed ? 128 : 0));
+	save_u8(shifter_d_aga & 7);
 	save_u64(blt_info.finishcycle_dmacon);
 	save_u64(blt_info.finishcycle_copper);
 
