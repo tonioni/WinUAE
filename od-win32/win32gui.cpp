@@ -20446,26 +20446,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	int scalemode = workprefs.gf[filter_nativertg].gfx_filter_autoscale;
 	int vv = FALSE, vv2 = FALSE, vv3 = FALSE, vv4 = FALSE;
 	int as = FALSE;
-	struct uae_filter *uf;
-	int i, isfilter;
 
-	isfilter = 0;
-	uf = &uaefilters[0];
-	i = 0;
-	while (uaefilters[i].name) {
-		if (workprefs.gf[filter_nativertg].gfx_filter == uaefilters[i].type) {
-			uf = &uaefilters[i];
-			isfilter = 1;
-			break;
-		}
-		i++;
-	}
-	if (v && uf->intmul) {
-		vv = TRUE;
-	}
-	if (v && uf->yuv) {
-		vv2 = TRUE;
-	}
 	v = vv = vv2 = vv3 = vv4 = TRUE;
 	if (filter_nativertg == 1) {
 		vv4 = FALSE;
@@ -20627,8 +20608,8 @@ struct filterpreset {
 };
 static const struct filterpreset filterpresets[] =
 {
-	{ _T("D3D Autoscale"),		UAE_FILTER_NULL,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 4, 0, 0 },
-	{ _T("D3D Full Scaling"),	UAE_FILTER_NULL,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 0, 0, 0 },
+	{ _T("D3D Autoscale"),		0,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 4, 0, 0 },
+	{ _T("D3D Full Scaling"),	0,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 0, 0, 0 },
 	{ NULL }
 };
 
@@ -20681,9 +20662,8 @@ static void setfiltermult (HWND hDlg)
 
 static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 {
-	TCHAR txt[200], tmp[200], tmp2[200];
+	TCHAR txt[200], tmp[200];
 	int i, j, fltnum;
-	struct uae_filter *uf;
 	int fxidx, fxcnt;
 	UAEREG *fkey;
 
@@ -20806,39 +20786,10 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 
 	xSendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
 	WIN32GUI_LoadUIString (IDS_NONE, tmp, sizeof(tmp) / sizeof(TCHAR));
-	xSendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
-	WIN32GUI_LoadUIString(IDS_FILTER_LABELS, tmp2, sizeof(tmp2) / sizeof(TCHAR));
 
-	uf = NULL;
 	fltnum = 0;
-	i = 0; j = 1;
-	TCHAR *fl = tmp2;
-	while (uaefilters[i].name) {
-		if (filter_nativertg >= 2 && uaefilters[i].type > 1) {
-			i++;
-			while(*fl != '\n' && *fl != 0) {
-				fl++;
-			}
-			continue;
-		}
-		TCHAR *fle = fl;
-		while (*fle != '\n' && *fle != 0) {
-			fle++;
-		}
-		TCHAR endch = *fle;
-		*fle = 0;
-		xSendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)fl);
-		if (uaefilters[i].type == workprefs.gf[filter_nativertg].gfx_filter) {
-			uf = &uaefilters[i];
-			fltnum = j;
-		}
-		fl = fle;
-		if (endch != 0) {
-			fl++;
-		}
-		j++;
-		i++;
-	}
+	xSendDlgItemMessage(hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
+	j = 1;
 	if (workprefs.gfx_api && D3D_canshaders ()) {
 		bool gotit = false;
 		HANDLE h;
@@ -20863,10 +20814,6 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 				FindClose (h);
 				h = INVALID_HANDLE_VALUE;
 			}
-		}
-		for (int i = 1; i < 2 * MAX_FILTERSHADERS; i++) {
-			if (workprefs.gf[filter_nativertg].gfx_filtershader[i][0] && !gotit)
-				fltnum = UAE_FILTER_NULL;
 		}
 	}
 	if (workprefs.gfx_api) {
@@ -20942,10 +20889,6 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 			xSendDlgItemMessage(hDlg, IDC_FILTERFILTERV, CB_ADDSTRING, 0, (LPARAM)tmp);
 			filtermodenum++;
 		}
-	}
-	if (uf && uf->yuv) {
-		filter_extra[fxidx++] = filter_pal_extra;
-		filter_extra[fxidx] = NULL;
 	}
 	xSendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETRANGE, TRUE, MAKELONG (   0, +1000));
 	xSendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETPAGESIZE, 0, 1);
@@ -21196,13 +21139,8 @@ static void filter_handle (HWND hDlg)
 		if (item2 != CB_ERR)
 			workprefs.gf[filter_nativertg].gfx_filter_filtermodev = (int)item2;
 		if (item > 0) {
-			if (item > UAE_FILTER_LAST) {
-				_stprintf (workprefs.gf[filter_nativertg].gfx_filtershader[filterstackpos], _T("%s.fx"), tmp + 5);
-				cfgfile_get_shader_config(&workprefs, full_property_sheet ? 0 : filter_nativertg);
-			} else {
-				item--;
-				workprefs.gf[filter_nativertg].gfx_filter = uaefilters[item].type;
-			}
+			_stprintf (workprefs.gf[filter_nativertg].gfx_filtershader[filterstackpos], _T("%s.fx"), tmp + 5);
+			cfgfile_get_shader_config(&workprefs, full_property_sheet ? 0 : filter_nativertg);
 			if (of != workprefs.gf[filter_nativertg].gfx_filter ||
 				offh != workprefs.gf[filter_nativertg].gfx_filter_filtermodeh ||
 				offv != workprefs.gf[filter_nativertg].gfx_filter_filtermodev) {
@@ -21212,7 +21150,7 @@ static void filter_handle (HWND hDlg)
 		}
 		for (int i = 1; i < MAX_FILTERSHADERS; i++) {
 			if (workprefs.gf[filter_nativertg].gfx_filtershader[i][0])
-				workprefs.gf[filter_nativertg].gfx_filter = UAE_FILTER_NULL;
+				workprefs.gf[filter_nativertg].gfx_filter = 0;
 		}
 	}
 

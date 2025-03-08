@@ -72,7 +72,7 @@ extern int bits_in_mask (unsigned long mask);
 extern int mask_shift (unsigned long mask);
 extern uae_u32 doMask (uae_u32 p, int bits, int shift);
 extern uae_u32 doMask256 (int p, int bits, int shift);
-extern void alloc_colors64k (int monid, int, int, int, int, int, int, int, int, int, int, bool);
+extern void alloc_colors64k (int monid, int, int, int, int, int, int, int, int, int, int);
 extern void alloc_colors_rgb (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap,
 			      uae_u32 *rc, uae_u32 *gc, uae_u32 *bc);
 extern void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt, uae_u32 *rgbx16);

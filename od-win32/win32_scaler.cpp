@@ -19,38 +19,12 @@
 
 #define AUTORESIZE_FRAME_DELAY 10
 
-struct uae_filter uaefilters[] =
-{
-#if 0
-	{ UAE_FILTER_NULL, 0, 1, _T("-"), _T("null"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
-
-	{ UAE_FILTER_SCALE2X, 0, 2, _T("Scale2X"), _T("scale2x"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
-
-	{ UAE_FILTER_HQ2X, 0, 2, _T("hq2x"), _T("hq2x"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, },
-
-	{ UAE_FILTER_HQ3X, 0, 3, _T("hq3x"), _T("hq3x"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
-
-	{ UAE_FILTER_HQ4X, 0, 4, _T("hq4x"), _T("hq4x"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
-
-	{ UAE_FILTER_SUPEREAGLE, 0, 2, _T("SuperEagle"), _T("supereagle"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
-
-	{ UAE_FILTER_SUPER2XSAI, 0, 2, _T("Super2xSaI"), _T("super2xsai"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
-
-	{ UAE_FILTER_2XSAI, 0, 2, _T("2xSaI"), _T("2xsai"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
-
-	{ UAE_FILTER_PAL, 1, 1, _T("PAL"), _T("pal"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
-#endif
-	{ 0 }
-};
-
 static float filteroffsetx, filteroffsety, filterxmult = 1.0, filterymult = 1.0;
 static int dst_width, dst_height, amiga_width, amiga_height, amiga_depth, dst_depth, scale;
 static int dst_width2, dst_height2, amiga_width2, amiga_height2, amiga_depth2, dst_depth2;
 static int temp_width, temp_height;
 uae_u8 *bufmem_ptr;
 static uae_u8 *tempsurf2, *tempsurf3;
-static int cleartemp;
-static uae_u32 rc[256], gc[256], bc[256];
 static int deskw, deskh;
 static bool inited;
 
@@ -234,7 +208,6 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct amigadisplay *ad = &adisplays[monid];
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
-	struct uae_filter *usedfilter = mon->usedfilter;
 	struct monconfig *gmc = &currprefs.gfx_monitor[mon->monitor_id];
 	struct monconfig *gmh = &changed_prefs.gfx_monitor[mon->monitor_id];
 	float srcratio, dstratio;
@@ -839,13 +812,10 @@ void freefilterbuffer(int monid, uae_u8 *buf)
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
 	struct vidbuffer *vb = avidinfo->outbuffer;
-	struct uae_filter *usedfilter = mon->usedfilter;
 
 	if (!vb)
 		return;
-	if (usedfilter == NULL) {
-		unlockscr3d(vb);
-	}
+	unlockscr3d(vb);
 }
 
 uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *depth)
@@ -853,7 +823,6 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
 	struct vidbuffer *vb = avidinfo->outbuffer;
-	struct uae_filter *usedfilter = mon->usedfilter;
 	int w, h;
 
 	*widthp = 0;
@@ -861,10 +830,8 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	*depth = amiga_depth;
 	if (!vb)
 		return NULL;
-	if (usedfilter == NULL) {
-		if (!lockscr3d(vb)) {
-			return NULL;
-		}
+	if (!lockscr3d(vb)) {
+		return NULL;
 	}
 	w = vb->outwidth;
 	h = vb->outheight;
