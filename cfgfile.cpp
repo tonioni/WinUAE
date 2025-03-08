@@ -2511,19 +2511,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 				d3dfound = true;
 			}
 			if (!d3dfound) {
-				if (gf->gfx_filter > 0) {
-					int i = 0;
-					struct uae_filter *uf;
-					while (uaefilters[i].name) {
-						uf = &uaefilters[i];
-						if (uf->type == gf->gfx_filter) {
-							cfgfile_dwrite_str (f, _T("gfx_filter"), ext, uf->cfgname);
-						}
-						i++;
-					}
-				} else {
-					cfgfile_dwrite_ext (f, _T("gfx_filter"), ext, _T("no"));
-				}
+				cfgfile_dwrite_ext(f, _T("gfx_filter"), ext, _T("null"));
 			}
 		}
 		cfgfile_dwrite_strarr(f, _T("gfx_filter_mode"), ext, filtermode2, gf->gfx_filter_filtermodeh);
@@ -4159,14 +4147,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 				if (!p->gfx_api)
 					p->gfx_api = 1; // forwards compatibiity
 			} else {
-				int i = 0;
-				while(uaefilters[i].name) {
-					if (!_tcscmp (uaefilters[i].cfgname, value)) {
-						gf->gfx_filter = uaefilters[i].type;
-						break;
-					}
-					i++;
-				}
+				gf->gfx_filter = 0;
 			}
 			return 1;
 		}

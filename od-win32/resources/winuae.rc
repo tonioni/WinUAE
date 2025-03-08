@@ -2242,7 +2242,6 @@ BEGIN
     IDS_BOARDID             "ID"
     IDS_ASSOCIATEEXTENSION  "Extension"
     IDS_GAMEPORTS_CUSTOM    "Custom"
-    IDS_FILTER_LABELS       "Null\nScale2X\nhq2x\nhq3x\nhq4x\nSuperEagle\nSuper2xSaI\n2xSaI\nPAL\n"
     IDS_CURRENT_HOST        "Current host configuration"
     IDS_NONE2               "<none>"
     IDS_SOUND_CLONED71      "Cloned stereo (7.1)"

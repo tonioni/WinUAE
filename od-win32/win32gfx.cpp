@@ -574,13 +574,10 @@ const TCHAR *target_get_display_name (int num, bool friendlyname)
 
 void centerdstrect(struct AmigaMonitor *mon, RECT *dr)
 {
-	struct uae_filter *usedfilter = mon->usedfilter;
 	if(!(mon->currentmode.flags & (DM_DX_FULLSCREEN | DM_D3D_FULLSCREEN | DM_W_FULLSCREEN)))
 		OffsetRect (dr, mon->amigawin_rect.left, mon->amigawin_rect.top);
 	if (mon->currentmode.flags & DM_W_FULLSCREEN) {
 		if (mon->scalepicasso && mon->screen_is_picasso)
-			return;
-		if (usedfilter && !mon->screen_is_picasso)
 			return;
 		if (mon->currentmode.fullfill && (mon->currentmode.current_width > mon->currentmode.native_width || mon->currentmode.current_height > mon->currentmode.native_height))
 			return;
@@ -596,7 +593,6 @@ void getgfxoffset(int monid, float *dxp, float *dyp, float *mxp, float *myp)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct amigadisplay *ad = &adisplays[monid];
-	struct uae_filter *usedfilter = mon->usedfilter;
 	float dx, dy, mx, my;
 
 	getfilteroffset(monid, &dx, &dy, &mx, &my);
@@ -612,8 +608,6 @@ void getgfxoffset(int monid, float *dxp, float *dyp, float *mxp, float *myp)
 	if (mon->currentmode.flags & DM_W_FULLSCREEN) {
 		for (;;) {
 			if (mon->scalepicasso && mon->screen_is_picasso)
-				break;
-			if (usedfilter && !mon->screen_is_picasso)
 				break;
 			if (mon->currentmode.fullfill && (mon->currentmode.current_width > mon->currentmode.native_width || mon->currentmode.current_height > mon->currentmode.native_height))
 				break;
@@ -1795,7 +1789,6 @@ static bool canmatchdepth(void)
 
 static void updatemodes(struct AmigaMonitor *mon)
 {
-	struct uae_filter *usedfilter = mon->usedfilter;
 	DWORD flags = 0;
 
 	mon->currentmode.fullfill = 0;
@@ -2659,11 +2652,8 @@ void init_colors(int monid)
 			}
 		}
 	}
-	alloc_colors64k(monid, red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0, mon->usedfilter && mon->usedfilter->yuv);
+	alloc_colors64k(monid, red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0);
 	notice_new_xcolors ();
-#if 0
-	S2X_configure(monid, red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift);
-#endif
 #ifdef AVIOUTPUT
 	AVIOutput_RGBinfo (red_bits, green_bits, blue_bits, alpha_bits, red_shift, green_shift, blue_shift, alpha_shift);
 #endif
@@ -3075,21 +3065,6 @@ void gfx_set_picasso_colors(int monid, RGBFTYPE rgbfmt)
 static void gfxmode_reset(int monid)
 {
 	struct amigadisplay *ad = &adisplays[monid];
-	struct uae_filter **usedfilter = &AMonitors[monid].usedfilter;
-
-#ifdef GFXFILTER
-	*usedfilter = NULL;
-	if (currprefs.gf[ad->gf_index].gfx_filter > 0) {
-		int i = 0;
-		while (uaefilters[i].name) {
-			if (uaefilters[i].type == currprefs.gf[ad->gf_index].gfx_filter) {
-				*usedfilter = &uaefilters[i];
-				break;
-			}
-			i++;
-		}
-	}
-#endif
 }
 
 int machdep_init(void)
@@ -3947,7 +3922,6 @@ retry:
 			break;
 		} else {
 #endif
-			struct uae_filter *usedfilter = mon->usedfilter;
 			mon->currentmode.native_depth = mon->currentmode.current_depth;
 
 			if (currprefs.gfx_resolution > avidinfo->gfx_resolution_reserved)
@@ -4003,7 +3977,6 @@ retry:
 	avidinfo->drawbuffer.realbufmem = NULL;
 	avidinfo->drawbuffer.bufmem = NULL;
 	avidinfo->drawbuffer.bufmem_allocated = NULL;
-	avidinfo->drawbuffer.bufmem_lockable = false;
 
 	avidinfo->outbuffer = &avidinfo->drawbuffer;
 
@@ -4021,7 +3994,6 @@ retry:
 			avidinfo->inbuffer = &avidinfo->tempbuffer;
 		}
 
-		//init_row_map ();
 	}
 
 #if 0
@@ -4138,8 +4110,6 @@ bool target_graphics_buffer_update(int monid, bool force)
 		w = state->Width;
 		h = state->Height;
 	} else {
-		//struct vidbuffer *vb = avidinfo->drawbuffer.tempbufferinuse ? &avidinfo->tempbuffer : &avidinfo->drawbuffer;
-		//avidinfo->outbuffer = vb;
 		struct vidbuffer *vb = avidinfo->inbuffer;
 		if (!vb) {
 			return false;

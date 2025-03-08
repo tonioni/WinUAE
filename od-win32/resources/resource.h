@@ -430,7 +430,6 @@
 #define IDS_BOARDID                     435
 #define IDS_ASSOCIATEEXTENSION          436
 #define IDS_GAMEPORTS_CUSTOM            437
-#define IDS_FILTER_LABELS               438
 #define IDS_CURRENT_HOST                439
 #define IDS_NONE2                       440
 #define IDS_SOUND_CLONED71              441

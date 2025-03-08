@@ -700,7 +700,6 @@ static void fixup_size (struct uae_prefs *prefs)
 		if (prefs->gf[0].gfx_filter) {
 			if (prefs->gf[0].gfx_filter_horiz_zoom_mult)
 				hres += (int)prefs->gf[0].gfx_filter_horiz_zoom_mult - 1;
-			hres += uaefilters[prefs->gf[0].gfx_filter].intmul - 1;
 		}
 		if (hres > max_horiz_dbl)
 			hres = max_horiz_dbl;
@@ -712,7 +711,6 @@ static void fixup_size (struct uae_prefs *prefs)
 		if (prefs->gf[0].gfx_filter) {
 			if (prefs->gf[0].gfx_filter_vert_zoom_mult)
 				vres += (int)prefs->gf[0].gfx_filter_vert_zoom_mult - 1;
-			vres += uaefilters[prefs->gf[0].gfx_filter].intmul - 1;
 		}
 		if (vres > max_vert_dbl)
 			vres = max_vert_dbl;
@@ -1880,10 +1878,6 @@ void rp_fixup_options (struct uae_prefs *p)
 
 	changed_prefs.win32_borderless = currprefs.win32_borderless = 1;
 	rp_filter_default = rp_filter = currprefs.gf[0].gfx_filter;
-	if (rp_filter == 0) {
-		rp_filter = UAE_FILTER_NULL;
-		changed_prefs.gf[0].gfx_filter = currprefs.gf[0].gfx_filter = rp_filter;
-	}
 
 	fixup_size (p);
 	get_screenmode (&sm, p, false);

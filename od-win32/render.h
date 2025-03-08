@@ -100,7 +100,6 @@ struct AmigaMonitor {
 	HBRUSH hStatusBkgB;
 
 	struct winuae_currentmode currentmode;
-	struct uae_filter *usedfilter;
 };
 extern struct AmigaMonitor *amon;
 extern struct AmigaMonitor AMonitors[MAX_AMIGAMONITORS];
