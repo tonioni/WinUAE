@@ -245,6 +245,9 @@ struct dma_rec
 	bool ciarw;
 	int ciaphase;
 	uae_u16 ciavalue;
+	uaecptr miscaddr;
+	uae_u32 miscval;
+	int miscsize;
 	bool end;
 	bool cs, hs, vs;
 };
@@ -330,6 +333,7 @@ extern void record_dma_event_data(uae_u32 evt, uae_u32 data);
 extern void record_dma_clear(void);
 extern bool record_dma_check(void);
 extern void record_cia_access(int r, int mask, uae_u16 value, bool rw, int phase);
+extern void record_rom_access(uaecptr, uae_u32 value, int size, bool rw);
 extern void record_dma_ipl(void);
 extern void record_dma_ipl_sample(void);
 extern void debug_mark_refreshed(uaecptr);

@@ -2197,6 +2197,18 @@ void record_dma_clear(void)
 	dr->cf_reg = 0xffff;
 }
 
+void record_rom_access(uaecptr ptr, uae_u32 v, int size, bool rw)
+{
+	dma_record_init();
+	if (!dma_record_data)
+		return;
+	struct dma_rec *dr = &dma_record_data[dma_record_cycle];
+	dr->miscaddr = ptr;
+	dr->miscval = v;
+	dr->ciarw = rw;
+	dr->miscsize = size;
+}
+
 void record_cia_access(int r, int mask, uae_u16 value, bool rw, int phase)
 {
 	dma_record_init();
@@ -2695,6 +2707,8 @@ static bool get_record_dma_info(struct dma_rec *drs, struct dma_rec *dr, TCHAR *
 					_stprintf(l5, _T(" %u "), ph - 1);
 				}
 			}
+		} else if (dr->miscsize) {
+			_stprintf(l5, _T("ROM%c%c %08X"), dr->ciarw ? 'W' : 'R', dr->miscsize == 1 ? 'B' : (dr->miscsize == 2 ? 'W' : 'L'), dr->miscaddr);
 		}
 	}
 	if (l6) {
