@@ -4636,6 +4636,15 @@ static int do_specialties (int cycles)
 	if (spcflags & SPCFLAG_MODE_CHANGE)
 		return 1;
 	
+	while (spcflags & SPCFLAG_CPUINRESET) {
+		regs.halted = 0;
+		x_do_cycles(4 * CYCLE_UNIT);
+		spcflags = regs.spcflags;
+		if (!(spcflags & SPCFLAG_CPUINRESET) || (spcflags & SPCFLAG_BRK) || (spcflags & SPCFLAG_MODE_CHANGE)) {
+			break;
+		}
+	}
+
 	if (spcflags & SPCFLAG_CHECK) {
 		if (regs.halted) {
 			if (regs.halted == CPU_HALT_ACCELERATOR_CPU_FALLBACK) {
@@ -4699,14 +4708,6 @@ static int do_specialties (int cycles)
 		unset_special(SPCFLAG_END_COMPILE);
 	}
 #endif
-
-	while (spcflags & SPCFLAG_CPUINRESET) {
-		x_do_cycles(4 * CYCLE_UNIT);
-		spcflags = regs.spcflags;
-		if (!(spcflags & SPCFLAG_CPUINRESET) || (spcflags & SPCFLAG_BRK) || (spcflags & SPCFLAG_MODE_CHANGE)) {
-			break;
-		}
-	}
 
 	while ((spcflags & SPCFLAG_BLTNASTY) && dmaen (DMA_BLITTER) && cycles > 0 && ((currprefs.waiting_blits && currprefs.cpu_model >= 68020) || !currprefs.blitter_cycle_exact)) {
 		int c = blitnasty();
