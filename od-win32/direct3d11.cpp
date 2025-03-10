@@ -4102,6 +4102,10 @@ static void xD3D11_free(int monid, bool immediate)
 
 	//freethread(d3d);
 
+	if (d3d->texturelocked) {
+		D3D_unlocktexture(monid, -1, -1);
+	}
+
 	freed3d(d3d);
 
 	if (d3d->m_swapChain) {
@@ -5062,6 +5066,10 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 		return false;
 	}
 
+	if (d3d->texturelocked) {
+		D3D_unlocktexture(monid, -1, -1);
+	}
+
 	recheck(d3d, monid);
 
 	if (d3d->invalidmode || !d3d->m_device) {
@@ -5101,6 +5109,16 @@ static uae_u8 *xD3D11_locktexture(int monid, int *pitch, int *width, int *height
 
 	// texture allocation must not cause side-effects
 
+	if (height)
+		*height = d3d->m_bitmapHeight;
+	if (width)
+		*width = d3d->m_bitmapWidth;
+
+	if (d3d->texturelocked) {
+		write_log("D3D11_locktexture: already locked!\n");
+		return NULL;
+	}
+
 	if (d3d->invalidmode || !d3d->texture2d)
 		return NULL;
 
@@ -5112,10 +5130,6 @@ static uae_u8 *xD3D11_locktexture(int monid, int *pitch, int *width, int *height
 		return NULL;
 	}
 	*pitch = map.RowPitch;
-	if (height)
-		*height = d3d->m_bitmapHeight;
-	if (width)
-		*width = d3d->m_bitmapWidth;
 	d3d->texturelocked++;
 	return (uae_u8*)map.pData;
 }
@@ -5125,8 +5139,10 @@ static void xD3D11_unlocktexture(int monid, int y_start, int y_end)
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct d3d11struct *d3d = &d3d11data[monid];
 
-	if (!d3d->texturelocked || d3d->invalidmode)
+	if (!d3d->texturelocked || d3d->invalidmode || !d3d->texture2dstaging) {
+		d3d->texturelocked = 0;
 		return;
+	}
 	d3d->texturelocked--;
 
 	d3d->m_deviceContext->Unmap(d3d->texture2dstaging, 0);
@@ -5146,7 +5162,7 @@ static void xD3D11_unlocktexture(int monid, int y_start, int y_end)
 	} else {
 		d3d->osd.enabled = false;
 	}
-	if (y_start < 0) {
+	if (y_start < 0 || y_end < 0) {
 		d3d->m_deviceContext->CopyResource(d3d->texture2d, d3d->texture2dstaging);
 	} else {
 		D3D11_BOX box = { 0 };

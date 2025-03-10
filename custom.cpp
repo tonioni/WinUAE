@@ -1718,24 +1718,10 @@ void compute_framesync(void)
 	if (vb->inheight2 < 1)
 		vb->inheight2 = 1;
 
-	if (vb->inwidth > vb->width_allocated)
-		vb->inwidth = vb->width_allocated;
-	if (vb->inwidth2 > vb->width_allocated)
-		vb->inwidth2 = vb->width_allocated;
-
-	if (vb->inheight > vb->height_allocated)
-		vb->inheight = vb->height_allocated;
-	if (vb->inheight2 > vb->height_allocated)
-		vb->inheight2 = vb->height_allocated;
-
-	vb->outwidth = vb->inwidth;
-	vb->outheight = vb->inheight;
-
-	if (vb->outwidth > vb->width_allocated)
-		vb->outwidth = vb->width_allocated;
-
-	if (vb->outheight > vb->height_allocated)
-		vb->outheight = vb->height_allocated;
+	if (!vb->hardwiredpositioning) {
+		vb->outwidth = vb->inwidth;
+		vb->outheight = vb->inheight;
+	}
 
 	check_nocustom();
 
@@ -1761,12 +1747,29 @@ void compute_framesync(void)
 
 	set_config_changed();
 
+	custom_end_drawing();
+
 	if (currprefs.monitoremu_mon != 0) {
 		target_graphics_buffer_update(currprefs.monitoremu_mon, false);
 	}
-	if (target_graphics_buffer_update(0, false)) {
-		reset_drawing();
-	}
+	target_graphics_buffer_update(0, false);
+
+	if (vb->inwidth > vb->width_allocated)
+		vb->inwidth = vb->width_allocated;
+	if (vb->inwidth2 > vb->width_allocated)
+		vb->inwidth2 = vb->width_allocated;
+
+	if (vb->inheight > vb->height_allocated)
+		vb->inheight = vb->height_allocated;
+	if (vb->inheight2 > vb->height_allocated)
+		vb->inheight2 = vb->height_allocated;
+
+	if (vb->outwidth > vb->width_allocated)
+		vb->outwidth = vb->width_allocated;
+
+	if (vb->outheight > vb->height_allocated)
+		vb->outheight = vb->height_allocated;
+
 	resetfulllinestate();
 }
 
@@ -6894,6 +6897,10 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	resetfulllinestate();
 	updateprghpostable();
 
+	if (!has_draw_denise()) {
+		start_draw_denise();
+	}
+
 #ifdef ACTION_REPLAY
 	/* Doing this here ensures we can use the 'reset' command from within AR */
 	action_replay_reset(hardreset, keyboardreset);
@@ -11063,6 +11070,10 @@ static void draw_line_fast(void)
 
 static void do_draw_line(void)
 {
+	if (!has_draw_denise()) {
+		start_draw_denise();
+	}
+
 	if (custom_fastmode_exit) {
 		custom_fastmode_exit = 0;
 		quick_denise_rga_queue(rga_denise_cycle_line, rga_denise_cycle_start, rga_denise_cycle);
@@ -11297,7 +11308,9 @@ static void custom_trigger_start_nosync(void)
 	if (linear_vpos >= maxvpos + lof_store) {
 		nosignal_trigger = true;
 		linear_vpos = 0;
-		end_draw_denise();
+		if (has_draw_denise()) {
+			end_draw_denise();
+		}
 		if (!custom_disabled) {
 			start_draw_denise();
 		}
@@ -11341,7 +11354,9 @@ static void custom_trigger_start(void)
 
 	if (vpos == vsync_startline) {
 
-		end_draw_denise();
+		if (has_draw_denise()) {
+			end_draw_denise();
+		}
 
 		linear_vpos_prev[2] = linear_vpos_prev[1];
 		linear_vpos_prev[1] = linear_vpos_prev[0];
@@ -12925,4 +12940,13 @@ bool ispal(int *lines)
 		return currprefs.ntscmode == 0;
 	}
 	return maxvpos_display >= MAXVPOS_NTSC + (MAXVPOS_PAL - MAXVPOS_NTSC) / 2;
+}
+
+void custom_end_drawing(void)
+{
+	draw_denise_line_queue_flush();
+	if (has_draw_denise()) {
+		write_log("flushing denise draw queue\n");
+		end_draw_denise();
+	}
 }

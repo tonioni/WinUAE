@@ -1473,13 +1473,10 @@ int lockscr(struct vidbuffer *vb, bool fullupdate, bool skip)
 	}
 	gfx_lock();
 	if (vb->vram_buffer) {
-		D3D_unlocktexture(vb->monitor_id, -1, -1);
-		vb->bufmem = D3D_locktexture(vb->monitor_id, &vb->rowbytes, NULL, NULL, skip ? -1 : (fullupdate ? 1 : 0));
+		vb->bufmem = D3D_locktexture(vb->monitor_id, &vb->rowbytes, &vb->width_allocated, &vb->height_allocated, skip ? -1 : (fullupdate ? 1 : 0));
 		if (vb->bufmem) {
 			ret = 1;
 		}
-		vb->width_allocated = mon->currentmode.native_width;
-		vb->height_allocated = mon->currentmode.native_height;
 	} else {
 		ret = 1;
 	}
@@ -1494,11 +1491,11 @@ void unlockscr(struct vidbuffer *vb, int y_start, int y_end)
 {
 	struct AmigaMonitor *mon = &AMonitors[vb->monitor_id];
 	gfx_lock();
+	vb->locked = false;
 	if (vb->vram_buffer) {
 		vb->bufmem = NULL;
 		D3D_unlocktexture(vb->monitor_id, y_start, y_end);
 	}
-	vb->locked = false;
 	gfx_unlock();
 }
 
@@ -2929,8 +2926,6 @@ static int modeswitchneeded(struct AmigaMonitor *mon, struct winuae_currentmode 
 				mon->currentmode.current_height != wc->current_height ||
 				mon->currentmode.current_depth != wc->current_depth)
 				return -1;
-			if (!avidinfo->outbuffer->bufmem_lockable)
-				return -1;
 		}
 	} else if (isfullscreen () == 0) {
 		/* windowed to windowed */
@@ -3850,10 +3845,16 @@ static void allocsoftbuffer(int monid, const TCHAR *name, struct vidbuffer *buf,
 {
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
 
+	if (buf->initialized && buf->vram_buffer) {
+		return;
+	}
+
 	buf->monitor_id = monid;
 	buf->pixbytes = (depth + 7) / 8;
 	buf->width_allocated = (width + 7) & ~7;
 	buf->height_allocated = height;
+	buf->initialized = true;
+	buf->hardwiredpositioning = false;
 
 	if (buf == &vidinfo->drawbuffer) {
 
@@ -3861,13 +3862,13 @@ static void allocsoftbuffer(int monid, const TCHAR *name, struct vidbuffer *buf,
 		buf->bufmemend = NULL;
 		buf->realbufmem = NULL;
 		buf->bufmem_allocated = NULL;
-		buf->bufmem_lockable = true;
 		buf->vram_buffer = true;
 
 		write_log(_T("Mon %d reserved %s draw buffer (%d*%d*%d)\n"), monid, name, width, height, depth);
 
 	} else {
 
+		xfree(buf->realbufmem);
 		int w = buf->width_allocated;
 		int h = buf->height_allocated;
 		int size = (w * 2) * (h * 2) * buf->pixbytes;
@@ -3875,10 +3876,9 @@ static void allocsoftbuffer(int monid, const TCHAR *name, struct vidbuffer *buf,
 		buf->realbufmem = xcalloc(uae_u8, size);
 		buf->bufmem_allocated = buf->bufmem = buf->realbufmem + (h / 2) * buf->rowbytes + (w / 2) * buf->pixbytes;
 		buf->bufmemend = buf->realbufmem + size - buf->rowbytes;
-		buf->bufmem_lockable = true;
 
 		write_log(_T("Mon %d allocated %s temp buffer (%d*%d*%d) = %p\n"), monid, name, width, height, depth, buf->realbufmem);
-		return;
+
 	}
 
 }
@@ -3902,8 +3902,8 @@ retry:
 		regqueryint(NULL, wasfsname[1], &wasfs[1]);
 
 	gfxmode_reset(mon->monitor_id);
-	freevidbuffer(mon->monitor_id, &avidinfo->drawbuffer);
-	freevidbuffer(mon->monitor_id, &avidinfo->tempbuffer);
+	//freevidbuffer(mon->monitor_id, &avidinfo->drawbuffer);
+	//freevidbuffer(mon->monitor_id, &avidinfo->tempbuffer);
 
 	for (;;) {
 		updatemodes(mon);
@@ -4101,6 +4101,9 @@ bool target_graphics_buffer_update(int monid, bool force)
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
 	struct picasso96_state_struct *state = &picasso96_state[monid];
+	struct vidbuffer *vb = NULL, *vbout = NULL;
+
+	gfx_lock();
 
 	static bool	graphicsbuffer_retry;
 	int w, h;
@@ -4110,32 +4113,45 @@ bool target_graphics_buffer_update(int monid, bool force)
 		w = state->Width;
 		h = state->Height;
 	} else {
-		struct vidbuffer *vb = avidinfo->inbuffer;
+		vb = avidinfo->inbuffer;
+		vbout = avidinfo->outbuffer;
 		if (!vb) {
+			gfx_unlock();
 			return false;
 		}
 		w = vb->outwidth;
 		h = vb->outheight;
 	}
 	
-	if (!force && oldtex_w[monid] == w && oldtex_h[monid] == h && oldtex_rtg[monid] == mon->screen_is_picasso && D3D_alloctexture(mon->monitor_id, -w, -h)) {
-		osk_setup(monid, -2);
-		return false;
+	if (!force && oldtex_w[monid] == w && oldtex_h[monid] == h && oldtex_rtg[monid] == mon->screen_is_picasso) {
+		if (D3D_alloctexture(mon->monitor_id, -w, -h)) {
+			osk_setup(monid, -2);
+			if (vbout) {
+				vbout->width_allocated = w;
+				vbout->height_allocated = h;
+			}
+			gfx_unlock();
+			return false;
+		}
 	}
 
 	if (!w || !h) {
 		oldtex_w[monid] = w;
 		oldtex_h[monid] = h;
 		oldtex_rtg[monid] = mon->screen_is_picasso;
+		gfx_unlock();
 		return false;
 	}
 
-#if 0
-	S2X_free(mon->monitor_id);
-#endif
 	if (!D3D_alloctexture(mon->monitor_id, w, h)) {
 		graphicsbuffer_retry = true;
+		gfx_unlock();
 		return false;
+	}
+
+	if (vbout) {
+		vbout->width_allocated = w;
+		vbout->height_allocated = h;
 	}
 
 	if (avidinfo->inbuffer != avidinfo->outbuffer) {
@@ -4152,12 +4168,8 @@ bool target_graphics_buffer_update(int monid, bool force)
 
 	write_log (_T("Buffer %d size (%d*%d) %s\n"), monid, w, h, mon->screen_is_picasso ? _T("RTG") : _T("Native"));
 
-#if 0
-	if ((mon->currentmode.flags & DM_SWSCALE) && !mon->screen_is_picasso) {
-		if (!S2X_init(mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height, mon->currentmode.native_depth))
-			return false;
-	}
-#endif
+	gfx_unlock();
+
 	return true;
 }
 

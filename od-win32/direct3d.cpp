@@ -3854,7 +3854,7 @@ static void xD3D_unlocktexture(int monid, int y_start, int y_end)
 		if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG))
 			updateleds(d3d);
 		hr = tex->UnlockRect(0);
-		if (y_start >= 0 && !d3d->turbo_skip)
+		if (y_start >= 0 && y_end >= 0 && !d3d->turbo_skip)
 			xD3D_flushtexture(monid, y_start, y_end);
 	}
 	d3d->locked = 0;

@@ -6722,6 +6722,8 @@ void m68k_go (int may_quit)
 #endif
 		run_func();
 
+		custom_end_drawing();
+
 		if (quit_program < 0) {
 			quit_program = -quit_program;
 		}
