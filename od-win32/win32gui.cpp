@@ -5822,15 +5822,19 @@ static void ConfigToRegistry(struct ConfigStruct *config, int type)
 		}
 		idx++;
 	}
-	if (fkey) {
-		while (exp < 1000) {
-			TCHAR tmp[100];
-			_stprintf(tmp, _T("Expanded%03d"), exp++);
-			if (!regexists(fkey, tmp)) {
-				break;
-			}
-			regdelete(fkey, tmp);
+	while (exp < 1000) {
+		TCHAR tmp[100];
+		_stprintf(tmp, _T("Expanded%03d"), exp++);
+		if (!fkey) {
+			fkey = regcreatetree(NULL, _T("ConfigurationListView"));
 		}
+		if (!fkey) {
+			break;
+		}
+		if (!regexists(fkey, tmp)) {
+			break;
+		}
+		regdelete(fkey, tmp);
 	}
 	regclosetree(fkey);
 }
