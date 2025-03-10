@@ -35,7 +35,7 @@
 
 #if 1
 
-#define THREADED_QUEUE 0
+#define THREADED_QUEUE 1
 
 extern void activate_debugger(void);
 

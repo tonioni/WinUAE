@@ -3,6 +3,8 @@
 #include "sysdeps.h"
 #include "options.h"
 
+#ifdef WITH_MIDIEMU
+
 #include "fsdb.h"
 #include "uae.h"
 #include "audio.h"
@@ -263,3 +265,5 @@ void midi_emu_reopen(void)
 		}
 	}
 }
+
+#endif

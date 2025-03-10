@@ -1023,6 +1023,7 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	int layout = 0;
 	char *fx;
 	int size;
+	bool hlsl = false;
 
 	if (!pD3DCompileFromFile || !ppD3DCompile) {
 		write_log(_T("D3D11 No shader compiler available (D3DCompiler_46.dll or D3DCompiler_47.dll).\n"));
@@ -1049,6 +1050,9 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	_tcscat(tmp, shaderfile);
 	write_log(_T("Direct3D11: Attempting to load '%s'\n"), tmp);
 	_tcscpy(s->loadedshader, shaderfile);
+	if (_tcslen(tmp) > 5 && !_tcsicmp(tmp + _tcslen(tmp) - 5, _T(".hlsl"))) {
+		hlsl = true;
+	}
 
 	ID3DX11Effect *g_pEffect = NULL;
 	ID3DBlob *errors = NULL;
@@ -1070,7 +1074,7 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	z = NULL;
 
 	fx = fx1;
-	if (fxneedconvert(fx1)) {
+	if (!hlsl && fxneedconvert(fx1)) {
 		static const char *converts1[] = { "technique", "vs_3_0", "vs_2_0", "vs_1_1", "ps_3_0", "ps_2_0", NULL };
 		static const char *converts2[] = { "technique10", "vs_4_0_level_9_3", "vs_4_0_level_9_3", "vs_4_0_level_9_3", "ps_4_0_level_9_3", "ps_4_0_level_9_3", NULL };
 		fxconvert(fx1, fx2, converts1, converts2);
@@ -1084,19 +1088,27 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	}
 
 	SetCurrentDirectory(tmp2);
-	hr = D3DX11CompileEffectFromMemory(fx, strlen(fx), name, NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, d3d->m_device, &g_pEffect, &errors);
-
-#if 0
-	hr = D3DX11CompileEffectFromFile(tmp, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, d3d->m_device, &g_pEffect, &errors);
-#endif
-
-	if (FAILED(hr)) {
-		write_log(_T("Direct3D11: D3DX11CompileEffectFromMemory('%s') failed: %08x\n"), tmp, hr);
-		void *p = errors->GetBufferPointer();
-		TCHAR *s = au((char*)p);
-		write_log(_T("Effect compiler errors:\n%s\n"), s);
-		xfree(s);
-		goto end;
+	if (hlsl) {
+		ID3DBlob *ppCode = NULL;
+		hr = D3DCompileFromFile(tmp, NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", 0, 0, &ppCode, &errors);
+		if (FAILED(hr)) {
+			write_log(_T("Direct3D11HLSL: D3DCompileFromFile('%s') failed: %08x\n"), tmp, hr);
+			void *p = errors->GetBufferPointer();
+			TCHAR *s = au((char *)p);
+			write_log(_T("Effect compiler errors:\n%s\n"), s);
+			xfree(s);
+			goto end;
+		}
+	} else {
+		hr = D3DX11CompileEffectFromMemory(fx, strlen(fx), name, NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, d3d->m_device, &g_pEffect, &errors);
+		if (FAILED(hr)) {
+			write_log(_T("Direct3D11FX: D3DX11CompileEffectFromMemory('%s') failed: %08x\n"), tmp, hr);
+			void *p = errors->GetBufferPointer();
+			TCHAR *s = au((char *)p);
+			write_log(_T("Effect compiler errors:\n%s\n"), s);
+			xfree(s);
+			goto end;
+		}
 	}
 
 	if (errors) {

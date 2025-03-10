@@ -191,51 +191,6 @@ static void video_calc_gammatable(int monid)
 	}
 }
 
-static uae_u32 limit256(int monid, float v)
-{
-	struct amigadisplay *ad = &adisplays[monid];
-	if (!gfx_hdr) {
-		v = v * (float)(currprefs.gf[ad->gf_index].gfx_filter_contrast + 1000) / 1000.0f + currprefs.gf[ad->gf_index].gfx_filter_luminance / 10.0f;
-	}
-	if (v < 0)
-		v = 0;
-	if (v > 255)
-		v = 255;
-	return (uae_u32)v;
-}
-static uae_s32 limit256rb(int monid, float v)
-{
-	struct amigadisplay *ad = &adisplays[monid];
-	if (!gfx_hdr) {
-		v *= (float)(currprefs.gf[ad->gf_index].gfx_filter_saturation + 1000) / 1000.0f;
-	}
-	if (v < -128)
-		v = -128;
-	if (v > 127)
-		v = 127;
-	return (uae_s32)v;
-}
-static float get_y(int r, int g, int b)
-{
-	return 0.2989f * r + 0.5866f * g + 0.1145f * b;
-}
-static uae_u32 get_yh(int monid, int r, int g, int b)
-{
-	return limit256(monid, get_y (r, g, b) * hf / 256);
-}
-static uae_u32 get_yl(int monid, int r, int g, int b)
-{
-	return limit256(monid, get_y (r, g, b) * lf / 256);
-}
-static uae_s32 get_cb(int monid, int r, int g, int b)
-{
-	return limit256rb(monid, -0.168736f * r - 0.331264f * g + 0.5f * b);
-}
-static uae_s32 get_cr(int monid, int r, int g, int b)
-{
-	return limit256rb(monid, 0.5f * r - 0.418688f * g - 0.081312f * b);
-}
-
 static uae_u32 lowbits (int v, int shift, int lsize)
 {
 	v >>= shift;
