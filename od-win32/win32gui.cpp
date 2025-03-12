@@ -5822,15 +5822,19 @@ static void ConfigToRegistry(struct ConfigStruct *config, int type)
 		}
 		idx++;
 	}
-	if (fkey) {
-		while (exp < 1000) {
-			TCHAR tmp[100];
-			_stprintf(tmp, _T("Expanded%03d"), exp++);
-			if (!regexists(fkey, tmp)) {
-				break;
-			}
-			regdelete(fkey, tmp);
+	while (exp < 1000) {
+		TCHAR tmp[100];
+		_stprintf(tmp, _T("Expanded%03d"), exp++);
+		if (!fkey) {
+			fkey = regcreatetree(NULL, _T("ConfigurationListView"));
 		}
+		if (!fkey) {
+			break;
+		}
+		if (!regexists(fkey, tmp)) {
+			break;
+		}
+		regdelete(fkey, tmp);
 	}
 	regclosetree(fkey);
 }
@@ -20793,26 +20797,38 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 	if (workprefs.gfx_api && D3D_canshaders ()) {
 		bool gotit = false;
 		HANDLE h;
-		WIN32_FIND_DATA wfd;
 		TCHAR tmp[MAX_DPATH];
-		get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), _T("filtershaders\\direct3d"));
-		_tcscat (tmp, _T("*.fx"));
-		h = FindFirstFile (tmp, &wfd);
-		while (h != INVALID_HANDLE_VALUE) {
-			if (wfd.cFileName[0] != '_') {
-				TCHAR tmp2[MAX_DPATH];
-				_stprintf (tmp2, _T("D3D: %s"), wfd.cFileName);
-				tmp2[_tcslen (tmp2) - 3] = 0;
-				xSendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp2);
-				if (workprefs.gfx_api && !_tcscmp (workprefs.gf[filter_nativertg].gfx_filtershader[filterstackpos], wfd.cFileName)) {
-					fltnum = j;
-					gotit = true;
-				}
-				j++;
+		for (int fx = 0; fx < 2; fx++) {
+			get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), _T("filtershaders\\direct3d"));
+			if (fx) {
+				_tcscat (tmp, _T("*.fx"));
+			} else {
+				_tcscat(tmp, _T("*.hlsl"));
 			}
-			if (!FindNextFile (h, &wfd)) {
-				FindClose (h);
-				h = INVALID_HANDLE_VALUE;
+			WIN32_FIND_DATA wfd;
+			h = FindFirstFile (tmp, &wfd);
+			while (h != INVALID_HANDLE_VALUE) {
+				if (wfd.cFileName[0] != '_') {
+					TCHAR tmp2[MAX_DPATH];
+					_stprintf (tmp2, _T("D3D: %s"), wfd.cFileName);
+#if 0
+					if (!fx) {
+						tmp2[_tcslen(tmp2) - 5] = 0;
+					} else {
+						tmp2[_tcslen(tmp2) - 3] = 0;
+					}
+#endif
+					xSendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp2);
+					if (workprefs.gfx_api && !_tcscmp (workprefs.gf[filter_nativertg].gfx_filtershader[filterstackpos], wfd.cFileName)) {
+						fltnum = j;
+						gotit = true;
+					}
+					j++;
+				}
+				if (!FindNextFile (h, &wfd)) {
+					FindClose (h);
+					h = INVALID_HANDLE_VALUE;
+				}
 			}
 		}
 	}
@@ -21139,7 +21155,7 @@ static void filter_handle (HWND hDlg)
 		if (item2 != CB_ERR)
 			workprefs.gf[filter_nativertg].gfx_filter_filtermodev = (int)item2;
 		if (item > 0) {
-			_stprintf (workprefs.gf[filter_nativertg].gfx_filtershader[filterstackpos], _T("%s.fx"), tmp + 5);
+			_stprintf (workprefs.gf[filter_nativertg].gfx_filtershader[filterstackpos], _T("%s"), tmp + 5);
 			cfgfile_get_shader_config(&workprefs, full_property_sheet ? 0 : filter_nativertg);
 			if (of != workprefs.gf[filter_nativertg].gfx_filter ||
 				offh != workprefs.gf[filter_nativertg].gfx_filter_filtermodeh ||

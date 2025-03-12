@@ -104,7 +104,7 @@ struct vidbuffer
 	uae_u8 *bufmem, *bufmemend;
     uae_u8 *realbufmem;
 	uae_u8 *bufmem_allocated;
-	bool bufmem_lockable;
+	bool initialized;
 	bool locked;
 	bool vram_buffer;
     int rowbytes; /* Bytes per row in the memory pointed at by bufmem. */
@@ -121,8 +121,8 @@ struct vidbuffer
 	/* same but doublescan multiplier included */
 	int inwidth2;
 	int inheight2;
-	/* use drawbuffer instead */
-	bool nativepositioning;
+	/* static, hardwired screen position and size (A2024) */
+	bool hardwiredpositioning;
 	/* extra width, chipset hpos extra in right border */
 	int extrawidth, extraheight;
 

@@ -958,36 +958,53 @@ static void gen_fastdraw(void)
 		outf("uae_u16 gpix = get_genlock_transparency_border_fast(ls->bplcon3);");
 	}
 
-	outf("int cnt = draw_start;");
-	outf("if (draw_startoffset > cnt && bpl1dat_trigger_offset > cnt) {");
-	outf("	cnt = draw_startoffset > bpl1dat_trigger_offset ? bpl1dat_trigger_offset : draw_startoffset;");
-	outf("  if (cnt > hbstop_offset) {");
-	outf("		cnt = hbstop_offset;");
-	outf("	}");
-	outf("}");
 	outf("int end = draw_end;");
 	outf("if (end > hbstrt_offset) {");
 	outf("	end = hbstrt_offset;");
 	outf("}");
-	outf("if (cnt < draw_startoffset) {");
-	outf("	int d = (draw_startoffset - cnt) >> bufadd;");
-	outf("	cp += d << cpadd;");
+
+	outf("int cnt = draw_end;");
+	outf("if (cnt > draw_startoffset) {");
 	outf("	cnt = draw_startoffset;");
 	outf("}");
-
-	outf("	if (cnt < hbstop_offset) {");
-	outf("		int d = (hbstop_offset - cnt) >> bufadd;");
-	outf("		buf1 += d << bufadd;");
-	if (isbuf2) {
-		outf("	buf2 += d << bufadd;");
-	}
+	outf("if (cnt > hbstop_offset) {");
 	outf("	cnt = hbstop_offset;");
 	outf("}");
-
+	outf("if (cnt > bpl1dat_trigger_offset) {");
+	outf("	cnt = bpl1dat_trigger_offset;");
+	outf("}");
 
 	outf("while (cnt < end) {");
 	outf("	bool bpl = false;");
 	outf("	if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {");
+	outf("		if (cnt >= draw_startoffset) {");
+	outf("		if (cnt < hbstop_offset) {");
+	if (doubling <= 0) {
+		outf("buf1++;");
+		if (isbuf2) {
+			outf("buf2++;");
+		}
+		if (genlock) {
+			outf("gbuf++;");
+		}
+	} else if (doubling == 1)  {
+		outf("buf1 += 2;");
+		if (isbuf2) {
+			outf("buf2 += 2;");
+		}
+		if (genlock) {
+			outf("gbuf += 2;");
+		}
+	} else if (doubling == 2) {
+		outf("buf1 += 4;");
+		if (isbuf2) {
+			outf("buf2 += 4;");
+		}
+		if (genlock) {
+			outf("gbuf += 4;");
+		}
+	}
+	outf("		} else {");
 	if (doubling <= 0) {
 		outf("*buf1++ = bgcolor;");
 		if (isbuf2) {
@@ -1025,6 +1042,8 @@ static void gen_fastdraw(void)
 			outf("*gbuf++ = gpix;");
 		}
 	}
+	outf("}");
+	outf("	}");
 	outf("} else {");
 	outf("bpl = true;");
 	outf("uae_u8 c;");

@@ -1023,6 +1023,7 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	int layout = 0;
 	char *fx;
 	int size;
+	bool hlsl = false;
 
 	if (!pD3DCompileFromFile || !ppD3DCompile) {
 		write_log(_T("D3D11 No shader compiler available (D3DCompiler_46.dll or D3DCompiler_47.dll).\n"));
@@ -1049,6 +1050,9 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	_tcscat(tmp, shaderfile);
 	write_log(_T("Direct3D11: Attempting to load '%s'\n"), tmp);
 	_tcscpy(s->loadedshader, shaderfile);
+	if (_tcslen(tmp) > 5 && !_tcsicmp(tmp + _tcslen(tmp) - 5, _T(".hlsl"))) {
+		hlsl = true;
+	}
 
 	ID3DX11Effect *g_pEffect = NULL;
 	ID3DBlob *errors = NULL;
@@ -1070,7 +1074,7 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	z = NULL;
 
 	fx = fx1;
-	if (fxneedconvert(fx1)) {
+	if (!hlsl && fxneedconvert(fx1)) {
 		static const char *converts1[] = { "technique", "vs_3_0", "vs_2_0", "vs_1_1", "ps_3_0", "ps_2_0", NULL };
 		static const char *converts2[] = { "technique10", "vs_4_0_level_9_3", "vs_4_0_level_9_3", "vs_4_0_level_9_3", "ps_4_0_level_9_3", "ps_4_0_level_9_3", NULL };
 		fxconvert(fx1, fx2, converts1, converts2);
@@ -1084,19 +1088,27 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	}
 
 	SetCurrentDirectory(tmp2);
-	hr = D3DX11CompileEffectFromMemory(fx, strlen(fx), name, NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, d3d->m_device, &g_pEffect, &errors);
-
-#if 0
-	hr = D3DX11CompileEffectFromFile(tmp, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, d3d->m_device, &g_pEffect, &errors);
-#endif
-
-	if (FAILED(hr)) {
-		write_log(_T("Direct3D11: D3DX11CompileEffectFromMemory('%s') failed: %08x\n"), tmp, hr);
-		void *p = errors->GetBufferPointer();
-		TCHAR *s = au((char*)p);
-		write_log(_T("Effect compiler errors:\n%s\n"), s);
-		xfree(s);
-		goto end;
+	if (hlsl) {
+		ID3DBlob *ppCode = NULL;
+		hr = D3DCompileFromFile(tmp, NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", 0, 0, &ppCode, &errors);
+		if (FAILED(hr)) {
+			write_log(_T("Direct3D11HLSL: D3DCompileFromFile('%s') failed: %08x\n"), tmp, hr);
+			void *p = errors->GetBufferPointer();
+			TCHAR *s = au((char *)p);
+			write_log(_T("Effect compiler errors:\n%s\n"), s);
+			xfree(s);
+			goto end;
+		}
+	} else {
+		hr = D3DX11CompileEffectFromMemory(fx, strlen(fx), name, NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, d3d->m_device, &g_pEffect, &errors);
+		if (FAILED(hr)) {
+			write_log(_T("Direct3D11FX: D3DX11CompileEffectFromMemory('%s') failed: %08x\n"), tmp, hr);
+			void *p = errors->GetBufferPointer();
+			TCHAR *s = au((char *)p);
+			write_log(_T("Effect compiler errors:\n%s\n"), s);
+			xfree(s);
+			goto end;
+		}
 	}
 
 	if (errors) {
@@ -4102,6 +4114,10 @@ static void xD3D11_free(int monid, bool immediate)
 
 	//freethread(d3d);
 
+	if (d3d->texturelocked) {
+		D3D_unlocktexture(monid, -1, -1);
+	}
+
 	freed3d(d3d);
 
 	if (d3d->m_swapChain) {
@@ -5062,6 +5078,10 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 		return false;
 	}
 
+	if (d3d->texturelocked) {
+		D3D_unlocktexture(monid, -1, -1);
+	}
+
 	recheck(d3d, monid);
 
 	if (d3d->invalidmode || !d3d->m_device) {
@@ -5101,6 +5121,16 @@ static uae_u8 *xD3D11_locktexture(int monid, int *pitch, int *width, int *height
 
 	// texture allocation must not cause side-effects
 
+	if (height)
+		*height = d3d->m_bitmapHeight;
+	if (width)
+		*width = d3d->m_bitmapWidth;
+
+	if (d3d->texturelocked) {
+		write_log("D3D11_locktexture: already locked!\n");
+		return NULL;
+	}
+
 	if (d3d->invalidmode || !d3d->texture2d)
 		return NULL;
 
@@ -5112,10 +5142,6 @@ static uae_u8 *xD3D11_locktexture(int monid, int *pitch, int *width, int *height
 		return NULL;
 	}
 	*pitch = map.RowPitch;
-	if (height)
-		*height = d3d->m_bitmapHeight;
-	if (width)
-		*width = d3d->m_bitmapWidth;
 	d3d->texturelocked++;
 	return (uae_u8*)map.pData;
 }
@@ -5125,8 +5151,10 @@ static void xD3D11_unlocktexture(int monid, int y_start, int y_end)
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct d3d11struct *d3d = &d3d11data[monid];
 
-	if (!d3d->texturelocked || d3d->invalidmode)
+	if (!d3d->texturelocked || d3d->invalidmode || !d3d->texture2dstaging) {
+		d3d->texturelocked = 0;
 		return;
+	}
 	d3d->texturelocked--;
 
 	d3d->m_deviceContext->Unmap(d3d->texture2dstaging, 0);
@@ -5146,7 +5174,7 @@ static void xD3D11_unlocktexture(int monid, int y_start, int y_end)
 	} else {
 		d3d->osd.enabled = false;
 	}
-	if (y_start < 0) {
+	if (y_start < 0 || y_end < 0) {
 		d3d->m_deviceContext->CopyResource(d3d->texture2d, d3d->texture2dstaging);
 	} else {
 		D3D11_BOX box = { 0 };

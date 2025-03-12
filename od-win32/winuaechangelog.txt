@@ -1,4 +1,23 @@
 
+
+Beta 14:
+
+- Left side of display had corruption if horizontal resolution was small enough.
+- Make sure drawing thread has finished before exit or config change.
+- Fixed bad D3D surface lock/unlock functions.
+- Keyboard reset without keyboard low level emulation didn't force CPU to reset state while reset keys are being kept pressed. CPU kept executing, possibly random instructions because ROM overlay is already active and autoconfig boards are deactivated, possibly causing random illegal memory accesses being logged.
+- Matrox emulation blitter background thread support re-enabled.
+- Remaining software filter support removed.
+- Fixed slirp bug (has been since it was added) that didn't seem to affect WinUAE but affected other UAE ports.
+- GDI mode didn't free all resources when native<>RTG mode switched.
+- Closing last open configuration tree node didn't update registry/ini.
+- Debugger command H DMA debugger listing support is back. Now only listed if D is appended (HD).
+- CPU KS ROM accesses are listed in DMA debugger. 68000/010 only because 68020+ can have faster ROM access time than chipset. Uses CIA DMA debugger line but because there is not enough space, only R/W state, size and address is shown.
+- -nomt skipped RGA buffering start/end overlap handling, for example copper color writes near the start of scanline were skipped.
+- Genlock display had vertical wobble effect in threaded mode. Genlock, grayscale and CD32FMV are working. Other display port adapters should not be used yet.
+- Non-CE fast mode subpixel scroll fix. (May not be perfect yet)
+- TV overscan modes didn't affect fast draw mode horizontal blanking.
+
 Beta 13:
 
 Major performance improvement! Finally faster than older versions!

@@ -1073,19 +1073,58 @@ void a1000_reset (void)
 	a1000_handle_kickstart (1);
 }
 
-static void REGPARAM3 kickmem_lput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 kickmem_wput (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM3 kickmem_bput (uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 kickmem_lput(uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 kickmem_wput(uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 kickmem_bput(uaecptr, uae_u32) REGPARAM;
+static uae_u32 REGPARAM3 kickmem_lget(uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 kickmem_wget(uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 kickmem_bget(uaecptr) REGPARAM;
 
-MEMORY_BGET(kickmem);
-MEMORY_WGET(kickmem);
-MEMORY_LGET(kickmem);
 MEMORY_CHECK(kickmem);
 MEMORY_XLATE(kickmem);
+
+static uae_u32 REGPARAM2 kickmem_lget(uaecptr addr)
+{
+	addr &= kickmem_bank.mask;
+	uae_u32 m = do_get_mem_long((uae_u32*)(kickmem_bank.baseaddr + addr));
+#ifdef DEBUGGER
+	if (debug_dma) {
+		record_rom_access(kickmem_bank.start + addr, m, 4, false);
+	}
+#endif
+	return m;
+}
+static uae_u32 REGPARAM2 kickmem_wget(uaecptr addr)
+{
+	addr &= kickmem_bank.mask;
+	uae_u16 m = do_get_mem_word((uae_u16*)(kickmem_bank.baseaddr + addr));
+#ifdef DEBUGGER
+	if (debug_dma) {
+		record_rom_access(kickmem_bank.start + addr, m, 2, false);
+	}
+#endif
+	return m;
+}
+static uae_u32 REGPARAM2 kickmem_bget(uaecptr addr)
+{
+	addr &= kickmem_bank.mask;
+	uae_u8 m = kickmem_bank.baseaddr[addr];
+#ifdef DEBUGGER
+	if (debug_dma) {
+		record_rom_access(kickmem_bank.start + addr, m, 1, false);
+	}
+#endif
+	return m;
+}
 
 static void REGPARAM2 kickmem_lput (uaecptr addr, uae_u32 b)
 {
 	uae_u32 *m;
+#ifdef DEBUGGER
+	if (debug_dma) {
+		record_rom_access(kickmem_bank.start + addr, b, 4, true);
+	}
+#endif
 	if (currprefs.rom_readwrite && rom_write_enabled) {
 		addr &= kickmem_bank.mask;
 		m = (uae_u32 *)(kickmem_bank.baseaddr + addr);
@@ -1112,6 +1151,11 @@ static void REGPARAM2 kickmem_lput (uaecptr addr, uae_u32 b)
 static void REGPARAM2 kickmem_wput (uaecptr addr, uae_u32 b)
 {
 	uae_u16 *m;
+#ifdef DEBUGGER
+	if (debug_dma) {
+		record_rom_access(kickmem_bank.start + addr, b, 2, true);
+	}
+#endif
 	if (currprefs.rom_readwrite && rom_write_enabled) {
 		addr &= kickmem_bank.mask;
 		m = (uae_u16 *)(kickmem_bank.baseaddr + addr);
@@ -1131,6 +1175,11 @@ static void REGPARAM2 kickmem_wput (uaecptr addr, uae_u32 b)
 
 static void REGPARAM2 kickmem_bput (uaecptr addr, uae_u32 b)
 {
+#ifdef DEBUGGER
+	if (debug_dma) {
+		record_rom_access(kickmem_bank.start + addr, b, 1, true);
+	}
+#endif
 	if (currprefs.rom_readwrite && rom_write_enabled) {
 		addr &= kickmem_bank.mask;
 		kickmem_bank.baseaddr[addr] = b;
@@ -2050,6 +2099,9 @@ static void set_direct_memory(addrbank *ab)
 {
 	if (!(ab->flags & ABFLAG_DIRECTACCESS))
 		return;
+	if (currprefs.cpu_memory_cycle_exact && currprefs.cpu_model < 68020) {
+		return;
+	}
 	ab->baseaddr_direct_r = ab->baseaddr;
 	if (!(ab->flags & ABFLAG_ROM))
 		ab->baseaddr_direct_w = ab->baseaddr;

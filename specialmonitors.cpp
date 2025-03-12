@@ -78,6 +78,36 @@ static int spm_left_border;
 
 static uae_u8 graffiti_palette[256 * 4];
 
+static bool specialmonitor_setresolution(struct vidbuffer *src, struct vidbuffer *dst, int width, int height, bool nativeposition)
+{
+	src->outwidth = width;
+	src->outheight = height;
+	dst->outwidth = width;
+	dst->outheight = height;
+	dst->inwidth = width;
+	dst->inheight = height;
+	dst->inwidth2 = width;
+	dst->inheight2 = height;
+	src->hardwiredpositioning = !nativeposition;
+	dst->hardwiredpositioning = !nativeposition;
+
+	if (dst->width_allocated != width || dst->height_allocated != height) {
+		bool locked = dst->locked;
+		if (dst->locked) {
+			unlockscr(dst, false, false);
+		}
+		if (!target_graphics_buffer_update(dst->monitor_id, false)) {
+			return false;
+		}
+		if (locked) {
+			if (!lockscr(dst, false, false)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 STATIC_INLINE bool is_transparent(uae_u16 v)
 {
 	return v == 0;
@@ -645,7 +675,6 @@ static bool dctv(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines,
 	}
 
 	if (dctv_enabled) {
-		dst->nativepositioning = true;
 		if (monitor != MONITOREMU_DCTV) {
 			monitor = MONITOREMU_DCTV;
 			write_log(_T("DCTV mode\n"));
@@ -834,7 +863,6 @@ static bool firecracker24(struct vidbuffer *src, struct vidbuffer *dst, bool dou
 		fc24_y += 2;
 	}
 
-	dst->nativepositioning = true;
 	if (monitor != MONITOREMU_FIRECRACKER24) {
 		monitor = MONITOREMU_FIRECRACKER24;
 		write_log(_T("FireCracker mode\n"));
@@ -1419,7 +1447,6 @@ static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doubleline
 		}
 	}
 
-	dst->nativepositioning = true;
 	if (monitor != MONITOREMU_AVIDEO12 && monitor != MONITOREMU_AVIDEO24) {
 		monitor = av24 ? MONITOREMU_AVIDEO24 : MONITOREMU_AVIDEO12;
 		write_log (_T("AVIDEO%d mode\n"), av24 ? 24 : 12);
@@ -1581,7 +1608,6 @@ static bool videodac18(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		}
 	}
 
-	dst->nativepositioning = true;
 	if (monitor != MONITOREMU_VIDEODAC18) {
 		monitor = MONITOREMU_VIDEODAC18;
 		write_log (_T("Video DAC 18 mode\n"));
@@ -1806,7 +1832,6 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 	}
 
 	if (was_active) {
-		dst->nativepositioning = true;
 		if (monitor != MONITOREMU_HAM_E) {
 			monitor = MONITOREMU_HAM_E;
 			write_log (_T("HAM-E mode, %s\n"), was_active == ham_e_magic_cookie_reg ? _T("REG") : _T("HAM"));
@@ -1995,8 +2020,6 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 			waitline--;
 	}
 
-	dst->nativepositioning = true;
-
 	if (monitor != MONITOREMU_GRAFFITI) {
 		monitor = MONITOREMU_GRAFFITI;
 		write_log (_T("GRAFFITI %s mode\n"), hires ? _T("hires") : _T("lores"));
@@ -2134,6 +2157,10 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 	}
 	total_height = panel_height * dbl;
 	
+	if (!specialmonitor_setresolution(src, dst, (total_width / 2) << currprefs.gfx_resolution, total_height, false)) {
+		return false;
+	}
+
 	srcbuf = src->bufmem + (((44 << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes + (((srcxoffset << RES_MAX) - src->xoffset) / avidinfo->xchange) * src->pixbytes;
 	dstbuf = dst->bufmem + py * (panel_height / avidinfo->ychange) * dst->rowbytes + px * ((panel_width * 2) / avidinfo->xchange) * dst->pixbytes;
 
@@ -2188,17 +2215,6 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		srcbuf += src->rowbytes * dbl;
 		dstbuf += dst->rowbytes * dbl;
 	}
-
-	total_width /= 2;
-	total_width <<= currprefs.gfx_resolution;
-
-	dst->outwidth = total_width;
-	dst->outheight = total_height;
-	dst->inwidth = total_width;
-	dst->inheight = total_height;
-	dst->inwidth2 = total_width;
-	dst->inheight2 = total_height;
-	dst->nativepositioning = false;
 
 	if (monitor != MONITOREMU_A2024) {
 		monitor = MONITOREMU_A2024;
@@ -2650,7 +2666,6 @@ skip:
 		genlock_infotext(firstdstline, dst);
 	}
 
-	dst->nativepositioning = true;
 	return true;
 }
 
@@ -2728,7 +2743,6 @@ static bool do_grayscale(struct vidbuffer *src, struct vidbuffer *dst, bool doub
 		}
 	}
 
-	dst->nativepositioning = true;
 	return true;
 }
 
@@ -3549,7 +3563,6 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		monitor = MONITOREMU_COLORBURST;
 		write_log(_T("Colorburst control line detected\n"));
 	}
-	dst->nativepositioning = true;
 
 	return true;
 }

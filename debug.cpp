@@ -2197,6 +2197,18 @@ void record_dma_clear(void)
 	dr->cf_reg = 0xffff;
 }
 
+void record_rom_access(uaecptr ptr, uae_u32 v, int size, bool rw)
+{
+	dma_record_init();
+	if (!dma_record_data)
+		return;
+	struct dma_rec *dr = &dma_record_data[dma_record_cycle];
+	dr->miscaddr = ptr;
+	dr->miscval = v;
+	dr->ciarw = rw;
+	dr->miscsize = size;
+}
+
 void record_cia_access(int r, int mask, uae_u16 value, bool rw, int phase)
 {
 	dma_record_init();
@@ -2695,6 +2707,8 @@ static bool get_record_dma_info(struct dma_rec *drs, struct dma_rec *dr, TCHAR *
 					_stprintf(l5, _T(" %u "), ph - 1);
 				}
 			}
+		} else if (dr->miscsize) {
+			_stprintf(l5, _T("ROM%c%c %08X"), dr->ciarw ? 'W' : 'R', dr->miscsize == 1 ? 'B' : (dr->miscsize == 2 ? 'W' : 'L'), dr->miscaddr);
 		}
 	}
 	if (l6) {
@@ -6609,45 +6623,39 @@ static void ppc_disasm(uaecptr addr, uaecptr *nextpc, int cnt)
 
 static void dma_disasm(int frames, int vp, int hp, int frames_end, int vp_end, int hp_end)
 {
-	if (!dma_record_data || frames < 0 || vp < 0 || hp < 0)
+	if (!dma_record_data || frames < 0 || vp < 0 || hp < 0) {
 		return;
-#if 0
+	}
+	struct dma_rec *drs = find_dma_record(hp, vp, 0);
+	if (!drs) {
+		return;
+	}
+	struct dma_rec *dr = drs;
 	for (;;) {
-		struct dma_rec *dr = NULL, *drs = NULL;
-		if (dma_record_frame[0] == frames) {
-			drs = &dma_record[0][vp * NR_DMA_REC_HPOS];
-			dr = &dma_record[0][vp * NR_DMA_REC_HPOS + hp];
-		} else if (dma_record_frame[1] == frames) {
-			drs = &dma_record[1][vp * NR_DMA_REC_HPOS];
-			dr = &dma_record[1][vp * NR_DMA_REC_HPOS + hp];
-		}
-		if (!dr)
-			return;
-		TCHAR l1[16], l2[16], l3[16], l4[16];
-		if (get_record_dma_info(drs, dr, l1, l2, l3, l4, NULL, NULL, NULL, NULL)) {
+		TCHAR l1[30], l1b[30], l1c[30], l2[30], l3[30], l4[30], l5[30], l6[30];
+		if (get_record_dma_info(drs, dr, l1, l1b, l1c, l2, l3, l4, l5, l6, NULL, NULL)) {
 			TCHAR tmp[256];
-			_stprintf(tmp, _T(" - %02d %02X %s"), dr->ipl, dr->hpos, l2);
+			_stprintf(tmp, _T(" - %03d %s"), dr->hpos, l2);
 			while (_tcslen(tmp) < 20) {
 				_tcscat(tmp, _T(" "));
 			}
 			console_out_f(_T("%s %11s %11s\n"), tmp, l3, l4);
 		}
-		hp++;
-		if (dr->end || hp >= NR_DMA_REC_HPOS) {
-			hp = 0;
-			vp++;
-			if (vp >= maxvpos + 1) {
-				vp = 0;
-				frames++;
-				break;
-			}
+		dr++;
+		if (dr == dma_record_data + NR_DMA_REC_MAX) {
+			dr = dma_record_data;
 		}
-		if ((frames == frames_end && vp == vp_end && hp == hp_end) || frames > frames_end)
+		if (vp_end < 0 || hp_end < 0 || frames_end < 0) {
 			break;
-		if (vp_end < 0 || hp_end < 0 || frames_end < 0)
+		}
+		int vpc = dr->vpos[dma_record_vpos_type];
+		if (vpc > vp_end || vpc < vp) {
 			break;
+		}
+		if (vpc == vp_end && dr->hpos >= hp_end) {
+			break;
+		}
 	}
-#endif
 }
 
 static uaecptr nxdis, nxmem, asmaddr;
@@ -7005,7 +7013,7 @@ static bool debug_line (TCHAR *input)
 
 		case 'H':
 			{
-				int count, temp, badly, skip;
+				int count, temp, badly, skip, dmadbg;
 				uae_u32 addr = 0;
 				uae_u32 oldpc = m68k_getpc ();
 				int lastframes, lastvpos, lasthpos;
@@ -7014,6 +7022,11 @@ static bool debug_line (TCHAR *input)
 				badly = 0;
 				if (inptr[0] == 'H') {
 					badly = 1;
+					inptr++;
+				}
+				dmadbg = 0;
+				if (inptr[0] == 'D') {
+					dmadbg = 1;
 					inptr++;
 				}
 
@@ -7046,7 +7059,7 @@ static bool debug_line (TCHAR *input)
 						if (badly) {
 							m68k_dumpstate(NULL, 0xffffffff);
 						} else {
-							if (lastvpos >= 0) {
+							if (dmadbg && lastvpos >= 0) {
 								dma_disasm(lastframes, lastvpos, lasthpos, history[temp].fp, history[temp].vpos, history[temp].hpos);
 							}
 							lastframes = history[temp].fp;

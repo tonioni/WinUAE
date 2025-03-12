@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("13")
+#define WINUAEBETA _T("14")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2025, 3, 7)
+#define WINUAEDATE MAKEBD(2025, 3, 10)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -51,22 +51,22 @@ extern TCHAR start_path_exe[MAX_DPATH];
 extern TCHAR start_path_data[MAX_DPATH];
 extern TCHAR start_path_plugins[MAX_DPATH];
 
-extern bool my_kbd_handler (int, int, int, bool);
-extern void clearallkeys (void);
-extern int getcapslock (void);
+extern bool my_kbd_handler(int, int, int, bool);
+extern void clearallkeys(void);
+extern int getcapslock(void);
 
-void releasecapture (struct AmigaMonitor*);
-int WIN32_RegisterClasses (void);
-int WIN32_InitLibraries (void);
-void WIN32_HandleRegistryStuff (void);
-extern void setup_brkhandler (void);
-extern void remove_brkhandler (void);
-extern void disablecapture (void);
+void releasecapture(struct AmigaMonitor*);
+int WIN32_RegisterClasses(void);
+int WIN32_InitLibraries(void);
+void WIN32_HandleRegistryStuff(void);
+extern void setup_brkhandler(void);
+extern void remove_brkhandler(void);
+extern void disablecapture(void);
 extern int isfocus(void);
-extern void gui_restart (void);
+extern void gui_restart(void);
 extern bool quit_ok(void);
-int timebegin (void);
-int timeend (void);
+int timebegin(void);
+int timeend(void);
 
 extern void setmouseactive(int monid, int active);
 extern void minimizewindow(int monid);
@@ -82,7 +82,7 @@ extern void unsetminimized (int monid);
 extern void setminimized(int monid);
 extern int getfocusedmonitor(void);
 
-void finishjob (void);
+void finishjob(void);
 void init_colors(int monid);
 
 extern int pause_emulation;
