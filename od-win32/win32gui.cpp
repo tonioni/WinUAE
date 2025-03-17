@@ -11238,7 +11238,7 @@ static void values_to_expansion2_expansion_roms(HWND hDlg, UAEREG *fkey)
 		}
 		ew(hDlg, IDC_SCSIROMFILE, true);
 		ew(hDlg, IDC_SCSIROMCHOOSER, true);
-		hide(hDlg, IDC_SCSIROMFILEAUTOBOOT, 0);
+		hide(hDlg, IDC_SCSIROMFILEAUTOBOOT, !ert->autoboot_jumper);
 		if (romtype & ROMTYPE_NOT) {
 			hide(hDlg, IDC_SCSIROMCHOOSER, 1);
 			hide(hDlg, IDC_SCSIROMFILE, 1);

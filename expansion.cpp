@@ -57,16 +57,6 @@
 #define CARD_FLAG_CHILD 8
 #define CARD_FLAG_UAEROM 16
 
-// More information in first revision HRM Appendix_G
-#define BOARD_PROTOAUTOCONFIG 1
-
-#define BOARD_AUTOCONFIG_Z2 2
-#define BOARD_AUTOCONFIG_Z3 3
-#define BOARD_NONAUTOCONFIG_BEFORE 4
-#define BOARD_NONAUTOCONFIG_AFTER_Z2 5
-#define BOARD_NONAUTOCONFIG_AFTER_Z3 6
-#define BOARD_IGNORE 7
-
 #define KS12_BOOT_HACK 1
 
 #define EXP_DEBUG 0
@@ -215,7 +205,8 @@ static bool isnonautoconfig(int v)
 {
 	return v == BOARD_NONAUTOCONFIG_AFTER_Z2 ||
 		v == BOARD_NONAUTOCONFIG_AFTER_Z3 ||
-		v == BOARD_NONAUTOCONFIG_BEFORE;
+		v == BOARD_NONAUTOCONFIG_BEFORE ||
+		v == BOARD_PCI;
 }
 
 static bool ks12orolder(void)
@@ -2985,19 +2976,22 @@ static void set_order(struct uae_prefs *p, struct card_data *cd, int order)
 		return;
 	}
 	int devnum = (cd->flags >> 16) & 255;
-	if (!_tcsicmp(cd->name, _T("Z2Fast"))) {
-		p->fastmem[devnum].device_order = order;
-		return;
+	if (devnum < MAX_RAM_BOARDS) {
+		if (!_tcsicmp(cd->name, _T("Z2Fast"))) {
+			p->fastmem[devnum].device_order = order;
+			return;
+		}
+		if (!_tcsicmp(cd->name, _T("Z3Fast"))) {
+			p->z3fastmem[devnum].device_order = order;
+			return;
+		}
 	}
-	if (!_tcsicmp(cd->name, _T("Z3Fast"))) {
-		p->z3fastmem[devnum].device_order = order;
-		return;
+	if (devnum < MAX_RTG_BOARDS) {
+		if (!_tcsicmp(cd->name, _T("Z3RTG")) || !_tcsicmp(cd->name, _T("Z2RTG"))) {
+			p->rtgboards[devnum].device_order = order;
+			return;
+		}
 	}
-	if (!_tcsicmp(cd->name, _T("Z3RTG")) || !_tcsicmp(cd->name, _T("Z2RTG"))) {
-		p->rtgboards[devnum].device_order = order;
-		return;
-	}
-
 }
 
 static int get_order(struct uae_prefs *p, struct card_data *cd)
@@ -3015,17 +3009,23 @@ static int get_order(struct uae_prefs *p, struct card_data *cd)
 	}
 	if (cd->zorro <= 0)
 		return -1;
-	if (cd->zorro >= 4)
+	if (cd->zorro == BOARD_PCI)
+		return EXPANSION_ORDER_MAX - 1;
+	if (cd->zorro >= BOARD_NONAUTOCONFIG_BEFORE)
 		return -2;
 	if (cd->rc && cd->rc->back)
 		return cd->rc->back->device_order;
 	int devnum = (cd->flags >> 16) & 255;
-	if (!_tcsicmp(cd->name, _T("Z2Fast")))
-		return p->fastmem[devnum].device_order;
-	if (!_tcsicmp(cd->name, _T("Z3Fast")))
-		return p->z3fastmem[devnum].device_order;
-	if (!_tcsicmp(cd->name, _T("Z3RTG")) || !_tcsicmp(cd->name, _T("Z2RTG")))
-		return p->rtgboards[devnum].device_order;
+	if (devnum < MAX_RAM_BOARDS) {
+		if (!_tcsicmp(cd->name, _T("Z2Fast")))
+			return p->fastmem[devnum].device_order;
+		if (!_tcsicmp(cd->name, _T("Z3Fast")))
+			return p->z3fastmem[devnum].device_order;
+	}
+	if (devnum < MAX_RTG_BOARDS) {
+		if (!_tcsicmp(cd->name, _T("Z3RTG")) || !_tcsicmp(cd->name, _T("Z2RTG")))
+			return p->rtgboards[devnum].device_order;
+	}
 	if (!_tcsicmp(cd->name, _T("MegaChipRAM")))
 		return -1;
 	return EXPANSION_ORDER_MAX - 1;
@@ -3375,7 +3375,7 @@ static bool add_card_sort(int index, bool *inuse, int *new_cardnop)
 
 static void expansion_autoconfig_sort(struct uae_prefs *p)
 {
-	const int zs[] = { BOARD_NONAUTOCONFIG_BEFORE, 0, BOARD_PROTOAUTOCONFIG, BOARD_AUTOCONFIG_Z2, BOARD_NONAUTOCONFIG_AFTER_Z2, BOARD_AUTOCONFIG_Z3, BOARD_NONAUTOCONFIG_AFTER_Z3, -1 };
+	const int zs[] = { BOARD_NONAUTOCONFIG_BEFORE, BOARD_PCI, 0, BOARD_PROTOAUTOCONFIG, BOARD_AUTOCONFIG_Z2, BOARD_NONAUTOCONFIG_AFTER_Z2, BOARD_AUTOCONFIG_Z3, BOARD_NONAUTOCONFIG_AFTER_Z3, -1 };
 	bool inuse[MAX_EXPANSION_BOARD_SPACE];
 	struct card_data *tcards[MAX_EXPANSION_BOARD_SPACE];
 	int new_cardno = 0;
@@ -3627,10 +3627,10 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtgboardconfig *rbc = &p->rtgboards[i];
 		int type = gfxboard_get_configtype(rbc);
-		if (rbc->rtgmem_size && rbc->rtgmem_type >= GFXBOARD_HARDWARE && type == BOARD_NONAUTOCONFIG_BEFORE) {
+		if (rbc->rtgmem_size && rbc->rtgmem_type >= GFXBOARD_HARDWARE && (type == BOARD_NONAUTOCONFIG_BEFORE || type == BOARD_PCI)) {
 			cards_set[cardno].flags = 4 | (i << 16);
 			cards_set[cardno].name = _T("MainBoardRTG");
-			cards_set[cardno].zorro = BOARD_NONAUTOCONFIG_BEFORE;
+			cards_set[cardno].zorro = type;
 			cards_set[cardno++].initnum = gfxboard_init_memory;
 		}
 	}
@@ -3638,6 +3638,7 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 	// add possible non-autoconfig boards
 	add_cpu_expansions(p, BOARD_NONAUTOCONFIG_BEFORE, NULL);
 	add_expansions(p, BOARD_NONAUTOCONFIG_BEFORE, NULL, 0);
+	add_expansions(p, BOARD_PCI, NULL, 0);
 
 	fastmem_num = 0;
 	add_expansions(p, BOARD_PROTOAUTOCONFIG, &fastmem_num, 0);
@@ -5363,7 +5364,7 @@ const struct expansionromtype expansionroms[] = {
 	},
 #endif
 	{
-		_T("a1000wom512k"), _T("A1000 512k WOM"), _T("Jï¿½rg Huth"),
+		_T("a1000wom512k"), _T("A1000 512k WOM"), _T("Jörg Huth"),
 		NULL, NULL, NULL, NULL, ROMTYPE_512KWOM | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_INTERNAL
@@ -6190,13 +6191,13 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("es1370"), _T("ES1370 PCI"), _T("Ensoniq"),
-		NULL, pci_expansion_init, NULL, NULL, ROMTYPE_ES1370 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, pci_expansion_init, NULL, NULL, ROMTYPE_ES1370 | ROMTYPE_NOT, 0, 0, BOARD_PCI, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SOUND
 	},
 	{
 		_T("fm801"), _T("FM801 PCI"), _T("Fortemedia"),
-		NULL, pci_expansion_init, NULL, NULL, ROMTYPE_FM801 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, pci_expansion_init, NULL, NULL, ROMTYPE_FM801 | ROMTYPE_NOT, 0, 0, BOARD_PCI, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SOUND
 	},
@@ -6323,7 +6324,7 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("ne2000_pci"), _T("RTL8029 PCI (NE2000 compatible)"), NULL,
-		NULL, pci_expansion_init, NULL, NULL, ROMTYPE_NE2KPCI | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, pci_expansion_init, NULL, NULL, ROMTYPE_NE2KPCI | ROMTYPE_NOT, 0, 0, BOARD_PCI, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_NET,
 		0, 0, 0, false, NULL,
