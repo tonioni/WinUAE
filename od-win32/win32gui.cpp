@@ -13911,6 +13911,8 @@ static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
 	}
 	if (!workprefs.cachesize) {
 		setchecked (hDlg, IDC_JITENABLE, false);
+		workprefs.compfpu = false;
+		setchecked(hDlg, IDC_JITFPU, false);
 	}
 	if (workprefs.cachesize && workprefs.compfpu && workprefs.fpu_mode > 0) {
 		workprefs.fpu_mode = 0;
