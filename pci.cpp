@@ -1233,6 +1233,13 @@ static void REGPARAM2 pci_bridge_bput(uaecptr addr, uae_u32 b)
 	}
 }
 
+static void mediator_set_window_offset_window(struct pci_bridge *pcib, int window)
+{
+	pcib->memory_start_offset[window] = ((pcib->window[0] & 0xe000) | (pcib->window[window] & 0x1fff)) << 16;
+	pcib->memory_start_offset[window] -= window * 0x00400000;
+	pcib->memory_start_offset[window] -= pcib->baseaddress;
+	pcib->memory_start_offset[window] = 0 - pcib->memory_start_offset[window];
+}
 
 static void mediator_set_window_offset(struct pci_bridge *pcib, uae_u16 v)
 {
@@ -1246,21 +1253,15 @@ static void mediator_set_window_offset(struct pci_bridge *pcib, uae_u16 v)
 		if (pcib->multiwindow) {
 			// TX has 2x4M banks
 			if (v & 0x0010) {
+				// Second bank limit: 3 top bits come from window 0.
 				pcib->window[1] = v & 0xffc0;
-				pcib->memory_start_offset[1] = pcib->window[1] << 16;
-				pcib->memory_start_offset[1] -= 0x00400000;
-				pcib->memory_start_offset[1] -= pcib->baseaddress;
-				pcib->memory_start_offset[1] = 0 - pcib->memory_start_offset[1];
 			}
-		} else {
-			v &= ~0x0010;
 		}
 		if (!(v& 0x0010)) {
 			pcib->window[0] = v & 0xffc0;
-			pcib->memory_start_offset[0] = pcib->window[0] << 16;
-			pcib->memory_start_offset[0] -= pcib->baseaddress;
-			pcib->memory_start_offset[0] = 0 - pcib->memory_start_offset[0];
 		}
+		mediator_set_window_offset_window(pcib, 0);
+		mediator_set_window_offset_window(pcib, 1);
 	}
 }
 
