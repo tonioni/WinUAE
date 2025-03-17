@@ -3215,6 +3215,8 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			int nonzeropart = 0;
 			int gotpart = 0;
 			int safepart = 0;
+			udi->dangerous = -6;
+			udi->readonly = readonly ? 2 : 0;
 			write_log (_T("%d MBR partitions found\n"), dli->PartitionCount);
 			for (i = 0; i < dli->PartitionCount && (*index2) < MAX_FILESYSTEM_UNITS; i++) {
 				PARTITION_INFORMATION_EX *pi = &dli->PartitionEntry[i];
@@ -3228,12 +3230,6 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 					continue;
 				}
 				nonzeropart++;
-				if (pi->Mbr.PartitionType != 0x76 && pi->Mbr.PartitionType != 0x30) {
-					write_log (_T("type not 0x76 or 0x30\n"));
-					udi->readonly = readonly ? 2 : 0;
-					continue;
-				}
-				write_log (_T("%d, selected\n"), *index2);
 				udi++;
 				(*index2)++;
 				memmove (udi, udi2, sizeof (*udi));
@@ -3243,8 +3239,14 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 				_stprintf (udi->device_name, _T(":P#%d_%s"), pi->PartitionNumber, orgname);
 				_stprintf(udi->device_full_path, _T("%s:%s"), udi->device_name, udi->device_path);
 				checkhdname(udi);
+				if (pi->Mbr.PartitionType != 0x76 && pi->Mbr.PartitionType != 0x30) {
+					write_log(_T("type not 0x76 or 0x30\n"));
+				} else {
+					write_log(_T("selected\n"));
+					udi->partitiondrive = true;
+				}
 				udi->dangerous = -5;
-				udi->partitiondrive = true;
+				udi->readonly = readonly ? 2 : 0;
 				safepart = 1;
 				gotpart = 1;
 			}
@@ -3259,6 +3261,8 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			int nonzeropart = 0;
 			int gotpart = 0;
 			int safepart = 0;
+			udi->dangerous = -11;
+			udi->readonly = readonly ? 2 : 0;
 			write_log(_T("%d GPT partitions found\n"), dli->PartitionCount);
 			for (i = 0; i < dli->PartitionCount && (*index2) < MAX_FILESYSTEM_UNITS; i++) {
 				PARTITION_INFORMATION_EX *pi = &dli->PartitionEntry[i];
