@@ -2666,7 +2666,7 @@ static void setbplmode(void)
 {
 	bplham = (bplcon0_denise & 0x800) != 0;
 	bpldualpf = (bplcon0_denise & 0x400) == 0x400;
-	bplehb = denise_planes == 6 && !bplham && !bpldualpf && (!ecs_denise || !(bplcon2_denise & 0x200 || !(bplcon0_denise & 1)));
+	bplehb = denise_planes == 6 && !bplham && !bpldualpf && (!ecs_denise || !(bplcon2_denise & 0x200) || !(bplcon0_denise & 1));
 
 	// BYPASS: HAM and EHB select bits are ignored
 	bpland = 0xff;
