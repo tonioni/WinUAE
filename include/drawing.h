@@ -161,7 +161,7 @@ struct linestate
 	uae_u16 bplcon0, bplcon1, bplcon2, bplcon3, bplcon4;
 	uae_u16 fmode;
 	uae_u32 color0;
-	uae_u8 *linedatastate, *linecolorstate;
+	uae_u8 *linecolorstate;
 	int bpllen;
 	int colors;
 	uae_u8 *bplpt[MAX_PLANES];
