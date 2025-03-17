@@ -1049,6 +1049,7 @@ uae_u16 kickstart_version;
 *
 */
 static int a1000_kickstart_mode;
+static uaecptr a1000_kickstart_size;
 static uae_u8 *a1000_bootrom;
 static void a1000_handle_kickstart (int mode)
 {
@@ -1057,12 +1058,15 @@ static void a1000_handle_kickstart (int mode)
 	protect_roms (false);
 	if (mode == 0) {
 		a1000_kickstart_mode = 0;
-		memcpy (kickmem_bank.baseaddr, kickmem_bank.baseaddr + ROM_SIZE_256, ROM_SIZE_256);
-		kickstart_version = (kickmem_bank.baseaddr[ROM_SIZE_256 + 12] << 8) | kickmem_bank.baseaddr[ROM_SIZE_256 + 13];
+		if (a1000_kickstart_size == ROM_SIZE_256) {
+			memcpy (kickmem_bank.baseaddr, kickmem_bank.baseaddr + ROM_SIZE_256, ROM_SIZE_256);
+		}
+		kickstart_version = (kickmem_bank.baseaddr[a1000_kickstart_size + 12] << 8) | kickmem_bank.baseaddr[a1000_kickstart_size + 13];
+		kickmem_bank.baseaddr_direct_r = kickmem_bank.baseaddr;
 	} else {
 		a1000_kickstart_mode = 1;
-		memcpy (kickmem_bank.baseaddr, a1000_bootrom, ROM_SIZE_256);
 		kickstart_version = 0;
+		kickmem_bank.baseaddr_direct_r = NULL;
 	}
 	if (kickstart_version == 0xffff)
 		kickstart_version = 0;
@@ -1083,10 +1087,32 @@ static uae_u32 REGPARAM3 kickmem_bget(uaecptr) REGPARAM;
 MEMORY_CHECK(kickmem);
 MEMORY_XLATE(kickmem);
 
+extern bool get_power_led(void);
+
+static uaecptr get_a1000_addr(uaecptr addr)
+{
+	bool led = get_power_led();
+	addr -= led && a1000_kickstart_size == ROM_SIZE_512 ? ROM_SIZE_256 : 0;
+	return addr;
+}
+
 static uae_u32 REGPARAM2 kickmem_lget(uaecptr addr)
 {
-	addr &= kickmem_bank.mask;
-	uae_u32 m = do_get_mem_long((uae_u32*)(kickmem_bank.baseaddr + addr));
+	uae_u32 *p;
+	if (a1000_kickstart_mode) {
+		if (addr >= 0x1000000 - ROM_SIZE_256) {
+			addr = get_a1000_addr(addr);
+			addr &= kickmem_bank.mask;
+			p = (uae_u32*)(kickmem_bank.baseaddr + addr);
+		} else {
+			addr &= kickmem_bank.mask;
+			p = (uae_u32*)(a1000_bootrom + addr);
+		}
+	} else {
+		addr &= kickmem_bank.mask;
+		p = (uae_u32*)(kickmem_bank.baseaddr + addr);
+	}
+	uae_u32 m = do_get_mem_long(p);
 #ifdef DEBUGGER
 	if (debug_dma) {
 		record_rom_access(kickmem_bank.start + addr, m, 4, false);
@@ -1096,8 +1122,21 @@ static uae_u32 REGPARAM2 kickmem_lget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 kickmem_wget(uaecptr addr)
 {
-	addr &= kickmem_bank.mask;
-	uae_u16 m = do_get_mem_word((uae_u16*)(kickmem_bank.baseaddr + addr));
+	uae_u16 *p;
+	if (a1000_kickstart_mode) {
+		if (addr >= 0x1000000 - ROM_SIZE_256) {
+			addr = get_a1000_addr(addr);
+			addr &= kickmem_bank.mask;
+			p = (uae_u16*)(kickmem_bank.baseaddr + addr);
+		} else {
+			addr &= kickmem_bank.mask;
+			p = (uae_u16*)(a1000_bootrom + addr);
+		}
+	} else {
+		addr &= kickmem_bank.mask;
+		p = (uae_u16*)(kickmem_bank.baseaddr + addr);
+	}
+	uae_u16 m = do_get_mem_word(p);
 #ifdef DEBUGGER
 	if (debug_dma) {
 		record_rom_access(kickmem_bank.start + addr, m, 2, false);
@@ -1107,8 +1146,21 @@ static uae_u32 REGPARAM2 kickmem_wget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 kickmem_bget(uaecptr addr)
 {
-	addr &= kickmem_bank.mask;
-	uae_u8 m = kickmem_bank.baseaddr[addr];
+	uae_u8 *p;
+	if (a1000_kickstart_mode) {
+		if (addr >= 0x1000000 - ROM_SIZE_256) {
+			addr = get_a1000_addr(addr);
+			addr &= kickmem_bank.mask;
+			p = (uae_u8*)(kickmem_bank.baseaddr + addr);
+		} else {
+			addr &= kickmem_bank.mask;
+			p = (uae_u8*)(a1000_bootrom + addr);
+		}
+	} else {
+		addr &= kickmem_bank.mask;
+		p = (uae_u8*)(kickmem_bank.baseaddr + addr);
+	}
+	uae_u8 m = *p;
 #ifdef DEBUGGER
 	if (debug_dma) {
 		record_rom_access(kickmem_bank.start + addr, m, 1, false);
@@ -1127,7 +1179,7 @@ static void REGPARAM2 kickmem_lput (uaecptr addr, uae_u32 b)
 #endif
 	if (currprefs.rom_readwrite && rom_write_enabled) {
 		addr &= kickmem_bank.mask;
-		m = (uae_u32 *)(kickmem_bank.baseaddr + addr);
+		m = (uae_u32*)(kickmem_bank.baseaddr + addr);
 		do_put_mem_long (m, b);
 #if 0
 		if (addr == ROM_SIZE_512-4) {
@@ -1136,10 +1188,11 @@ static void REGPARAM2 kickmem_lput (uaecptr addr, uae_u32 b)
 		}
 #endif
 	} else if (a1000_kickstart_mode) {
-		if (addr >= 0xfc0000) {
+		if (addr >= 0x1000000 - ROM_SIZE_256) {
+			addr = get_a1000_addr(addr);
 			addr &= kickmem_bank.mask;
-			m = (uae_u32 *)(kickmem_bank.baseaddr + addr);
-			do_put_mem_long (m, b);
+			m = (uae_u32*)(kickmem_bank.baseaddr + addr);
+			do_put_mem_long(m, b);
 			return;
 		} else
 			a1000_handle_kickstart (0);
@@ -1161,9 +1214,10 @@ static void REGPARAM2 kickmem_wput (uaecptr addr, uae_u32 b)
 		m = (uae_u16 *)(kickmem_bank.baseaddr + addr);
 		do_put_mem_word (m, b);
 	} else if (a1000_kickstart_mode) {
-		if (addr >= 0xfc0000) {
+		if (addr >= 0x1000000 - ROM_SIZE_256) {
+			addr = get_a1000_addr(addr);
 			addr &= kickmem_bank.mask;
-			m = (uae_u16 *)(kickmem_bank.baseaddr + addr);
+			m = (uae_u16*)(kickmem_bank.baseaddr + addr);
 			do_put_mem_word (m, b);
 			return;
 		} else
@@ -1184,12 +1238,14 @@ static void REGPARAM2 kickmem_bput (uaecptr addr, uae_u32 b)
 		addr &= kickmem_bank.mask;
 		kickmem_bank.baseaddr[addr] = b;
 	} else if (a1000_kickstart_mode) {
-		if (addr >= 0xfc0000) {
+		if (addr >= 0x1000000 - ROM_SIZE_256) {
+			addr = get_a1000_addr(addr);
 			addr &= kickmem_bank.mask;
 			kickmem_bank.baseaddr[addr] = b;
 			return;
-		} else
+		} else {
 			a1000_handle_kickstart (0);
+		}
 	} else if (currprefs.illegal_mem) {
 		write_log (_T("Illegal kickmem bput at %08x PC=%08x\n"), addr, M68K_GETPC);
 	}
@@ -1688,18 +1744,25 @@ static int read_kickstart(struct zfile *f, uae_u8 *mem, int size, int dochecksum
 	if (size <= 256)
 		return size;
 
-	if (currprefs.cs_a1000ram && i < ROM_SIZE_256) {
-		int off = 0;
-		if (!a1000_bootrom)
-			a1000_bootrom = xcalloc(uae_u8, ROM_SIZE_256);
-		while (off + i < ROM_SIZE_256) {
-			memcpy(a1000_bootrom + off, kickmem_bank.baseaddr, i);
-			off += i;
+	if (currprefs.cs_a1000ram) {
+		if (!a1000_bootrom) {
+			a1000_kickstart_size = ROM_SIZE_256;
+			if (is_board_enabled(&currprefs, ROMTYPE_512KWOM, 0)) {
+				a1000_kickstart_size = ROM_SIZE_512;
+			}
+			a1000_bootrom = xcalloc(uae_u8, ROM_SIZE_256 + 4);
 		}
-		memset(kickmem_bank.baseaddr, 0, kickmem_bank.allocated_size);
-		a1000_handle_kickstart(1);
-		dochecksum = 0;
-		i = ROM_SIZE_512;
+		if (i <= ROM_SIZE_256) {
+			int off = 0;
+			while (off + i < ROM_SIZE_256) {
+				memcpy(a1000_bootrom + off, kickmem_bank.baseaddr, i);
+				off += i;
+			}
+			memset(kickmem_bank.baseaddr, 0, kickmem_bank.allocated_size);
+			a1000_handle_kickstart(1);
+			dochecksum = 0;
+			i = ROM_SIZE_512;
+		}
 	}
 
 	for (j = 0; j < 256 && i >= ROM_SIZE_256; j++) {

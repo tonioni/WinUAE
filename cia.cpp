@@ -1390,6 +1390,11 @@ static void check_led(void)
 	}
 }
 
+bool get_power_led(void)
+{
+	return led;
+}
+
 static void bfe001_change(void)
 {
 	uae_u8 v = cia[0].pra;

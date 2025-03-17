@@ -470,8 +470,10 @@ static void call_card_init(int index)
 	memset(aci->autoconfig_raw, 0xff, sizeof aci->autoconfig_raw);
 	if (cd->initnum) {
 		ok = cd->initnum(aci);
-	} else {
+	} else if (cd->initrc) {
 		ok = cd->initrc(aci);
+	} else {
+		ok = true;
 	}
 	if (ok) {
 		ab = NULL;
@@ -2942,7 +2944,11 @@ static void expansion_init_cards(struct uae_prefs *p)
 			ok = cd->initnum(aci);
 		} else {
 			aci->rc = cd->rc;
-			ok = cd->initrc(aci);
+			if (cd->initrc) {
+				ok = cd->initrc(aci);
+			} else {
+				ok = true;
+			}
 		}
 		if (cd->flags & CARD_FLAG_CHILD)
 			aci->parent_of_previous = true;
@@ -3061,7 +3067,11 @@ static void expansion_parse_cards(struct uae_prefs *p, bool log)
 			ok = cd->initnum(aci);
 		} else {
 			aci->rc = cd->rc;
-			ok = cd->initrc(aci);
+			if (cd->initrc) {
+				ok = cd->initrc(aci);
+			} else {
+				ok = true;
+			}
 		}
 		if (aci->last_high_ram > expamem_highmem_pointer) {
 			expamem_highmem_pointer = aci->last_high_ram;
@@ -5352,6 +5362,12 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_INTERNAL
 	},
 #endif
+	{
+		_T("a1000wom512k"), _T("A1000 512k WOM"), _T("J�rg Huth"),
+		NULL, NULL, NULL, NULL, ROMTYPE_512KWOM | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL
+	},
 
 	/* PCI Bridgeboards */
 
