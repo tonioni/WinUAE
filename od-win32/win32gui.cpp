@@ -8786,7 +8786,7 @@ static void values_to_displaydlg (HWND hDlg)
 
 	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_RESETCONTENT, 0, 0);
 	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("TV (narrow)"));
-	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("TV (standard"));
+	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("TV (standard)"));
 	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("TV (wide)"));
 	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Overscan"));
 	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Overscan+"));
@@ -11238,7 +11238,7 @@ static void values_to_expansion2_expansion_roms(HWND hDlg, UAEREG *fkey)
 		}
 		ew(hDlg, IDC_SCSIROMFILE, true);
 		ew(hDlg, IDC_SCSIROMCHOOSER, true);
-		hide(hDlg, IDC_SCSIROMFILEAUTOBOOT, 0);
+		hide(hDlg, IDC_SCSIROMFILEAUTOBOOT, !ert->autoboot_jumper);
 		if (romtype & ROMTYPE_NOT) {
 			hide(hDlg, IDC_SCSIROMCHOOSER, 1);
 			hide(hDlg, IDC_SCSIROMFILE, 1);
@@ -13911,6 +13911,8 @@ static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
 	}
 	if (!workprefs.cachesize) {
 		setchecked (hDlg, IDC_JITENABLE, false);
+		workprefs.compfpu = false;
+		setchecked(hDlg, IDC_JITFPU, false);
 	}
 	if (workprefs.cachesize && workprefs.compfpu && workprefs.fpu_mode > 0) {
 		workprefs.fpu_mode = 0;

@@ -1390,6 +1390,11 @@ static void check_led(void)
 	}
 }
 
+bool get_power_led(void)
+{
+	return led;
+}
+
 static void bfe001_change(void)
 {
 	uae_u8 v = cia[0].pra;
@@ -2323,13 +2328,13 @@ void dumpcia(void)
 	console_out_f(_T("A: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n"),
 		a->t[0].cr, a->t[1].cr, a->icr1, a->imask, a->t[0].timer - a->t[0].passed,
 		a->t[0].latch, a->t[1].timer - a->t[1].passed, a->t[1].latch);
-	console_out_f(_T("   PRA %02x [%02x] PRB %02x [%02x] DDRA %02x DDRB %02x\n"), a->pra, apra, a->prb, aprb, a->dra, a->drb);
+	console_out_f(_T("   PRA %02x [%02x] PRB %02x [%02x] DDRA %02x DDRB %02x SDR %02x\n"), a->pra, apra, a->prb, aprb, a->dra, a->drb, a->sdr);
 	console_out_f(_T("   TOD %06x (%06x) ALARM %06x %c%c CYC=%016llX\n"),
 		a->tod, a->tol, a->alarm, a->tlatch ? 'L' : '-', a->todon ? '-' : 'S', get_cycles());
 	console_out_f(_T("B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n"),
 		b->t[0].cr, b->t[1].cr, b->icr1, b->imask, b->t[0].timer - b->t[0].passed,
 		b->t[0].latch, b->t[1].timer - b->t[1].passed, b->t[1].latch);
-	console_out_f(_T("   PRA %02x [%02x] PRB %02x [%02x] DDRA %02x DDRB %02x\n"), b->pra, bpra, b->prb, bprb, b->dra, b->drb);
+	console_out_f(_T("   PRA %02x [%02x] PRB %02x [%02x] DDRA %02x DDRB %02x SDR %02x\n"), b->pra, bpra, b->prb, bprb, b->dra, b->drb, b->sdr);
 	console_out_f(_T("   TOD %06x (%06x) ALARM %06x %c%c\n"),
 		b->tod, b->tol, b->alarm, b->tlatch ? 'L' : '-', b->todon ? '-' : 'S');
 }

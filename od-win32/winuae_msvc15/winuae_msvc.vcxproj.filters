@@ -997,9 +997,6 @@
     <ClCompile Include="..\..\pcem\vid_ncr.cpp">
       <Filter>pcem</Filter>
     </ClCompile>
-    <ClCompile Include="keyboard_at_draco.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\pcem\vid_permedia2.cpp">
       <Filter>pcem</Filter>
     </ClCompile>
@@ -1047,6 +1044,9 @@
     </ClCompile>
     <ClCompile Include="..\hq2x_d3d.cpp">
       <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\keyboard_at_draco.cpp">
+      <Filter>pcem</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

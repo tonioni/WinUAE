@@ -1,4 +1,20 @@
 
+Beta 15:
+
+- Vertical blank state was taken from wrong variable when in programmed mode, forcing fast mode to not be used when drawing programmed mode bitplane graphics.
+- CIA SDR register added to CIA dump (c debugger command)
+- BPLCON4 bitplane XOR value change delay was not correct.
+- Fixed 1200TX second window logic and also implemented second window restriction: top 3 bits of window 2 are taken from window 1 position.
+- Some changes to support future multiple PCI bridgeboards and PCI board reordering.
+- Hide expansion device "autoboot disabled" checkbox when device does not have any autoboot jumpers. (or have nothing to do with storage)
+- "Add Harddrive" with MBR partition storage device and multiple partitions: first item was mix of whole drive's/first partition's properties. (b1)
+- Added https://aminet.net/package/docs/hard/512kWOM A1000 512k WOM expansion emulation. Option in Expansions->Built-in expansions.
+- Last Denise RGA cycle of new "fast" line was skipped. If it had custom register write, it was not seen by Denise side.
+- Fixed fast mode display panel scanlines.
+- Check native mode screen changes when vsync starts (when whole frame is complete), not when Agnus vertical counter resets. Last few lines glitches when switching modes should be gone.
+- Some FPU operations could run slightly slower in non-JIT mode but JIT FPU ticked. Force JIT FPU off when JIT is off.
+- CPU/chipset timing update. Non-JIT fastest possible modes are almost as fast as 5.3.1 again.
+- Fast mode bitplane optimization that detects if bitplane line changed or not is now disabled. It seems to be slower than always doing fast mode redraw of the bitplane line because it moves host CPU work from main thread to drawing thread and reduces main thread memory copies and comparisons that were needed to check if bitplane had changed.
 
 Beta 14:
 

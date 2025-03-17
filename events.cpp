@@ -297,19 +297,21 @@ void do_cycles_slow(int cycles_to_add)
 #endif
 #endif
 
-	if (syncline_cnt > 0) {
-		syncline_cnt--;
-		return;
-	}
-
 	if (is_syncline) {
+		if (syncline_cnt > 0) {
+			syncline_cnt--;
+			return;
+		}
 		// runs CPU emulation with chipset stopped
 		// when there is free time to do so.
 		if (event_check_vsync()) {
-			syncline_cnt = 8;
+			syncline_cnt = currprefs.cachesize ? 2 : 32;
 			return;
 		}
 	}
+
+	cycles_to_add += cycles_to_add_remain;
+	cycles_to_add_remain = 0;
 
 	if (!currprefs.cpu_thread) {
 		if ((pissoff -= cycles_to_add) >= 0) {
@@ -320,9 +322,6 @@ void do_cycles_slow(int cycles_to_add)
 	} else {
 		pissoff = 0x40000000;
 	}
-
-	cycles_to_add += cycles_to_add_remain;
-	cycles_to_add_remain = 0;
 
 	while (cycles_to_add >= CYCLE_UNIT) {
 
@@ -335,37 +334,6 @@ void do_cycles_slow(int cycles_to_add)
 			cycles_to_add = 0;
 		}
 
-#if 0
-
-			while (custom_fastmode && cycles_to_add >= CYCLE_UNIT) {
-				int max = -1;
-				if (agnus_hpos == 2) {
-					custom_trigger_start_fast();
-				} else if (agnus_hpos == 1) {
-					custom_trigger_start_fast();
-					if (!custom_fastmode) {
-						max = 1;
-					}
-				}
-				if (max < 0) {
-					max = maxhpos - agnus_hpos + 1;
-				}
-				if (agnus_hpos == 0 || agnus_hpos == 1) {
-					max = 1;
-				}
-				if (max * CYCLE_UNIT > cycles_to_add) {
-					max = cycles_to_add / CYCLE_UNIT;
-				}
-				do_cycles_normal(max * CYCLE_UNIT);
-				cycles_to_add -= max * CYCLE_UNIT;
-				agnus_hpos += max;
-				linear_hpos += max;
-				currcycle_cck += max;
-				if (agnus_hpos >= maxhpos) {
-					agnus_hpos -= maxhpos;
-				}
-			}
-#endif
 	}
 
 	int remain = cycles_to_add;

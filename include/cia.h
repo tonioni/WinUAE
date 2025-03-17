@@ -38,4 +38,6 @@ extern void rtc_hardreset(void);
 
 extern void keyboard_connected(bool);
 
+bool get_power_led(void);
+
 #endif /* UAE_CIA_H */

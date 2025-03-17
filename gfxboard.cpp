@@ -64,7 +64,7 @@ static bool memlogw = true;
 #include "qemuvga/qemuuaeglue.h"
 #include "qemuvga/vga.h"
 #include "draco.h"
-
+#include "autoconf.h"
 
 extern void put_io_pcem(uaecptr, uae_u32, int);
 extern uae_u32 get_io_pcem(uaecptr, int);
@@ -147,7 +147,7 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_A2410,
 		_T("A2410 [Zorro II]"), _T("Commodore"), _T("A2410"),
 		1030, 0, 0, 0,
-		0x00000000, 0x00200000, 0x00200000, 0x10000, 0, 0, 2, false, false,
+		0x00000000, 0x00200000, 0x00200000, 0x10000, 0, 2, 2, false, false,
 		0, 0xc1, &a2410_func
 	},
 	{
@@ -217,7 +217,7 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_PERMEDIA2_PCI,
 		_T("BlizzardVision/CyberVision PPC (Permedia2) [PCI]"), _T("3DLabs"), _T("PERMEDIA2_PCI"),
 		0, 0, 0, 0,
-		0x00000000, 0x00800000, 0x00800000, 0x10000000, 0, 0, -1, false, false,
+		0x00000000, 0x00800000, 0x00800000, 0x10000000, 0, BOARD_PCI, -1, false, false,
 		0, 0, NULL, &permedia2_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 	{
@@ -268,7 +268,7 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_ALTAIS_Z3,
 		_T("Altais [DracoBus]"), _T("MacroSystem"), _T("Altais"),
 		18260, 19, 0, 0,
-		0x00000000, 0x00400000, 0x00400000, 0x00400000, 0, 4, 3, false, false,
+		0x00000000, 0x00400000, 0x00400000, 0x00400000, 0, BOARD_NONAUTOCONFIG_BEFORE, 3, false, false,
 		0, 0, NULL, &ncr_retina_z3_device, 0, GFXBOARD_BUSTYPE_DRACO
 	},
 	{
@@ -305,7 +305,7 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_EGS_110_24,
 		_T("EGS 110/24 [GVP local bus]"), _T("GVP"), _T("EGS_110_24"),
 		2193, 0, 0, 0,
-		0x00000000, 0x00400000, 0x00800000, 0x00800000, 0, 4, 2, false, false,
+		0x00000000, 0x00400000, 0x00800000, 0x00800000, 0, BOARD_NONAUTOCONFIG_BEFORE, 2, false, false,
 		0, 0, NULL, &inmos_egs_110_24_device
 	},
 	{
@@ -376,7 +376,7 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_VOODOO3_PCI,
 		_T("Voodoo 3 3000 [PCI]"), _T("3dfx"), _T("V3_3000"),
 		0, 0, 0, 0,
-		0x00000000, 0x01000000, 0x01000000, 0x01000000, 0, 0, -1, false, false,
+		0x00000000, 0x01000000, 0x01000000, 0x01000000, 0, BOARD_PCI, -1, false, false,
 		ROMTYPE_VOODOO3,
 		0, NULL, &voodoo_3_3000_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
@@ -384,42 +384,42 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_S3VIRGE_PCI,
 		_T("Virge [PCI]"), _T("S3"), _T("S3VIRGE_PCI"),
 		0, 0, 0, 0,
-		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, 0, -1, false, false,
+		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, BOARD_PCI, -1, false, false,
 		0, 0, NULL, &s3_virge_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 	{
 		GFXBOARD_ID_S3TRIO64_PCI,
 		_T("Trio64 [PCI]"), _T("S3"), _T("S3TRIO64_PCI"),
 		0, 0, 0, 0,
-		0x00000000, 0x00200000, 0x00400000, 0x10000000, 0, 0, -1, false, false,
+		0x00000000, 0x00200000, 0x00400000, 0x10000000, 0, BOARD_PCI, -1, false, false,
 		0, 0, NULL, &s3_trio64_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 	{
 		GFXBOARD_ID_MATROX_MILLENNIUM_PCI,
 		_T("Matrox Millennium [PCI]"), _T("Matrox"), _T("Matrox_Millennium"),
 		0, 0, 0, 0,
-		0x00000000, 0x00200000, 0x00400000, 0x10000000, 0, 0, -1, false, false,
+		0x00000000, 0x00200000, 0x00400000, 0x10000000, 0, BOARD_PCI, -1, false, false,
 		0, 0, NULL, &millennium_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 	{
 		GFXBOARD_ID_MATROX_MILLENNIUM_II_PCI,
 		_T("Matrox Millennium II [PCI]"), _T("Matrox"), _T("Matrox_Millennium_II"),
 		0, 0, 0, 0,
-		0x00000000, 0x00200000, 0x01000000, 0x10000000, 0, 0, -1, false, false,
+		0x00000000, 0x00200000, 0x01000000, 0x10000000, 0, BOARD_PCI, -1, false, false,
 		0, 0, NULL, &millennium_ii_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 	{
 		GFXBOARD_ID_MATROX_MYSTIQUE_PCI,
 		_T("Matrox Mystique [PCI]"), _T("Matrox"), _T("Matrox_Mystique"),
 		0, 0, 0, 0,
-		0x00000000, 0x00200000, 0x00800000, 0x10000000, 0, 0, -1, false, false,
+		0x00000000, 0x00200000, 0x00800000, 0x10000000, 0, BOARD_PCI, -1, false, false,
 		0, 0, NULL, &mystique_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 	{
 		GFXBOARD_ID_MATROX_MYSTIQUE220_PCI,
 		_T("Matrox Mystique 220 [PCI]"), _T("Matrox"), _T("Matrox_Mystique220"),
 		0, 0, 0, 0,
-		0x00000000, 0x00200000, 0x00800000, 0x10000000, 0, 0, -1, false, false,
+		0x00000000, 0x00200000, 0x00800000, 0x10000000, 0, BOARD_PCI, -1, false, false,
 		0, 0, NULL, &mystique_220_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 #if 0
@@ -427,7 +427,7 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_GD5446_PCI,
 		_T("GD5446 [PCI]"), _T("Cirrus Logic"), _T("GD5446_PCI"),
 		0, 0, 0, 0,
-		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, 0, -1, false, false,
+		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, BOARD_PCI, -1, false, false,
 		0, 0, NULL, &gd5446_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 #endif

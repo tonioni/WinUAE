@@ -304,7 +304,7 @@ void fixup_cpu (struct uae_prefs *p)
 		p->cachesize = 0;
 		error_log (_T("JIT requires 68020 or better CPU."));
 	}
-	if (p->fpu_model == 0 && p->compfpu) {
+	if ((p->fpu_model == 0 || !p->cachesize) && p->compfpu) {
 		p->compfpu = false;
 	}
 
