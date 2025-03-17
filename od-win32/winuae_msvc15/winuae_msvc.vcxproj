@@ -1071,6 +1071,7 @@
     <ClCompile Include="..\..\pcem\dosbox\nukedopl.cpp" />
     <ClCompile Include="..\..\pcem\keyboard.cpp" />
     <ClCompile Include="..\..\pcem\keyboard_at.cpp" />
+    <ClCompile Include="..\..\pcem\keyboard_at_draco.cpp" />
     <ClCompile Include="..\..\pcem\mem.cpp" />
     <ClCompile Include="..\..\pcem\mouse_ps2.cpp" />
     <ClCompile Include="..\..\pcem\mouse_serial.cpp" />
@@ -1286,7 +1287,6 @@
     <ClCompile Include="..\..\jit\compemu_support.cpp" />
     <ClCompile Include="..\..\jit\compstbl.cpp" />
     <ClCompile Include="..\..\moduleripper.cpp" />
-    <ClCompile Include="keyboard_at_draco.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\fpux64_80.asm">
