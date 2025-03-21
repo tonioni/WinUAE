@@ -1883,9 +1883,7 @@ static bool getdeviceinfo(HANDLE hDevice, struct uae_driveinfo *udi)
 				continue;
 			if (pi->Mbr.RecognizedPartition == 0)
 				continue;
-			if (pi->Mbr.PartitionType != 0x76 && pi->Mbr.PartitionType != 0x30)
-				continue;
-			if (i == amipart) {
+			if (i + 1 == amipart) {
 				udi->offset = pi->StartingOffset.QuadPart;
 				udi->size = pi->PartitionLength.QuadPart;
 				return false;
