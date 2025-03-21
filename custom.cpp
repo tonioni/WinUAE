@@ -11372,7 +11372,9 @@ static void custom_trigger_start(void)
 	}
 	linear_display_vpos = linear_vpos;
 	linear_vpos++;
-	bpl_autoscale();
+	if (vdiwstate == diw_states::DIW_waiting_stop && dmaen(DMA_BITPLANE)) {
+		bpl_autoscale();
+	}
 
 	linear_vpos_vsync++;
 	if (beamcon0_has_vsync) {
