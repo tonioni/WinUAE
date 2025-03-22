@@ -34,12 +34,8 @@ extern void updatewinfsmode(int monid, struct uae_prefs *p);
 extern void gfx_lock(void);
 extern void gfx_unlock(void);
 
-extern bool lockscr3d(struct vidbuffer *vb);
-extern void unlockscr3d(struct vidbuffer *vb);
-
 void centerdstrect(struct AmigaMonitor*, RECT *);
 struct MultiDisplay *getdisplay(struct uae_prefs *p, int monid);
 extern int getrefreshrate(int monid, int width, int height);
 
-bool osd_keyboard(int show);
 #endif

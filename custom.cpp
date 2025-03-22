@@ -446,6 +446,8 @@ int linear_vpos, linear_hpos, linear_vpos_prev[3], linear_hpos_prev[3];
 static int linear_vpos_vsync;
 static int linear_display_vpos;
 int current_linear_vpos, current_linear_hpos;
+static int current_linear_vpos_temp, current_linear_hpos_temp;
+static int current_linear_temp_change;
 static int display_hstart_cyclewait, display_hstart_cyclewait_cnt, display_hstart_cyclewait_end;
 static int display_hstart_cyclewait_skip, display_hstart_cyclewait_skip2;
 static bool display_hstart_cyclewait_start;
@@ -2164,6 +2166,9 @@ static void init_hz_reset(void)
 	linear_hpos_prev[2] = linear_hpos;
 	current_linear_vpos = linear_vpos + vsync_startline - lof_store;
 	current_linear_hpos = linear_hpos;
+	current_linear_hpos_temp = current_linear_hpos;
+	current_linear_vpos_temp = current_linear_vpos;
+	current_linear_temp_change = 0;
 	init_hz();
 }
 
@@ -5077,14 +5082,26 @@ static void vsync_check_vsyncmode(void)
 				if (linear_hpos_prev[2] == linear_hpos_prev[0] || linear_hpos_prev[1] == linear_hpos_prev[0]) {
 					int hp = linear_hpos_prev[0] > linear_hpos_prev[2] ? linear_hpos_prev[0] : linear_hpos_prev[2];
 					int vp = linear_vpos_prev[0] > linear_vpos_prev[2] ? linear_vpos_prev[0] : linear_vpos_prev[2];
-					if (abs(hp - current_linear_hpos) > 1 || abs(vp - current_linear_vpos) > 1) {
-						current_linear_hpos = hp;
-						current_linear_vpos = vp;
-						init_beamcon0();
-						compute_framesync();
-						devices_syncchange();
+					if (abs(hp - current_linear_hpos_temp) > 1 || abs(vp - current_linear_vpos_temp) > 1) {
+						current_linear_hpos_temp = hp;
+						current_linear_vpos_temp = vp;
+						current_linear_temp_change = 2;
 					}
 				}
+			}
+		}
+	}
+
+	if (current_linear_temp_change > 0) {
+		current_linear_temp_change--;
+		if (current_linear_temp_change == 0) {
+			if (current_linear_hpos != current_linear_hpos_temp ||
+				current_linear_vpos != current_linear_vpos_temp) {
+				current_linear_hpos = current_linear_hpos_temp;
+				current_linear_vpos = current_linear_vpos_temp;
+				init_beamcon0();
+				compute_framesync();
+				devices_syncchange();
 			}
 		}
 	}
@@ -11372,7 +11389,9 @@ static void custom_trigger_start(void)
 	}
 	linear_display_vpos = linear_vpos;
 	linear_vpos++;
-	bpl_autoscale();
+	if (vdiwstate == diw_states::DIW_waiting_stop && dmaen(DMA_BITPLANE)) {
+		bpl_autoscale();
+	}
 
 	linear_vpos_vsync++;
 	if (beamcon0_has_vsync) {

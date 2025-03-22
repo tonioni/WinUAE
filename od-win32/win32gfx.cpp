@@ -1444,25 +1444,6 @@ void show_screen(int monid, int mode)
 	mon->render_ok = false;
 }
 
-bool lockscr3d(struct vidbuffer *vb)
-{
-	struct AmigaMonitor *mon = &AMonitors[vb->monitor_id];
-	if (mon->currentmode.flags & DM_D3D) {
-		vb->bufmem = D3D_locktexture(vb->monitor_id, &vb->rowbytes, NULL, NULL, false);
-		if (vb->bufmem) 
-			return true;
-	}
-	return false;
-}
-
-void unlockscr3d(struct vidbuffer *vb)
-{
-	struct AmigaMonitor *mon = &AMonitors[vb->monitor_id];
-	if (mon->currentmode.flags & DM_D3D) {
-		D3D_unlocktexture(vb->monitor_id, -1, -1);
-	}
-}
-
 int lockscr(struct vidbuffer *vb, bool fullupdate, bool skip)
 {
 	struct AmigaMonitor *mon = &AMonitors[vb->monitor_id];
@@ -1531,22 +1512,18 @@ float filterrectmult(int v1, float v2, int dmode)
 	return (float)(int)(v + 0.5f);
 }
 
-void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int dst_width, int dst_height)
+void getrtgfilterdata(int monid, struct displayscale *ds)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct amigadisplay *ad = &adisplays[monid];
 	struct picasso96_state_struct *state = &picasso96_state[monid];
 
-	SetRect (sr, 0, 0, mon->currentmode.native_width, mon->currentmode.native_height);
-	SetRect (dr, 0, 0, state->Width, state->Height);
-	SetRect (zr, 0, 0, 0, 0);
-	
 	picasso_offset_x = 0;
 	picasso_offset_y = 0;
 	picasso_offset_mx = 1.0;
 	picasso_offset_my = 1.0;
 
-	*mode = 0;
+	ds->mode = 0;
 
 	if (!ad->picasso_on)
 		return;
@@ -1570,8 +1547,6 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int d
 
 	float mx = (float)mon->currentmode.native_width / srcwidth;
 	float my = (float)mon->currentmode.native_height / srcheight;
-	int outwidth;
-	int outheight;
 
 	if (mon->scalepicasso == RTG_MODE_INTEGER_SCALE) {
 		int divx = mon->currentmode.native_width / srcwidth;
@@ -1585,25 +1560,22 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int d
 				mul = 0.25f;
 			}
 		}
-		SetRect(dr, 0, 0, (int)(mon->currentmode.native_width / mul), (int)(mon->currentmode.native_height / mul));
+		ds->outwidth = (int)(mon->currentmode.native_width / mul);
+		ds->outheight = (int)(mon->currentmode.native_height / mul);
 		int xx = (int)((mon->currentmode.native_width / mul - srcwidth) / 2);
 		int yy = (int)((mon->currentmode.native_height / mul - srcheight) / 2);
 		picasso_offset_x = -xx;
 		picasso_offset_y = -yy;
 		mx = mul;
 		my = mul;
-		outwidth = srcwidth;
-		outheight = srcheight;
-		*mode = 1;
+		ds->mode = 1;
 	} else if (mon->scalepicasso == RTG_MODE_CENTER) {
 		int xx = (mon->currentmode.native_width - srcwidth) / 2;
 		int yy = (mon->currentmode.native_height - srcheight) / 2;
 		picasso_offset_x = -xx;
 		picasso_offset_y = -yy;
-		SetRect (sr, 0, 0, mon->currentmode.native_width, mon->currentmode.native_height);
-		SetRect (dr, 0, 0, mon->currentmode.native_width, mon->currentmode.native_height);
-		outwidth = dr->right - dr->left;
-		outheight = dr->bottom - dr->top;
+		ds->outwidth = mon->currentmode.native_width;
+		ds->outheight = mon->currentmode.native_height;
 		mx = my = 1.0;
 	} else {
 		if (currprefs.win32_rtgscaleaspectratio < 0) {
@@ -1620,27 +1592,29 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int d
 		}
 
 		if (srcratio == dstratio) {
-			SetRect (dr, 0, 0, srcwidth, srcheight);
+			ds->outwidth = srcwidth;
+			ds->outheight = srcheight;
 		} else if (srcratio > dstratio) {
 			int yy = srcheight * srcratio / dstratio;
-			SetRect (dr, 0, 0, srcwidth, yy);
+			ds->outwidth = srcwidth;
+			ds->outheight = yy;
 			picasso_offset_y = (state->Height - yy) / 2;
 		} else {
 			int xx = srcwidth * dstratio / srcratio;
-			SetRect (dr, 0, 0, xx, srcheight);
+			ds->outwidth = xx;
+			ds->outheight = srcheight;
 			picasso_offset_x = (state->Width - xx) / 2;
 		}
-		outwidth = dr->right - dr->left;
-		outheight = dr->bottom - dr->top;
 	}
 
-	OffsetRect (zr, picasso_offset_x, picasso_offset_y);
+	ds->xoffset += picasso_offset_x;
+	ds->yoffset += picasso_offset_y;
 
 	picasso_offset_x /= state->HLineDBL;
 	picasso_offset_y /= state->VLineDBL;
 
-	picasso_offset_mx = (float)(srcwidth * mx * state->HLineDBL) / outwidth;
-	picasso_offset_my = (float)(srcheight * my * state->VLineDBL) / outheight;
+	picasso_offset_mx = (float)(srcwidth * mx * state->HLineDBL) / ds->dstwidth;
+	picasso_offset_my = (float)(srcheight * my * state->VLineDBL) / ds->dstheight;
 }
 
 static uae_u8 *gfx_lock_picasso2(int monid, bool fullupdate)

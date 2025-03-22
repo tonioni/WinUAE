@@ -213,7 +213,6 @@ struct d3dstruct
 	float xmult, ymult;
 	bool cursor_v, cursor_scale;
 	int statusbar_vx, statusbar_hx;
-	RECT sr2, dr2, zr2;
 
 	struct gfx_filterdata *filterd3d;
 	int filterd3didx;
@@ -2095,34 +2094,23 @@ static bool xD3D_getscalerect(int monid, float *mx, float *my, float *sx, float 
 static void setupscenecoords(struct d3dstruct *d3d, bool normalrender, int monid)
 {
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
-	RECT sr, dr, zr;
-	float w, h;
-	float dw, dh;
-	static RECT sr2[MAX_AMIGAMONITORS], dr2[MAX_AMIGAMONITORS], zr2[MAX_AMIGAMONITORS];
+	struct displayscale ds = { 0 };
 
 	if (!normalrender)
 		return;
 
-	getfilterrect2 (monid, &dr, &sr, &zr, d3d->window_w, d3d->window_h, d3d->tin_w / d3d->dmult, d3d->tin_h / d3d->dmult, d3d->dmult, &d3d->dmode, d3d->tin_w, d3d->tin_h);
+	ds.srcwidth = d3d->tin_w / d3d->dmult;
+	ds.srcheight = d3d->tin_h / d3d->dmult;
+	ds.scale = d3d->dmult;
+	ds.dstwidth = d3d->window_w;
+	ds.dstheight = d3d->window_h;
 
-	if (memcmp (&sr, &sr2[monid], sizeof RECT) || memcmp (&dr, &dr2[monid], sizeof RECT) || memcmp (&zr, &zr2[monid], sizeof RECT)) {
-		write_log (_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d)\n"),
-			dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom,
-			sr.right - sr.left, sr.bottom - sr.top,
-			zr.left, zr.top);
-		sr2[monid] = sr;
-		dr2[monid] = dr;
-		zr2[monid] = zr;
-	}
+	getfilterdata(monid, &ds);
 
-	d3d->sr2 = sr;
-	d3d->dr2 = dr;
-	d3d->zr2 = zr;
-
-	dw = (float)dr.right - dr.left;
-	dh = (float)dr.bottom - dr.top;
-	w = (float)sr.right - sr.left;
-	h = (float)sr.bottom - sr.top;
+	float dw = (float)ds.dstwidth;
+	float dh = (float)ds.dstheight;
+	float w = ds.outwidth;
+	float h = ds.outheight;
 
 	d3d->fakesize.x = w;
 	d3d->fakesize.y = h;
@@ -2131,48 +2119,17 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender, int monid
 
 	MatrixOrthoOffCenterLH (&d3d->m_matProj_out, 0, w + 0.05f, 0, h + 0.05f, 0.0f, 1.0f);
 
-	float tx, ty;
-	float sw, sh;
+	float tx = -0.5f + dw * d3d->tin_w / d3d->window_w / 2;
+	float ty = +0.5f + dh * d3d->tin_h / d3d->window_h / 2;
 
-	if (0 && d3d->mask2texture) {
-
-		float mw = (float)d3d->mask2rect.right - d3d->mask2rect.left;
-		float mh = (float)d3d->mask2rect.bottom - d3d->mask2rect.top;
-
-		tx = -0.5f + dw * d3d->tin_w / mw / 2;
-		ty = +0.5f + dh * d3d->tin_h / mh / 2;
-
-		float xshift = (float)-zr.left;
-		float yshift = (float)-zr.top;
-
-		sw = dw * d3d->tin_w / vidinfo->outbuffer->inwidth2;
-		sw *= mw / d3d->window_w;
-
-		tx = -0.5f + d3d->window_w / 2;
-
-		sh = dh * d3d->tin_h / vidinfo->outbuffer->inheight2;
-		sh *= mh / d3d->window_h;
-
-		ty = +0.5f + d3d->window_h / 2;
-
-		tx += xshift;
-		ty += yshift;
-
-	} else {
-
-		tx = -0.5f + dw * d3d->tin_w / d3d->window_w / 2;
-		ty = +0.5f + dh * d3d->tin_h / d3d->window_h / 2;
-
-		float xshift = (float)(- zr.left - sr.left); // - (tin_w - 2 * zr.left - w),
-		float yshift = (float)(+ zr.top + sr.top - (d3d->tin_h - h));
+	float xshift = (float)(-ds.xoffset); // - (tin_w - 2 * zr.left - w),
+	float yshift = (float)(ds.yoffset - (d3d->tin_h - h));
 	
-		sw = dw * d3d->tin_w / d3d->window_w;
-		sh = dh * d3d->tin_h / d3d->window_h;
+	float sw = dw * d3d->tin_w / d3d->window_w;
+	float sh = dh * d3d->tin_h / d3d->window_h;
 
-		tx += xshift;
-		ty += yshift;
-
-	}
+	tx += xshift;
+	ty += yshift;
 
 	d3d->xmult = filterrectmult(d3d->window_w, w, d3d->dmode);
 	d3d->ymult = filterrectmult(d3d->window_h, h, d3d->dmode);
@@ -2192,8 +2149,8 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender, int monid
 		d3d->m_matWorld_out = tmprmatrix;
 	}
 
-	d3d->cursor_offset_x = -zr.left;
-	d3d->cursor_offset_y = -zr.top;
+	d3d->cursor_offset_x = -ds.xoffset;
+	d3d->cursor_offset_y = -ds.yoffset;
 
 	//write_log (_T("%.1fx%.1f %.1fx%.1f %.1fx%.1f\n"), dw, dh, w, h, sw, sh);
 

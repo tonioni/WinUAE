@@ -532,6 +532,8 @@ void AVIOutput_ReleaseVideo(void)
 static int AVIOutput_AllocateVideo(void)
 {
 	struct AmigaMonitor *mon = &AMonitors[aviout_monid];
+	bool locked = false;
+
 	avioutput_width = avioutput_height = avioutput_bits = 0;
 	aviout_width_out = aviout_height_out = 0;
 	aviout_xoffset_out = aviout_yoffset_out = 0;
@@ -542,7 +544,8 @@ static int AVIOutput_AllocateVideo(void)
 	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen(mon)) {
 		int pitch;
 		if (!gfxboard_isgfxboardscreen(0)) {
-			getfilterbuffer(0, &avioutput_width, &avioutput_height, &pitch, &avioutput_bits);
+			uae_u8 *p = getfilterbuffer(0, &avioutput_width, &avioutput_height, &pitch, &avioutput_bits, &locked);
+			freefilterbuffer(0, p, locked);
 		} else {
 			gfxboard_freertgbuffer(0, gfxboard_getrtgbuffer(0, &avioutput_width, &avioutput_height, &pitch, &avioutput_bits, NULL));
 		}
@@ -1100,14 +1103,14 @@ void AVIOutput_RGBinfo (int rb, int gb, int bb, int ab, int rs, int gs, int bs, 
 }
 
 #if defined (GFXFILTER)
-extern uae_u8 *bufmem_ptr;
 
 static int getFromBuffer(struct avientry *ae, int original)
 {
 	struct AmigaMonitor *mon = &AMonitors[aviout_monid];
 	struct vidbuf_description *vidinfo = &adisplays[aviout_monid].gfxvidinfo;
 	int x, y, w, h, d;
-	uae_u8 *src, *mem;
+	bool locked = false;
+	uae_u8 *src = NULL, *mem;
 	uae_u8 *dst = ae->lpVideo;
 	int spitch, dpitch;
 	int maxw, maxh;
@@ -1116,7 +1119,7 @@ static int getFromBuffer(struct avientry *ae, int original)
 	dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
 	if (original || WIN32GFX_IsPicassoScreen(mon)) {
 		if (!gfxboard_isgfxboardscreen(aviout_monid)) {
-			src = getfilterbuffer(aviout_monid, &w, &h, &spitch, &d);
+			src = getfilterbuffer(aviout_monid, &w, &h, &spitch, &d, &locked);
 			maxw = vidinfo->outbuffer->outwidth;
 			maxh = vidinfo->outbuffer->outheight;
 		} else {
@@ -1124,11 +1127,6 @@ static int getFromBuffer(struct avientry *ae, int original)
 			maxw = w;
 			maxh = h;
 		}
-	} else {
-		spitch = vidinfo->outbuffer->rowbytes;
-		src = bufmem_ptr;
-		maxw = vidinfo->outbuffer->outwidth;
-		maxh = vidinfo->outbuffer->outheight;
 	}
 	if (!src)
 		return 0;

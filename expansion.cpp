@@ -3314,19 +3314,22 @@ static void check_card_child(int index, bool *inuse, int *new_cardnop)
 			inuse[i] = true;
 		}
 	}
-	// romtype parent?
-	for (int i = 0; i < cardno; i++) {
-		struct card_data *cdc = &cards_set[i];
-		if (inuse[i])
-			continue;
-		const int *parent = cdc->aci.parent_romtype;
-		if (!parent)
-			continue;
-		for (int j = 0; parent[j]; j++) {
-			if (cd->rc && parent[j] == (cd->rc->back->device_type & ROMTYPE_MASK)) {
-				cards[new_cardno++] = cdc;
-				cdc->aci.parent_of_previous = true;
-				inuse[i] = true;
+	// romtype parent? search backwards, find closest previous.
+	for (int r = 0; r < 2; r++) {
+		int start = r == 0 ? index : cardno;
+		for (int i = start - 1; i >= 0; i--) {
+			struct card_data *cdc = &cards_set[i];
+			if (inuse[i])
+				continue;
+			const int *parent = cdc->aci.parent_romtype;
+			if (!parent)
+				continue;
+			for (int j = 0; parent[j]; j++) {
+				if (cd->rc && parent[j] == (cd->rc->back->device_type & ROMTYPE_MASK)) {
+					cards[new_cardno++] = cdc;
+					cdc->aci.parent_of_previous = true;
+					inuse[i] = true;
+				}
 			}
 		}
 	}

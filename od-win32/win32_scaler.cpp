@@ -20,10 +20,6 @@
 #define AUTORESIZE_FRAME_DELAY 10
 
 static float filteroffsetx, filteroffsety, filterxmult = 1.0, filterymult = 1.0;
-static int dst_width, dst_height;
-uae_u8 *bufmem_ptr;
-static int deskw, deskh;
-static bool inited;
 
 void getfilteroffset(int monid, float *dx, float *dy, float *mx, float *my)
 {
@@ -33,39 +29,12 @@ void getfilteroffset(int monid, float *dx, float *dy, float *mx, float *my)
 	*my = filterymult;
 }
 
-static void getinit(int monid)
+static void sizeoffset(struct displayscale *ds, int w, int h)
 {
-	if (isfullscreen()) {
-		struct MultiDisplay *md = getdisplay(&currprefs, monid);
-
-		deskw = md->rect.right - md->rect.left;
-		deskh = md->rect.bottom - md->rect.top;
-	} else {
-		deskw = dst_width;
-		deskh = dst_height;
-	}
-}
-
-static uae_u8 *getfilterrect1 (RECT *sr, RECT *dr, int dst_width, int dst_height, int dst_depth, int aw, int ah, int scale, int temp_width, int temp_height, uae_u8 *dptr, int pitch)
-{
-	int aws, ahs;
-
-	aws = aw * scale;
-	ahs = ah * scale;
-
-	SetRect (sr, 0, 0, 0, 0);
-	dr->left = sr->left + (temp_width - aws) /2;
-	dr->top = sr->top + (temp_height - ahs) / 2;
-	dptr += dr->left * (dst_depth / 8);
-	dptr += dr->top * pitch;
-	return dptr;
-}
-
-static void sizeoffset (RECT *dr, RECT *zr, int w, int h)
-{
-	dr->right -= w;
-	dr->bottom -= h;
-	OffsetRect (zr, w / 2, h / 2);
+	ds->outwidth -= w;
+	ds->outheight -= h;
+	ds->xoffset += w / 2;
+	ds->yoffset += h / 2;
 }
 
 static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
@@ -200,7 +169,7 @@ static bool get_aspect(int monid, float *dstratiop, float *srcratiop, float *xmu
 	return aspect;
 }
 
-void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height, int aw, int ah, int scale, int *mode, int temp_width, int temp_height)
+void getfilterdata(int monid, struct displayscale *ds)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct amigadisplay *ad = &adisplays[monid];
@@ -231,22 +200,25 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	float filter_vert_offset = currprefs.gf[idx].gfx_filter_vert_offset / 10000.0f;
 
 	store_custom_limits (-1, -1, -1, -1);
-	*mode = 0;
+	ds->mode = 0;
+	ds->outwidth = ds->srcwidth;
+	ds->outheight = ds->srcheight;
 
 	if (mon->screen_is_picasso) {
-		getrtgfilterrect2(monid, sr, dr, zr, mode, dst_width, dst_height);
-		if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, dst_width, dst_height)) {
-			sizeoffset(dr, zr, (int)mrmx, (int)mrmy);
-			OffsetRect(dr, (int)mrsx, (int)mrsy);
+		getrtgfilterdata(monid, ds);
+		if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, ds->dstwidth, ds->dstheight)) {
+			ds->xoffset += (int)mrsx;
+			ds->yoffset += (int)mrsy;
+			ds->dstwidth += (int)mrmx;
+			ds->dstheight += (int)mrmy;
 		}
 		return;
 	}
 
 	fpux_save (&fpuv);
 
-	getinit(monid);
-	aws = aw * scale;
-	ahs = ah * scale;
+	aws = ds->srcwidth * ds->scale;
+	ahs = ds->srcheight * ds->scale;
 	//write_log (_T("%d %d %d\n"), dst_width, temp_width, aws);
 	extraw = (int)(-aws * (filter_horiz_zoom - currprefs.gf[idx].gfx_filteroverlay_overscan * 10) / 2.0f);
 	extrah = (int)(-ahs * (filter_vert_zoom - currprefs.gf[idx].gfx_filteroverlay_overscan * 10) / 2.0f);
@@ -256,17 +228,6 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		extraw2 = (int)mrmx;
 		//extrah -= mrmy;
 	}
-
-	SetRect (sr, 0, 0, dst_width, dst_height);
-	SetRect (zr, 0, 0, 0, 0);
-	dr->left = (temp_width - aws) / 2;
-	dr->top = (temp_height - ahs) / 2;
-
-	dr->left -= (dst_width - aws) / 2;
-	dr->top -= (dst_height - ahs) / 2;
-
-	dr->right = dr->left + dst_width;
-	dr->bottom = dr->top + dst_height;
 
 	filteroffsetx = 0;
 	filteroffsety = 0;
@@ -285,21 +246,21 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		filter_aspect = 0;
 		keep_aspect = 0;
 		palntscadjust = 1;
-		if (dst_width >= 640 && dst_width <= 800 && dst_height >= 480 && dst_height <= 600 && !programmedmode) {
+		if (ds->dstwidth >= 640 && ds->dstwidth <= 800 && ds->dstheight >= 480 && ds->dstheight <= 600 && !programmedmode) {
 			autoselect = 1;
 			scalemode = AUTOSCALE_NONE;
 			int m = 1;
 			int w = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
 			int h = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
 			for (;;) {
-				if (w * (m * 2) > dst_width || h * (m * 2) > dst_height) {
+				if (w * (m * 2) > ds->dstwidth || h * (m * 2) > ds->dstheight) {
 					break;
 				}
 				m *= 2;
 			}
 			autoselect = m;
 		} else {
-			float dstratio = 1.0f * dst_width / dst_height;
+			float dstratio = 1.0f * ds->dstwidth / ds->dstheight;
 			scalemode = AUTOSCALE_STATIC_NOMINAL;
 			if (dstratio > srcratio + 0.1 || dstratio < srcratio - 0.1) {
 				filter_aspect = -1;
@@ -310,10 +271,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	if (filter_aspect > 0) {
 		dstratio = (filter_aspect / ASPECTMULT) * 1.0f / (filter_aspect & (ASPECTMULT - 1));
 	} else if (filter_aspect < 0) {
-		if (isfullscreen() && deskw > 0 && deskh > 0)
-			dstratio = 1.0f * deskw / deskh;
-		else
-			dstratio = 1.0f * dst_width / dst_height;
+		dstratio = 1.0f * ds->dstwidth / ds->dstheight;
 	} else {
 		dstratio = srcratio;
 	}
@@ -327,8 +285,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		int cw, ch, cx, cy, cv = 0, crealh = 0;
 		static int oxmult, oymult;
 
-		filterxmult = (float)scale;
-		filterymult = (float)scale;
+		filterxmult = (float)ds->scale;
+		filterymult = (float)ds->scale;
 
 		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL ||
 			scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
@@ -366,8 +324,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 			}
 
 			if (scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
-				int maxw = isfullscreen() < 0 ? deskw : gmc->gfx_size.width;
-				int maxh = isfullscreen() < 0 ? deskh : gmc->gfx_size.height;
+				int maxw = isfullscreen() < 0 ? ds->dstwidth : gmc->gfx_size.width;
+				int maxh = isfullscreen() < 0 ? ds->dstheight : gmc->gfx_size.height;
 				float mult = 1.0f;
 				bool ok = true;
 				bool manual = false;
@@ -437,8 +395,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 							mult += multadd;
 						}
 						float multx = mult, multy = mult;
-						maxw = (int)(maxw * multx);
-						maxh = (int)(maxh * multy);
+						maxw = maxw * mult;
+						maxh = maxh * mult;
 					} else {
 						while (((cw2 * (mult + multadd)) / m) - adjw <= maxw && ch2 * (mult + multadd) - adjh <= maxh) {
 							mult += multadd;
@@ -453,12 +411,13 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 						if (ch2 * (mult * 2) - adjh <= maxh && cw2 > ch2 * 2.4) {
 							multy *= 2;
 						}
-						maxw = (int)((maxw + multx - multadd) / multx);
-						maxh = (int)((maxh + multy - multadd) / multy);
+						maxw = (maxw + mult - multadd) / mult;
+						maxh = (maxh + mult - multadd) / mult;
 					}
 				}
 
-				*mode = 1;
+				ds->mode = 1;
+				cv = 2;
 
 				dstratio = 1.0f * cw / ch;
 
@@ -532,18 +491,14 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 			if (scalemode == AUTOSCALE_CENTER) {
 
-				int ww = cw * scale;
-				int hh = ch * scale;
+				int ww = cw * ds->scale;
+				int hh = ch * ds->scale;
 
-				SetRect (sr, 0, 0, dst_width, dst_height);
-				SetRect (zr, 0, 0, 0, 0);
+				ds->outwidth = ds->dstwidth * ds->scale;
+				ds->outheight = ds->dstheight * ds->scale;
+				ds->xoffset += cx * ds->scale - (ds->dstwidth - ww) / 2;
+				ds->yoffset += cy * ds->scale - (ds->dstheight - hh) / 2;
 
-				dr->left = (temp_width - aws) /2;
-				dr->top =  (temp_height - ahs) / 2;
-				dr->right = dr->left + dst_width * scale;
-				dr->bottom = dr->top + dst_height * scale;
-
-				OffsetRect (zr, cx * scale - (dst_width - ww) / 2, cy * scale - (dst_height - hh) / 2);
 				goto cont;
 
 			} else if (scalemode == AUTOSCALE_RESIZE && isfullscreen() == 0 && !currprefs.gf[idx].gfx_filteroverlay[0]) {
@@ -589,14 +544,14 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				}
 				float scalex = currprefs.gf[idx].gfx_filter_horiz_zoom_mult > 0 ? currprefs.gf[idx].gfx_filter_horiz_zoom_mult : 1.0f;
 				float scaley = currprefs.gf[idx].gfx_filter_vert_zoom_mult > 0 ? currprefs.gf[idx].gfx_filter_vert_zoom_mult : 1.0f;
-				SetRect (sr, 0, 0, (int)(cw * scale * scalex), (int)(ch * scale * scaley));
-				dr->left = (temp_width - aws) /2;
-				dr->top = (temp_height - ahs) / 2;
-				dr->right = dr->left + cw * scale;
-				dr->bottom = dr->top + ch * scale;
-				OffsetRect (zr, cx * scale, cy * scale);
-				int ww = (int)((dr->right - dr->left) * scalex);
-				int hh = (int)((dr->bottom - dr->top) * scaley);
+
+				ds->outwidth = (int)(cw * ds->scale * scalex);
+				ds->outheight = (int)(ch * ds->scale * scaley);
+				ds->xoffset += cx * ds->scale;
+				ds->yoffset += cy * ds->scale;
+
+				int ww = (int)(ds->outwidth * scalex);
+				int hh = (int)(ds->outheight * scaley);
 				if (currprefs.gfx_xcenter_size >= 0)
 					ww = currprefs.gfx_xcenter_size;
 				if (currprefs.gfx_ycenter_size >= 0)
@@ -610,26 +565,23 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 					if (oldwinw != gmh->gfx_size_win.width || oldwinh != gmh->gfx_size_win.height)
 						set_config_changed ();
 				}
-				OffsetRect (zr, -(gmh->gfx_size_win.width - ww + 1) / 2, -(gmh->gfx_size_win.height - hh + 1) / 2);
-				filteroffsetx = (float)-zr->left / scale;
-				filteroffsety = (float)-zr->top / scale;
+				ds->xoffset += -(gmh->gfx_size_win.width - ww + 1) / 2;
+				ds->yoffset += -(gmh->gfx_size_win.height - hh + 1) / 2;
+
+				filteroffsetx = (float)-ds->xoffset / ds->scale;
+				filteroffsety = (float)-ds->yoffset / ds->scale;
 				goto end;
 			}
 
-			dr->left = (temp_width - aws) /2;
-			dr->top =  (temp_height - ahs) / 2;
-			dr->right = dr->left + dst_width * scale;
-			dr->bottom = dr->top + dst_height * scale;
+			ds->outwidth = cw * ds->scale;
+			ds->outheight = ch * ds->scale;
+			ds->xoffset = cx * ds->scale;
+			ds->yoffset = cy * ds->scale;
 
-			OffsetRect (zr, cx * scale, cy * scale);
+			sizeoffset(ds, extraw, extrah);
 
-			sizeoffset (dr, zr, extraw, extrah);
-
-			dr->right -= (dst_width - cw) * scale;
-			dr->bottom -= (dst_height - ch) * scale;
-
-			filteroffsetx = (float)-zr->left / scale;
-			filteroffsety = (float)-zr->top / scale;
+			filteroffsetx = (float)-ds->xoffset / ds->scale;
+			filteroffsety = (float)-ds->yoffset / ds->scale;
 
 			bool aspect = false;
 
@@ -638,31 +590,31 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 			if (width_aspect > 0) {
 				diffx = width_aspect;
 			} else {
-				diffx = dr->right - dr->left;
+				diffx = ds->outwidth;
 			}
 			if (height_aspect > 0) {
 				diffy = height_aspect;
 			} else {
-				diffy = dr->bottom - dr->top;
+				diffy = ds->outheight;
 			}
 
 			if (get_aspect(monid, &dstratio, &srcratio, &xmult, &ymult, doautoaspect, autoaspectratio, keep_aspect, filter_aspect)) {
 				diff = diffx - (int)(diffx * xmult);
-				sizeoffset(dr, zr, diff, 0);
+				sizeoffset(ds, diff, 0);
 				filteroffsetx += -diff / 2;
 
 				diff = diffy - (int)(diffy * ymult);
-				sizeoffset(dr, zr, 0, diff);
+				sizeoffset(ds, 0, diff);
 				filteroffsety += -diff / 2;
 			}
 
-			OffsetRect (zr, (int)(-filter_horiz_offset * aws), 0);
-			OffsetRect (zr, 0, (int)(-filter_vert_offset * ahs));
+			ds->xoffset += (int)(-filter_horiz_offset * aws);
+			ds->yoffset += (int)(-filter_vert_offset * ahs);
 
-			diff = dr->right - dr->left;
-			filterxmult = ((float)dst_width * scale) / diff;
-			diff = dr->bottom - dr->top;
-			filterymult = ((float)dst_height * scale) / diff;
+			diff = ds->dstwidth;
+			filterxmult = ((float)ds->dstwidth * ds->scale) / diff;
+			diff = ds->dstheight;
+			filterymult = ((float)ds->dstheight * ds->scale) / diff;
 
 			goto end;
 		}
@@ -672,20 +624,20 @@ cont:
 
 	if (!filter_horiz_zoom_mult && !filter_vert_zoom_mult) {
 
-		sizeoffset (dr, zr, extraw, extrah);
+		sizeoffset(ds, extraw, extrah);
 
 		if (keep_aspect) {
 			float xm, ym, m;
 
-			xm = (float)aws / dst_width;
-			ym = (float)ahs / dst_height;
+			xm = (float)aws / ds->dstwidth;
+			ym = (float)ahs / ds->dstheight;
 			if (xm < ym)
 				xm = ym;
 			else
 				ym = xm;
 			xmult = ymult = xm;
 
-			m = (float)(aws * dst_width) / (ahs * dst_height);
+			m = (float)(aws * ds->dstwidth) / (ahs * ds->dstheight);
 			dstratio = dstratio * m;
 		}
 
@@ -751,11 +703,11 @@ cont:
 	}
 
 	if (xmult <= 0.01)
-		xmult = (float)dst_width / aws;
+		xmult = (float)ds->dstwidth / aws;
 	else
 		xmult = xmult + xmult * filter_horiz_zoom / 2.0f;
 	if (ymult <= 0.01)
-		ymult = (float)dst_height / ahs;
+		ymult = (float)ds->dstheight / ahs;
 	else
 		ymult = ymult + ymult * filter_vert_zoom / 2.0f;
 
@@ -765,27 +717,31 @@ cont:
 		}
 	}
 
-	OffsetRect (zr, (int)(-filter_horiz_offset * aws), 0);
-	OffsetRect (zr, 0, (int)(-filter_vert_offset * ahs));
+	ds->xoffset += (int)(-filter_horiz_offset * aws);
+	ds->yoffset += (int)(-filter_vert_offset * ahs);
 
-	xs = dst_width;
-	if (xmult)
-		xs -= (int)(dst_width / xmult);
-	ys = dst_height;
-	if (ymult)
-		ys -= (int)(dst_height / ymult);
-	sizeoffset (dr, zr, xs, ys);
+	xs = ds->dstwidth;
+	if (xmult) {
+		xs -= (int)(ds->dstwidth / xmult);
+	}
+	ys = ds->dstheight;
+	if (ymult) {
+		ys -= (int)(ds->dstheight / ymult);
+	}
+	sizeoffset(ds, xs, ys);
 
 	filterxmult = xmult;
 	filterymult = ymult;
-	filteroffsetx += (dst_width - aw * filterxmult) / 2;
-	filteroffsety += (dst_height - ah * filterymult) / 2;
+	filteroffsetx += (ds->dstwidth - ds->srcwidth * filterxmult) / 2;
+	filteroffsety += (ds->dstheight - ds->srcheight * filterymult) / 2;
 
 end:
 
 	if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, avidinfo->outbuffer->inwidth2, avidinfo->outbuffer->inheight2)) {
-		sizeoffset(dr, zr, (int)mrmx, (int)mrmy);
-		OffsetRect(dr, (int)mrsx, (int)mrsy);
+		ds->xoffset += (int)mrsx;
+		ds->yoffset += (int)mrsy;
+		ds->outwidth += (int)mrmx;
+		ds->outheight += (int)mrmy;
 	}
 
 	check_custom_limits();
@@ -804,7 +760,7 @@ end:
 
 }
 
-void freefilterbuffer(int monid, uae_u8 *buf)
+void freefilterbuffer(int monid, uae_u8 *buf, bool unlock)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
@@ -812,10 +768,12 @@ void freefilterbuffer(int monid, uae_u8 *buf)
 
 	if (!vb)
 		return;
-	unlockscr3d(vb);
+	if (unlock) {
+		unlockscr(vb, -1, -1);
+	}
 }
 
-uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *depth)
+uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *depth, bool *locked)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
@@ -825,14 +783,18 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	*widthp = 0;
 	*heightp = 0;
 	*depth = 32;
+	*locked = false;
 	if (!vb)
 		return NULL;
-	if (!lockscr3d(vb)) {
-		return NULL;
+	if (!vb->locked) {
+		if (!lockscr(vb, false, false)) {
+			return NULL;
+		}
+		*locked = true;
 	}
 	w = vb->outwidth;
 	h = vb->outheight;
-	if (!monid) {
+	if (!monid && currprefs.gfx_overscanmode <= OVERSCANMODE_BROADCAST) {
 		// if native screen: do not include vertical blank
 		h = get_vertical_visible_height(false);
 	}
