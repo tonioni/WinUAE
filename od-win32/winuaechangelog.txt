@@ -1,4 +1,13 @@
 
+Beta 16:
+
+- EHB was broken in ECS Denise and AGA modes. KILLEHB was always detected as active.
+- Add harddrive last partition selection didn't work correctly. Also non-0x30/0x76 partitions are now allowed to be selected.
+- When screen mode switches (PAL/NTSC/VPOSW trick etc), delay host side switch until at least 2 back to back frames have same width and height to prevent single weird size frame changes (for example during boot when VPOSW LOF bit is changed in random position from zero to one causing height of frame to change temporarily)
+- Disabled too annoying CD audio OSD led flicker.
+- Possible fix for autoscale not always detecting top and bottom borders.
+- Filter internal scaling and positioning cleanup. Simplified coordinate and size calculations etc. Should not have any visible effect but it might break some filter configurations.
+
 Beta 15:
 
 - Vertical blank state was taken from wrong variable when in programmed mode, forcing fast mode to not be used when drawing programmed mode bitplane graphics.
