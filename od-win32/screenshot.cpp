@@ -118,6 +118,7 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 	int bits;
 	int depth = usealpha() ? 32 : 24;
 	bool renderTarget = true;
+	bool locked = false;
 
 	lockrtg();
 
@@ -172,7 +173,7 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 			rgb_rs2 = rgb_rs;
 			rgb_as2 = rgb_as;
 		} else {
-			src = mem = getfilterbuffer(monid, &width, &height, &spitch, &bits);
+			src = mem = getfilterbuffer(monid, &width, &height, &spitch, &bits, &locked);
 			needfree = true;
 			rgb_bb2 = rgb_bb;
 			rgb_gb2 = rgb_gb;
@@ -193,7 +194,7 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 				if (WIN32GFX_IsPicassoScreen(mon))
 					gfxboard_freertgbuffer(0, mem);
 				else
-					freefilterbuffer(0, mem);
+					freefilterbuffer(0, mem, locked);
 			}
 			goto donormal;
 		}
@@ -294,7 +295,7 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 				if (WIN32GFX_IsPicassoScreen(mon))
 					gfxboard_freertgbuffer(monid, mem);
 				else
-					freefilterbuffer(monid, mem);
+					freefilterbuffer(monid, mem, locked);
 			}
 			goto oops;
 		}
@@ -413,7 +414,7 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 			if (gfxboard_isgfxboardscreen(monid))
 				gfxboard_freertgbuffer(monid, mem);
 			else
-				freefilterbuffer(monid, mem);
+				freefilterbuffer(monid, mem, locked);
 		}
 
 	} else {

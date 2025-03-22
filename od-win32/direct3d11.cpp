@@ -309,7 +309,6 @@ struct d3d11struct
 	IDXGISurface1 *hdc_surface;
 	HANDLE filenotificationhandle;
 
-	RECT sr2, dr2, zr2;
 	int guimode;
 	int delayedfs;
 	int device_errors;
@@ -1558,50 +1557,38 @@ static bool UpdateBuffers(struct d3d11struct *d3d, int monid)
 
 static void setupscenecoords(struct d3d11struct *d3d, bool normalrender, int monid)
 {
-	RECT sr, dr, zr;
-	static RECT sr2[MAX_AMIGAMONITORS], dr2[MAX_AMIGAMONITORS], zr2[MAX_AMIGAMONITORS];
+	struct displayscale ds = { 0 };
 
 	if (!normalrender)
 		return;
 
-	getfilterrect2(d3d->num, &dr, &sr, &zr, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth / d3d->dmult, d3d->m_bitmapHeight / d3d->dmult, d3d->dmult, &d3d->dmode, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
+	ds.srcwidth = d3d->m_bitmapWidth / d3d->dmult;
+	ds.srcheight = d3d->m_bitmapHeight / d3d->dmult;
+	ds.scale = d3d->dmult;
+	ds.dstwidth = d3d->m_screenWidth;
+	ds.dstheight = d3d->m_screenHeight;
 
-	if (memcmp(&sr, &sr2[monid], sizeof RECT) || memcmp(&dr, &dr2[monid], sizeof RECT) || memcmp(&zr, &zr2[monid], sizeof RECT)) {
-		write_log(_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d) S=%d*%d B=%d*%d\n"),
-			dr.left, dr.top, dr.right, dr.bottom,
-			sr.left, sr.top, sr.right, sr.bottom,
-			sr.right - sr.left, sr.bottom - sr.top,
-			zr.left, zr.top,
-			d3d->m_screenWidth, d3d->m_screenHeight,
-			d3d->m_bitmapWidth, d3d->m_bitmapHeight);
-		sr2[monid] = sr;
-		dr2[monid] = dr;
-		zr2[monid] = zr;
-	}
+	getfilterdata(monid, &ds);
 
-	d3d->sr2 = sr;
-	d3d->dr2 = dr;
-	d3d->zr2 = zr;
+	float dw = (float)ds.dstwidth;
+	float dh = (float)ds.dstheight;
+	float w = (float)ds.outwidth;
+	float h = (float)ds.outheight;
 
-	float dw = (float)dr.right - dr.left;
-	float dh = (float)dr.bottom - dr.top;
-	float w = (float)sr.right - sr.left;
-	float h = (float)sr.bottom - sr.top;
-
-	int tx = ((dr.right - dr.left) * d3d->m_bitmapWidth) / (d3d->m_screenWidth * 2);
-	int ty = ((dr.bottom - dr.top) * d3d->m_bitmapHeight) / (d3d->m_screenHeight * 2);
+	float tx = (dw * d3d->m_bitmapWidth) / (d3d->m_screenWidth * 2);
+	float ty = (dh * d3d->m_bitmapHeight) / (d3d->m_screenHeight * 2);
 
 	float sw = dw / d3d->m_screenWidth;
 	float sh = dh / d3d->m_screenHeight;
 
-	int xshift = -zr.left - sr.left;
-	int yshift = -zr.top - sr.top;
+	int xshift = -ds.xoffset;
+	int yshift = -ds.yoffset;
 
-	xshift -= ((sr.right - sr.left) - d3d->m_screenWidth) / 2;
-	yshift -= ((sr.bottom - sr.top) - d3d->m_screenHeight) / 2;
+	xshift -= (w - d3d->m_screenWidth) / 2;
+	yshift -= (h - d3d->m_screenHeight) / 2;
 
-	d3d->xoffset = (float)tx + xshift - d3d->m_screenWidth / 2.0f;
-	d3d->yoffset = (float)ty + yshift - d3d->m_screenHeight / 2.0f;
+	d3d->xoffset = tx + xshift - d3d->m_screenWidth / 2.0f;
+	d3d->yoffset = ty + yshift - d3d->m_screenHeight / 2.0f;
 
 	d3d->xmult = filterrectmult(d3d->m_screenWidth, w, d3d->dmode);
 	d3d->ymult = filterrectmult(d3d->m_screenHeight, h, d3d->dmode);
@@ -1609,13 +1596,13 @@ static void setupscenecoords(struct d3d11struct *d3d, bool normalrender, int mon
 	d3d->xoffset *= d3d->xmult;
 	d3d->yoffset *= d3d->ymult;
 
-	d3d->cursor_offset_x = -zr.left;
-	d3d->cursor_offset_y = -zr.top;
+	d3d->cursor_offset_x = -ds.xoffset;
+	d3d->cursor_offset_y = -ds.yoffset;
 
 	UpdateBuffers(d3d, monid);
 
 	xD3DXMatrixOrthoOffCenterLH(&d3d->m_matProj_out, 0, w + 0.05f, 0, h + 0.05f, 0.0f, 1.0f);
-	xD3DXMatrixTranslation(&d3d->m_matView_out, (float)tx, (float)ty, 1.0f);
+	xD3DXMatrixTranslation(&d3d->m_matView_out, tx, ty, 1.0f);
 	sw *= d3d->m_bitmapWidth;
 	sh *= d3d->m_bitmapHeight;
 	xD3DXMatrixScaling(&d3d->m_matWorld_out, sw + 0.5f / sw, sh + 0.5f / sh, 1.0f);
@@ -2025,10 +2012,6 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	D3D11_TEXTURE2D_DESC desc;
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	HRESULT hr;
-
-	memset(&d3d->sr2, 0, sizeof(RECT));
-	memset(&d3d->dr2, 0, sizeof(RECT));
-	memset(&d3d->zr2, 0, sizeof(RECT));
 
 	FreeTextures(d3d);
 

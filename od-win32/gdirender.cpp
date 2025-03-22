@@ -61,7 +61,6 @@ struct gdistruct
 	float cursor_mx, cursor_my;
 	bool cursor_v, cursor_scale;
 
-	RECT sr2, dr2, zr2;
 	int dmult, dmultxh, dmultxv, dmode;
 	int xoffset, yoffset;
 	float xmult, ymult;
@@ -82,44 +81,32 @@ static void gdi_restore(int monid, bool checkonly)
 
 static void setupscenecoords(struct gdistruct *gdi, int monid)
 {
-	RECT sr, dr, zr;
-	static RECT sr2[MAX_AMIGAMONITORS], dr2[MAX_AMIGAMONITORS], zr2[MAX_AMIGAMONITORS];
+	struct displayscale ds = { 0 };
 
-	getfilterrect2(gdi->num, &dr, &sr, &zr, gdi->wwidth, gdi->wheight, gdi->bm.width / gdi->dmult, gdi->bm.height / gdi->dmult, gdi->dmult, &gdi->dmode, gdi->bm.width, gdi->bm.height);
+	ds.srcwidth = gdi->bm.width;
+	ds.srcheight = gdi->bm.height;
+	ds.scale = 1;
+	ds.dstwidth = gdi->wwidth;
+	ds.dstheight = gdi->wheight;
 
-	if (memcmp(&sr, &sr2[monid], sizeof RECT) || memcmp(&dr, &dr2[monid], sizeof RECT) || memcmp(&zr, &zr2[monid], sizeof RECT)) {
-		write_log(_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d) S=%d*%d B=%d*%d\n"),
-			dr.left, dr.top, dr.right, dr.bottom,
-			sr.left, sr.top, sr.right, sr.bottom,
-			sr.right - sr.left, sr.bottom - sr.top,
-			zr.left, zr.top,
-			gdi->wwidth, gdi->wheight,
-			gdi->bm.width, gdi->bm.height);
-		sr2[monid] = sr;
-		dr2[monid] = dr;
-		zr2[monid] = zr;
-	}
+	getfilterdata(monid, &ds);
 
-	gdi->sr2 = sr;
-	gdi->dr2 = dr;
-	gdi->zr2 = zr;
+	float dw = (float)ds.dstwidth;
+	float dh = (float)ds.dstheight;
+	float w = (float)ds.outwidth;
+	float h = (float)ds.outheight;
 
-	float dw = (float)dr.right - dr.left;
-	float dh = (float)dr.bottom - dr.top;
-	float w = (float)sr.right - sr.left;
-	float h = (float)sr.bottom - sr.top;
-
-	int tx = ((dr.right - dr.left) * gdi->bm.width) / (gdi->wwidth * 2);
-	int ty = ((dr.bottom - dr.top) * gdi->bm.height) / (gdi->wheight * 2);
+	int tx = (dw * gdi->bm.width) / (gdi->wwidth * 2);
+	int ty = (dh * gdi->bm.height) / (gdi->wheight * 2);
 
 	float sw = dw / gdi->wwidth;
 	float sh = dh / gdi->wheight;
 
-	int xshift = -zr.left - sr.left;
-	int yshift = -zr.top - sr.top;
+	int xshift = -ds.xoffset;
+	int yshift = -ds.yoffset;
 
-	xshift -= ((sr.right - sr.left) - gdi->wwidth) / 2;
-	yshift -= ((sr.bottom - sr.top) - gdi->wheight) / 2;
+	xshift -= (w - gdi->wwidth) / 2;
+	yshift -= (h - gdi->wheight) / 2;
 
 	gdi->xoffset = tx + xshift - gdi->wwidth / 2;
 	gdi->yoffset = ty + yshift - gdi->wheight / 2;
@@ -127,8 +114,8 @@ static void setupscenecoords(struct gdistruct *gdi, int monid)
 	gdi->xmult = filterrectmult(gdi->wwidth, w, gdi->dmode);
 	gdi->ymult = filterrectmult(gdi->wheight, h, gdi->dmode);
 
-	gdi->cursor_offset_x = -zr.left;
-	gdi->cursor_offset_y = -zr.top;
+	gdi->cursor_offset_x = -ds.xoffset;
+	gdi->cursor_offset_y = -ds.yoffset;
 
 	sw *= gdi->wwidth;
 	sh *= gdi->wheight;
