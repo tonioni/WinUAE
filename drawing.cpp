@@ -2120,64 +2120,6 @@ static void gfxbuffer_reset(int monid)
 	vidinfo->drawbuffer.unlockscr = dummy_unlock;
 }
 
-void notice_resolution_seen (int res, bool lace)
-{
-	if (res > frame_res)
-		frame_res = res;
-	if (res > 0)
-		can_use_lores = 0;
-	if (!frame_res_lace && lace)
-		frame_res_lace = lace;
-}
-
-bool notice_interlace_seen (int monid, bool lace)
-{
-	struct amigadisplay *ad = &adisplays[0];
-	bool changed = false;
-	bool interlace_on = false;
-
-	// non-lace to lace switch (non-lace active at least one frame)?
-	if (lace) {
-		if (interlace_seen == 0) {
-			changed = true;
-			interlace_on = true;
-			//write_log (_T("->lace PC=%x\n"), m68k_getpc ());
-		}
-		interlace_seen = currprefs.gfx_vresolution ? 1 : -1;
-	} else {
-		if (interlace_seen) {
-			changed = true;
-			//write_log (_T("->non-lace PC=%x\n"), m68k_getpc ());
-		}
-		interlace_seen = 0;
-	}
-
-	if (changed) {
-		if (currprefs.gf[GF_INTERLACE].enable && memcmp(&currprefs.gf[GF_NORMAL], &currprefs.gf[GF_INTERLACE], sizeof(struct gfx_filterdata))) {
-			changed_prefs.gf[GF_NORMAL].changed = true;
-			changed_prefs.gf[GF_INTERLACE].changed = true;
-			if (ad->interlace_on != interlace_on) {
-				ad->interlace_on = interlace_on;
-				set_config_changed();
-			}
-		} else {
-			ad->interlace_on = false;
-		}
-	}
-
-	if (!ad->picasso_on) {
-		if (ad->interlace_on) {
-			ad->gf_index = GF_INTERLACE;
-		} else {
-			ad->gf_index = GF_NORMAL;
-		}
-	} else {
-		ad->gf_index = GF_RTG;
-	}
-
-	return changed;
-}
-
 void allocvidbuffer(int monid, struct vidbuffer *buf, int width, int height, int depth)
 {
 	memset(buf, 0, sizeof (struct vidbuffer));

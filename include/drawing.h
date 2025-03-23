@@ -117,8 +117,6 @@ extern void vsync_handle_redraw (int long_field, int lof_changed, uae_u16, uae_u
 extern bool vsync_handle_check (void);
 extern void reset_drawing (void);
 extern void drawing_init (void);
-extern bool notice_interlace_seen(int, bool);
-extern void notice_resolution_seen(int, bool);
 extern bool frame_drawn (int monid);
 extern void redraw_frame(void);
 extern void full_redraw_all(void);

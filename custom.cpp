@@ -5169,9 +5169,30 @@ static void check_interlace(void)
 	if (is != interlace_seen) {
 		interlace_seen = is;
 		init_hz();
+		changed = true;
 	} else if (nis) {
 		interlace_seen = 0;
 		init_hz();
+	}
+
+	if (changed) {
+		if (currprefs.gf[GF_INTERLACE].enable && memcmp(&currprefs.gf[GF_NORMAL], &currprefs.gf[GF_INTERLACE], sizeof(struct gfx_filterdata))) {
+			changed_prefs.gf[GF_NORMAL].changed = true;
+			changed_prefs.gf[GF_INTERLACE].changed = true;
+			if (ad->interlace_on != (interlace_seen != 0)) {
+				ad->interlace_on = interlace_seen != 0;
+				set_config_changed();
+			}
+		}
+	}
+	if (!ad->picasso_on) {
+		if (ad->interlace_on) {
+			ad->gf_index = GF_INTERLACE;
+		} else {
+			ad->gf_index = GF_NORMAL;
+		}
+	} else {
+		ad->gf_index = GF_RTG;
 	}
 
 	prevlofs[2] = prevlofs[1];
