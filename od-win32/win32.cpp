@@ -4425,15 +4425,13 @@ void target_fixup_options (struct uae_prefs *p)
 	if (p->rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE) {
 		p->rtg_hardwareinterrupt = false;
 		p->rtg_hardwaresprite = false;
-		p->win32_rtgmatchdepth = false;
-		p->color_mode = 5;
 	}
 
 	struct MultiDisplay *md = getdisplay(p, 0);
 	for (int j = 0; j < MAX_AMIGADISPLAYS; j++) {
 		if (p->gfx_monitor[j].gfx_size_fs.special == WH_NATIVE) {
 			int i;
-			for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
+			for (i = 0; md->DisplayModes[i].inuse; i++) {
 				if (md->DisplayModes[i].res.width == md->rect.right - md->rect.left &&
 					md->DisplayModes[i].res.height == md->rect.bottom - md->rect.top) {
 					p->gfx_monitor[j].gfx_size_fs.width = md->DisplayModes[i].res.width;
@@ -4442,26 +4440,12 @@ void target_fixup_options (struct uae_prefs *p)
 					break;
 				}
 			}
-			if (md->DisplayModes[i].depth < 0) {
+			if (!md->DisplayModes[i].inuse) {
 				p->gfx_monitor[j].gfx_size_fs.special = 0;
 				write_log(_T("Native resolution not found.\n"));
 			}
 		}
 	}
-	/* switch from 32 to 16 or vice versa if mode does not exist */
-	if (1 || isfullscreen() > 0) {
-		int depth = p->color_mode == 5 ? 4 : 2;
-		for (int i = 0; md->DisplayModes[i].depth >= 0; i++) {
-			if (md->DisplayModes[i].depth == depth) {
-				depth = 0;
-				break;
-			}
-		}
-		if (depth) {
-			p->color_mode = p->color_mode == 5 ? 2 : 5;
-		}
-	}
-
 	if ((p->gfx_apmode[0].gfx_vsyncmode || p->gfx_apmode[1].gfx_vsyncmode) ) {
 		if (p->produce_sound && sound_devices[p->win32_soundcard]->type == SOUND_DEVICE_DS) {
 			p->win32_soundcard = 0;
@@ -4513,7 +4497,6 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_powersavedisabled = true;
 		p->win32_gui_control = false;
 		p->sana2 = 0;
-		p->win32_rtgmatchdepth = 1;
 		p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_SCALE;
 		p->win32_rtgallowscaling = 0;
 		p->win32_rtgscaleaspectratio = -1;
@@ -4527,8 +4510,6 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_commandpathend[0] = 0;
 		p->win32_statusbar = 1;
 		p->gfx_api = 2;
-		if (p->gfx_api > 1)
-			p->color_mode = 5;
 		if (p->gf[GF_NORMAL].gfx_filter == 0)
 			p->gf[GF_NORMAL].gfx_filter = 1;
 		if (p->gf[GF_RTG].gfx_filter == 0)
@@ -4626,7 +4607,6 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 		cfgfile_target_dwrite_str_escape(f, _T("midiin_device_name"), midp->name);
 	cfgfile_target_dwrite_bool (f, _T("midirouter"), p->win32_midirouter);
 			
-	cfgfile_target_dwrite_bool (f, _T("rtg_match_depth"), p->win32_rtgmatchdepth);
 	cfgfile_target_dwrite_bool(f, _T("rtg_scale_small"), p->gf[GF_RTG].gfx_filter_autoscale == 1);
 	cfgfile_target_dwrite_bool(f, _T("rtg_scale_center"), p->gf[GF_RTG].gfx_filter_autoscale == 2);
 	cfgfile_target_dwrite_bool (f, _T("rtg_scale_allow"), p->win32_rtgallowscaling);
@@ -4859,7 +4839,7 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 		return 1;
 	}
 
-	if (cfgfile_yesno(option, value, _T("rtg_match_depth"), &p->win32_rtgmatchdepth))
+	if (cfgfile_yesno(option, value, _T("rtg_match_depth"), &tbool))
 		return 1;
 	if (cfgfile_yesno(option, value, _T("rtg_scale_small"), &tbool)) {
 		p->gf[GF_RTG].gfx_filter_autoscale = tbool ? RTG_MODE_SCALE : 0;

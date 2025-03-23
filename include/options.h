@@ -611,7 +611,6 @@ struct uae_prefs {
 	int gfx_threebitcolors;
 	int gfx_api;
 	int gfx_api_options;
-	int color_mode;
 	int gfx_extrawidth;
 	int gfx_extraheight;
 	bool lightboost_strobo;
@@ -902,7 +901,6 @@ struct uae_prefs {
 	bool win32_iconified_nosound;
 	int win32_iconified_input;
 
-	bool win32_rtgmatchdepth;
 	bool win32_rtgallowscaling;
 	int win32_rtgscaleaspectratio;
 	int win32_rtgvblankrate;

@@ -1109,9 +1109,6 @@ static void setconvert(int monid)
 	if (vidinfo->host_mode != vidinfo->ohost_mode || state->RGBFormat != vidinfo->orgbformat) {
 		write_log (_T("RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d/%d\n"),
 			picasso_vidinfo[monid].pixbytes, vidinfo->host_mode, state->RGBFormat, vidinfo->picasso_convert[0], vidinfo->picasso_convert[1]);
-		if (vidinfo->host_mode != vidinfo->ohost_mode && isfullscreen() > 0 && currprefs.win32_rtgmatchdepth) {
-			state->ModeChanged = true;
-		}
 		vidinfo->ohost_mode = vidinfo->host_mode;
 		vidinfo->orgbformat = state->RGBFormat;
 	}
@@ -2521,7 +2518,7 @@ static int _cdecl resolution_compare (const void *a, const void *b)
 		return -1;
 	if (ma->res.height > mb->res.height)
 		return 1;
-	return ma->depth - mb->depth;
+	return 0;
 }
 
 static int missmodes[] = { 320, 200, 320, 240, 320, 256, 640, 400, 640, 480, 640, 512, 800, 600, 1024, 768, 1280, 1024, -1 };
@@ -2557,7 +2554,7 @@ static void picasso96_alloc2 (TrapContext *ctx)
 	for (int mon = 0; Displays[mon].monitorname; mon++) {
 		struct PicassoResolution *DisplayModes = Displays[mon].DisplayModes;
 		i = 0;
-		while (DisplayModes[i].depth >= 0) {
+		while (DisplayModes[i].inuse) {
 			for (j = 0; missmodes[j * 2] >= 0; j++) {
 				if (DisplayModes[i].res.width == missmodes[j * 2 + 0] && DisplayModes[i].res.height == missmodes[j * 2 + 1]) {
 					missmodes[j * 2 + 0] = 0;
@@ -2572,7 +2569,7 @@ static void picasso96_alloc2 (TrapContext *ctx)
 	for (int mon = 0; Displays[mon].monitorname; mon++) {
 		struct PicassoResolution *DisplayModes = Displays[mon].DisplayModes;
 		i = 0;
-		while (DisplayModes[i].depth >= 0) {
+		while (DisplayModes[i].inuse) {
 			if (DisplayModes[i].rawmode) {
 				i++;
 				continue;
@@ -2604,8 +2601,7 @@ static void picasso96_alloc2 (TrapContext *ctx)
 			int k;
 			for (k = 0; k < cnt; k++) {
 				if (newmodes[k].res.width == DisplayModes[i].res.width &&
-					newmodes[k].res.height == DisplayModes[i].res.height &&
-					newmodes[k].depth == DisplayModes[i].depth)
+					newmodes[k].res.height == DisplayModes[i].res.height)
 					break;
 			}
 			if (k >= cnt) {
@@ -2625,7 +2621,7 @@ static void picasso96_alloc2 (TrapContext *ctx)
 		size += PSSO_ModeInfo_sizeof * depths;
 	}
 #endif
-	newmodes[cnt].depth = -1;
+	newmodes[cnt].inuse = false;
 
 	for (i = 0; i < cnt; i++) {
 		int depth;
@@ -2833,7 +2829,7 @@ static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 
 	i = 0;
 	unkcnt = cnt = 0;
-	while (newmodes[i].depth >= 0) {
+	while (newmodes[i].inuse) {
 		struct LibResolution res = { 0 };
 		int j = i;
 		if (addmode(ctx, AmigaBoardInfo, &amem, &res, newmodes[i].res.width, newmodes[i].res.height, NULL, 0, &unkcnt)) {
@@ -2841,7 +2837,7 @@ static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 			s = au (res.Name);
 			write_log (_T("%2d: %08X %4dx%4d %s\n"), ++cnt, res.DisplayID, res.Width, res.Height, s);
 			xfree (s);
-			while (newmodes[i].depth >= 0
+			while (newmodes[i].inuse
 				&& newmodes[i].res.width == newmodes[j].res.width
 				&& newmodes[i].res.height == newmodes[j].res.height)
 				i++;
@@ -3162,9 +3158,6 @@ static uae_u32 REGPARAM2 picasso_SetGC (TrapContext *ctx)
 	state->VirtualHeight = state->Height; /* in case SetPanning doesn't get called */
 
 	uae_u8 d = trap_get_byte(ctx, modeinfo + PSSO_ModeInfo_Depth);
-	if (d != state->GC_Depth && isfullscreen() > 0 && currprefs.win32_rtgmatchdepth) {
-		state->ModeChanged = true;
-	}
 	state->GC_Depth = d;
 	state->GC_Flags = trap_get_byte(ctx, modeinfo + PSSO_ModeInfo_Flags);
 
