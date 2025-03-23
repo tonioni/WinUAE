@@ -1579,8 +1579,14 @@ void getrtgfilterdata(int monid, struct displayscale *ds)
 
 static uae_u8 *gfx_lock_picasso2(int monid, bool fullupdate)
 {
-	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
-	uae_u8 *p = D3D_locktexture(monid, &vidinfo->rowbytes, &vidinfo->maxwidth, &vidinfo->maxheight, fullupdate);
+	struct picasso_vidbuf_description *pvidinfo = &picasso_vidinfo[monid];
+	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
+	struct vidbuffer *vb = &vidinfo->drawbuffer;
+	if (vb->locked) {
+		unlockscr(vb, -1, -1);
+		vb->locked = false;
+	}
+	uae_u8 *p = D3D_locktexture(monid, &pvidinfo->rowbytes, &pvidinfo->maxwidth, &pvidinfo->maxheight, fullupdate);
 	return p;
 }
 uae_u8 *gfx_lock_picasso(int monid, bool fullupdate)
@@ -1604,8 +1610,9 @@ uae_u8 *gfx_lock_picasso(int monid, bool fullupdate)
 void gfx_unlock_picasso(int monid, bool dorender)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
-	if (!mon->rtg_locked)
+	if (!mon->rtg_locked) {
 		gfx_lock();
+	}
 	mon->rtg_locked = false;
 	if (dorender) {
 		if (mon->p96_double_buffer_needs_flushing) {
