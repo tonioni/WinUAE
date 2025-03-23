@@ -123,7 +123,7 @@ static int fast_lines_cnt;
 static bool lineoptimizations_allowed;
 
 static uae_u32 scandoubled_bpl_ptr[MAX_SCANDOUBLED_LINES][2][MAX_PLANES];
-static bool scandoubled_bpl_ena[MAX_SCANDOUBLED_LINES];
+static bool scandoubled_bpl_ena[MAX_SCANDOUBLED_LINES + 1];
 
 static evt_t blitter_dma_change_cycle, copper_dma_change_cycle, sprite_dma_change_cycle_on, sprite_dma_change_cycle_off;
 
@@ -5154,9 +5154,11 @@ static void check_display_mode_change(void)
 
 static void check_interlace(void)
 {
+	struct amigadisplay *ad = &adisplays[0];
 	int is = interlace_seen;
 	int nis = 0;
 	bool ld = lof_display != 0;
+	bool changed = false;
 
 	if (prevlofs[0] == prevlofs[2] && prevlofs[1] == ld && lof_display != prevlofs[0]) {
 		is = 1;
@@ -10674,7 +10676,7 @@ static bool draw_border_fast(struct linestate *l, int ldv)
 }
 
 // draw bitplane line quickly (no copper, no sprites, no weird things, normal mode)
-static bool draw_line_fast(struct linestate *l, int ldv)
+static bool draw_line_fast(struct linestate *l, int ldv, uaecptr bplptp[8], bool addbpl)
 {
 	if (l->hbstrt_offset < 0 || l->hbstop_offset < 0) {
 		return false;
@@ -10704,7 +10706,7 @@ static bool draw_line_fast(struct linestate *l, int ldv)
 #endif
 	{
 		for (int i = 0; i < planes; i++) {
-			uaecptr pt = bplpt[i];
+			uaecptr pt = bplptp[i];
 			l->bplpt[i] = get_real_address(pt);
 		}
 	}
@@ -10732,10 +10734,12 @@ static bool draw_line_fast(struct linestate *l, int ldv)
 	// draw quickly, store new state
 	int dvp = calculate_linetype(ldv);
 	draw_denise_bitplane_line_fast_queue(dvp, nextline_how, l);
-	// advance bpl pointers
-	for (int i = 0; i < planes; i++) {
-		int mod = getbplmod(i);
-		bplpt[i] += mod + len;
+	if (addbpl) {
+		// advance bpl pointers
+		for (int i = 0; i < planes; i++) {
+			int mod = getbplmod(i);
+			bplpt[i] += mod + len;
+		}
 	}
 	return true;
 }
@@ -10777,7 +10781,19 @@ static bool checkprevfieldlinestateequal(void)
 				int r = checkprevfieldlinestateequalbpl(l, always);
 				if (1 && (always || (r < 0 && currprefs.cs_optimizations == DISPLAY_OPTIMIZATIONS_FULL))) {
 					// no match but same parameters: do quick BPL emulation
-					r = draw_line_fast(l, linear_display_vpos + 1);
+					r = draw_line_fast(l, linear_display_vpos + 1, bplpt, true);
+					if (doflickerfix_active() && scandoubled_bpl_ena[linear_vpos + 1]) {
+						lof_display ^= 1;
+						struct linestate *l2 = &lines[linear_vpos][lof_display];
+						scandoubled_line = 1;
+						uaecptr bplptx[MAX_PLANES];
+						for (int i = 0; i < MAX_PLANES; i++) {
+							bplptx[i] = scandoubled_bpl_ptr[linear_vpos][lof_display][i];
+						}
+						draw_line_fast(l2, linear_display_vpos + 1, bplptx, false);
+						scandoubled_line = 0;
+						lof_display ^= 1;
+					}
 				}
 				ret = r > 0;
 			}
