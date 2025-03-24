@@ -45,7 +45,6 @@ struct gdistruct
 	int enabled;
 	int num;
 	int wwidth, wheight;
-	int depth;
 	HWND hwnd;
 	HDC hdc;
 	HGDIOBJ oldbm;
@@ -197,10 +196,9 @@ static bool allocsprite(struct gdistruct *gdi, struct gdibm *bm, int w, int h)
 		bmi.bV4Height = -h;
 		bmi.bV4Planes = 1;
 		bmi.bV4V4Compression = BI_RGB;
-		bmi.bV4BitCount = gdi->depth;
+		bmi.bV4BitCount = 32;
 		bm->width = w;
 		bm->height = h;
-		bm->depth = gdi->depth;
 		bm->pitch = ((w * bmi.bV4BitCount + 31) / 32) * 4;
 		bmi.bV4SizeImage = bm->pitch * h;
 		bm->hbm = CreateDIBSection(gdi->hdc, (const BITMAPINFO*)&bmi, DIB_RGB_COLORS, &bm->bits, NULL, 0);
@@ -275,13 +273,13 @@ static void updateleds(struct gdistruct *gdi)
 
 	for (int y = 0; y < gdi->osd.height; y++) {
 		uae_u8 *buf = (uae_u8*)gdi->osd.bits + y * gdi->osd.pitch;
-		statusline_single_erase(gdi->num, buf, gdi->osd.depth / 8, y, gdi->ledwidth);
+		statusline_single_erase(gdi->num, buf, y, gdi->ledwidth);
 	}
-	statusline_render(gdi->num, (uae_u8*)gdi->osd.bits, gdi->osd.depth / 8, gdi->osd.pitch, gdi->ledwidth, gdi->ledheight, rc, gc, bc, a);
+	statusline_render(gdi->num, (uae_u8*)gdi->osd.bits, gdi->osd.pitch, gdi->ledwidth, gdi->ledheight, rc, gc, bc, a);
 
 	for (int y = 0; y < gdi->osd.height; y++) {
 		uae_u8 *buf = (uae_u8*)gdi->osd.bits + y * gdi->osd.pitch;
-		draw_status_line_single(gdi->num, buf, gdi->osd.depth / 8, y, gdi->ledwidth, rc, gc, bc, a);
+		draw_status_line_single(gdi->num, buf, y, gdi->ledwidth, rc, gc, bc, a);
 	}
 }
 
@@ -431,7 +429,7 @@ void gdi_free(int monid, bool immediate)
 	gdi->extoverlays = NULL;
 }
 
-static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv, int *errp)
+static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int *freq, int mmulth, int mmultv, int *errp)
 {
 	struct gdistruct *gdi = &gdidata[monid];
 
@@ -441,7 +439,6 @@ static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int depth,
 	}
 	gdi_free(monid, true);
 	gdi->hwnd = ahwnd;
-	gdi->depth = depth;
 	gdi->wwidth = w_w;
 	gdi->wheight = w_h;
 	if (allocsprite(gdi, &gdi->buf, gdi->wwidth, gdi->wheight)) {
@@ -451,7 +448,7 @@ static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int depth,
 		allocsprite(gdi, &gdi->osd, gdi->ledwidth, gdi->ledheight);
 		allocsprite(gdi, &gdi->cursor, CURSORMAXWIDTH, CURSORMAXHEIGHT);
 		gdi->enabled = 1;
-		write_log(_T("GDI mode initialized %d*%d*%d\n"), w_w, w_h, depth);
+		write_log(_T("GDI mode initialized %d*%d\n"), w_w, w_h);
 		return NULL;
 	}
 
@@ -479,10 +476,6 @@ static bool gdi_setcursor(int monid, int x, int y, int width, int height, float 
 {
 	struct gdistruct *gdi = &gdidata[monid];
 	int cx, cy;
-
-	if (gdi->depth < 32) {
-		return false;
-	}
 
 	if (width < 0 || height < 0) {
 		return true;
@@ -517,10 +510,6 @@ static uae_u8 *gdi_setcursorsurface(int monid, bool query, int *pitch)
 		return (uae_u8 *)gdi->cursor.bits;
 	}
 
-	if (gdi->depth < 32) {
-		return NULL;
-	}
-
 	if (pitch) {
 		*pitch = gdi->cursor.pitch;
 		return (uae_u8*)gdi->cursor.bits;
@@ -545,10 +534,6 @@ static bool gdi_extoverlay(struct extoverlay *ext, int monid)
 	struct gdistruct *gdi = &gdidata[monid];
 	struct gdioverlay *ov, *ovprev, *ov2;
 	struct gdibm *s = NULL;
-
-	if (gdi->depth < 32) {
-		return false;
-	}
 
 	gdi->eraseneeded = true;
 

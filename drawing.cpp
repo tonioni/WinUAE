@@ -1533,34 +1533,17 @@ static void init_drawing_frame(void)
 
 static int lightpen_y1[2], lightpen_y2[2];
 
-void putpixel(uae_u8 *buf, uae_u16 *genlockbuf, int bpp, int x, xcolnr c8)
+void putpixel(uae_u8 *buf, uae_u16 *genlockbuf, int x, xcolnr c8)
 {
 	if (x <= 0)
 		return;
 
-	if (genlockbuf)
+	if (genlockbuf) {
 		genlockbuf[x] = 1;
-
-	switch (bpp) {
-	case 1:
-		buf[x] = (uae_u8)c8;
-		break;
-	case 2:
-		{
-			uae_u16 *p = (uae_u16*)buf + x;
-			*p = (uae_u16)c8;
-			break;
-		}
-	case 3:
-		/* no 24 bit yet */
-		break;
-	case 4:
-		{
-			uae_u32 *p = (uae_u32*)buf + x;
-			*p = c8;
-			break;
-		}
 	}
+
+	uae_u32 *p = (uae_u32*)buf + x;
+	*p = c8;
 }
 
 static uae_u8 *status_line_ptr(int monid, int line)
@@ -1569,9 +1552,7 @@ static uae_u8 *status_line_ptr(int monid, int line)
 	int y;
 
 	y = line - (vidinfo->inbuffer->outheight - TD_TOTAL_HEIGHT);
-	xlinebuffer = vidinfo->inbuffer->linemem;
-	if (xlinebuffer == 0)
-		xlinebuffer = row_map[line];
+	xlinebuffer = row_map[line];
 	xlinebuffer_genlock = row_map_genlock[line];
 	return xlinebuffer;
 }
@@ -1583,19 +1564,17 @@ static void draw_status_line(int monid, int line, int statusy)
 	if (!buf)
 		return;
 	if (statusy < 0)
-		statusline_render(monid, buf, vidinfo->inbuffer->pixbytes, vidinfo->inbuffer->rowbytes, vidinfo->inbuffer->outwidth, TD_TOTAL_HEIGHT, xredcolors, xgreencolors, xbluecolors, NULL);
+		statusline_render(monid, buf, vidinfo->inbuffer->rowbytes, vidinfo->inbuffer->outwidth, TD_TOTAL_HEIGHT, xredcolors, xgreencolors, xbluecolors, NULL);
 	else
-		draw_status_line_single(monid, buf, vidinfo->inbuffer->pixbytes, statusy, vidinfo->inbuffer->outwidth, xredcolors, xgreencolors, xbluecolors, NULL);
+		draw_status_line_single(monid, buf, statusy, vidinfo->inbuffer->outwidth, xredcolors, xgreencolors, xbluecolors, NULL);
 }
 
 static void draw_debug_status_line(int monid, int line)
 {
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
-	xlinebuffer = vidinfo->inbuffer->linemem;
-	if (xlinebuffer == 0)
-		xlinebuffer = row_map[line];
+	xlinebuffer = row_map[line];
 	xlinebuffer_genlock = row_map_genlock[line];
-	debug_draw(xlinebuffer, vidinfo->inbuffer->pixbytes, line, vidinfo->inbuffer->outwidth, vidinfo->inbuffer->outheight, xredcolors, xgreencolors, xbluecolors);
+	debug_draw(xlinebuffer, line, vidinfo->inbuffer->outwidth, vidinfo->inbuffer->outheight, xredcolors, xgreencolors, xbluecolors);
 }
 
 #define LIGHTPEN_HEIGHT 12
@@ -1623,16 +1602,14 @@ static void draw_lightpen_cursor(int monid, int x, int y, int line, int onscreen
 	int color1 = onscreen ? (lpnum ? 0x0ff : 0xff0) : (lpnum ? 0x0f0 : 0xf00);
 	int color2 = (color1 & 0xeee) >> 1;
 
-	xlinebuffer = vidinfo->inbuffer->linemem;
-	if (xlinebuffer == 0)
-		xlinebuffer = row_map[line];
+	xlinebuffer = row_map[line];
 	xlinebuffer_genlock = row_map_genlock[line];
 
 	p = lightpen_cursor + y * LIGHTPEN_WIDTH;
 	for (int i = 0; i < LIGHTPEN_WIDTH; i++) {
 		int xx = x + i - LIGHTPEN_WIDTH / 2;
 		if (*p != '-' && xx >= 0 && xx < vidinfo->inbuffer->outwidth) {
-			putpixel(xlinebuffer, xlinebuffer_genlock, vidinfo->inbuffer->pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2]);
+			putpixel(xlinebuffer, xlinebuffer_genlock, xx, *p == 'x' ? xcolors[color1] : xcolors[color2]);
 		}
 		p++;
 	}
@@ -1760,10 +1737,10 @@ static void refresh_indicator_update(struct vidbuffer *vb)
 			color2 = refresh_indicator_colors[pixel - 5];
 		}
 		for (int x = 0; x < 8; x++) {
-			putpixel(xlinebuffer, NULL, vidinfo->inbuffer->pixbytes, x, xcolors[color1]);
+			putpixel(xlinebuffer, NULL, x, xcolors[color1]);
 		}
 		for (int x = 8; x < 16; x++) {
-			putpixel(xlinebuffer, NULL, vidinfo->inbuffer->pixbytes, x, xcolors[color2]);
+			putpixel(xlinebuffer, NULL, x, xcolors[color2]);
 		}
 	}
 }

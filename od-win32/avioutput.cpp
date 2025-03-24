@@ -554,7 +554,7 @@ static int AVIOutput_AllocateVideo(void)
 	if (avioutput_width == 0 || avioutput_height == 0 || avioutput_bits == 0) {
 		avioutput_width = WIN32GFX_GetWidth(mon);
 		avioutput_height = WIN32GFX_GetHeight(mon);
-		avioutput_bits = WIN32GFX_GetDepth(mon, 0);
+		avioutput_bits = 32;
 		if (WIN32GFX_IsPicassoScreen(mon) && avioutput_originalsize) {
 			struct picasso96_state_struct *state = &picasso96_state[aviout_monid];
 			avioutput_width = state->Width;
@@ -572,7 +572,7 @@ static int AVIOutput_AllocateVideo(void)
 	if (avioutput_width == 0 || avioutput_height == 0) {
 		avioutput_width = workprefs.gfx_monitor[0].gfx_size.width;
 		avioutput_height = workprefs.gfx_monitor[0].gfx_size.height;
-		avioutput_bits = WIN32GFX_GetDepth(mon, 0);
+		avioutput_bits = 32;
 	}
 	if (!aviout_height_out)
 		aviout_height_out = avioutput_height;

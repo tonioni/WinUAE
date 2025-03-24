@@ -12,11 +12,10 @@ extern void reenumeratemonitors(void);
 int WIN32GFX_IsPicassoScreen(struct AmigaMonitor*);
 int WIN32GFX_GetWidth(struct AmigaMonitor*);
 int WIN32GFX_GetHeight(struct AmigaMonitor*);
-int WIN32GFX_GetDepth(struct AmigaMonitor*, int real);
 void WIN32GFX_DisplayChangeRequested(int);
 void DX_Invalidate(struct AmigaMonitor*, int x, int y, int width, int height);
 
-int WIN32GFX_AdjustScreenmode(struct MultiDisplay *md, int *pwidth, int *pheight, int *ppixbits);
+int WIN32GFX_AdjustScreenmode(struct MultiDisplay *md, int *pwidth, int *pheight);
 extern HCURSOR normalcursor;
 
 extern int default_freq;

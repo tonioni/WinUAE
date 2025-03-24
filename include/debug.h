@@ -337,7 +337,7 @@ extern void record_rom_access(uaecptr, uae_u32 value, int size, bool rw);
 extern void record_dma_ipl(void);
 extern void record_dma_ipl_sample(void);
 extern void debug_mark_refreshed(uaecptr);
-extern void debug_draw(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors);
+extern void debug_draw(uae_u8 *buf, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors);
 extern struct dma_rec *record_dma_next_cycle(int hpos, int vpos, int vvpos);
 
 #define TRACE_SKIP_INS 1

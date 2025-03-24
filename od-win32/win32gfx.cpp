@@ -8,8 +8,6 @@
 * Copyright 1997-2000 Brian King
 */
 
-#define FORCE16BIT 0
-
 #include "sysconfig.h"
 
 #include <stdlib.h>
@@ -142,13 +140,6 @@ int isfullscreen(void)
 	return isfullscreen_2(&currprefs);
 }
 
-int WIN32GFX_GetDepth(struct AmigaMonitor *mon, int real)
-{
-	if (!mon->currentmode.native_depth)
-		return mon->currentmode.current_depth;
-	return real ? mon->currentmode.native_depth : mon->currentmode.current_depth;
-}
-
 int WIN32GFX_GetWidth(struct AmigaMonitor *mon)
 {
 	return mon->currentmode.current_width;
@@ -162,9 +153,6 @@ int WIN32GFX_GetHeight(struct AmigaMonitor *mon)
 static BOOL doInit (struct AmigaMonitor*);
 
 int default_freq = 60;
-
-static uae_u8 *scrlinebuf;
-
 
 static struct MultiDisplay *getdisplay2(struct uae_prefs *p, int index)
 {
@@ -1783,11 +1771,7 @@ static void update_gfxparams(struct AmigaMonitor *mon)
 #ifdef PICASSO96
 	}
 #endif
-#if FORCE16BIT
-	mon->currentmode.current_depth = 16;
-#else
-	mon->currentmode.current_depth = 32;
-#endif
+
 	mon->currentmode.amiga_width = mon->currentmode.current_width;
 	mon->currentmode.amiga_height = mon->currentmode.current_height;
 
@@ -2547,20 +2531,11 @@ void init_colors(int monid)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	/* init colors */
-	D3D_getpixelformat (mon->currentmode.current_depth,
-		&red_bits, &green_bits, &blue_bits, &red_shift, &green_shift, &blue_shift, &alpha_bits, &alpha_shift, &alpha);
+	D3D_getpixelformat(&red_bits, &green_bits, &blue_bits, &red_shift, &green_shift, &blue_shift, &alpha_bits, &alpha_shift, &alpha);
 
-	if (!(mon->currentmode.flags & (DM_D3D))) {
-		if (mon->currentmode.current_depth != mon->currentmode.native_depth) {
-			if (mon->currentmode.current_depth == 16) {
-				red_bits = 5; green_bits = 6; blue_bits = 5;
-				red_shift = 11; green_shift = 5; blue_shift = 0;
-			} else {
-				red_bits = green_bits = blue_bits = 8;
-				red_shift = 16; green_shift = 8; blue_shift = 0;
-			}
-		}
-	}
+	red_bits = green_bits = blue_bits = 8;
+	red_shift = 16; green_shift = 8; blue_shift = 0;
+
 	alloc_colors64k(monid, red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0);
 	notice_new_xcolors ();
 #ifdef AVIOUTPUT
@@ -2697,7 +2672,6 @@ bool vsync_switchmode(int monid, int hz)
 	static int oldhz;
 	int w = mon->currentmode.native_width;
 	int h = mon->currentmode.native_height;
-	int d = mon->currentmode.native_depth / 8;
 	struct MultiDisplay *md = getdisplay(&currprefs, monid);
 	struct PicassoResolution *found;
 	int newh, i, cnt;
@@ -2825,15 +2799,12 @@ static int modeswitchneeded(struct AmigaMonitor *mon, struct winuae_currentmode 
 				return 1;
 			if (state->Width == wc->current_width &&
 				state->Height == wc->current_height) {
-					if (state->BytesPerPixel * 8 == wc->current_depth || state->BytesPerPixel == 1)
-						return 0;
-					return 0;
+				return 0;
 			}
 			return 1;
 		} else {
 			if (mon->currentmode.current_width != wc->current_width ||
-				mon->currentmode.current_height != wc->current_height ||
-				mon->currentmode.current_depth != wc->current_depth)
+				mon->currentmode.current_height != wc->current_height)
 				return -1;
 		}
 	} else if (isfullscreen () == 0) {
@@ -2926,12 +2897,11 @@ static void updatepicasso96(struct AmigaMonitor *mon)
 #ifdef PICASSO96
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[mon->monitor_id];
 	vidinfo->rowbytes = 0;
-	vidinfo->pixbytes = mon->currentmode.current_depth / 8;
+	vidinfo->pixbytes = 32 / 8;
 	vidinfo->rgbformat = 0;
 	vidinfo->extra_mem = 1;
 	vidinfo->height = mon->currentmode.current_height;
 	vidinfo->width = mon->currentmode.current_width;
-	vidinfo->depth = mon->currentmode.current_depth;
 	vidinfo->offset = 0;
 	vidinfo->splitypos = -1;
 #endif
@@ -3750,9 +3720,10 @@ static int create_windows(struct AmigaMonitor *mon)
 	return 1;
 }
 
-static void allocsoftbuffer(int monid, const TCHAR *name, struct vidbuffer *buf, int flags, int width, int height, int depth)
+static void allocsoftbuffer(int monid, const TCHAR *name, struct vidbuffer *buf, int flags, int width, int height)
 {
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
+	int depth = 32;
 
 	if (buf->initialized && buf->vram_buffer) {
 		return;
@@ -3773,8 +3744,6 @@ static void allocsoftbuffer(int monid, const TCHAR *name, struct vidbuffer *buf,
 		buf->bufmem_allocated = NULL;
 		buf->vram_buffer = true;
 
-		write_log(_T("Mon %d reserved %s draw buffer (%d*%d*%d)\n"), monid, name, width, height, depth);
-
 	} else {
 
 		xfree(buf->realbufmem);
@@ -3786,8 +3755,6 @@ static void allocsoftbuffer(int monid, const TCHAR *name, struct vidbuffer *buf,
 		buf->bufmem_allocated = buf->bufmem = buf->realbufmem + (h / 2) * buf->rowbytes + (w / 2) * buf->pixbytes;
 		buf->bufmemend = buf->realbufmem + size - buf->rowbytes;
 
-		write_log(_T("Mon %d allocated %s temp buffer (%d*%d*%d) = %p\n"), monid, name, width, height, depth, buf->realbufmem);
-
 	}
 
 }
@@ -3796,7 +3763,6 @@ static int oldtex_w[MAX_AMIGAMONITORS], oldtex_h[MAX_AMIGAMONITORS], oldtex_rtg[
 
 static BOOL doInit(struct AmigaMonitor *mon)
 {
-	int tmp_depth;
 	int ret = 0;
 	bool modechanged;
 
@@ -3816,8 +3782,6 @@ retry:
 
 	for (;;) {
 		updatemodes(mon);
-		mon->currentmode.native_depth = 0;
-		tmp_depth = mon->currentmode.current_depth;
 
 		if (mon->currentmode.flags & DM_W_FULLSCREEN) {
 			RECT rc = getdisplay(&currprefs, mon->monitor_id)->rect;
@@ -3831,14 +3795,11 @@ retry:
 			break;
 		} else {
 #endif
-			mon->currentmode.native_depth = mon->currentmode.current_depth;
-
 			if (currprefs.gfx_resolution > avidinfo->gfx_resolution_reserved)
 				avidinfo->gfx_resolution_reserved = currprefs.gfx_resolution;
 			if (currprefs.gfx_vresolution > avidinfo->gfx_vresolution_reserved)
 				avidinfo->gfx_vresolution_reserved = currprefs.gfx_vresolution;
 
-			//gfxvidinfo.drawbuffer.gfx_resolution_reserved = RES_SUPERHIRES;
 
 #if defined (GFXFILTER)
 			if (mon->currentmode.flags & DM_D3D) {
@@ -3921,7 +3882,7 @@ retry:
 		}
 		int errv = 0;
 		const TCHAR *err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
-			mon->currentmode.current_depth, &mon->currentmode.freq, fmh, fmv, &errv);
+			&mon->currentmode.freq, fmh, fmv, &errv);
 		if (errv > 0) {
 			if (errv == 2 && currprefs.gfx_api == 0) {
 				write_log("Retrying D3D %s\n", err);
@@ -3937,7 +3898,7 @@ retry:
 				error_log(_T("Direct3D11 failed to initialize ('%s'), falling back to Direct3D9."), err);
 				errv = 0;
 				err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
-					mon->currentmode.current_depth, &mon->currentmode.freq, fmh, fmv, &errv);
+					&mon->currentmode.freq, fmh, fmv, &errv);
 			}
 			if (errv > 0) {
 				D3D_free(0, true);
@@ -3953,12 +3914,11 @@ retry:
 					error_log(_T("Direct3D9/11 failed to initialize ('%s'), falling back to GDI."), err);
 					errv = 0;
 					err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
-						mon->currentmode.current_depth, &mon->currentmode.freq, fmh, fmv, &errv);
+						&mon->currentmode.freq, fmh, fmv, &errv);
 					if (errv) {
 						error_log(_T("Failed to initialize any rendering modes."));
 					}
 				}
-				mon->currentmode.current_depth = mon->currentmode.native_depth;
 				gfxmode_reset(mon->monitor_id);
 				ret = -1;
 				goto oops;

@@ -416,7 +416,7 @@ void statusline_updated(int monid)
 		PostMessage(mon->hStatusWnd, SB_SETTEXT, (WPARAM)((window_led_msg_start) | SBT_OWNERDRAW), (LPARAM)_T(""));
 }
 
-void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int maxwidth, int maxheight, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *alpha)
+void statusline_render(int monid, uae_u8 *buf, int pitch, int maxwidth, int maxheight, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *alpha)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	uae_u32 white = rc[0xff] | gc[0xff] | bc[0xff] | (alpha ? alpha[0xff] : 0);

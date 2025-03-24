@@ -52,8 +52,8 @@ extern int amigamonid;
 
 struct winuae_currentmode {
 	unsigned int flags;
-	int native_width, native_height, native_depth, pitch;
-	int current_width, current_height, current_depth;
+	int native_width, native_height;
+	int current_width, current_height;
 	int amiga_width, amiga_height;
 	int initdone;
 	int fullfill;

@@ -8,7 +8,7 @@ struct extoverlay
 };
 
 extern void(*D3D_free)(int, bool immediate);
-extern const TCHAR* (*D3D_init)(HWND ahwnd, int, int w_w, int h_h, int depth, int *freq, int mmulth, int mmultv, int *errp);
+extern const TCHAR* (*D3D_init)(HWND ahwnd, int, int w_w, int h_h, int *freq, int mmulth, int mmultv, int *errp);
 extern bool(*D3D_alloctexture)(int, int, int);
 extern void(*D3D_refresh)(int);
 extern bool(*D3D_renderframe)(int, int,bool);
@@ -37,10 +37,10 @@ extern bool(*D3D_getscanline)(int*, bool*);
 extern bool(*D3D_extoverlay)(struct extoverlay*, int);
 extern void(*D3D_paint)(void);
 
-extern LPDIRECT3DSURFACE9 D3D_capture(int, int*,int*,int*,bool);
-extern bool D3D11_capture(int, void**,int*, int*, int*,int*,bool);
+extern LPDIRECT3DSURFACE9 D3D_capture(int, int*,int*, int*, bool);
+extern bool D3D11_capture(int, void**,int*, int*, int*, int*, bool);
 
-void D3D_getpixelformat(int depth, int *rb, int *gb, int *bb, int *rs, int *gs, int *bs, int *ab, int *as, int *a);
+void D3D_getpixelformat(int *rb, int *gb, int *bb, int *rs, int *gs, int *bs, int *ab, int *as, int *a);
 
 void d3d9_select(void);
 void d3d11_select(void);
