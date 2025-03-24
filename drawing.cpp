@@ -2607,7 +2607,7 @@ static void setbplmode(void)
 {
 	bplham = (bplcon0_denise & 0x800) != 0;
 	bpldualpf = (bplcon0_denise & 0x400) == 0x400;
-	bplehb = denise_planes == 6 && !bplham && !bpldualpf && (!ecs_denise || !(bplcon2_denise & 0x200) || !(bplcon0_denise & 1));
+	bplehb = denise_planes == 6 && !bplham && !bpldualpf && (!ecs_denise || !(bplcon2_denise & 0x200));
 
 	// BYPASS: HAM and EHB select bits are ignored
 	bpland = 0xff;
@@ -6734,7 +6734,7 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	int fmode = 16 << (((ls->fmode & 3) == 3 ? 2 : (ls->fmode & 3)));
 
 	if (ls->ltsidx < 0) {
-		bool ehb = planecnt == 6 && !ham && !dpf && (!ecs_denise || !(ls->bplcon0 & 1) || !(ls->bplcon2 & 0x200));
+		bool ehb = planecnt == 6 && !ham && !dpf && (!ecs_denise || !(ls->bplcon2 & 0x200));
 		int mode = CMODE_NORMAL;
 		if (ham) {
 			mode = CMODE_HAM;
