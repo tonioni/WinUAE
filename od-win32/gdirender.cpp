@@ -95,20 +95,20 @@ static void setupscenecoords(struct gdistruct *gdi, int monid)
 	float w = (float)ds.outwidth;
 	float h = (float)ds.outheight;
 
-	int tx = (dw * gdi->bm.width) / (gdi->wwidth * 2);
-	int ty = (dh * gdi->bm.height) / (gdi->wheight * 2);
+	float tx = (dw * gdi->bm.width) / (gdi->wwidth * 2);
+	float ty = (dh * gdi->bm.height) / (gdi->wheight * 2);
 
 	float sw = dw / gdi->wwidth;
 	float sh = dh / gdi->wheight;
 
-	int xshift = -ds.xoffset;
-	int yshift = -ds.yoffset;
+	float xshift = (float)-ds.xoffset;
+	float yshift = (float)-ds.yoffset;
 
 	xshift -= (w - gdi->wwidth) / 2;
 	yshift -= (h - gdi->wheight) / 2;
 
-	gdi->xoffset = tx + xshift - gdi->wwidth / 2;
-	gdi->yoffset = ty + yshift - gdi->wheight / 2;
+	gdi->xoffset = (int)(tx + xshift - gdi->wwidth / 2);
+	gdi->yoffset = (int)(ty + yshift - gdi->wheight / 2);
 
 	gdi->xmult = filterrectmult(gdi->wwidth, w, gdi->dmode);
 	gdi->ymult = filterrectmult(gdi->wheight, h, gdi->dmode);

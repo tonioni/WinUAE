@@ -1581,8 +1581,8 @@ static void setupscenecoords(struct d3d11struct *d3d, bool normalrender, int mon
 	float sw = dw / d3d->m_screenWidth;
 	float sh = dh / d3d->m_screenHeight;
 
-	int xshift = -ds.xoffset;
-	int yshift = -ds.yoffset;
+	float xshift = (float)-ds.xoffset;
+	float yshift = (float)-ds.yoffset;
 
 	xshift -= (w - d3d->m_screenWidth) / 2;
 	yshift -= (h - d3d->m_screenHeight) / 2;
@@ -5055,8 +5055,6 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 		D3D_unlocktexture(monid, -1, -1);
 	}
 
-	recheck(d3d, monid);
-
 	if (d3d->invalidmode || !d3d->m_device) {
 		return false;
 	}
@@ -5068,6 +5066,8 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 	d3d->dmult = 1; // S2X_getmult(monid);
 	d3d->m_bitmapWidthX = d3d->m_bitmapWidth * d3d->dmultxh;
 	d3d->m_bitmapHeightX = d3d->m_bitmapHeight * d3d->dmultxv;
+
+	recheck(d3d, monid);
 
 	v = CreateTexture(d3d);
 	if (!v)

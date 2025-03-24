@@ -2101,8 +2101,8 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender, int monid
 
 	float dw = (float)ds.dstwidth;
 	float dh = (float)ds.dstheight;
-	float w = ds.outwidth;
-	float h = ds.outheight;
+	float w = (float)ds.outwidth;
+	float h = (float)ds.outheight;
 
 	d3d->fakesize.x = w;
 	d3d->fakesize.y = h;

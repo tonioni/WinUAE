@@ -201,8 +201,6 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 	store_custom_limits (-1, -1, -1, -1);
 	ds->mode = 0;
-	ds->outwidth = ds->srcwidth;
-	ds->outheight = ds->srcheight;
 
 	if (mon->screen_is_picasso) {
 		getrtgfilterdata(monid, ds);
@@ -287,6 +285,9 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 		filterxmult = (float)ds->scale;
 		filterymult = (float)ds->scale;
+
+		ds->xoffset = 0;
+		ds->yoffset = 0;
 
 		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL ||
 			scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
@@ -395,8 +396,8 @@ void getfilterdata(int monid, struct displayscale *ds)
 							mult += multadd;
 						}
 						float multx = mult, multy = mult;
-						maxw = maxw * mult;
-						maxh = maxh * mult;
+						maxw = (int)(maxw * mult);
+						maxh = (int)(maxh * mult);
 					} else {
 						while (((cw2 * (mult + multadd)) / m) - adjw <= maxw && ch2 * (mult + multadd) - adjh <= maxh) {
 							mult += multadd;
@@ -411,8 +412,8 @@ void getfilterdata(int monid, struct displayscale *ds)
 						if (ch2 * (mult * 2) - adjh <= maxh && cw2 > ch2 * 2.4) {
 							multy *= 2;
 						}
-						maxw = (maxw + mult - multadd) / mult;
-						maxh = (maxh + mult - multadd) / mult;
+						maxw = (int)((maxw + mult - multadd) / mult);
+						maxh = (int)((maxh + mult - multadd) / mult);
 					}
 				}
 
@@ -611,13 +612,20 @@ void getfilterdata(int monid, struct displayscale *ds)
 			ds->xoffset += (int)(-filter_horiz_offset * aws);
 			ds->yoffset += (int)(-filter_vert_offset * ahs);
 
-			diff = ds->dstwidth;
+			diff = ds->outwidth;
 			filterxmult = ((float)ds->dstwidth * ds->scale) / diff;
-			diff = ds->dstheight;
+			diff = ds->outheight;
 			filterymult = ((float)ds->dstheight * ds->scale) / diff;
 
 			goto end;
 		}
+
+	} else {
+	
+		ds->outwidth = ds->dstwidth;
+		ds->outheight = ds->dstheight;
+		ds->xoffset = (ds->srcwidth - ds->dstwidth) / 2;
+		ds->yoffset = (ds->srcheight - ds->dstheight) / 2;
 
 	}
 cont:
