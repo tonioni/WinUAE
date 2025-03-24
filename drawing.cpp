@@ -230,9 +230,7 @@ typedef enum
 
 static void select_lts(void);
 
-extern int sprite_buffer_res;
-static int lores_factor;
-int lores_shift, shres_shift;
+static int lores_shift;
 static uae_u32 ham_lastcolor;
 
 int debug_bpl_mask = 0xff, debug_bpl_mask_one;
@@ -1499,14 +1497,6 @@ static void init_drawing_frame(void)
 	lines_count = 0;
 	frame_res = -1;
 	frame_res_lace = 0;
-
-	if (can_use_lores > AUTO_LORES_FRAMES && 0) {
-		lores_factor = 1;
-		//lores_set(0);
-	} else {
-		can_use_lores++;
-		//lores_reset();
-	}
 
 	if (thisframe_first_drawn_line < 0)
 		thisframe_first_drawn_line = minfirstline;
