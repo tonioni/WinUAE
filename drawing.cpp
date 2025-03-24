@@ -204,7 +204,6 @@ static bool denise_lock(void)
 	struct amigadisplay *ad = &adisplays[monid];
 	struct vidbuf_description *vidinfo = &ad->gfxvidinfo;
 	struct vidbuffer *vb = &vidinfo->drawbuffer;
-	struct vidbuffer *vbin = &vidinfo->tempbuffer;
 
 	if (!vb->locked) {
 		if (!lockscr(vb, false, display_reset > 0)) {
@@ -360,9 +359,6 @@ uae_sem_t gui_sem;
 static int rga_denise_fast_read, rga_denise_fast_write;
 #define DENISE_RGA_SLOT_FAST_TOTAL 1024
 static struct denise_rga rga_denise_fast[DENISE_RGA_SLOT_FAST_TOTAL];
-
-
-
 
 typedef void (*LINETOSRC_FUNC)(void);
 static LINETOSRC_FUNC lts;
@@ -1170,6 +1166,7 @@ void init_row_map(void)
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	struct vidbuffer *vb = vidinfo->inbuffer;
 	static uae_u8 *oldbufmem;
+	static struct vidbuffer *oldvb;
 	static int oldheight, oldpitch;
 	static bool oldgenlock, oldburst;
 	int i, j;
@@ -1184,11 +1181,13 @@ void init_row_map(void)
 	}
 
 	if (oldbufmem && oldbufmem == vb->bufmem &&
+		oldvb == vb &&
 		oldheight == vb->height_allocated &&
 		oldpitch == vb->rowbytes &&
 		oldgenlock == init_genlock_data &&
-		oldburst == (row_map_color_burst_buffer ? 1 : 0))
-		return;
+		oldburst == (row_map_color_burst_buffer ? 1 : 0)) {
+			return;
+	}
 	xfree(row_map_genlock_buffer);
 	row_map_genlock_buffer = NULL;
 	if (init_genlock_data) {
@@ -1216,6 +1215,7 @@ void init_row_map(void)
 		row_map_genlock[i] = row_tmp16;
 		i++;
 	}
+	oldvb = vb;
 	oldbufmem = vb->bufmem;
 	oldheight = vb->height_allocated;
 	oldpitch = vb->rowbytes;
@@ -1745,6 +1745,18 @@ static void refresh_indicator_update(struct vidbuffer *vb)
 	}
 }
 
+bool drawing_can_lineoptimizations(void)
+{
+	if (currprefs.monitoremu || currprefs.cs_cd32fmv || ((currprefs.genlock || currprefs.genlock_effects) && currprefs.genlock_image) ||
+		currprefs.cs_color_burst || currprefs.gfx_grayscale || currprefs.monitoremu) {
+		return false;
+	}
+	if (lightpen_active || debug_dma >= 2 || debug_heatmap >= 2 || refresh_indicator_buffer) {
+		return false;
+	}
+	return true;
+}
+
 static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
 {
 	if (debug_dma > 1 || debug_heatmap > 1) {
@@ -1806,6 +1818,7 @@ static void vbcopy(struct vidbuffer *vbout, struct vidbuffer *vbin)
 static void finish_drawing_frame(bool drawlines)
 {
 	int monid = 0;
+	bool vbcopied = false;
 	struct amigadisplay *ad = &adisplays[monid];
 	struct vidbuf_description *vidinfo = &ad->gfxvidinfo;
 	struct vidbuffer *vbout = vidinfo->outbuffer;
@@ -1857,12 +1870,14 @@ static void finish_drawing_frame(bool drawlines)
 				compute_framesync();
 			}
 			vbcopy(vbout, vbin);
+			vbcopied = true;
 		}
 		if (multimon && locked) {
 			unlockscr(m_out, -1, -1);
 			render_screen(m_out->monitor_id, 1, true);
 			show_screen(m_out->monitor_id, 0);
 		}
+		vbcopied = true;
 	}
 
 	// genlock
@@ -1880,6 +1895,7 @@ static void finish_drawing_frame(bool drawlines)
 		if (!vbout->hardwiredpositioning) {
 			setnativeposition(vbout);
 		}
+		vbcopied = true;
 	}
 
 #ifdef CD32
@@ -1894,6 +1910,7 @@ static void finish_drawing_frame(bool drawlines)
 		} else {
 			vbcopy(vbout, vbin);
 		}
+		vbcopied = true;
 	}
 #endif
 
@@ -1905,11 +1922,16 @@ static void finish_drawing_frame(bool drawlines)
 		}
 		setspecialmonitorpos(vbout);
 		emulate_grayscale(vbin, vbout);
-		if (!vbout->hardwiredpositioning)
+		if (!vbout->hardwiredpositioning) {
 			setnativeposition(vbout);
+		}
+		vbcopied = true;
 	}
 
 	if (denise_locked) {
+		if (!vbcopied) {
+			vbcopy(vbout, vbin);
+		}
 		unlockscr(vbout, display_reset ? -2 : -1, -1);
 		denise_locked = false;
 	}
@@ -4865,6 +4887,17 @@ bool has_draw_denise(void)
 	return thread_debug_lock;
 }
 
+void set_drawbuffer(void)
+{
+	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
+
+	if (vidinfo->tempbuffer.bufmem && !drawing_can_lineoptimizations()) {
+		vidinfo->inbuffer = &vidinfo->tempbuffer;
+	} else {
+		vidinfo->inbuffer = &vidinfo->drawbuffer;
+	}
+}
+
 bool start_draw_denise(void)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
@@ -4882,16 +4915,10 @@ bool start_draw_denise(void)
 
 	thread_debug_lock = true;
 
-	if (vidinfo->tempbuffer.bufmem) {
-		vidinfo->inbuffer = &vidinfo->tempbuffer;
-	} else {
-		vidinfo->inbuffer = &vidinfo->drawbuffer;
-	}
-
+	set_drawbuffer();
 	if (vidinfo->outbuffer != vidinfo->inbuffer) {
 		vidinfo->inbuffer->locked = vidinfo->outbuffer->locked;
 	}
-
 	init_row_map();
 
 	denise_y_start = 0;

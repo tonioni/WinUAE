@@ -1256,7 +1256,7 @@ static void update_mirrors(void)
 		hsyncdebug = currprefs.gfx_overscanmode - OVERSCANMODE_ULTRA + 1;
 	}
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
-	lineoptimizations_allowed = vidinfo->inbuffer == vidinfo->outbuffer && !lightpen_active;
+	lineoptimizations_allowed = vidinfo->inbuffer == vidinfo->outbuffer && drawing_can_lineoptimizations();
 	color_table_changed = true;
 }
 
@@ -1569,7 +1569,6 @@ static void resetfulllinestate(void)
 void compute_framesync(void)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
-	struct vidbuffer *vb = vidinfo->inbuffer;
 	struct amigadisplay *ad = &adisplays[0];
 	int islace = interlace_seen ? 1 : 0;
 	int isntsc = (beamcon0 & BEAMCON0_PAL) ? 0 : 1;
@@ -1582,6 +1581,9 @@ void compute_framesync(void)
 	} else {
 		vblank_hz = vblank_hz_shf;
 	}
+
+	set_drawbuffer();
+	struct vidbuffer *vb = vidinfo->inbuffer;
 
 	vblank_hz = target_adjust_vblank_hz(0, vblank_hz);
 

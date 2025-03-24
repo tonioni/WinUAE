@@ -3777,8 +3777,6 @@ retry:
 		regqueryint(NULL, wasfsname[1], &wasfs[1]);
 
 	gfxmode_reset(mon->monitor_id);
-	//freevidbuffer(mon->monitor_id, &avidinfo->drawbuffer);
-	//freevidbuffer(mon->monitor_id, &avidinfo->tempbuffer);
 
 	for (;;) {
 		updatemodes(mon);
@@ -3800,37 +3798,8 @@ retry:
 			if (currprefs.gfx_vresolution > avidinfo->gfx_vresolution_reserved)
 				avidinfo->gfx_vresolution_reserved = currprefs.gfx_vresolution;
 
-
-#if defined (GFXFILTER)
-			if (mon->currentmode.flags & DM_D3D) {
-				if (!currprefs.gfx_autoresolution) {
-					mon->currentmode.amiga_width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
-					mon->currentmode.amiga_height = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
-				} else {
-					mon->currentmode.amiga_width = AMIGA_WIDTH_MAX << avidinfo->gfx_resolution_reserved;
-					mon->currentmode.amiga_height = AMIGA_HEIGHT_MAX << avidinfo->gfx_vresolution_reserved;
-				}
-				if (avidinfo->gfx_resolution_reserved == RES_SUPERHIRES)
-					mon->currentmode.amiga_height *= 2;
-				if (mon->currentmode.amiga_height > 1280)
-					mon->currentmode.amiga_height = 1280;
-
-				avidinfo->drawbuffer.inwidth = avidinfo->drawbuffer.outwidth = mon->currentmode.amiga_width;
-				avidinfo->drawbuffer.inheight = avidinfo->drawbuffer.outheight = mon->currentmode.amiga_height;
-
-				mon->currentmode.current_depth = mon->currentmode.native_depth;
-				mon->currentmode.pitch = mon->currentmode.amiga_width * mon->currentmode.current_depth >> 3;
-			}
-			else
-#endif
-			{
-				mon->currentmode.amiga_width = mon->currentmode.current_width;
-				mon->currentmode.amiga_height = mon->currentmode.current_height;
-			}
-			avidinfo->drawbuffer.pixbytes = mon->currentmode.current_depth >> 3;
-			avidinfo->drawbuffer.bufmem = NULL;
-			avidinfo->drawbuffer.linemem = NULL;
-			avidinfo->drawbuffer.rowbytes = mon->currentmode.pitch;
+			mon->currentmode.amiga_width = mon->currentmode.current_width;
+			mon->currentmode.amiga_height = mon->currentmode.current_height;
 			break;
 #ifdef PICASSO96
 		}
@@ -3839,36 +3808,20 @@ retry:
 
 	updatepicasso96(mon);
 
-	if (!scrlinebuf)
-		scrlinebuf = xmalloc (uae_u8, max_uae_width * 4);
-
-	avidinfo->drawbuffer.emergmem = scrlinebuf; // memcpy from system-memory to video-memory
-
-	avidinfo->drawbuffer.realbufmem = NULL;
-	avidinfo->drawbuffer.bufmem = NULL;
-	avidinfo->drawbuffer.bufmem_allocated = NULL;
-
-	avidinfo->outbuffer = &avidinfo->drawbuffer;
-
 	if (!mon->screen_is_picasso) {
 
 		allocsoftbuffer(mon->monitor_id, _T("draw"), &avidinfo->drawbuffer, mon->currentmode.flags,
-			1920, 1280, mon->currentmode.current_depth);
-		avidinfo->inbuffer = &avidinfo->drawbuffer;
-		if (currprefs.monitoremu || currprefs.cs_cd32fmv || ((currprefs.genlock || currprefs.genlock_effects) && currprefs.genlock_image) ||
-			currprefs.cs_color_burst || currprefs.gfx_grayscale || currprefs.monitoremu) {
-			allocsoftbuffer(mon->monitor_id, _T("monemu"), &avidinfo->tempbuffer, mon->currentmode.flags,
-				mon->currentmode.amiga_width > 1024 ? mon->currentmode.amiga_width : 1024,
-				mon->currentmode.amiga_height > 1024 ? mon->currentmode.amiga_height : 1024,
-				mon->currentmode.current_depth);
-			avidinfo->inbuffer = &avidinfo->tempbuffer;
-		}
+			1920, 1280);
+
+		allocsoftbuffer(mon->monitor_id, _T("monemu"), &avidinfo->tempbuffer, mon->currentmode.flags,
+			mon->currentmode.amiga_width > 2048 ? mon->currentmode.amiga_width : 2048,
+			mon->currentmode.amiga_height > 2048 ? mon->currentmode.amiga_height : 2048);
 
 	}
 
-#if 0
-	S2X_free(mon->monitor_id);
-#endif
+	avidinfo->outbuffer = &avidinfo->drawbuffer;
+	avidinfo->inbuffer = &avidinfo->tempbuffer;
+
 	if (!D3D_isenabled(mon->monitor_id)) {
 		for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
 			oldtex_w[i] = oldtex_h[i] = -1;

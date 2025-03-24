@@ -196,5 +196,7 @@ bool denise_is_vb(void);
 void draw_denise_line_queue_flush(void);
 void quick_denise_rga_queue(int linecnt, int startpos, int endpos);
 void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos);
+bool drawing_can_lineoptimizations(void);
+void set_drawbuffer(void);
 
 #endif /* UAE_DRAWING_H */
