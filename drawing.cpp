@@ -1564,7 +1564,7 @@ static void draw_debug_status_line(int monid, int line)
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
 	xlinebuffer = row_map[line];
 	xlinebuffer_genlock = row_map_genlock[line];
-	debug_draw(xlinebuffer, line, vidinfo->inbuffer->outwidth, vidinfo->inbuffer->outheight, xredcolors, xgreencolors, xbluecolors);
+	debug_draw(xlinebuffer, xlinebuffer_genlock, line, vidinfo->inbuffer->outwidth, vidinfo->inbuffer->outheight, xredcolors, xgreencolors, xbluecolors);
 }
 
 #define LIGHTPEN_HEIGHT 12
@@ -4883,6 +4883,14 @@ void set_drawbuffer(void)
 
 	if (vidinfo->tempbuffer.bufmem && !drawing_can_lineoptimizations()) {
 		vidinfo->inbuffer = &vidinfo->tempbuffer;
+		struct vidbuffer *vb = &vidinfo->tempbuffer;
+		if (!vb->outwidth || !vb->outheight) {
+			struct vidbuffer *vb2 = &vidinfo->drawbuffer;
+			vb->outwidth = vb2->outwidth;
+			vb->outheight = vb2->outheight;
+			vb->inwidth = vb2->inwidth;
+			vb->inheight = vb2->inheight;
+		}
 	} else {
 		vidinfo->inbuffer = &vidinfo->drawbuffer;
 	}

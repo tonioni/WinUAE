@@ -1465,10 +1465,14 @@ static uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u
 	return v;
 }
 
-static void putpixel (uae_u8 *buf, int x, xcolnr c8)
+static void putpixel(uae_u8 *buf, uae_u16 *genlockbuf, int x, xcolnr c8)
 {
 	if (x <= 0) {
 		return;
+	}
+
+	if (genlockbuf) {
+		genlockbuf[x] = 1;
 	}
 
 	uae_u32 *p = (uae_u32*)buf + x;
@@ -1545,7 +1549,7 @@ static void set_debug_colors(void)
 
 static int cycles_toggle;
 
-static void debug_draw_cycles(uae_u8 *buf, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
+static void debug_draw_cycles(uae_u8 *buf, uae_u16 *genlock, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
 {
 	int y, x, xx, dx, xplus, yplus;
 	struct dma_rec *dr;
@@ -1607,21 +1611,21 @@ static void debug_draw_cycles(uae_u8 *buf, int line, int width, int height, uae_
 		}
 		if (dr->intlev > intlev)
 			intlev = dr->intlev;
-		putpixel(buf, xx + 4, c);
+		putpixel(buf, genlock, xx + 4, c);
 		if (xplus > 1)
-			putpixel(buf, xx + 4 + 1, c);
+			putpixel(buf, genlock, xx + 4 + 1, c);
 		if (xplus > 2)
-			putpixel(buf, xx + 4 + 2, c);
+			putpixel(buf, genlock, xx + 4 + 2, c);
 
 		dr++;
 		if (dr->hpos == 0) {
 			break;
 		}
 	}
-	putpixel (buf, dx + 0, 0);
-	putpixel (buf, dx + 1, lc(intlevc[intlev]));
-	putpixel (buf, dx + 2, lc(intlevc[intlev]));
-	putpixel (buf, dx + 3, 0);
+	putpixel(buf, genlock, dx + 0, 0);
+	putpixel(buf, genlock, dx + 1, lc(intlevc[intlev]));
+	putpixel(buf, genlock, dx + 2, lc(intlevc[intlev]));
+	putpixel(buf, genlock, dx + 3, 0);
 }
 
 #define HEATMAP_WIDTH 256
@@ -1640,7 +1644,7 @@ struct memory_heatmap
 	uae_u16 type, extra;
 };
 
-static void debug_draw_heatmap(uae_u8 *buf, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
+static void debug_draw_heatmap(uae_u8 *buf, uae_u16 *genlock, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
 {
 	struct memory_heatmap *mht = heatmap;
 	int dx = 16;
@@ -1655,14 +1659,14 @@ static void debug_draw_heatmap(uae_u8 *buf, int line, int width, int height, uae
 		uae_u32 c = heatmap_debug_colors[mht->cnt * DMARECORD_MAX + mht->type];
 		//c = heatmap_debug_colors[(HEATMAP_COUNT - 1) * DMARECORD_MAX + DMARECORD_CPU_I];
 		int xx = x + dx;
-		putpixel(buf, xx, c);
+		putpixel(buf, genlock, xx, c);
 		if (mht->cnt > 0)
 			mht->cnt--;
 		mht++;
 	}
 }
 
-void debug_draw(uae_u8 *buf, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
+void debug_draw(uae_u8 *buf, uae_u16 *genlock, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
 {
 	if (!heatmap_debug_colors) {
 		heatmap_debug_colors = xcalloc(uae_u32, DMARECORD_MAX * HEATMAP_COUNT);
@@ -1682,9 +1686,9 @@ void debug_draw(uae_u8 *buf, int line, int width, int height, uae_u32 *xredcolor
 	}
 
 	if (heatmap) {
-		debug_draw_heatmap(buf, line, width, height, xredcolors, xgreencolors, xbluecolors);
+		debug_draw_heatmap(buf, genlock, line, width, height, xredcolors, xgreencolors, xbluecolors);
 	} else if (dma_record_data) {
-		debug_draw_cycles(buf, line, width, height, xredcolors, xgreencolors, xbluecolors);
+		debug_draw_cycles(buf, genlock, line, width, height, xredcolors, xgreencolors, xbluecolors);
 	}
 }
 
