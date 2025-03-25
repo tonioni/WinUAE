@@ -940,7 +940,6 @@ static void rtg_clear(int monid)
 }
 
 enum {
-
 	/* DEST = RGBFB_B8G8R8A8,32 */
 	RGBFB_A8R8G8B8_32 = 1,
 	RGBFB_A8B8G8R8_32,
@@ -957,130 +956,62 @@ enum {
 	RGBFB_CLUT_RGBFB_32,
 	RGBFB_Y4U2V2_32,
 	RGBFB_Y4U1V1_32,
-
-	/* DEST = RGBFB_R5G6B5PC,16 */
-	RGBFB_A8R8G8B8_16,
-	RGBFB_A8B8G8R8_16,
-	RGBFB_R8G8B8A8_16,
-	RGBFB_B8G8R8A8_16,
-	RGBFB_R8G8B8_16,
-	RGBFB_B8G8R8_16,
-	RGBFB_R5G6B5PC_16,
-	RGBFB_R5G5B5PC_16,
-	RGBFB_R5G6B5_16,
-	RGBFB_R5G5B5_16,
-	RGBFB_B5G6R5PC_16,
-	RGBFB_B5G5R5PC_16,
-	RGBFB_CLUT_RGBFB_16,
-	RGBFB_Y4U2V2_16,
-	RGBFB_Y4U1V1_16,
-
-	/* DEST = RGBFB_CLUT,8 */
-	RGBFB_CLUT_8
 };
 
-int getconvert(int rgbformat, int pixbytes)
+int getconvert(int rgbformat)
 {
 	int v = 0;
-	int d = pixbytes;
 
 	switch (rgbformat)
 	{
 	case RGBFB_CLUT:
-		if (d == 1)
-			v = RGBFB_CLUT_8;
-		else if (d == 2)
-			v = RGBFB_CLUT_RGBFB_16;
-		else if (d == 4)
-			v = RGBFB_CLUT_RGBFB_32;
+		v = RGBFB_CLUT_RGBFB_32;
 		break;
 
 	case RGBFB_B5G6R5PC:
-		if (d == 2)
-			v = RGBFB_B5G6R5PC_16;
-		else if (d == 4)
-			v = RGBFB_B5G6R5PC_32;
+		v = RGBFB_B5G6R5PC_32;
 		break;
 	case RGBFB_R5G6B5PC:
-		if (d == 2)
-			v = RGBFB_R5G6B5PC_16;
-		else if (d == 4)
-			v = RGBFB_R5G6B5PC_32;
+		v = RGBFB_R5G6B5PC_32;
 		break;
 
 	case RGBFB_R5G5B5PC:
-		if (d == 4)
-			v = RGBFB_R5G5B5PC_32;
-		else if (d == 2)
-			v = RGBFB_R5G5B5PC_16;
+		v = RGBFB_R5G5B5PC_32;
 		break;
 	case RGBFB_R5G6B5:
-		if (d == 4)
-			v = RGBFB_R5G6B5_32;
-		else
-			v = RGBFB_R5G6B5_16;
+		v = RGBFB_R5G6B5_32;
 		break;
 	case RGBFB_R5G5B5:
-		if (d == 4)
-			v = RGBFB_R5G5B5_32;
-		else
-			v = RGBFB_R5G5B5_16;
+		v = RGBFB_R5G5B5_32;
 		break;
 	case RGBFB_B5G5R5PC:
-		if (d == 4)
-			v = RGBFB_B5G5R5PC_32;
-		else
-			v = RGBFB_B5G5R5PC_16;
+		v = RGBFB_B5G5R5PC_32;
 		break;
 
 	case RGBFB_A8R8G8B8:
-		if (d == 2)
-			v = RGBFB_A8R8G8B8_16;
-		else if (d == 4)
-			v = RGBFB_A8R8G8B8_32;
+		v = RGBFB_A8R8G8B8_32;
 		break;
 	case RGBFB_R8G8B8:
-		if (d == 2)
-			v = RGBFB_R8G8B8_16;
-		else if (d == 4)
-			v = RGBFB_R8G8B8_32;
+		v = RGBFB_R8G8B8_32;
 		break;
 	case RGBFB_B8G8R8:
-		if (d == 2)
-			v = RGBFB_B8G8R8_16;
-		else if (d == 4)
-			v = RGBFB_B8G8R8_32;
+		v = RGBFB_B8G8R8_32;
 		break;
 	case RGBFB_A8B8G8R8:
-		if (d == 2)
-			v = RGBFB_A8B8G8R8_16;
-		else if (d == 4)
-			v = RGBFB_A8B8G8R8_32;
+		v = RGBFB_A8B8G8R8_32;
 		break;
 	case RGBFB_B8G8R8A8:
-		if (d == 2)
-			v = RGBFB_B8G8R8A8_16;
-		else if (d == 4)
-			v = RGBFB_B8G8R8A8_32;
+		v = RGBFB_B8G8R8A8_32;
 		break;
 	case RGBFB_R8G8B8A8:
-		if (d == 2)
-			v = RGBFB_R8G8B8A8_16;
-		else if (d == 4)
-			v = RGBFB_R8G8B8A8_32;
+		v = RGBFB_R8G8B8A8_32;
 		break;
 
 	case RGBFB_Y4U2V2:
-		if (d == 4)
-			v = RGBFB_Y4U2V2_32;
-		else
-			v = RGBFB_Y4U2V2_16;
+		v = RGBFB_Y4U2V2_32;
 		break;
 	case RGBFB_Y4U1V1:
-		if (d == 4)
-			v = RGBFB_Y4U1V1_32;
-		else
-			v = RGBFB_Y4U1V1_16;
+		v = RGBFB_Y4U1V1_32;
 		break;
 
 	}
@@ -1094,16 +1025,13 @@ static void setconvert(int monid)
 	struct picasso96_state_struct *state = &picasso96_state[monid];
 
 	if (state->advDragging) {
-		vidinfo->picasso_convert[0] = getconvert(vidinfo->dacrgbformat[0], picasso_vidinfo[monid].pixbytes);
-		vidinfo->picasso_convert[1] = getconvert(vidinfo->dacrgbformat[1], picasso_vidinfo[monid].pixbytes);
+		vidinfo->picasso_convert[0] = getconvert(vidinfo->dacrgbformat[0]);
+		vidinfo->picasso_convert[1] = getconvert(vidinfo->dacrgbformat[1]);
 	} else {
-		vidinfo->picasso_convert[0] = vidinfo->picasso_convert[1] = getconvert(state->RGBFormat, picasso_vidinfo[monid].pixbytes);
+		vidinfo->picasso_convert[0] = vidinfo->picasso_convert[1] = getconvert(state->RGBFormat);
 	}
-	vidinfo->host_mode = picasso_vidinfo[monid].pixbytes == 4 ? RGBFB_B8G8R8A8 : RGBFB_B5G6R5PC;
-	if (picasso_vidinfo[monid].pixbytes == 4)
-		alloc_colors_rgb(8, 8, 8, 16, 8, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
-	else
-		alloc_colors_rgb(5, 6, 5, 11, 5, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
+	vidinfo->host_mode = RGBFB_B8G8R8A8;
+	alloc_colors_rgb(8, 8, 8, 16, 8, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
 	gfx_set_picasso_colors(monid, state->RGBFormat);
 	picasso_palette(state->CLUT, vidinfo->clut);
 	if (vidinfo->host_mode != vidinfo->ohost_mode || state->RGBFormat != vidinfo->orgbformat) {
@@ -1197,8 +1125,8 @@ static void picasso_handle_vsync2(struct AmigaMonitor *mon)
 	if (state & PICASSO_STATE_SETDAC) {
 		atomic_and(&vidinfo->picasso_state_change, ~PICASSO_STATE_SETDAC);
 		if (p96state->advDragging) {
-			vidinfo->picasso_convert[0] = getconvert(vidinfo->dacrgbformat[0], picasso_vidinfo[monid].pixbytes);
-			vidinfo->picasso_convert[1] = getconvert(vidinfo->dacrgbformat[1], picasso_vidinfo[monid].pixbytes);
+			vidinfo->picasso_convert[0] = getconvert(vidinfo->dacrgbformat[0]);
+			vidinfo->picasso_convert[1] = getconvert(vidinfo->dacrgbformat[1]);
 		}
 		rtg_clear(mon->monitor_id);
 	}
@@ -4629,33 +4557,15 @@ static void copyrow(int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int width
 	uae_u8 *src2 = src + y * srcbytesperrow;
 	uae_u8 *dst2 = dst + dy * dstbytesperrow;
 
-	// native match?
-	if (currprefs.gfx_api) {
-		switch (convert_mode)
-		{
+	switch (convert_mode)
+	{
 #ifdef WORDS_BIGENDIAN
-			case RGBFB_A8R8G8B8_32:
-			case RGBFB_R5G6B5_16:
+		case RGBFB_A8R8G8B8_32:
 #else
-			case RGBFB_B8G8R8A8_32:
-			case RGBFB_R5G6B5PC_16:
+		case RGBFB_B8G8R8A8_32:
 #endif
-				memcpy (dst2 + dx * dstpix, src2 + x * srcpix, width * dstpix);
-			return;
-		}
-	} else {
-		switch (convert_mode)
-		{
-#ifdef WORDS_BIGENDIAN
-			case RGBFB_A8R8G8B8_32:
-			case RGBFB_R5G6B5_16:
-#else
-			case RGBFB_B8G8R8A8_32:
-			case RGBFB_R5G6B5PC_16:
-#endif
-				memcpy (dst2 + dx * dstpix, src2 + x * srcpix, width * dstpix);
-			return;
-		}
+			memcpy (dst2 + dx * dstpix, src2 + x * srcpix, width * dstpix);
+		return;
 	}
 
 	endx4 = endx & ~3;
@@ -4736,101 +4646,6 @@ static void copyrow(int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int width
 		}
 		break;
 
-		/* 16/15bit->16bit */
-	case RGBFB_R5G5B5PC_16:
-	case RGBFB_R5G6B5_16:
-	case RGBFB_R5G5B5_16:
-	case RGBFB_B5G5R5PC_16:
-	case RGBFB_B5G6R5PC_16:
-	case RGBFB_R5G6B5PC_16:
-	{
-			while ((x & 3) && x < endx) {
-				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				x++;
-				dx++;
-			}
-			while (x < endx4) {
-				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				x++;
-				dx++;
-				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				x++;
-				dx++;
-				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				x++;
-				dx++;
-				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				x++;
-				dx++;
-			}
-			while (x < endx) {
-				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				x++;
-				dx++;
-			}
-		}
-		break;
-
-		/* 24bit->16bit */
-	case RGBFB_R8G8B8_16:
-		while (x < endx) {
-			uae_u8 r, g, b;
-			r = src2[x * 3 + 0];
-			g = src2[x * 3 + 1];
-			b = src2[x * 3 + 2];
-			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((r >> 3) & 0x1f) << 11) | (((g >> 2) & 0x3f) << 5) | (((b >> 3) & 0x1f) << 0)];
-			x++;
-			dx++;
-		}
-		break;
-	case RGBFB_B8G8R8_16:
-		while (x < endx) {
-			uae_u32 v;
-			v = ((uae_u32*)(&src2[x * 3]))[0] >> 8;
-			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((v >> (8 + 3)) & 0x1f) << 11) | (((v >> (0 + 2)) & 0x3f) << 5) | (((v >> (16 + 3)) & 0x1f) << 0)];
-			x++;
-			dx++;
-		}
-		break;
-
-		/* 32bit->16bit */
-	case RGBFB_R8G8B8A8_16:
-		while (x < endx) {
-			uae_u32 v;
-			v = ((uae_u32*)src2)[x];
-			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((v >> (0 + 3)) & 0x1f) << 11) | (((v >> (8 + 2)) & 0x3f) << 5) | (((v >> (16 + 3)) & 0x1f) << 0)];
-			x++;
-			dx++;
-		}
-		break;
-	case RGBFB_A8R8G8B8_16:
-		while (x < endx) {
-			uae_u32 v;
-			v = ((uae_u32*)src2)[x];
-			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((v >> (8 + 3)) & 0x1f) << 11) | (((v >> (16 + 2)) & 0x3f) << 5) | (((v >> (24 + 3)) & 0x1f) << 0)];
-			x++;
-			dx++;
-		}
-		break;
-	case RGBFB_A8B8G8R8_16:
-		while (x < endx) {
-			uae_u32 v;
-			v = ((uae_u32*)src2)[x];
-			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((v >> (24 + 3)) & 0x1f) << 11) | (((v >> (16 + 2)) & 0x3f) << 5) | (((v >> (8 + 3)) & 0x1f) << 0)];
-			x++;
-			dx++;
-		}
-		break;
-	case RGBFB_B8G8R8A8_16:
-		while (x < endx) {
-			uae_u32 v;
-			v = ((uae_u32*)src2)[x];
-			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((v >> (16 + 3)) & 0x1f) << 11) | (((v >> (8 + 2)) & 0x3f) << 5) | (((v >> (0 + 3)) & 0x1f) << 0)];
-			x++;
-			dx++;
-		}
-		break;
-
 		/* 8bit->32bit */
 	case RGBFB_CLUT_RGBFB_32:
 		{
@@ -4861,35 +4676,6 @@ static void copyrow(int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int width
 		}
 		break;
 
-		/* 8bit->16bit */
-	case RGBFB_CLUT_RGBFB_16:
-		{
-			while ((x & 3) && x < endx) {
-				((uae_u16*)dst2)[dx] = clut[src2[x]];
-				x++;
-				dx++;
-			}
-			while (x < endx4) {
-				((uae_u16*)dst2)[dx] = clut[src2[x]];
-				x++;
-				dx++;
-				((uae_u16*)dst2)[dx] = clut[src2[x]];
-				x++;
-				dx++;
-				((uae_u16*)dst2)[dx] = clut[src2[x]];
-				x++;
-				dx++;
-				((uae_u16*)dst2)[dx] = clut[src2[x]];
-				x++;
-				dx++;
-			}
-			while (x < endx) {
-				((uae_u16*)dst2)[dx] = clut[src2[x]];
-				x++;
-				dx++;
-			}
-		}
-		break;
 	}
 }
 
@@ -4955,12 +4741,10 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 	switch (convert_mode)
 	{
 		case RGBFB_Y4U2V2_32:
-		case RGBFB_Y4U2V2_16:
 		endx /= 2;
 		sxadd /= 2;
 		break;
 		case RGBFB_Y4U1V1_32:
-		case RGBFB_Y4U1V1_16:
 		endx /= 4;
 		sxadd /= 4;
 		break;
@@ -5172,95 +4956,6 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 		}
 		break;
 
-		/* 16/15bit->16bit */
-		case RGBFB_R5G5B5PC_16:
-		case RGBFB_R5G6B5_16:
-		case RGBFB_R5G5B5_16:
-		case RGBFB_B5G5R5PC_16:
-		case RGBFB_B5G6R5PC_16:
-		case RGBFB_R5G6B5PC_16:
-		{
-			while ((sx & (3 << 8)) && sx < endx) {
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				dx++;
-			}
-			while (sx < endx4) {
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				dx++;
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				dx++;
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				dx++;
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				dx++;
-			}
-			while (sx < endx) {
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
-				dx++;
-			}
-		}
-		break;
-
-		/* 8bit->16bit */
-		case RGBFB_CLUT_RGBFB_16:
-		{
-			while ((sx & (3 << 8)) && sx < endx) {
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = clut[src2[x]];
-				dx++;
-			}
-			while (sx < endx4) {
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = clut[src2[x]];
-				dx++;
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = clut[src2[x]];
-				dx++;
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = clut[src2[x]];
-				dx++;
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = clut[src2[x]];
-				dx++;
-			}
-			while (sx < endx) {
-				x = sx >> 8;
-				sx += sxadd;
-				CKCHECK
-					((uae_u16*)dst2)[dx] = clut[src2[x]];
-				dx++;
-			}
-		}
-		break;
-
 		/* 8bit->32bit */
 		case RGBFB_CLUT_RGBFB_32:
 		{
@@ -5298,107 +4993,6 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 				sx += sxadd;
 				CKCHECK
 					((uae_u32*)dst2)[dx] = clut[src2[x]];
-				dx++;
-			}
-		}
-		break;
-
-		case RGBFB_Y4U2V2_16:
-		{
-			uae_u16 outval1, outval2;
-			uae_u8 y0, y1, u, v;
-			bool docalc1 = false;
-			bool docalc2 = false;
-			int oldsx = -1;
-			uae_u32 val = ((uae_u32*)src2)[sx >> 8];
-			uae_u32 oldval = val ^ 1;
-			while (sx < endx) {
-				x = sx >> 8;
-				if (x != oldsx) {
-					val = ((uae_u32*)src2)[x];
-					if (val != oldval) {
-						oldval = val;
-						if (yuv_swap)
-							val = ((val & 0xff00ff00) >> 8) | ((val & 0x00ff00ff) << 8);
-						y0 = val >> 8;
-						y1 = val >> 24;
-						u = val >> 0;
-						v = val >> 16;
-						if (y0 == y1) {
-							uae_u16 out = yuvtorgb(y0, u, v);
-							outval1 = p96_rgbx16p[out];
-							outval2 = outval1;
-						} else {
-							docalc1 = true;
-							docalc2 = true;
-						}
-					}
-					oldsx = x;
-				}
-				if ((sx & 255) < 128) {
-					CKCHECK
-					{
-						if (docalc1) {
-							uae_u16 out = yuvtorgb(y0, u, v);
-							outval1 = p96_rgbx16p[out];
-							docalc1 = false;
-						}
-						((uae_u16*)dst2)[dx] = outval1;
-					}
-					CKCHECK
-					{
-						if (docalc2) {
-							uae_u16 out = yuvtorgb(y1, u, v);
-							outval2 = p96_rgbx16p[out];
-							docalc2 = false;
-						}
-						((uae_u16*)dst2)[dx] = outval2;
-					}
-				}
-				sx += sxadd;
-				dx++;
-			}
-		}
-		break;
-
-		case RGBFB_Y4U1V1_16:
-		{
-			while (sx < endx) {
-				x = sx >> 8;
-				uae_u32 val = ((uae_u32*)src2)[x];
-				uae_u8 y0 = ((val >> 12) & 31) * 8;
-				uae_u8 y1 = ((val >> 17) & 31) * 8;
-				uae_u8 y2 = ((val >> 22) & 31) * 8;
-				uae_u8 y3 = ((val >> 27) & 31) * 8;
-				uae_s8 u = ((val >> 0) & 63) * 4;
-				uae_s8 v = ((val >> 6) & 63) * 4;
-				int fr = sx & 255;
-				if (fr >= 192) {
-					CKCHECK
-					{
-						uae_u16 out = yuvtorgb(y3, u, v);
-						((uae_u16*)dst2)[dx] = p96_rgbx16p[out];
-					}
-				} else if (fr >= 128) {
-					CKCHECK
-					{
-						uae_u16 out = yuvtorgb(y2, u, v);
-						((uae_u16*)dst2)[dx] = p96_rgbx16p[out];
-					}
-				} else if (fr >= 64) {
-					CKCHECK
-					{
-						uae_u16 out = yuvtorgb(y1, u, v);
-						((uae_u16*)dst2)[dx] = p96_rgbx16p[out];
-					}
-				} else {
-					CKCHECK
-					{
-						uae_u16 out = yuvtorgb(y0, u, v);
-						((uae_u16*)dst2)[dx] = p96_rgbx16p[out];
-					}
-				}
-				sx += sxadd;
 				dx++;
 			}
 		}
@@ -5507,7 +5101,7 @@ uae_u8 *uaegfx_getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, in
 	dst = xmalloc (uae_u8, width * height * pixbytes);
 	if (!dst)
 		return NULL;
-	convert[0] = getconvert (state->RGBFormat, pixbytes);
+	convert[0] = getconvert(state->RGBFormat);
 	convert[1] = convert[0];
 	alloc_colors_picasso(8, 8, 8, 16, 8, 0, state->RGBFormat, p96_rgbx16);
 
@@ -6306,7 +5900,7 @@ static uae_u32 REGPARAM2 picasso_CreateFeature(TrapContext *ctx)
 	overlay_src_height = trap_get_word(ctx, overlay_bitmap + 2);
 	overlay_vram = trap_get_long(ctx, overlay_bitmap + 8);
 	overlay_vram_offset = overlay_vram - gfxmem_banks[0]->start;
-	overlay_convert = getconvert(overlay_format, picasso_vidinfo[0].pixbytes);
+	overlay_convert = getconvert(overlay_format);
 	if (!p96_rgbx16_ovl)
 		p96_rgbx16_ovl = xcalloc(uae_u32, 65536);
 	int of = overlay_format;
@@ -6863,7 +6457,7 @@ void restore_p96_finish (void)
 
 		if (overlay_vram) {
 			overlay_vram_offset = overlay_vram - gfxmem_banks[0]->start;
-			overlay_convert = getconvert(overlay_format, picasso_vidinfo[0].pixbytes);
+			overlay_convert = getconvert(overlay_format);
 			if (!p96_rgbx16_ovl)
 				p96_rgbx16_ovl = xcalloc(uae_u32, 65536);
 			alloc_colors_picasso(8, 8, 8, 16, 8, 0, overlay_format, p96_rgbx16_ovl);
