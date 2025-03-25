@@ -1,4 +1,15 @@
 
+Beta 17:
+
+- Interlace artifact remove option didn't fully work in non-ce modes. (fast mode lines were not "scandoubled")
+- Interlace filter was ignored (had disappeared during chipset rewrite)
+- Filter modes default and no scaling fixed (b16)
+- New output buffer lock state validation causing blank RTG screen in some situations (Validation is more strict now to detect bugs. It was a bug.)
+- Remove color depth GUI option and internal color depth checks. 32-bit host depth is the only supported color depth. (Was already partially removed in b1)
+- Serial port transmit buffer empty bit didn't get set when serial port was in "non-accurate" mode. (68030+, JIT etc where cycle accurate timing is not important). Serial port update is not yet complete.
+- Visual DMA debugger and other on screen debugging features work again. Also now works with active genlock (for example when ALG game is running)
+- KILLEHB BPLCON2 bit really works correctly now.
+
 Beta 16:
 
 - EHB was broken in ECS Denise and AGA modes. KILLEHB was always detected as active.
@@ -139,7 +150,6 @@ Beta 7:
 - Do not reject uaegfx Picasso96 blit operation (=Picasso96 does the blit operation in software) if RenderInfo BytesPerRow field is zero. Zero BPR is allowed.
 - Added Action Replay 3 3.17 full dump checksums to ROM scanner. Old dumps are still accepted where first 4 bytes of ROM are zeroed. (First 4 bytes are IO ports, ROM data is impossible to read with only software)
 - CD32 CD reads should be more real optical drive friendly, when CD32 is reading data continuously (playing CD streaming animation or video), host side CD sector reads are now always in increasing order without repeating same sectors.
-
 
 Beta 6:
 
