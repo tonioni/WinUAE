@@ -71,7 +71,7 @@ static struct pci_bridge *pci_bridge_get_zorro(struct romconfig *rc)
 		int idx = (i + lastbridge) % PCI_BRIDGE_MAX;
 		if (bridges[idx] && bridges[idx]->rc == rc) {
 			lastbridge = i;
-			return bridges[i];
+			return bridges[idx];
 		}
 	}
 	return NULL;
