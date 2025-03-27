@@ -8381,24 +8381,22 @@ static int display_mode_index (uae_u32 x, uae_u32 y, uae_u32 d)
 	struct MultiDisplay *md = getdisplay(&workprefs, 0);
 
 	j = 0;
-	for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
+	for (i = 0; md->DisplayModes[i].inuse; i++) {
 		if (md->DisplayModes[i].res.width == x &&
-			md->DisplayModes[i].res.height == y &&
-			md->DisplayModes[i].depth == d)
+			md->DisplayModes[i].res.height == y)
 			break;
 		j++;
 	}
 	if (x == 0 && y == 0) {
 		j = 0;
-		for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
+		for (i = 0; md->DisplayModes[i].inuse; i++) {
 			if (md->DisplayModes[i].res.width == md->rect.right - md->rect.left &&
-				md->DisplayModes[i].res.height == md->rect.bottom - md->rect.top &&
-				md->DisplayModes[i].depth == d)
+				md->DisplayModes[i].res.height == md->rect.bottom - md->rect.top)
 				break;
 			j++;
 		}
 	}
-	if(md->DisplayModes[i].depth < 0)
+	if(!md->DisplayModes[i].inuse)
 		j = -1;
 	return j;
 }
@@ -8517,68 +8515,19 @@ void init_da (HWND hDlg)
 static int gui_display_depths[3];
 static void init_display_mode (HWND hDlg)
 {
-	int d, d2, index;
-	int i, cnt;
+	int index;
 	struct MultiDisplay *md = getdisplay(&workprefs, 0);
 	struct monconfig *gm = &workprefs.gfx_monitor[0];
-
-	switch (workprefs.color_mode)
-	{
-	case 2:
-		d = 16;
-		break;
-	case 5:
-	default:
-		d = 32;
-		break;
-	}
-
-	if (workprefs.gfx_apmode[0].gfx_fullscreen) {
-		d2 = d;
-		if ((index = WIN32GFX_AdjustScreenmode (md, &gm->gfx_size_fs.width, &gm->gfx_size_fs.height, &d2)) >= 0) {
-			switch (d2)
-			{
-			case 15:
-			case 16:
-				workprefs.color_mode = 2;
-				d = 2;
-				break;
-			case 32:
-			default:
-				workprefs.color_mode = 5;
-				d = 4;
-				break;
-			}
-		}
-	} else {
-		d = d / 8;
-	}
 
 	if (gm->gfx_size_fs.special == WH_NATIVE) {
 		int cnt = (int)xSendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCOUNT, 0, 0);
 		xSendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_SETCURSEL, cnt - 1, 0);
-		index = display_mode_index (gm->gfx_size_fs.width, gm->gfx_size_fs.height, d);
+		index = display_mode_index (gm->gfx_size_fs.width, gm->gfx_size_fs.height, 4);
 	} else {
-		index = display_mode_index (gm->gfx_size_fs.width, gm->gfx_size_fs.height, d);
+		index = display_mode_index (gm->gfx_size_fs.width, gm->gfx_size_fs.height, 4);
 		if (index >= 0)
 			xSendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_SETCURSEL, md->DisplayModes[index].residx, 0);
 		gm->gfx_size_fs.special = 0;
-	}
-	xSendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_RESETCONTENT, 0, 0);
-	cnt = 0;
-	gui_display_depths[0] = gui_display_depths[1] = gui_display_depths[2] = -1;
-	if (index >= 0) {
-		for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
-			if (md->DisplayModes[i].depth > 1 && md->DisplayModes[i].residx == md->DisplayModes[index].residx) {
-				TCHAR tmp[64];
-				_stprintf (tmp, _T("%d"), md->DisplayModes[i].depth * 8);
-				xSendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_ADDSTRING, 0, (LPARAM)tmp);
-				if (md->DisplayModes[i].depth == d)
-					xSendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_SETCURSEL, cnt, 0);
-				gui_display_depths[cnt] = md->DisplayModes[i].depth;
-				cnt++;
-			}
-		}
 	}
 	init_frequency_combo (hDlg, index);
 
@@ -8852,8 +8801,8 @@ static void init_resolution_combo (HWND hDlg)
 
 	idx = -1;
 	xSendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_RESETCONTENT, 0, 0);
-	for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
-		if (md->DisplayModes[i].depth > 1 && md->DisplayModes[i].residx != idx) {
+	for (i = 0; md->DisplayModes[i].inuse; i++) {
+		if (md->DisplayModes[i].residx != idx) {
 			_stprintf (tmp, _T("%dx%d%s"), md->DisplayModes[i].res.width, md->DisplayModes[i].res.height, md->DisplayModes[i].lace ? _T("i") : _T(""));
 			if (md->DisplayModes[i].rawmode)
 				_tcscat (tmp, _T(" (*)"));
@@ -9110,36 +9059,24 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	bool native = false;
 	struct MultiDisplay *md = getdisplay(&workprefs, 0);
 	posn1 = xSendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
-	int posn2 = xSendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_GETCURSEL, 0, 0);
 	if (posn1 != CB_ERR) {
-		if (posn2 == CB_ERR)
-			posn2 = 0;
 		workprefs.gfx_monitor[0].gfx_size_fs.special = 0;
-		for (dmode = 0; md->DisplayModes[dmode].depth >= 0; dmode++) {
+		for (dmode = 0; md->DisplayModes[dmode].inuse; dmode++) {
 			if (md->DisplayModes[dmode].residx == posn1)
 				break;
 		}
-		if (md->DisplayModes[dmode].depth <= 0) {
-			for (dmode = 0; md->DisplayModes[dmode].depth >= 0; dmode++) {
+		if (!md->DisplayModes[dmode].inuse) {
+			for (dmode = 0; md->DisplayModes[dmode].inuse; dmode++) {
 				if (md->DisplayModes[dmode].res.width == md->rect.right - md->rect.left &&
-					md->DisplayModes[dmode].res.height == md->rect.bottom - md->rect.top &&
-					md->DisplayModes[dmode].depth == gui_display_depths[posn2])
+					md->DisplayModes[dmode].res.height == md->rect.bottom - md->rect.top)
 					{
 						workprefs.gfx_monitor[0].gfx_size_fs.special = WH_NATIVE;
 						break;
 				}
 			}
-			if (md->DisplayModes[dmode].depth <= 0)
+			if (!md->DisplayModes[dmode].inuse) {
 				dmode = -1;
-		} else {
-			i = dmode;
-			while (md->DisplayModes[dmode].residx == posn1) {
-				if (md->DisplayModes[dmode].depth == gui_display_depths[posn2])
-					break;
-				dmode++;
 			}
-			if (md->DisplayModes[dmode].residx != posn1)
-				dmode = i;
 		}
 	}
 
@@ -9161,22 +9098,9 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			posn = xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_GETCURSEL, 0, 0);
 			if (posn != CB_ERR)
 				workprefs.gfx_overscanmode = posn;
-		} else if ((LOWORD (wParam) == IDC_RESOLUTION || LOWORD(wParam) == IDC_RESOLUTIONDEPTH) && dmode >= 0) {
+		} else if (LOWORD (wParam) == IDC_RESOLUTION && dmode >= 0) {
 			workprefs.gfx_monitor[0].gfx_size_fs.width  = md->DisplayModes[dmode].res.width;
 			workprefs.gfx_monitor[0].gfx_size_fs.height = md->DisplayModes[dmode].res.height;
-			switch(md->DisplayModes[dmode].depth)
-			{
-			case 2:
-				workprefs.color_mode = 2;
-				break;
-			case 3:
-			case 4:
-				workprefs.color_mode = 5;
-				break;
-			default:
-				workprefs.color_mode = 0;
-				break;
-			}
 			/* Set the Int boxes */
 			SetDlgItemInt (hDlg, IDC_XSIZE, workprefs.gfx_monitor[0].gfx_size_win.width, FALSE);
 			SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_monitor[0].gfx_size_win.height, FALSE);
@@ -11741,7 +11665,6 @@ static void enable_for_expansiondlg(HWND hDlg)
 	ew(hDlg, IDC_RTG_16BIT, rtg);
 	ew(hDlg, IDC_RTG_24BIT, rtg);
 	ew(hDlg, IDC_RTG_32BIT, rtg);
-	ew(hDlg, IDC_RTG_MATCH_DEPTH, rtg3);
 	ew(hDlg, IDC_RTG_SCALE, rtg2);
 	ew(hDlg, IDC_RTG_CENTER, rtg2);
 	ew(hDlg, IDC_RTG_INTEGERSCALE, rtg2);
@@ -11862,7 +11785,6 @@ static void values_to_expansiondlg(HWND hDlg)
 	CheckDlgButton(hDlg, IDC_RTG_CENTER, workprefs.gf[1].gfx_filter_autoscale == RTG_MODE_CENTER);
 	CheckDlgButton(hDlg, IDC_RTG_INTEGERSCALE, workprefs.gf[1].gfx_filter_autoscale == RTG_MODE_INTEGER_SCALE);
 	CheckDlgButton(hDlg, IDC_RTG_SCALE_ALLOW, workprefs.win32_rtgallowscaling);
-	CheckDlgButton(hDlg, IDC_RTG_MATCH_DEPTH, workprefs.win32_rtgmatchdepth);
 	CheckDlgButton(hDlg, IDC_RTG_VBINTERRUPT, workprefs.rtg_hardwareinterrupt);
 	CheckDlgButton(hDlg, IDC_RTG_HWSPRITE, workprefs.rtg_hardwaresprite);
 	CheckDlgButton(hDlg, IDC_RTG_THREAD, workprefs.rtg_multithread);
@@ -11990,9 +11912,6 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			recursive++;
 			switch (LOWORD (wParam))
 			{
-			case IDC_RTG_MATCH_DEPTH:
-				workprefs.win32_rtgmatchdepth = ischecked(hDlg, IDC_RTG_MATCH_DEPTH);
-				break;
 			case IDC_RTG_SCALE:
 				workprefs.gf[1].gfx_filter_autoscale = ischecked(hDlg, IDC_RTG_SCALE) ? RTG_MODE_SCALE : 0;
 				setchecked(hDlg, IDC_RTG_CENTER,  false);

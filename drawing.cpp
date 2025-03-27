@@ -204,7 +204,6 @@ static bool denise_lock(void)
 	struct amigadisplay *ad = &adisplays[monid];
 	struct vidbuf_description *vidinfo = &ad->gfxvidinfo;
 	struct vidbuffer *vb = &vidinfo->drawbuffer;
-	struct vidbuffer *vbin = &vidinfo->tempbuffer;
 
 	if (!vb->locked) {
 		if (!lockscr(vb, false, display_reset > 0)) {
@@ -231,9 +230,7 @@ typedef enum
 
 static void select_lts(void);
 
-extern int sprite_buffer_res;
-static int lores_factor;
-int lores_shift, shres_shift;
+static int lores_shift;
 static uae_u32 ham_lastcolor;
 
 int debug_bpl_mask = 0xff, debug_bpl_mask_one;
@@ -360,9 +357,6 @@ uae_sem_t gui_sem;
 static int rga_denise_fast_read, rga_denise_fast_write;
 #define DENISE_RGA_SLOT_FAST_TOTAL 1024
 static struct denise_rga rga_denise_fast[DENISE_RGA_SLOT_FAST_TOTAL];
-
-
-
 
 typedef void (*LINETOSRC_FUNC)(void);
 static LINETOSRC_FUNC lts;
@@ -1170,6 +1164,7 @@ void init_row_map(void)
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	struct vidbuffer *vb = vidinfo->inbuffer;
 	static uae_u8 *oldbufmem;
+	static struct vidbuffer *oldvb;
 	static int oldheight, oldpitch;
 	static bool oldgenlock, oldburst;
 	int i, j;
@@ -1184,11 +1179,13 @@ void init_row_map(void)
 	}
 
 	if (oldbufmem && oldbufmem == vb->bufmem &&
+		oldvb == vb &&
 		oldheight == vb->height_allocated &&
 		oldpitch == vb->rowbytes &&
 		oldgenlock == init_genlock_data &&
-		oldburst == (row_map_color_burst_buffer ? 1 : 0))
-		return;
+		oldburst == (row_map_color_burst_buffer ? 1 : 0)) {
+			return;
+	}
 	xfree(row_map_genlock_buffer);
 	row_map_genlock_buffer = NULL;
 	if (init_genlock_data) {
@@ -1216,6 +1213,7 @@ void init_row_map(void)
 		row_map_genlock[i] = row_tmp16;
 		i++;
 	}
+	oldvb = vb;
 	oldbufmem = vb->bufmem;
 	oldheight = vb->height_allocated;
 	oldpitch = vb->rowbytes;
@@ -1500,14 +1498,6 @@ static void init_drawing_frame(void)
 	frame_res = -1;
 	frame_res_lace = 0;
 
-	if (can_use_lores > AUTO_LORES_FRAMES && 0) {
-		lores_factor = 1;
-		//lores_set(0);
-	} else {
-		can_use_lores++;
-		//lores_reset();
-	}
-
 	if (thisframe_first_drawn_line < 0)
 		thisframe_first_drawn_line = minfirstline;
 	if (thisframe_first_drawn_line > thisframe_last_drawn_line)
@@ -1533,34 +1523,17 @@ static void init_drawing_frame(void)
 
 static int lightpen_y1[2], lightpen_y2[2];
 
-void putpixel(uae_u8 *buf, uae_u16 *genlockbuf, int bpp, int x, xcolnr c8)
+void putpixel(uae_u8 *buf, uae_u16 *genlockbuf, int x, xcolnr c8)
 {
 	if (x <= 0)
 		return;
 
-	if (genlockbuf)
+	if (genlockbuf) {
 		genlockbuf[x] = 1;
-
-	switch (bpp) {
-	case 1:
-		buf[x] = (uae_u8)c8;
-		break;
-	case 2:
-		{
-			uae_u16 *p = (uae_u16*)buf + x;
-			*p = (uae_u16)c8;
-			break;
-		}
-	case 3:
-		/* no 24 bit yet */
-		break;
-	case 4:
-		{
-			uae_u32 *p = (uae_u32*)buf + x;
-			*p = c8;
-			break;
-		}
 	}
+
+	uae_u32 *p = (uae_u32*)buf + x;
+	*p = c8;
 }
 
 static uae_u8 *status_line_ptr(int monid, int line)
@@ -1569,9 +1542,7 @@ static uae_u8 *status_line_ptr(int monid, int line)
 	int y;
 
 	y = line - (vidinfo->inbuffer->outheight - TD_TOTAL_HEIGHT);
-	xlinebuffer = vidinfo->inbuffer->linemem;
-	if (xlinebuffer == 0)
-		xlinebuffer = row_map[line];
+	xlinebuffer = row_map[line];
 	xlinebuffer_genlock = row_map_genlock[line];
 	return xlinebuffer;
 }
@@ -1583,19 +1554,17 @@ static void draw_status_line(int monid, int line, int statusy)
 	if (!buf)
 		return;
 	if (statusy < 0)
-		statusline_render(monid, buf, vidinfo->inbuffer->pixbytes, vidinfo->inbuffer->rowbytes, vidinfo->inbuffer->outwidth, TD_TOTAL_HEIGHT, xredcolors, xgreencolors, xbluecolors, NULL);
+		statusline_render(monid, buf, vidinfo->inbuffer->rowbytes, vidinfo->inbuffer->outwidth, TD_TOTAL_HEIGHT, xredcolors, xgreencolors, xbluecolors, NULL);
 	else
-		draw_status_line_single(monid, buf, vidinfo->inbuffer->pixbytes, statusy, vidinfo->inbuffer->outwidth, xredcolors, xgreencolors, xbluecolors, NULL);
+		draw_status_line_single(monid, buf, statusy, vidinfo->inbuffer->outwidth, xredcolors, xgreencolors, xbluecolors, NULL);
 }
 
 static void draw_debug_status_line(int monid, int line)
 {
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
-	xlinebuffer = vidinfo->inbuffer->linemem;
-	if (xlinebuffer == 0)
-		xlinebuffer = row_map[line];
+	xlinebuffer = row_map[line];
 	xlinebuffer_genlock = row_map_genlock[line];
-	debug_draw(xlinebuffer, vidinfo->inbuffer->pixbytes, line, vidinfo->inbuffer->outwidth, vidinfo->inbuffer->outheight, xredcolors, xgreencolors, xbluecolors);
+	debug_draw(xlinebuffer, xlinebuffer_genlock, line, vidinfo->inbuffer->outwidth, vidinfo->inbuffer->outheight, xredcolors, xgreencolors, xbluecolors);
 }
 
 #define LIGHTPEN_HEIGHT 12
@@ -1623,16 +1592,14 @@ static void draw_lightpen_cursor(int monid, int x, int y, int line, int onscreen
 	int color1 = onscreen ? (lpnum ? 0x0ff : 0xff0) : (lpnum ? 0x0f0 : 0xf00);
 	int color2 = (color1 & 0xeee) >> 1;
 
-	xlinebuffer = vidinfo->inbuffer->linemem;
-	if (xlinebuffer == 0)
-		xlinebuffer = row_map[line];
+	xlinebuffer = row_map[line];
 	xlinebuffer_genlock = row_map_genlock[line];
 
 	p = lightpen_cursor + y * LIGHTPEN_WIDTH;
 	for (int i = 0; i < LIGHTPEN_WIDTH; i++) {
 		int xx = x + i - LIGHTPEN_WIDTH / 2;
 		if (*p != '-' && xx >= 0 && xx < vidinfo->inbuffer->outwidth) {
-			putpixel(xlinebuffer, xlinebuffer_genlock, vidinfo->inbuffer->pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2]);
+			putpixel(xlinebuffer, xlinebuffer_genlock, xx, *p == 'x' ? xcolors[color1] : xcolors[color2]);
 		}
 		p++;
 	}
@@ -1760,12 +1727,24 @@ static void refresh_indicator_update(struct vidbuffer *vb)
 			color2 = refresh_indicator_colors[pixel - 5];
 		}
 		for (int x = 0; x < 8; x++) {
-			putpixel(xlinebuffer, NULL, vidinfo->inbuffer->pixbytes, x, xcolors[color1]);
+			putpixel(xlinebuffer, NULL, x, xcolors[color1]);
 		}
 		for (int x = 8; x < 16; x++) {
-			putpixel(xlinebuffer, NULL, vidinfo->inbuffer->pixbytes, x, xcolors[color2]);
+			putpixel(xlinebuffer, NULL, x, xcolors[color2]);
 		}
 	}
+}
+
+bool drawing_can_lineoptimizations(void)
+{
+	if (currprefs.monitoremu || currprefs.cs_cd32fmv || ((currprefs.genlock || currprefs.genlock_effects) && currprefs.genlock_image) ||
+		currprefs.cs_color_burst || currprefs.gfx_grayscale || currprefs.monitoremu) {
+		return false;
+	}
+	if (lightpen_active || debug_dma >= 2 || debug_heatmap >= 2 || refresh_indicator_buffer) {
+		return false;
+	}
+	return true;
 }
 
 static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
@@ -1829,6 +1808,7 @@ static void vbcopy(struct vidbuffer *vbout, struct vidbuffer *vbin)
 static void finish_drawing_frame(bool drawlines)
 {
 	int monid = 0;
+	bool vbcopied = false;
 	struct amigadisplay *ad = &adisplays[monid];
 	struct vidbuf_description *vidinfo = &ad->gfxvidinfo;
 	struct vidbuffer *vbout = vidinfo->outbuffer;
@@ -1880,12 +1860,14 @@ static void finish_drawing_frame(bool drawlines)
 				compute_framesync();
 			}
 			vbcopy(vbout, vbin);
+			vbcopied = true;
 		}
 		if (multimon && locked) {
 			unlockscr(m_out, -1, -1);
 			render_screen(m_out->monitor_id, 1, true);
 			show_screen(m_out->monitor_id, 0);
 		}
+		vbcopied = true;
 	}
 
 	// genlock
@@ -1903,6 +1885,7 @@ static void finish_drawing_frame(bool drawlines)
 		if (!vbout->hardwiredpositioning) {
 			setnativeposition(vbout);
 		}
+		vbcopied = true;
 	}
 
 #ifdef CD32
@@ -1917,6 +1900,7 @@ static void finish_drawing_frame(bool drawlines)
 		} else {
 			vbcopy(vbout, vbin);
 		}
+		vbcopied = true;
 	}
 #endif
 
@@ -1928,11 +1912,16 @@ static void finish_drawing_frame(bool drawlines)
 		}
 		setspecialmonitorpos(vbout);
 		emulate_grayscale(vbin, vbout);
-		if (!vbout->hardwiredpositioning)
+		if (!vbout->hardwiredpositioning) {
 			setnativeposition(vbout);
+		}
+		vbcopied = true;
 	}
 
 	if (denise_locked) {
+		if (!vbcopied) {
+			vbcopy(vbout, vbin);
+		}
 		unlockscr(vbout, display_reset ? -2 : -1, -1);
 		denise_locked = false;
 	}
@@ -2118,64 +2107,6 @@ static void gfxbuffer_reset(int monid)
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
 	vidinfo->drawbuffer.lockscr = dummy_lock;
 	vidinfo->drawbuffer.unlockscr = dummy_unlock;
-}
-
-void notice_resolution_seen (int res, bool lace)
-{
-	if (res > frame_res)
-		frame_res = res;
-	if (res > 0)
-		can_use_lores = 0;
-	if (!frame_res_lace && lace)
-		frame_res_lace = lace;
-}
-
-bool notice_interlace_seen (int monid, bool lace)
-{
-	struct amigadisplay *ad = &adisplays[0];
-	bool changed = false;
-	bool interlace_on = false;
-
-	// non-lace to lace switch (non-lace active at least one frame)?
-	if (lace) {
-		if (interlace_seen == 0) {
-			changed = true;
-			interlace_on = true;
-			//write_log (_T("->lace PC=%x\n"), m68k_getpc ());
-		}
-		interlace_seen = currprefs.gfx_vresolution ? 1 : -1;
-	} else {
-		if (interlace_seen) {
-			changed = true;
-			//write_log (_T("->non-lace PC=%x\n"), m68k_getpc ());
-		}
-		interlace_seen = 0;
-	}
-
-	if (changed) {
-		if (currprefs.gf[GF_INTERLACE].enable && memcmp(&currprefs.gf[GF_NORMAL], &currprefs.gf[GF_INTERLACE], sizeof(struct gfx_filterdata))) {
-			changed_prefs.gf[GF_NORMAL].changed = true;
-			changed_prefs.gf[GF_INTERLACE].changed = true;
-			if (ad->interlace_on != interlace_on) {
-				ad->interlace_on = interlace_on;
-				set_config_changed();
-			}
-		} else {
-			ad->interlace_on = false;
-		}
-	}
-
-	if (!ad->picasso_on) {
-		if (ad->interlace_on) {
-			ad->gf_index = GF_INTERLACE;
-		} else {
-			ad->gf_index = GF_NORMAL;
-		}
-	} else {
-		ad->gf_index = GF_RTG;
-	}
-
-	return changed;
 }
 
 void allocvidbuffer(int monid, struct vidbuffer *buf, int width, int height, int depth)
@@ -2666,7 +2597,7 @@ static void setbplmode(void)
 {
 	bplham = (bplcon0_denise & 0x800) != 0;
 	bpldualpf = (bplcon0_denise & 0x400) == 0x400;
-	bplehb = denise_planes == 6 && !bplham && !bpldualpf && (!ecs_denise || !(bplcon2_denise & 0x200) || !(bplcon0_denise & 1));
+	bplehb = denise_planes == 6 && !bplham && !bpldualpf && (!ecs_denise || !(bplcon2_denise & 0x200));
 
 	// BYPASS: HAM and EHB select bits are ignored
 	bpland = 0xff;
@@ -4946,6 +4877,25 @@ bool has_draw_denise(void)
 	return thread_debug_lock;
 }
 
+void set_drawbuffer(void)
+{
+	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
+
+	if (vidinfo->tempbuffer.bufmem && !drawing_can_lineoptimizations()) {
+		vidinfo->inbuffer = &vidinfo->tempbuffer;
+		struct vidbuffer *vb = &vidinfo->tempbuffer;
+		if (!vb->outwidth || !vb->outheight) {
+			struct vidbuffer *vb2 = &vidinfo->drawbuffer;
+			vb->outwidth = vb2->outwidth;
+			vb->outheight = vb2->outheight;
+			vb->inwidth = vb2->inwidth;
+			vb->inheight = vb2->inheight;
+		}
+	} else {
+		vidinfo->inbuffer = &vidinfo->drawbuffer;
+	}
+}
+
 bool start_draw_denise(void)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
@@ -4963,16 +4913,10 @@ bool start_draw_denise(void)
 
 	thread_debug_lock = true;
 
-	if (vidinfo->tempbuffer.bufmem) {
-		vidinfo->inbuffer = &vidinfo->tempbuffer;
-	} else {
-		vidinfo->inbuffer = &vidinfo->drawbuffer;
-	}
-
+	set_drawbuffer();
 	if (vidinfo->outbuffer != vidinfo->inbuffer) {
 		vidinfo->inbuffer->locked = vidinfo->outbuffer->locked;
 	}
-
 	init_row_map();
 
 	denise_y_start = 0;
@@ -6788,7 +6732,7 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	int fmode = 16 << (((ls->fmode & 3) == 3 ? 2 : (ls->fmode & 3)));
 
 	if (ls->ltsidx < 0) {
-		bool ehb = planecnt == 6 && !ham && !dpf && (!ecs_denise || !(ls->bplcon0 & 1) || !(ls->bplcon2 & 0x200));
+		bool ehb = planecnt == 6 && !ham && !dpf && (!ecs_denise || !(ls->bplcon2 & 0x200));
 		int mode = CMODE_NORMAL;
 		if (ham) {
 			mode = CMODE_HAM;

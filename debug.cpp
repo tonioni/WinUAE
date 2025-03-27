@@ -1457,7 +1457,7 @@ void record_copper_reset (void)
 	nr_cop_records[curr_cop_set] = 0;
 }
 
-STATIC_INLINE uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *a)
+static uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *a)
 {
 	uae_u32 v = rc[(c >> 16) & 0xff] | gc[(c >> 8) & 0xff] | bc[(c >> 0) & 0xff];
 	if (a)
@@ -1465,31 +1465,18 @@ STATIC_INLINE uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc
 	return v;
 }
 
-STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8)
+static void putpixel(uae_u8 *buf, uae_u16 *genlockbuf, int x, xcolnr c8)
 {
-	if (x <= 0)
+	if (x <= 0) {
 		return;
-
-	switch (bpp) {
-	case 1:
-		buf[x] = (uae_u8)c8;
-		break;
-	case 2:
-		{
-			uae_u16 *p = (uae_u16*)buf + x;
-			*p = (uae_u16)c8;
-			break;
-		}
-	case 3:
-		/* no 24 bit yet */
-		break;
-	case 4:
-		{
-			uae_u32 *p = (uae_u32*)buf + x;
-			*p = c8;
-			break;
-		}
 	}
+
+	if (genlockbuf) {
+		genlockbuf[x] = 1;
+	}
+
+	uae_u32 *p = (uae_u32*)buf + x;
+	*p = c8;
 }
 
 #define lc(x) ledcolor (x, xredcolors, xgreencolors, xbluecolors, NULL)
@@ -1562,7 +1549,7 @@ static void set_debug_colors(void)
 
 static int cycles_toggle;
 
-static void debug_draw_cycles(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
+static void debug_draw_cycles(uae_u8 *buf, uae_u16 *genlock, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
 {
 	int y, x, xx, dx, xplus, yplus;
 	struct dma_rec *dr;
@@ -1624,21 +1611,21 @@ static void debug_draw_cycles(uae_u8 *buf, int bpp, int line, int width, int hei
 		}
 		if (dr->intlev > intlev)
 			intlev = dr->intlev;
-		putpixel(buf, bpp, xx + 4, c);
+		putpixel(buf, genlock, xx + 4, c);
 		if (xplus > 1)
-			putpixel(buf, bpp, xx + 4 + 1, c);
+			putpixel(buf, genlock, xx + 4 + 1, c);
 		if (xplus > 2)
-			putpixel(buf, bpp, xx + 4 + 2, c);
+			putpixel(buf, genlock, xx + 4 + 2, c);
 
 		dr++;
 		if (dr->hpos == 0) {
 			break;
 		}
 	}
-	putpixel (buf, bpp, dx + 0, 0);
-	putpixel (buf, bpp, dx + 1, lc(intlevc[intlev]));
-	putpixel (buf, bpp, dx + 2, lc(intlevc[intlev]));
-	putpixel (buf, bpp, dx + 3, 0);
+	putpixel(buf, genlock, dx + 0, 0);
+	putpixel(buf, genlock, dx + 1, lc(intlevc[intlev]));
+	putpixel(buf, genlock, dx + 2, lc(intlevc[intlev]));
+	putpixel(buf, genlock, dx + 3, 0);
 }
 
 #define HEATMAP_WIDTH 256
@@ -1657,7 +1644,7 @@ struct memory_heatmap
 	uae_u16 type, extra;
 };
 
-static void debug_draw_heatmap(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
+static void debug_draw_heatmap(uae_u8 *buf, uae_u16 *genlock, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
 {
 	struct memory_heatmap *mht = heatmap;
 	int dx = 16;
@@ -1672,14 +1659,14 @@ static void debug_draw_heatmap(uae_u8 *buf, int bpp, int line, int width, int he
 		uae_u32 c = heatmap_debug_colors[mht->cnt * DMARECORD_MAX + mht->type];
 		//c = heatmap_debug_colors[(HEATMAP_COUNT - 1) * DMARECORD_MAX + DMARECORD_CPU_I];
 		int xx = x + dx;
-		putpixel(buf, bpp, xx, c);
+		putpixel(buf, genlock, xx, c);
 		if (mht->cnt > 0)
 			mht->cnt--;
 		mht++;
 	}
 }
 
-void debug_draw(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
+void debug_draw(uae_u8 *buf, uae_u16 *genlock, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
 {
 	if (!heatmap_debug_colors) {
 		heatmap_debug_colors = xcalloc(uae_u32, DMARECORD_MAX * HEATMAP_COUNT);
@@ -1699,9 +1686,9 @@ void debug_draw(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *
 	}
 
 	if (heatmap) {
-		debug_draw_heatmap(buf, bpp, line, width, height, xredcolors, xgreencolors, xbluecolors);
+		debug_draw_heatmap(buf, genlock, line, width, height, xredcolors, xgreencolors, xbluecolors);
 	} else if (dma_record_data) {
-		debug_draw_cycles(buf, bpp, line, width, height, xredcolors, xgreencolors, xbluecolors);
+		debug_draw_cycles(buf, genlock, line, width, height, xredcolors, xgreencolors, xbluecolors);
 	}
 }
 

@@ -123,7 +123,7 @@ static int fast_lines_cnt;
 static bool lineoptimizations_allowed;
 
 static uae_u32 scandoubled_bpl_ptr[MAX_SCANDOUBLED_LINES][2][MAX_PLANES];
-static bool scandoubled_bpl_ena[MAX_SCANDOUBLED_LINES];
+static bool scandoubled_bpl_ena[MAX_SCANDOUBLED_LINES + 1];
 
 static evt_t blitter_dma_change_cycle, copper_dma_change_cycle, sprite_dma_change_cycle_on, sprite_dma_change_cycle_off;
 
@@ -1256,7 +1256,7 @@ static void update_mirrors(void)
 		hsyncdebug = currprefs.gfx_overscanmode - OVERSCANMODE_ULTRA + 1;
 	}
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
-	lineoptimizations_allowed = vidinfo->inbuffer == vidinfo->outbuffer && !lightpen_active;
+	lineoptimizations_allowed = vidinfo->inbuffer == vidinfo->outbuffer && drawing_can_lineoptimizations();
 	color_table_changed = true;
 }
 
@@ -1569,7 +1569,6 @@ static void resetfulllinestate(void)
 void compute_framesync(void)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
-	struct vidbuffer *vb = vidinfo->inbuffer;
 	struct amigadisplay *ad = &adisplays[0];
 	int islace = interlace_seen ? 1 : 0;
 	int isntsc = (beamcon0 & BEAMCON0_PAL) ? 0 : 1;
@@ -1582,6 +1581,9 @@ void compute_framesync(void)
 	} else {
 		vblank_hz = vblank_hz_shf;
 	}
+
+	set_drawbuffer();
+	struct vidbuffer *vb = vidinfo->inbuffer;
 
 	vblank_hz = target_adjust_vblank_hz(0, vblank_hz);
 
@@ -5154,9 +5156,11 @@ static void check_display_mode_change(void)
 
 static void check_interlace(void)
 {
+	struct amigadisplay *ad = &adisplays[0];
 	int is = interlace_seen;
 	int nis = 0;
 	bool ld = lof_display != 0;
+	bool changed = false;
 
 	if (prevlofs[0] == prevlofs[2] && prevlofs[1] == ld && lof_display != prevlofs[0]) {
 		is = 1;
@@ -5169,9 +5173,30 @@ static void check_interlace(void)
 	if (is != interlace_seen) {
 		interlace_seen = is;
 		init_hz();
+		changed = true;
 	} else if (nis) {
 		interlace_seen = 0;
 		init_hz();
+	}
+
+	if (changed) {
+		if (currprefs.gf[GF_INTERLACE].enable && memcmp(&currprefs.gf[GF_NORMAL], &currprefs.gf[GF_INTERLACE], sizeof(struct gfx_filterdata))) {
+			changed_prefs.gf[GF_NORMAL].changed = true;
+			changed_prefs.gf[GF_INTERLACE].changed = true;
+			if (ad->interlace_on != (interlace_seen != 0)) {
+				ad->interlace_on = interlace_seen != 0;
+				set_config_changed();
+			}
+		}
+	}
+	if (!ad->picasso_on) {
+		if (ad->interlace_on) {
+			ad->gf_index = GF_INTERLACE;
+		} else {
+			ad->gf_index = GF_NORMAL;
+		}
+	} else {
+		ad->gf_index = GF_RTG;
 	}
 
 	prevlofs[2] = prevlofs[1];
@@ -10653,7 +10678,7 @@ static bool draw_border_fast(struct linestate *l, int ldv)
 }
 
 // draw bitplane line quickly (no copper, no sprites, no weird things, normal mode)
-static bool draw_line_fast(struct linestate *l, int ldv)
+static bool draw_line_fast(struct linestate *l, int ldv, uaecptr bplptp[8], bool addbpl)
 {
 	if (l->hbstrt_offset < 0 || l->hbstop_offset < 0) {
 		return false;
@@ -10683,7 +10708,7 @@ static bool draw_line_fast(struct linestate *l, int ldv)
 #endif
 	{
 		for (int i = 0; i < planes; i++) {
-			uaecptr pt = bplpt[i];
+			uaecptr pt = bplptp[i];
 			l->bplpt[i] = get_real_address(pt);
 		}
 	}
@@ -10711,10 +10736,12 @@ static bool draw_line_fast(struct linestate *l, int ldv)
 	// draw quickly, store new state
 	int dvp = calculate_linetype(ldv);
 	draw_denise_bitplane_line_fast_queue(dvp, nextline_how, l);
-	// advance bpl pointers
-	for (int i = 0; i < planes; i++) {
-		int mod = getbplmod(i);
-		bplpt[i] += mod + len;
+	if (addbpl) {
+		// advance bpl pointers
+		for (int i = 0; i < planes; i++) {
+			int mod = getbplmod(i);
+			bplpt[i] += mod + len;
+		}
 	}
 	return true;
 }
@@ -10756,7 +10783,19 @@ static bool checkprevfieldlinestateequal(void)
 				int r = checkprevfieldlinestateequalbpl(l, always);
 				if (1 && (always || (r < 0 && currprefs.cs_optimizations == DISPLAY_OPTIMIZATIONS_FULL))) {
 					// no match but same parameters: do quick BPL emulation
-					r = draw_line_fast(l, linear_display_vpos + 1);
+					r = draw_line_fast(l, linear_display_vpos + 1, bplpt, true);
+					if (doflickerfix_active() && scandoubled_bpl_ena[linear_vpos + 1]) {
+						lof_display ^= 1;
+						struct linestate *l2 = &lines[linear_vpos][lof_display];
+						scandoubled_line = 1;
+						uaecptr bplptx[MAX_PLANES];
+						for (int i = 0; i < MAX_PLANES; i++) {
+							bplptx[i] = scandoubled_bpl_ptr[linear_vpos][lof_display][i];
+						}
+						draw_line_fast(l2, linear_display_vpos + 1, bplptx, false);
+						scandoubled_line = 0;
+						lof_display ^= 1;
+					}
 				}
 				ret = r > 0;
 			}

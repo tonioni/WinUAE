@@ -204,7 +204,7 @@ struct d3dstruct
 	int max_texture_w, max_texture_h;
 	int tin_w, tin_h, tout_w, tout_h, window_h, window_w;
 	int tino_w, tino_h;
-	int t_depth, dmult, dmultxh, dmultxv, dmode;
+	int dmult, dmultxh, dmultxv, dmode;
 	int required_sl_texture_w, required_sl_texture_h;
 	int vsync2, guimode, maxscanline, variablerefresh;
 	int resetcount;
@@ -1242,7 +1242,7 @@ static int createamigatexture (struct d3dstruct *d3d, int w, int h)
 	if (!d3d->texture1 || !d3d->texture2)
 		return 0;
 	d3d->usetexture = d3d->texture1;
-	write_log (_T("%s: %d*%d main texture, depth %d\n"), D3DHEAD, w, h, d3d->t_depth);
+	write_log (_T("%s: %d*%d main texture\n"), D3DHEAD, w, h);
 	if (d3d->psActive) {
 		for (int i = 0; i < MAX_SHADERS; i++) {
 			int w2, h2;
@@ -1363,13 +1363,13 @@ static void updateleds (struct d3dstruct *d3d)
 
 	for (int y = 0; y < d3d->ledheight; y++) {
 		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
-		statusline_single_erase(d3d->num, buf, 32 / 8, y, d3d->ledwidth);
+		statusline_single_erase(d3d->num, buf, y, d3d->ledwidth);
 	}
-	statusline_render(d3d->num, (uae_u8*)locked.pBits, 32 / 8, locked.Pitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
+	statusline_render(d3d->num, (uae_u8*)locked.pBits, locked.Pitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
 
 	for (int y = 0; y < d3d->ledheight; y++) {
 		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
-		draw_status_line_single(d3d->num, buf, 32 / 8, y, d3d->ledwidth, rc, gc, bc, a);
+		draw_status_line_single(d3d->num, buf, y, d3d->ledwidth, rc, gc, bc, a);
 	}
 
 	d3d->ledtexture->UnlockRect (0);
@@ -1394,7 +1394,7 @@ static int createledtexture (struct d3dstruct *d3d)
 
 static int createsltexture (struct d3dstruct *d3d)
 {
-	d3d->sltexture = createtext (d3d, d3d->required_sl_texture_w, d3d->required_sl_texture_h, d3d->t_depth < 32 ? D3DFMT_A4R4G4B4 : D3DFMT_A8R8G8B8);
+	d3d->sltexture = createtext (d3d, d3d->required_sl_texture_w, d3d->required_sl_texture_h, D3DFMT_A8R8G8B8);
 	if (!d3d->sltexture)
 		return 0;
 	write_log (_T("%s: SL %d*%d texture allocated\n"), D3DHEAD, d3d->required_sl_texture_w, d3d->required_sl_texture_h);
@@ -1411,7 +1411,6 @@ static void createscanlines (struct d3dstruct *d3d, int force)
 	int l1, l2;
 	int x, y, yy;
 	uae_u8 *sld, *p;
-	int bpp;
 
 	if (d3d->scanline_osl1 == d3d->filterd3d->gfx_filter_scanlines &&
 		d3d->scanline_osl3 == d3d->filterd3d->gfx_filter_scanlinelevel &&
@@ -1419,7 +1418,6 @@ static void createscanlines (struct d3dstruct *d3d, int force)
 		d3d->scanline_osl4 == d3d->filterd3d->gfx_filter_scanlineoffset &&
 		!force)
 		return;
-	bpp = d3d->t_depth < 32 ? 2 : 4;
 	d3d->scanline_osl1 = d3d->filterd3d->gfx_filter_scanlines;
 	d3d->scanline_osl3 = d3d->filterd3d->gfx_filter_scanlinelevel;
 	d3d->scanline_osl2 = d3d->filterd3d->gfx_filter_scanlineratio;
@@ -1450,27 +1448,21 @@ static void createscanlines (struct d3dstruct *d3d, int force)
 	}
 	sld = (uae_u8*)locked.pBits;
 	for (y = 0; y < d3d->required_sl_texture_h; y++) {
-		memset(sld + y * locked.Pitch, 0, d3d->required_sl_texture_w * bpp);
+		memset(sld + y * locked.Pitch, 0, d3d->required_sl_texture_w * 4);
 	}
 	for (y = 0; y < d3d->required_sl_texture_h; y += l1 + l2) {
 		int y2 = y + (d3d->filterd3d->gfx_filter_scanlineoffset % (l1 + 1));
 		for (yy = 0; yy < l2 && y2 + yy < d3d->required_sl_texture_h; yy++) {
 			for (x = 0; x < d3d->required_sl_texture_w; x++) {
 				uae_u8 sll = sl42;
-				p = &sld[(y2 + yy) * locked.Pitch + (x * bpp)];
-				if (bpp < 4) {
-					/* 16-bit, A4R4G4B4 */
-					p[1] = (sl4 << 4) | (sll << 0);
-					p[0] = (sll << 4) | (sll << 0);
-				} else {
-					/* 32-bit, A8R8G8B8 */
-					uae_u8 sll4 = sl4 | (sl4 << 4);
-					uae_u8 sll2 = sll | (sll << 4);
-					p[0] = sll2;
-					p[1] = sll2;
-					p[2] = sll2;
-					p[3] = sll4;
-				}
+				p = &sld[(y2 + yy) * locked.Pitch + (x * 4)];
+				/* 32-bit, A8R8G8B8 */
+				uae_u8 sll4 = sl4 | (sl4 << 4);
+				uae_u8 sll2 = sll | (sll << 4);
+				p[0] = sll2;
+				p[1] = sll2;
+				p[2] = sll2;
+				p[3] = sll4;
 			}
 		}
 	}
@@ -2109,8 +2101,8 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender, int monid
 
 	float dw = (float)ds.dstwidth;
 	float dh = (float)ds.dstheight;
-	float w = ds.outwidth;
-	float h = ds.outheight;
+	float w = (float)ds.outwidth;
+	float h = (float)ds.outheight;
 
 	d3d->fakesize.x = w;
 	d3d->fakesize.y = h;
@@ -2610,7 +2602,7 @@ static int getd3dadapter (IDirect3D9 *id3d)
 	return D3DADAPTER_DEFAULT;
 }
 
-static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv)
+static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w_h, int *freq, int mmulth, int mmultv)
 {
 	int monid = d3d->num;
 	struct amigadisplay *ad = &adisplays[monid];
@@ -2638,7 +2630,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	}
 
 	xfree (d3d->fakebitmap);
-	d3d->fakebitmap = xmalloc (uae_u8, w_w * depth);
+	d3d->fakebitmap = xmalloc (uae_u8, w_w * 4);
 
 	d3dx = LoadLibrary (D3DX9DLL);
 	if (d3dx == NULL) {
@@ -2791,7 +2783,6 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	}
 
 	d3d->d3dhwnd = ahwnd;
-	d3d->t_depth = depth;
 
 	flags = D3DCREATE_FPU_PRESERVE | D3DCREATE_MULTITHREADED;
 	// Check if hardware vertex processing is available
@@ -2831,7 +2822,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		if (d3d->d3d_ex && D3DEX) {
 			write_log (_T("%s\n"), errmsg);
 			D3DEX = 0;
-			return D3D_init2(d3d, ahwnd, w_w, w_h, depth, freq, mmulth, mmultv);
+			return D3D_init2(d3d, ahwnd, w_w, w_h, freq, mmulth, mmultv);
 		}
 		D3D_free(monid, true);
 		return errmsg;
@@ -2861,7 +2852,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	
 	write_log (_T("\n"));
 
-	write_log (_T("%s: PS=%d.%d VS=%d.%d %d*%d*%d%s%s VS=%d B=%d%s %d-bit %d (%dx%d)\n"),
+	write_log (_T("%s: PS=%d.%d VS=%d.%d %d*%d*%d%s%s VS=%d B=%d%s %d (%dx%d)\n"),
 		D3DHEAD,
 		(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
 		(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
@@ -2871,7 +2862,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		d3d->dpp.Windowed ? _T("") : _T(" FS"),
 		vsync, ap.gfx_backbuffers,
 		ap.gfx_vflip < 0 ? _T("WE") : (ap.gfx_vflip > 0 ? _T("WS") :  _T("I")), 
-		d3d->t_depth, adapter,
+		adapter,
 		d3d->max_texture_w, d3d->max_texture_h
 	);
 
@@ -2921,19 +2912,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		changed_prefs.gf[d3d->filterd3didx].gfx_filter_scanlines = d3d->filterd3d->gfx_filter_scanlines = 0;
 	}
 
-	switch (depth)
-	{
-		case 32:
-		default:
-			d3d->tformat = D3DFMT_X8R8G8B8;
-		break;
-		case 15:
-			d3d->tformat = D3DFMT_X1R5G5B5;
-		break;
-		case 16:
-			d3d->tformat = D3DFMT_R5G6B5;
-		break;
-	}
+	d3d->tformat = D3DFMT_X8R8G8B8;
 
 	changed_prefs.leds_on_screen |= STATUSLINE_TARGET;
 	currprefs.leds_on_screen |= STATUSLINE_TARGET;
@@ -3001,7 +2980,7 @@ static void D3D_init_start (void *p)
 	D3D_free2 (d3d);
 	sleep_millis (1000);
 	write_log (_T("Threaded D3D_init() start (init)\n"));
-	const TCHAR *t = D3D_init2 (d3d, d3dargs.hwnd, d3dargs.w, d3dargs.h,d3dargs.depth, d3dargs.freq, d3dargs.mmulth, d3dargs.mmultv);
+	const TCHAR *t = D3D_init2 (d3d, d3dargs.hwnd, d3dargs.w, d3dargs.h, d3dargs.freq, d3dargs.mmulth, d3dargs.mmultv);
 	if (t) {
 		gui_message (_T("Threaded D3D_init() returned error '%s'\n"), t);
 	}
@@ -3021,12 +3000,12 @@ static void D3D_init_start (void *p)
 	d3d->fakemode = false;
 }
 
-static const TCHAR *xD3D_init (HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv, int *errp)
+static const TCHAR *xD3D_init (HWND ahwnd, int monid, int w_w, int w_h, int *freq, int mmulth, int mmultv, int *errp)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
 
 	if (!fakemodewaitms) {
-		const TCHAR *v = D3D_init2(d3d, ahwnd, w_w, w_h, depth, freq, mmulth, mmultv);
+		const TCHAR *v = D3D_init2(d3d, ahwnd, w_w, w_h, freq, mmulth, mmultv);
 		if (v != NULL) {
 			*errp = 1;
 		}
@@ -3036,7 +3015,6 @@ static const TCHAR *xD3D_init (HWND ahwnd, int monid, int w_w, int w_h, int dept
 	d3dargs.hwnd = ahwnd;
 	d3dargs.w = w_w;
 	d3dargs.h = w_h;
-	d3dargs.depth = depth;
 	d3dargs.mmulth = mmulth;
 	d3dargs.mmultv = mmultv;
 	d3dargs.freq = freq;
@@ -4005,44 +3983,17 @@ static void xD3D_refresh (int monid)
 	}
 }
 
-void D3D_getpixelformat (int depth, int *rb, int *gb, int *bb, int *rs, int *gs, int *bs, int *ab, int *as, int *a)
+void D3D_getpixelformat (int *rb, int *gb, int *bb, int *rs, int *gs, int *bs, int *ab, int *as, int *a)
 {
-	switch (depth)
-	{
-	case 32:
-		*rb = 8;
-		*gb = 8;
-		*bb = 8;
-		*ab = 8;
-		*rs = 16;
-		*gs = 8;
-		*bs = 0;
-		*as = 24;
-		*a = 0;
-		break;
-	case 15:
-		*rb = 5;
-		*gb = 5;
-		*bb = 5;
-		*ab = 1;
-		*rs = 10;
-		*gs = 5;
-		*bs = 0;
-		*as = 15;
-		*a = 0;
-	break;
-	case 16:
-		*rb = 5;
-		*gb = 6;
-		*bb = 5;
-		*ab = 0;
-		*rs = 11;
-		*gs = 5;
-		*bs = 0;
-		*as = 0;
-		*a = 0;
-		break;
-	}
+	*rb = 8;
+	*gb = 8;
+	*bb = 8;
+	*ab = 8;
+	*rs = 16;
+	*gs = 8;
+	*bs = 0;
+	*as = 24;
+	*a = 0;
 }
 
 static float xD3D_getrefreshrate(int monid)
@@ -4111,7 +4062,7 @@ LPDIRECT3DSURFACE9 D3D_capture(int monid, int *w, int *h, int *bits, bool render
 	}
 	*w = d3d->window_w;
 	*h = d3d->window_h;
-	*bits = d3d->t_depth;
+	*bits = 32;
 	return ret;
 }
 

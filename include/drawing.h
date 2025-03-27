@@ -19,7 +19,7 @@
 
 #define MAX_SPRITES 8
 
-extern int lores_shift, shres_shift, interlace_seen;
+extern int interlace_seen;
 extern int visible_left_border, visible_right_border;
 extern int detected_screen_resolution;
 extern int hsync_end_left_border, hdisplay_left_border, denisehtotal;
@@ -117,8 +117,6 @@ extern void vsync_handle_redraw (int long_field, int lof_changed, uae_u16, uae_u
 extern bool vsync_handle_check (void);
 extern void reset_drawing (void);
 extern void drawing_init (void);
-extern bool notice_interlace_seen(int, bool);
-extern void notice_resolution_seen(int, bool);
 extern bool frame_drawn (int monid);
 extern void redraw_frame(void);
 extern void full_redraw_all(void);
@@ -129,7 +127,7 @@ extern void check_custom_limits (void);
 extern void get_custom_topedge (int *x, int *y, bool max);
 extern void get_custom_raw_limits (int *pw, int *ph, int *pdx, int *pdy);
 void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl);
-extern void putpixel (uae_u8 *buf, uae_u16 *genlockbuf, int bpp, int x, xcolnr c8);
+extern void putpixel (uae_u8 *buf, uae_u16 *genlockbuf, int x, xcolnr c8);
 extern void allocvidbuffer(int monid, struct vidbuffer *buf, int width, int height, int depth);
 extern void freevidbuffer(int monid, struct vidbuffer *buf);
 extern void check_prefs_picasso(void);
@@ -198,5 +196,7 @@ bool denise_is_vb(void);
 void draw_denise_line_queue_flush(void);
 void quick_denise_rga_queue(int linecnt, int startpos, int endpos);
 void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos);
+bool drawing_can_lineoptimizations(void);
+void set_drawbuffer(void);
 
 #endif /* UAE_DRAWING_H */

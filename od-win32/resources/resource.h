@@ -466,7 +466,6 @@
 #define IDC_DISPLAYSELECT               1024
 #define IDC_AUTOCONFIG                  1025
 #define IDC_PRINTERLIST                 1025
-#define IDC_RESOLUTIONDEPTH             1025
 #define IDC_CHIPMEM                     1026
 #define IDC_CREATELOGFILE               1026
 #define IDC_PORT0_JOYS                  1026
@@ -1224,7 +1223,6 @@
 #define IDC_HDFINFO3                    1783
 #define IDC_DBG_ADDRINPUTTXT            1784
 #define IDC_RTG_SCALE                   1785
-#define IDC_RTG_MATCH_DEPTH             1786
 #define IDC_RTG_8BIT                    1787
 #define IDC_RTG_16BIT                   1788
 #define IDC_PATHS_CONFIGCACHE           1788

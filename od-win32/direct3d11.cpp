@@ -46,7 +46,7 @@ using Microsoft::WRL::ComPtr;
 #include <Dwmapi.h>
 
 void (*D3D_free)(int, bool immediate);
-const TCHAR *(*D3D_init)(HWND ahwnd, int, int w_w, int h_h, int depth, int *freq, int mmulth, int mmultv, int *err);
+const TCHAR *(*D3D_init)(HWND ahwnd, int monid, int w_w, int h_h, int *freq, int mmulth, int mmultv, int *err);
 bool (*D3D_alloctexture)(int, int, int);
 void(*D3D_refresh)(int);
 bool(*D3D_renderframe)(int, int,bool);
@@ -1581,8 +1581,8 @@ static void setupscenecoords(struct d3d11struct *d3d, bool normalrender, int mon
 	float sw = dw / d3d->m_screenWidth;
 	float sh = dh / d3d->m_screenHeight;
 
-	int xshift = -ds.xoffset;
-	int yshift = -ds.yoffset;
+	float xshift = (float)-ds.xoffset;
+	float yshift = (float)-ds.yoffset;
 
 	xshift -= (w - d3d->m_screenWidth) / 2;
 	yshift -= (h - d3d->m_screenHeight) / 2;
@@ -1640,13 +1640,13 @@ static void updateleds(struct d3d11struct *d3d)
 	}
 	for (int y = 0; y < d3d->osd.height; y++) {
 		uae_u8 *buf = (uae_u8*)map.pData + y * map.RowPitch;
-		statusline_single_erase(d3d->num, buf, 32 / 8, y, d3d->ledwidth);
+		statusline_single_erase(d3d->num, buf, y, d3d->ledwidth);
 	}
-	statusline_render(d3d->num, (uae_u8*)map.pData, 32 / 8, map.RowPitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
+	statusline_render(d3d->num, (uae_u8*)map.pData, map.RowPitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
 
 	for (int y = 0; y < d3d->osd.height; y++) {
 		uae_u8 *buf = (uae_u8*)map.pData + y * map.RowPitch;
-		draw_status_line_single(d3d->num, buf, 32 / 8, y, d3d->ledwidth, rc, gc, bc, a);
+		draw_status_line_single(d3d->num, buf, y, d3d->ledwidth, rc, gc, bc, a);
 	}
 
 	d3d->m_deviceContext->Unmap(d3d->osd.texture, 0);
@@ -3418,7 +3418,7 @@ static float xD3D_getrefreshrate(int monid)
 	return d3d->vblank;
 }
 
-static bool xD3D11_initvals(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t_h, int depth, int *freq, int mmulth, int mmultv, bool doalloc)
+static bool xD3D11_initvals(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t_h, int *freq, int mmulth, int mmultv, bool doalloc)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 	bool changed = false;
@@ -3437,7 +3437,7 @@ static bool xD3D11_initvals(HWND ahwnd, int monid, int w_w, int w_h, int t_w, in
 	return changed;
 }
 
-static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t_h, int depth, int *freq, int mmulth, int mmultv)
+static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t_h, int *freq, int mmulth, int mmultv)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 	struct amigadisplay *ad = &adisplays[monid];
@@ -3456,7 +3456,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	DXGI_MODE_DESC1 *displayModeList;
 	DXGI_ADAPTER_DESC adapterDesc;
 
-	write_log(_T("D3D11 init start. (%d*%d) (%d*%d) RTG=%d Depth=%d.\n"), w_w, w_h, t_w, t_h, ad->picasso_on, depth);
+	write_log(_T("D3D11 init start. (%d*%d) (%d*%d) RTG=%d\n"), w_w, w_h, t_w, t_h, ad->picasso_on);
 
 	d3d->filterd3didx = ad->gf_index;
 	d3d->filterd3d = &currprefs.gf[d3d->filterd3didx];
@@ -3464,15 +3464,11 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	d3d->delayedfs = 0;
 	d3d->device_errors = 0;
 
-	if (depth != 32) {
-		return 0;
-	}
-
 	if (!can_D3D11(false)) {
 		return 0;
 	}
 
-	xD3D11_initvals(ahwnd, monid, w_w, w_h, t_w, t_h, depth, freq, mmulth, mmultv, false);
+	xD3D11_initvals(ahwnd, monid, w_w, w_h, t_w, t_h, freq, mmulth, mmultv, false);
 
 	d3d->ahwnd = ahwnd;
 
@@ -3799,14 +3795,8 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	UINT flags = 0;
 	result = d3d->m_device->CheckFormatSupport(d3d->texformat, &flags);
 	if (FAILED(result) || !(flags & D3D11_FORMAT_SUPPORT_TEXTURE2D)) {
-		if (depth != 32)
-			write_log(_T("Direct3D11: 16-bit texture format is not supported %08x\n"), result);
-		else
-			write_log(_T("Direct3D11: 32-bit texture format is not supported!? %08x\n"), result);
-		if (depth == 32)
-			return 0;
-		write_log(_T("Direct3D11: Retrying in 32-bit mode\n"), result);
-		return -1;
+		write_log(_T("Direct3D11: 32-bit texture format is not supported!? %08x\n"), result);
+		return 0;
 	}
 
 	// Initialize the swap chain description.
@@ -4150,12 +4140,12 @@ static void xD3D11_free(int monid, bool immediate)
 	write_log(_T("D3D11 free end\n"));
 }
 
-static int xxD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv)
+static int xxD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int *freq, int mmulth, int mmultv)
 {
-	return xxD3D11_init2(ahwnd, monid, w_w, w_h, w_w, w_h, depth, freq, mmulth, mmultv);
+	return xxD3D11_init2(ahwnd, monid, w_w, w_h, w_w, w_h, freq, mmulth, mmultv);
 }
 
-static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv, int *errp)
+static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int *freq, int mmulth, int mmultv, int *errp)
 {
 	bool reset = false;
 	if (!can_D3D11(false)) {
@@ -4207,7 +4197,7 @@ static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int dep
 	}
 	if (reset) {
 		xD3D11_free(monid, true);
-		int v = xxD3D11_init(ahwnd, monid, w_w, w_h, depth, freq, mmulth, mmultv);
+		int v = xxD3D11_init(ahwnd, monid, w_w, w_h, freq, mmulth, mmultv);
 		if (v > 0) {
 			return NULL;
 		}
@@ -4219,7 +4209,7 @@ static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int dep
 		return _T("D3D11 INITIALIZATION ERROR");
 	} else {
 		struct d3d11struct *d3d = &d3d11data[monid];
-		if (xD3D11_initvals(ahwnd, monid, w_w, w_h, w_w, w_h, depth, freq, mmulth, mmultv, true)) {
+		if (xD3D11_initvals(ahwnd, monid, w_w, w_h, w_w, w_h, freq, mmulth, mmultv, true)) {
 			d3d->fsresizedo = true;
 		} else {
 			*errp = -1;
@@ -5041,7 +5031,7 @@ static bool recheck(struct d3d11struct *d3d, int monid)
 	d3d->delayedfs = 0;
 	ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
 	int freq = 0;
-	if (!xxD3D11_init2(d3d->ahwnd, d3d->num, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, 32, &freq, d3d->dmultxh, d3d->dmultxv))
+	if (!xxD3D11_init2(d3d->ahwnd, d3d->num, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, &freq, d3d->dmultxh, d3d->dmultxv))
 		d3d->invalidmode = true;
 	return false;
 }
@@ -5065,8 +5055,6 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 		D3D_unlocktexture(monid, -1, -1);
 	}
 
-	recheck(d3d, monid);
-
 	if (d3d->invalidmode || !d3d->m_device) {
 		return false;
 	}
@@ -5078,6 +5066,8 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 	d3d->dmult = 1; // S2X_getmult(monid);
 	d3d->m_bitmapWidthX = d3d->m_bitmapWidth * d3d->dmultxh;
 	d3d->m_bitmapHeightX = d3d->m_bitmapHeight * d3d->dmultxv;
+
+	recheck(d3d, monid);
 
 	v = CreateTexture(d3d);
 	if (!v)

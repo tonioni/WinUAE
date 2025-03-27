@@ -97,7 +97,6 @@ static const struct cfg_lines opttable[] =
 	{_T("gfx_center_horizontal"), _T("Center display horizontally?") },
 	{_T("gfx_center_vertical"), _T("Center display vertically?") },
 	{_T("gfx_colour_mode"), _T("") },
-	{_T("32bit_blits"), _T("Enable 32 bit blitter emulation") },
 	{_T("immediate_blits"), _T("Perform blits immediately") },
 	{_T("show_leds"), _T("LED display") },
 	{_T("keyboard_leds"), _T("Keyboard LEDs") },
@@ -154,8 +153,6 @@ static const TCHAR *linemode[] = {
 	_T("double3"), _T("scanlines3"), _T("scanlines3p2"), _T("scanlines3p3"),
 	0 };
 static const TCHAR *speedmode[] = { _T("max"), _T("real"), 0 };
-static const TCHAR *colormode1[] = { _T("8bit"), _T("15bit"), _T("16bit"), _T("8bit_dither"), _T("4bit_dither"), _T("32bit"), 0 };
-static const TCHAR *colormode2[] = { _T("8"), _T("15"), _T("16"), _T("8d"), _T("4d"), _T("32"), 0 };
 static const TCHAR *soundmode1[] = { _T("none"), _T("interrupts"), _T("normal"), _T("exact"), 0 };
 static const TCHAR *soundmode2[] = { _T("none"), _T("interrupts"), _T("good"), _T("best"), 0 };
 static const TCHAR *centermode1[] = { _T("none"), _T("simple"), _T("smart"), 0 };
@@ -2466,7 +2463,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_strarr(f, _T("gfx_fullscreen_picasso"), fullmodes, p->gfx_apmode[1].gfx_fullscreen);
 	cfgfile_write_strarr(f, _T("gfx_center_horizontal"), centermode1, p->gfx_xcenter);
 	cfgfile_write_strarr(f, _T("gfx_center_vertical"), centermode1, p->gfx_ycenter);
-	cfgfile_write_strarr(f, _T("gfx_colour_mode"), colormode1, p->color_mode);
+	cfgfile_write_str(f, _T("gfx_colour_mode"), _T("32bit"));
 	cfgfile_write_bool(f, _T("gfx_blacker_than_black"), p->gfx_blackerthanblack);
 	cfgfile_dwrite_bool(f, _T("gfx_monochrome"), p->gfx_grayscale);
 	cfgfile_dwrite_strarr(f, _T("gfx_atari_palette_fix"), threebitcolors, p->gfx_threebitcolors);
@@ -3777,10 +3774,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval (option, value, _T("gfx_center_vertical"), &p->gfx_ycenter, centermode1, 1)
 		|| cfgfile_strval (option, value, _T("gfx_center_horizontal"), &p->gfx_xcenter, centermode2, 0)
 		|| cfgfile_strval (option, value, _T("gfx_center_vertical"), &p->gfx_ycenter, centermode2, 0)
-		|| cfgfile_strval (option, value, _T("gfx_colour_mode"), &p->color_mode, colormode1, 1)
-		|| cfgfile_strval (option, value, _T("gfx_colour_mode"), &p->color_mode, colormode2, 0)
-		|| cfgfile_strval (option, value, _T("gfx_color_mode"), &p->color_mode, colormode1, 1)
-		|| cfgfile_strval (option, value, _T("gfx_color_mode"), &p->color_mode, colormode2, 0)
 		|| cfgfile_strval (option, value, _T("gfx_max_horizontal"), &p->gfx_max_horizontal, maxhoriz, 0)
 		|| cfgfile_strval (option, value, _T("gfx_max_vertical"), &p->gfx_max_vertical, maxvert, 0)
 		|| cfgfile_strval(option, value, _T("gfx_api"), &p->gfx_api, filterapi, 0)
@@ -3790,6 +3783,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval(option, value, _T("magic_mousecursor"), &p->input_magic_mouse_cursor, magiccursors, 0)
 		|| cfgfile_strval (option, value, _T("absolute_mouse"), &p->input_tablet, abspointers, 0))
 		return 1;
+
+	if (cfgfile_string(option, value, _T("gfx_colour_mode"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
+		return 1;
+	}
 
 	if (cfgfile_intval(option, value, _T("gfx_rotation"), &p->gfx_rotation, 1)) {
 		p->gf[GF_NORMAL].gfx_filter_rotation = p->gfx_rotation;
@@ -7755,13 +7752,6 @@ int parse_cmdline_option (struct uae_prefs *p, TCHAR c, const TCHAR *arg)
 
 		break;
 
-	case 'H':
-		p->color_mode = _tstoi (arg);
-		if (p->color_mode < 0) {
-			write_log (_T("Bad color mode selected. Using default.\n"));
-			p->color_mode = 0;
-		}
-		break;
 	default:
 		write_log (_T("Unknown option `-%c'!\n"), c);
 		break;
@@ -8516,7 +8506,6 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->gfx_max_vertical = VRES_DOUBLE;
 	p->gfx_autoresolution_minv = 0;
 	p->gfx_autoresolution_minh = 0;
-	p->color_mode = 2;
 	p->gfx_blackerthanblack = 0;
 	p->gfx_autoresolution_vga = true;
 	p->gfx_apmode[0].gfx_backbuffers = 2;

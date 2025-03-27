@@ -428,9 +428,9 @@ donormal:
 			height = state->Height;
 		}
 		if (D3D_isenabled(0) == 2) {
-			int w, h, pitch, bits = 32, d;
+			int w, h, bits, pitch;
 			void *data;
-			bool got = D3D11_capture(monid, &data, &w, &h, &d, &pitch, renderTarget);
+			bool got = D3D11_capture(monid, &data, &w, &h, &bits, &pitch, renderTarget);
 
 			int dpitch = (((width * depth + 31) & ~31) / 8);
 			lpvBits = xmalloc(uae_u8, dpitch * height);
@@ -448,7 +448,7 @@ donormal:
 			bi->bmiHeader.biClrUsed = 0;
 			bi->bmiHeader.biClrImportant = 0;
 
-			if (got && lpvBits && d <= 32) {
+			if (got && lpvBits && bits <= 32) {
 				for (int y = 0; y < h && y < height; y++) {
 					uae_u8 *d = (uae_u8*)lpvBits + (height - y - 1) * dpitch;
 					uae_u32 *s = (uae_u32*)((uae_u8*)data + y * pitch);
@@ -495,41 +495,19 @@ donormal:
 					bi->bmiHeader.biClrImportant = 0;
 
 					if (lpvBits) {
-						if (bits == 32) {
-							for (int y = 0; y < h && y < height; y++) {
-								uae_u8 *d = (uae_u8*)lpvBits + (height - y - 1) * dpitch;
-								uae_u32 *s = (uae_u32*)((uae_u8*)l.pBits + y * l.Pitch);
-								for (int x = 0; x < w && x < width; x++) {
-									uae_u32 v = *s++;
-									d[0] = v >> 0;
-									d[1] = v >> 8;
-									d[2] = v >> 16;
-									if (depth == 32) {
-										d[3] = v >> 24;
-										d += 4;
-									} else {
-										d += 3;
-									}
-								}
-							}
-						} else if (bits == 16 || bits == 15) {
-							for (int y = 0; y < h && y < height; y++) {
-								uae_u8 *d = (uae_u8*)lpvBits + (height - y - 1) * dpitch;
-								uae_u16 *s = (uae_u16*)((uae_u8*)l.pBits + y * l.Pitch);
-								for (int x = 0; x < w && x < width; x++) {
-									uae_u16 v = s[x];
-									uae_u16 v2 = v;
-									if (bits == 16) {
-										v2 = v & 31;
-										v2 |= ((v & (31 << 5)) << 1) | (((v >> 5) & 1) << 5);
-										v2 |= (v & (31 << 10)) << 1;
-									} else {
-										v2 = v & 31;
-										v2 |= (v >> 1) & (31 << 5);
-										v2 |= (v >> 1) & (31 << 10);
-									}
-									((uae_u16*)d)[0] = v2;
-									d += 2;
+						for (int y = 0; y < h && y < height; y++) {
+							uae_u8 *d = (uae_u8*)lpvBits + (height - y - 1) * dpitch;
+							uae_u32 *s = (uae_u32*)((uae_u8*)l.pBits + y * l.Pitch);
+							for (int x = 0; x < w && x < width; x++) {
+								uae_u32 v = *s++;
+								d[0] = v >> 0;
+								d[1] = v >> 8;
+								d[2] = v >> 16;
+								if (depth == 32) {
+									d[3] = v >> 24;
+									d += 4;
+								} else {
+									d += 3;
 								}
 							}
 						}
