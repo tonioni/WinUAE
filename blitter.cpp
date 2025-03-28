@@ -438,6 +438,7 @@ static void blitter_end(void)
 	blt_info.blit_queued = 0;
 	event2_remevent(ev2_blitter);
 	unset_special(SPCFLAG_BLTNASTY);
+#if BLITTER_DEBUG
 	if (log_blitter & 1) {
 
 		if (blt_info.vblitsize > 100) {
@@ -448,6 +449,7 @@ static void blitter_end(void)
 			blit_totalcyclecounter, blit_misscyclecounter, blit_totalcyclecounter + blit_misscyclecounter);
 
 	}
+#endif
 }
 
 static void blitter_done_all(bool all)
@@ -1104,8 +1106,10 @@ static void blit_bltset(int con)
 				//blitter_dump();
 				blitshifterdebug(bltcon0_old, false);
 				blit_warned--;
+#ifdef DEBUGGER
 				if (log_blitter & 16)
 					activate_debugger();
+#endif
 			}
 		}
 	}
@@ -2027,13 +2031,13 @@ void do_blitter(int copper, uaecptr pc)
 {
 	int cycles;
 
-	//activate_debugger();
-
+#if BLITTER_DEBUG
 	if ((log_blitter & 2)) {
 		if (blt_info.blit_main) {
 			write_log (_T("blitter was already active! PC=%08x\n"), M68K_GETPC);
 		}
 	}
+#endif
 
 	bltcon0_old = blt_info.bltcon0;
 	bltcon1_old = blt_info.bltcon1;
@@ -2066,6 +2070,7 @@ void do_blitter(int copper, uaecptr pc)
 	}
 #endif
 
+#if BLITTER_DEBUG
 	if ((log_blitter & 1) || ((log_blitter & 32) && !blitline)) {
 		if (1) {
 			int ch = 0;
@@ -2084,6 +2089,7 @@ void do_blitter(int copper, uaecptr pc)
 			blitter_dump();
 		}
 	}
+#endif
 
 	blit_slowdown = 0;
 
@@ -2191,6 +2197,7 @@ void maybe_blit(int hack)
 #ifdef DEBUGGER
 		debugtest (DEBUGTEST_BLITTER, _T("program does not wait for blitter tc=%d\n"), blit_cyclecounter);
 #endif
+#if BLITTER_DEBUG
 		if (log_blitter)
 			warned = 0;
 		if (log_blitter & 2) {
@@ -2199,6 +2206,7 @@ void maybe_blit(int hack)
 			//activate_debugger();
 			//blitter_done (hpos);
 		}
+#endif
 	}
 
 	if (blitter_cycle_exact) {
@@ -2211,8 +2219,10 @@ void maybe_blit(int hack)
 
 	blitter_handler(0);
 end:;
+#if BLITTER_DEBUG
 	if (log_blitter)
 		blitter_delayed_debug = 1;
+#endif
 }
 
 int blitnasty(void)
@@ -2615,8 +2625,10 @@ uae_u8 *save_blitter_new(size_t *len, uae_u8 *dstptr)
 
 	if (blt_info.blit_main) {
 		write_log(_T("BLITTER active while saving state\n"));
+#if BLITTER_DEBUG
 		if (log_blitter)
 			blitter_dump();
+#endif
 	}
 
 	save_u32((uae_u32)blit_first_cycle);

@@ -8,8 +8,9 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
-
+#ifdef WITH_LUA
 #include <lualib.h>
+#endif
 
 #include "options.h"
 #include "savestate.h"

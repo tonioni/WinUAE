@@ -25,6 +25,15 @@ Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <sys/stat.h>
 #endif
 
+#if defined(STAT_STATVFS) && !defined(__ANDROID__)
+#include <sys/statvfs.h>
+// For osx, sigurbjornl
+#elif defined (__MACH__)
+#include <sys/mount.h>
+#else
+#include <sys/vfs.h>
+#endif
+
 #include "fsusage.h"
 
 /* Return the number of TOSIZE-byte blocks used by
@@ -100,7 +109,7 @@ int statfs ();
 # include <sys/mount.h>
 #endif
 
-#if HAVE_SYS_VFS_H
+#if HAVE_SYS_VFS_H and !defined(__MACH__)
 # include <sys/vfs.h>
 #endif
 
@@ -116,7 +125,7 @@ int statfs ();
 # include <fcntl.h>
 #endif
 
-#if HAVE_SYS_STATFS_H
+#if HAVE_SYS_STATFS_H and !defined(__MACH__)
 # include <sys/statfs.h>
 #endif
 

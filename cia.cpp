@@ -30,19 +30,27 @@
 #include "inputdevice.h"
 #include "zfile.h"
 #include "ar.h"
+#ifdef PARALLEL_PORT
 #include "parallel.h"
+#endif
 #include "akiko.h"
 #include "cdtv.h"
 #include "debug.h"
+#ifdef ARCADIA
 #include "arcadia.h"
+#endif
 #include "audio.h"
 #include "keyboard.h"
 #include "uae.h"
+#ifdef AMAX
 #include "amax.h"
+#endif
 #include "sampler.h"
 #include "dongle.h"
 #include "inputrecord.h"
+#ifdef WITH_PPC
 #include "uae/ppc.h"
+#endif
 #include "rommgr.h"
 #include "scsi.h"
 #include "rtc.h"
@@ -1804,7 +1812,9 @@ static uae_u8 ReadCIAA(uae_u32 addr, uae_u32 *flags)
 		v |= handle_joystick_buttons(c->pra, c->dra);
 		v |= (c->pra | (c->dra ^ 3)) & 0x03;
 		v = dongle_cia_read(0, reg, c->dra, v);
+#ifdef ARCADIA
 		v = alg_joystick_buttons(c->pra, c->dra, v);
+#endif
 
 		// 391078-01 CIA: output mode bits always return PRA contents
 		if (currprefs.cs_ciatype[0]) {
@@ -2027,7 +2037,9 @@ static void WriteCIAA(uae_u16 addr, uae_u8 val, uae_u32 *flags)
 #endif
 		c->prb = val;
 		dongle_cia_write(0, reg, c->drb, val);
+#ifdef ARCADIA
 		alg_parallel_port(c->drb, val);
+#endif
 #ifdef PARALLEL_PORT
 		if (isprinter()) {
 			if (isprinter() > 0) {
