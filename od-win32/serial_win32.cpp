@@ -271,7 +271,7 @@ void SERPER (uae_u16 w)
 	}
 
 	if (!serloop_enabled || seriallog > 0) {
-		write_log(_T("SERIAL: period=%d, baud=%d, hsyncs=%d, bits=%d, PC=%x\n"), w, baud, serial_period_transmit_ccks, ninebit ? 9 : 8, M68K_GETPC);
+		write_log(_T("SERIAL: period=%d/%d, baud=%d, hsyncs=%d, bits=%d, PC=%x\n"), w, serial_period_transmit_ccks, baud, serial_period_transmit_ccks / maxhpos, ninebit ? 9 : 8, M68K_GETPC);
 	}
 
 	if (ninebit) {
@@ -317,14 +317,15 @@ void SERPER (uae_u16 w)
 
 }
 
+#define SERDATR_IRQACK 2
+#define SERDATR_READ 1
+
 static void serial_rx_irq(void)
 {
 	int delay = 9;
 	// Data in receive buffer
-	if (!data_in_serdatr) {
-		data_in_serdatr = 1;
-		data_in_serdatr_evt = get_cycles() + delay * CYCLE_UNIT;
-	}
+	data_in_serdatr = SERDATR_READ  | SERDATR_IRQACK;
+	data_in_serdatr_evt = get_cycles() + delay * CYCLE_UNIT;
 	if (ser_accurate) {
 		INTREQ_INT(11, delay);
 	} else {
@@ -368,11 +369,8 @@ static void receive_next_buffered(void)
 
 void serial_rethink(void)
 {
-	if (data_in_serdatr) {
-		int sdr = data_in_serdatr;
-		if (ser_accurate && get_cycles() > data_in_serdatr_evt) {
-			sdr = 0;
-		}
+	if (data_in_serdatr == SERDATR_READ) {
+		int sdr = 1;
 		if (serloop_enabled) {
 			sdr = 0;
 		}
@@ -382,11 +380,14 @@ void serial_rethink(void)
 		if (safe_receive) {
 			sdr = 1;
 		}
-		// RBF bit is not "sticky" but without it data can be lost when using fast emulation modes
+		if (ser_accurate && get_cycles() <= data_in_serdatr_evt) {
+			sdr = 0;
+		}
+		// We get here if program cleared RBF bit but didn't yet read SERDATR
+		// Without this hack data can be lost when using fast emulation modes
 		// and physical serial port or internally emulated serial devices.
 		if (sdr && (intena & (1 << 11)) && (intena & (1 << 14)) && !(intreq & (1 << 11))) {
 			INTREQ_INT(11, 0);
-			sticky_receive_interrupt = true;
 		}
 	}
 }
@@ -409,18 +410,28 @@ static TCHAR dochar(int v)
 	return '.';
 }
 
+static void maybesetoverrun(void)
+{
+	if ((data_in_serdatr & SERDATR_IRQACK) && serdatr_last_got > SERIAL_HSYNC_BEFORE_OVERFLOW) {
+#if SERIALDEBUG > 0
+		write_log(_T("SERIAL: OVERRUN\n"));
+#endif
+		flushser();
+		ovrun = true;
+		sticky_receive_interrupt = false;
+	}
+	serdatr_last_got = 0;
+}
+
 static bool canreceive(void)
 {
-	// don't replace data in SERDATR until interrupt is cleared in safe receive mode
+	// don't replace data in SERDATR until interrupt is cleared and SERDATR is read in safe receive mode
 	if (safe_receive) {
-		if (intreq & (1 << 11)) {
-			return false;
-		}
 		if (data_in_serdatr) {
 			return false;
 		}
 	}
-	if (!data_in_serdatr) {
+	if (!(data_in_serdatr & SERDATR_IRQACK)) {
 		return true;
 	}
 	if (currprefs.serial_direct) {
@@ -430,14 +441,6 @@ static bool canreceive(void)
 		return true;
 	}
 	if (serdatr_last_got > SERIAL_HSYNC_BEFORE_OVERFLOW) {
-#if SERIALDEBUG > 0
-		write_log(_T("SERIAL: OVERRUN\n"));
-#endif
-		flushser();
-		ovrun = true;
-		data_in_serdatr = 0;
-		serdatr_last_got = 0;
-		sticky_receive_interrupt = false;
 		return true;
 	}
 	return false;
@@ -452,6 +455,7 @@ static void checkreceive_enet (void)
 		return;
 	if (!enet_readseravail ())
 		return;
+	maybesetoverrun();
 	if (!enet_readser (&recdata))
 		return;
 	serdatr = recdata & 0x1ff;
@@ -719,6 +723,7 @@ static void sersend_ce(uae_u32 v)
 
 static void serdatcopy(void)
 {
+	int sper = (serper & 0x7fff) + 1;
 	int bits;
 
 	if (data_in_sershift > 0 || !data_in_serdat)
@@ -764,9 +769,10 @@ static void serdatcopy(void)
 		serdatshift_bits--;
 	}
 
+	data_in_serdat_delay = get_cycles() + CYCLE_UNIT;
+
 	// if someone uses serial port as some kind of timer..
 	if (ser_accurate) {
-		int sper = (serper & 0x7fff) + 1;
 		int per = sper * (serdatshift_bits + 1);
 
 		serper_tx_evt = get_cycles();
@@ -807,6 +813,8 @@ static void serdatcopy(void)
 
 		if (serloop_enabled) {
 			sersend_serloop(0);
+		} else {
+			sersend_end(0);
 		}
 
 	}
@@ -901,13 +909,15 @@ void serial_hsynchandler (void)
 		}
 	}
 #endif
-	if (data_in_serdatr) {
+	if (data_in_serdatr & SERDATR_IRQACK) {
 		serdatr_last_got++;
 	}
-	serial_period_transmit_cck_counter += maxhpos;
-	if (serial_period_transmit_cck_counter >= serial_period_transmit_ccks) {
-		serial_period_transmit_cck_counter -= serial_period_transmit_ccks;
-		checkshiftempty();
+	if (!ser_accurate) {
+		serial_period_transmit_cck_counter += maxhpos;
+		if (serial_period_transmit_cck_counter >= serial_period_transmit_ccks) {
+			serial_period_transmit_cck_counter -= serial_period_transmit_ccks;
+			checkshiftempty();
+		}
 	}
 	serial_period_receive_cck_counter += maxhpos;
 	if (serial_period_receive_cck_counter >= serial_period_receive_ccks) {
@@ -935,7 +945,6 @@ static void SERDAT_send(uae_u32 v)
 #if SERIALDEBUG > 2
 	write_log(_T("SERIAL: SERDAT write 0x%04x (%c) PC=%x\n"), w, dochar(w), M68K_GETPC);
 #endif
-
 	if (ser_accurate) {
 		serdat = w;
 		data_in_serdat = 1;
@@ -979,7 +988,7 @@ uae_u16 SERDATR(void)
 	if (!data_in_sershift && (serdatr & 0x2000)) {
 		serdatr |= 0x1000; // TSRE (Transmit shift register empty)
 	}
-	if (data_in_serdatr) {
+	if (data_in_serdatr & SERDATR_IRQACK) {
 		serdatr |= 0x4000; // RBF (Receive buffer full)
 	}
 	if (ovrun) {
@@ -1010,11 +1019,10 @@ uae_u16 SERDATR(void)
 #if SERIALDEBUG > 2
 	write_log (_T("SERIAL: read 0x%04x (%c) %x\n"), serdatr, dochar (serdatr), M68K_GETPC);
 #endif
-	data_in_serdatr = 0;
-	// interrupt was previously cleared but SERDATR was not read.
-	// Clear it now when SERDATR was read.
-	if (sticky_receive_interrupt) {
-		sticky_receive_interrupt = false;
+	data_in_serdatr &= ~SERDATR_READ;
+	if (!data_in_serdatr) {
+		// interrupt was previously cleared but SERDATR was not read.
+		// Clear it now when SERDATR was read.
 		INTREQ_f(1 << 11);
 	}
 	return serdatr;
@@ -1032,6 +1040,9 @@ void SERDAT(uae_u16 w)
 void serial_rbf_change(bool set)
 {
 	ovrun = set;
+	if (!set) {
+		data_in_serdatr &= ~SERDATR_IRQACK;
+	}
 }
 
 void serial_dtr_on(void)
