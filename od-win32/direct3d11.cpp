@@ -4620,6 +4620,16 @@ static bool renderframe(struct d3d11struct *d3d)
 
 static bool TextureShaderClass_Render(struct d3d11struct *d3d, int monid)
 {
+	struct AmigaMonitor *mon = &AMonitors[monid];
+
+	bool rtg = WIN32GFX_IsPicassoScreen(mon);
+	if (((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !rtg) || ((currprefs.leds_on_screen & STATUSLINE_RTG) && rtg)) {
+		d3d->osd.enabled = true;
+		updateleds(d3d);
+	} else {
+		d3d->osd.enabled = false;
+	}
+
 	renderframe(d3d);
 
 	RenderSprite(d3d, &d3d->hwsprite, monid);
@@ -5121,7 +5131,6 @@ static uae_u8 *xD3D11_locktexture(int monid, int *pitch, int *width, int *height
 
 static void xD3D11_unlocktexture(int monid, int y_start, int y_end)
 {
-	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct d3d11struct *d3d = &d3d11data[monid];
 
 	if (!d3d->texturelocked || d3d->invalidmode || !d3d->texture2dstaging) {
@@ -5140,13 +5149,6 @@ static void xD3D11_unlocktexture(int monid, int y_start, int y_end)
 		return;
 	}
 
-	bool rtg = WIN32GFX_IsPicassoScreen(mon);
-	if (((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !rtg) || ((currprefs.leds_on_screen & STATUSLINE_RTG) && rtg)) {
-		d3d->osd.enabled = true;
-		updateleds(d3d);
-	} else {
-		d3d->osd.enabled = false;
-	}
 	if (y_start < 0 || y_end < 0) {
 		d3d->m_deviceContext->CopyResource(d3d->texture2d, d3d->texture2dstaging);
 	} else {
