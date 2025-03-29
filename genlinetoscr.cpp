@@ -357,7 +357,6 @@ static void gen_sprpix(int i)
 	outf("	if (!denise_sprite_blank_active && !sprites_hidden) {");
 	outf("	sv%d = svt;", i);
 	outf("	}");
-	//gen_shiftspr(i, j);
 	outf("}");
 }
 
@@ -381,7 +380,7 @@ static void gen_prepix(int i)
 {
 	outf("uae_u8 pix%d = 0;", i);
 	if (genlock) {
-		outf("uae_u16 gpix%d = 0xffff;", i);
+		outf("uae_u8 gpix%d = 0xff;", i);
 	}
 	outf("uae_u32 dpix_val%d = BLANK_COLOR;", i);
 }
@@ -723,7 +722,7 @@ static void gen_pix(void)
 			outf("uae_u32 dpix_val%d = dpix_val%d;", i, i - 1);
 			outf("uae_u8 pix%d = pix%d;", i, i - 1);
 			if (genlock) {
-				outf("uae_u16 gpix%d = gpix%d;", i, i - 1);
+				outf("uae_u8 gpix%d = gpix%d;", i, i - 1);
 			}
 			pixcnt++;
 		}
@@ -738,7 +737,16 @@ static void gen_pix(void)
 			off <<= (res - outres);
 		}
 		if (sprt[i]) {
-			gen_sprmerge(off, 0, outres == 0 ? 0 : (outres == 1 ? 2 : 4));
+			if (res == 0) {
+				gen_sprmerge(off, 0, outres == 0 ? 0 : (outres == 1 ? 2 : 4));
+			} else {
+				for (int j = 0; j < (1 << outres); j++) {
+					if (j > 0) {
+						outf("uae_u32 sv%d = sv0;", j);
+					}
+					gen_sprmerge(off + j, j, 0);
+				}
+			}
 		}
 		if (ntsc) {
 			outf("dtbuf[h][%d] = dpix_val%d;", off, off);
@@ -876,8 +884,11 @@ static bool gen_fasthead(void)
 
 static void gen_fastdraw_mode(int off, int total)
 {
+	int doubling = outres - res;
+
 	if (aga) {
 		outf("c = *cp;");
+		outf("clxdat |= bplcoltable[c];");
 		outf("cp += cpadds[%d];", off);
 		if (modes == CMODE_DUALPF) {
 			outf("{");
@@ -905,8 +916,42 @@ static void gen_fastdraw_mode(int off, int total)
 			outf("c ^= bxor;");
 			outf("col = colors_aga[c];");
 		}
+	} else if (res == 2) { // ECS shres
+		outf("uae_u8 c0 = *cp++;");
+		outf("uae_u8 c1 = *cp++;");
+		if (doubling == -2) {
+			outf("cp += 2;");
+		}
+		outf("uae_u32 dpix_val0, dpix_val1;");
+		if (genlock) {
+			outf("uae_u8 gpix0, gpix1;");
+			outf("get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);");
+		} else {
+			outf("get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);");
+		}
+		outf("*buf1++ = dpix_val0;");
+		if (doubling == 0) {
+			outf("*buf1++ = dpix_val1;");
+		}
+		if (isbuf2) {
+			outf("*buf2++ = dpix_val0;");
+			if (doubling == 0) {
+				outf("*buf2++ = dpix_val1;");
+			}
+		}
+		if (genlock) {
+			outf("*gbuf++ = gpix0;");
+			if (doubling == 0) {
+				outf("*gbuf++ = gpix1;");
+			}
+		}
+		if (doubling == 0) {
+			outf("cnt += bufaddv;");
+		}
+		return;
 	} else {
 		outf("c = *cp;");
+		outf("clxdat |= bplcoltable[c];");
 		if (off == total - 1) {
 			outf("cp += cpaddv;");
 		}
@@ -935,7 +980,7 @@ static void gen_fastdraw_mode(int off, int total)
 		outf("*buf2++ = col;");
 	}
 	if (genlock) {
-		outf("gpix = get_genlock_transparency_fast(col);");
+		outf("gpix = get_genlock_transparency_fast(c);");
 		outf("*gbuf++ = gpix;");
 	}
 }
@@ -955,7 +1000,7 @@ static void gen_fastdraw(void)
 	outf("int bufaddv = 1 << bufadd;");
 	outf("int cpaddv = 1 << cpadd;");
 	if (genlock) {
-		outf("uae_u16 gpix = get_genlock_transparency_border_fast(ls->bplcon3);");
+		outf("uae_u8 gpix = get_genlock_transparency_border_fast(ls->bplcon3);");
 	}
 
 	outf("int end = draw_end;");
@@ -1046,9 +1091,11 @@ static void gen_fastdraw(void)
 	outf("	}");
 	outf("} else {");
 	outf("bpl = true;");
-	outf("uae_u8 c;");
-	outf("uae_u32 col;");
-	if (doubling <= 0) {
+	if (res < 2 || aga) {
+		outf("uae_u8 c;");
+		outf("uae_u32 col;");
+	}
+	if (doubling <= 0 || (res == 2 && !aga)) {
 		gen_fastdraw_mode(0, 1);
 	} else if (doubling == 1) {
 		gen_fastdraw_mode(0, 2);
@@ -1503,6 +1550,7 @@ int main (int argc, char *argv[])
 			outf("shiftbpl2();");
 			outf("}");
 			gen_copybpl();
+			outf("internal_pixel_cnt += 4;");
 			gen_end();
 			gen_tail();
 		}

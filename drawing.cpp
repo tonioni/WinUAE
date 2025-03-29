@@ -51,16 +51,16 @@ extern int multithread_enabled;
 #define MAX_RGA_OVERLAPPING_CYCLES 5
 
 uae_u8 *xlinebuffer, *xlinebuffer2;
-uae_u16 *xlinebuffer_genlock;
+uae_u8 *xlinebuffer_genlock;
 
 static int *amiga2aspect_line_map, *native2amiga_line_map;
 static int native2amiga_line_map_height;
 static uae_u8 **row_map;
-static uae_u16 *row_map_genlock_buffer;
+static uae_u8 *row_map_genlock_buffer;
 static uae_u8 row_tmp8[MAX_PIXELS_PER_LINE * 32 / 8];
-static uae_u16 row_tmp16[MAX_PIXELS_PER_LINE * 32 / 8];
+static uae_u8 row_tmp8g[MAX_PIXELS_PER_LINE * 32 / 8];
 static int max_drawn_amiga_line;
-uae_u16 **row_map_genlock;
+uae_u8 **row_map_genlock;
 uae_u8 *row_map_color_burst_buffer;
 
 static uae_sem_t write_sem, read_sem;
@@ -230,7 +230,6 @@ typedef enum
 
 static void select_lts(void);
 
-static int lores_shift;
 static uae_u32 ham_lastcolor;
 
 int debug_bpl_mask = 0xff, debug_bpl_mask_one;
@@ -435,7 +434,7 @@ static struct dma_rec *debug_dma_ptr;
 static int denise_cycle_half;
 static int denise_vblank_extra, denise_vblank_extra_vbstrt, denise_vblank_extra_vbstop;
 static uae_u32 dtbuf[2][4];
-static uae_u16 dtgbuf[2][4];
+static uae_u8 dtgbuf[2][4];
 
 struct denise_spr
 {
@@ -468,7 +467,7 @@ static int denise_pixtotal, denise_pixtotalv, denise_linecnt, denise_startpos, d
 static int denise_pixtotalskip, denise_pixtotalskip2;
 static int denise_pixtotal_max;
 static uae_u32 *buf1, *buf2, *buf_d;
-static uae_u16 *gbuf;
+static uae_u8 *gbuf, *gbuf_end;
 static uae_u8 pixx0, pixx1, pixx2, pixx3;
 static uae_u32 debug_buf[256 * 2 * 4], debug_bufx[256 * 2 * 4];
 static int hbstrt_offset, hbstop_offset;
@@ -524,12 +523,8 @@ STATIC_INLINE int xshift (int x, int shift)
 
 int coord_native_to_amiga_x (int x)
 {
-	return 0;
-	/*
 	x += visible_left_border;
-	x = xshift (x, 1 - lores_shift);
-	return x + 2 * DISPLAY_LEFT_SHIFT - 2 * DIW_DDF_OFFSET;
-	*/
+	return x;
 }
 
 int coord_native_to_amiga_y (int y)
@@ -1175,7 +1170,7 @@ void init_row_map(void)
 	}
 	if (!row_map) {
 		row_map = xmalloc(uae_u8 *, max_uae_height + 1);
-		row_map_genlock = xmalloc(uae_u16 *, max_uae_height + 1);
+		row_map_genlock = xmalloc(uae_u8 *, max_uae_height + 1);
 	}
 
 	if (oldbufmem && oldbufmem == vb->bufmem &&
@@ -1189,7 +1184,7 @@ void init_row_map(void)
 	xfree(row_map_genlock_buffer);
 	row_map_genlock_buffer = NULL;
 	if (init_genlock_data) {
-		row_map_genlock_buffer = xcalloc(uae_u16, vb->width_allocated * (vb->height_allocated + 2));
+		row_map_genlock_buffer = xcalloc(uae_u8, vb->width_allocated * (vb->height_allocated + 2));
 	}
 	xfree(row_map_color_burst_buffer);
 	row_map_color_burst_buffer = NULL;
@@ -1210,7 +1205,7 @@ void init_row_map(void)
 	}
 	while (i < max_uae_height + 1) {
 		row_map[i] = row_tmp8;
-		row_map_genlock[i] = row_tmp16;
+		row_map_genlock[i] = row_tmp8g;
 		i++;
 	}
 	oldvb = vb;
@@ -1237,7 +1232,7 @@ static void center_image (void)
 
 	int w = vidinfo->inbuffer->inwidth;
 	int ew = vidinfo->inbuffer->extrawidth;
-	int maxdiw = denisehtotal;
+	int maxdiw = denisehtotal >> (RES_MAX - currprefs.gfx_resolution);
 
 	if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN && currprefs.gfx_xcenter && !fd->gfx_filter_autoscale && max_diwstop > 0) {
 
@@ -1246,7 +1241,7 @@ static void center_image (void)
 			visible_left_border = (max_diwstop - min_diwstart - w) / 2 + min_diwstart;
 		else
 			visible_left_border = max_diwstop - w - (max_diwstop - min_diwstart - w) / 2;
-		visible_left_border &= ~((xshift(1, lores_shift)) - 1);
+		visible_left_border &= ~((xshift(1, 0)) - 1);
 
 		if (!center_reset && !vertical_changed) {
 			/* Would the old value be good enough? If so, leave it as it is if we want to be clever. */
@@ -1277,24 +1272,28 @@ static void center_image (void)
 		}
 	}
 
-	if (visible_left_border > denisehtotal - 32)
-		visible_left_border = denisehtotal - 32;
-	//if (visible_left_border < 0)
+	if (visible_left_border > maxdiw - 32) {
+		visible_left_border = maxdiw - 32;
+	}
+	if (visible_left_border < 0) {
 		visible_left_border = 0;
-	visible_left_border &= ~((xshift (1, lores_shift)) - 1);
+	}
+	visible_left_border &= ~((xshift (1, 0)) - 1);
 
-	//write_log (_T("%d %d %d %d %d\n"), max_diwlastword, vidinfo->inbuffer->width, lores_shift, currprefs.gfx_resolution, visible_left_border);
+	//write_log (_T("%d %d %d %d\n"), max_diwlastword, vidinfo->inbuffer->width, currprefs.gfx_resolution, visible_left_border);
 
-	linetoscr_x_adjust_pixels = visible_left_border;
+	linetoscr_x_adjust_pixels = 0;// visible_left_border;
 	linetoscr_x_adjust_pixbytes = linetoscr_x_adjust_pixels * vidinfo->inbuffer->pixbytes;
 
 	visible_right_border = maxdiw + w + ((ew > 0 ? ew : 0) << currprefs.gfx_resolution);
-	if (visible_right_border > maxdiw + ((ew > 0 ? ew : 0) << currprefs.gfx_resolution))
+	if (visible_right_border > maxdiw + ((ew > 0 ? ew : 0) << currprefs.gfx_resolution)) {
 		visible_right_border = maxdiw + ((ew > 0 ? ew : 0) << currprefs.gfx_resolution);
+	}
 
 	int max_drawn_amiga_line_tmp = max_drawn_amiga_line;
-	if (max_drawn_amiga_line_tmp > vidinfo->inbuffer->inheight)
+	if (max_drawn_amiga_line_tmp > vidinfo->inbuffer->inheight) {
 		max_drawn_amiga_line_tmp = vidinfo->inbuffer->inheight;
+	}
 	max_drawn_amiga_line_tmp >>= linedbl;
 	
 	thisframe_y_adjust = minfirstline - 1;
@@ -1523,7 +1522,7 @@ static void init_drawing_frame(void)
 
 static int lightpen_y1[2], lightpen_y2[2];
 
-void putpixel(uae_u8 *buf, uae_u16 *genlockbuf, int x, xcolnr c8)
+void putpixel(uae_u8 *buf, uae_u8 *genlockbuf, int x, xcolnr c8)
 {
 	if (x <= 0)
 		return;
@@ -1635,7 +1634,7 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 		out = true;
 	}
 
-	int cx = (((lightpen_x[lpnum] + visible_left_border) >> lores_shift) >> 1) + 29;
+	int cx = ((lightpen_x[lpnum] + visible_left_border) >> 1) + 29;
 
 	int cy = lightpen_y[lpnum];
 	cy >>= linedbl;
@@ -2743,9 +2742,9 @@ STATIC_INLINE void get_shres_pix(uae_u8 p0, uae_u8 p1, uae_u32 *dpix0, uae_u32 *
 	v |= v >> 2;
 	*dpix1 = xcolors[v];
 }
-STATIC_INLINE void get_shres_pix_genlock(uae_u8 p0, uae_u8 p1, uae_u32 *dpix0, uae_u32 *dpix1, uae_u16 *gpix0, uae_u16 *gpix1)
+STATIC_INLINE void get_shres_pix_genlock(uae_u8 p0, uae_u8 p1, uae_u32 *dpix0, uae_u32 *dpix1, uae_u8 *gpix0, uae_u8 *gpix1)
 {
-	uae_u16 v;
+	uae_u8 v;
 	uae_u8 off = ((p1 & 3) * 4) + (p0 & 3) + ((p0 | p1) & 16);
 	v = (denise_colors.color_regs_ecs[off] & 0xccc) << 0;
 	v |= v >> 2;
@@ -3651,33 +3650,33 @@ static void expand_drga(struct denise_rga *rd)
 			denise_vsync = (rd->flags & DENISE_RGA_FLAG_VSYNC) != 0;
 			denise_hsync = (rd->flags & DENISE_RGA_FLAG_HSYNC) != 0;
 		}
-		if ((rd->flags & DENISE_RGA_FLAG_LOL)) {
+		if (rd->flags & DENISE_RGA_FLAG_LOL) {
 			agnus_lol = (rd->flags & DENISE_RGA_FLAG_LOL_ON) != 0;
 			if (no_denise_lol) {
 				agnus_lol = false;
 				denise_lol_shift_enable = false;
 				denise_lol_shift_prev = 0;
-				return;
-			}
-			if (!agnus_lol && (!denise_lol_shift_prev || denise_lol_shift_enable)) {
-				int add = 1 << hresolution;
-				buf1 += add;
-				buf2 += add;
-				buf_d += add;
-				if (gbuf) {
-					gbuf += add;
+			} else {
+				if (!agnus_lol && (!denise_lol_shift_prev || denise_lol_shift_enable)) {
+					int add = 1 << hresolution;
+					buf1 += add;
+					buf2 += add;
+					buf_d += add;
+					if (gbuf) {
+						gbuf += add;
+					}
+					denise_lol_shift_prev = add;
+					denise_lol_shift_enable = true;
+				} else if (agnus_lol && denise_lol_shift_prev > 0) {
+					buf1 -= denise_lol_shift_prev;
+					buf2 -= denise_lol_shift_prev;
+					buf_d -= denise_lol_shift_prev;
+					if (gbuf) {
+						gbuf -= denise_lol_shift_prev;
+					}
+					denise_lol_shift_prev = 0;
+					denise_lol_shift_enable = true;
 				}
-				denise_lol_shift_prev = add;
-				denise_lol_shift_enable = true;
-			} else if (agnus_lol && denise_lol_shift_prev > 0) {
-				buf1 -= denise_lol_shift_prev;
-				buf2 -= denise_lol_shift_prev;
-				buf_d -= denise_lol_shift_prev;
-				if (gbuf) {
-					gbuf -= denise_lol_shift_prev;
-				}
-				denise_lol_shift_prev = 0;
-				denise_lol_shift_enable = true;
 			}
 		}
 	}
@@ -4881,7 +4880,7 @@ void set_drawbuffer(void)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 
-	if (vidinfo->tempbuffer.bufmem && !drawing_can_lineoptimizations()) {
+	if (!drawing_can_lineoptimizations()) {
 		vidinfo->inbuffer = &vidinfo->tempbuffer;
 		struct vidbuffer *vb = &vidinfo->tempbuffer;
 		if (!vb->outwidth || !vb->outheight) {
@@ -5229,6 +5228,7 @@ static void get_line(int gfx_ypos, enum nln_how how)
 	buf2 = (uae_u32*)xlinebuffer2;
 	buf_d = debug_bufx;
 	gbuf = xlinebuffer_genlock;
+	gbuf_end = gbuf + vb->inwidth;
 
 	if (buf1) {
 		for (int i = 0; i < denise_lol_shift_prev; i++) {
@@ -5236,7 +5236,7 @@ static void get_line(int gfx_ypos, enum nln_how how)
 			*buf2++ = 0;
 			*buf_d++ = 0;
 			if (gbuf) {
-				*gbuf++ = 0xffff;
+				*gbuf++ = 0xff;
 			}
 		}
 	}
@@ -5356,7 +5356,7 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 		uae_u32 *buf1t = buf1;
 		uae_u32 *buf2t = buf2;
 		uae_u32 *bufdt = buf_d;
-		uae_u16 *bufg = gbuf;
+		uae_u8 *bufg = gbuf;
 
 		while (denise_cck < denise_total) {
 			lts();
@@ -5454,7 +5454,7 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 							}
 							memset(p1, 0, ww * sizeof(uae_u32));
 							if (bufg) {
-								uae_u16 *gp1 = (p1 - ptrs) + bufg;
+								uae_u8 *gp1 = (p1 - ptrs) + bufg;
 								memset(gp1, 0, ww * sizeof(uae_u16));
 							}
 						}
@@ -5462,7 +5462,7 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 						if (p1 < ptre && p1 - w >= ptrs) {
 							memset(p1 - ww, 0, w * sizeof(uae_u32));
 							if (bufg) {
-								uae_u16 *gp1 = (p1 - ptrs) + bufg;
+								uae_u8 *gp1 = (p1 - ptrs) + bufg;
 								memset(gp1 - ww, 0, w * sizeof(uae_u16));
 							}
 						}
@@ -5719,7 +5719,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 		// bitplanes
 		uae_u8 pix = 0;
 		uae_u32 dpix_val = BLANK_COLOR;
-		uae_u16 gpix = 0xffff;
+		uae_u8 gpix = 0xff;
 		if (!denise_blank_active) {
 			// borderblank ends 1 shres pixel early
 			dpix_val = cnt == denise_brdstop ? denise_colors.acolors[0] : bordercolor;
@@ -5939,7 +5939,7 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 		// bitplanes
 		uae_u32 dpix_val = BLANK_COLOR;
 		uae_u8 pix = 0;
-		uae_u16 gpix = 0xffff;
+		uae_u8 gpix = 0xff;
 		if (!denise_blank_active) {
 			gpix = 0;
 			// borderblank ends 1 shres pixel early
@@ -6632,6 +6632,7 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 
 	uae_u32 *buf1p = buf1;
 	uae_u32 *buf2p = buf2 != buf1 ? buf2 : NULL;
+	uae_u8 *gbufp = gbuf;
 
 	int rshift = RES_MAX - hresolution;
 
@@ -6658,11 +6659,13 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 	buf1 = buf1p;
 	buf2 = buf2p;
 
+
 	int start = draw_startoffset;
 	if (start < hbstop_offset) {
 		int diff = hbstop_offset - start;
 		buf1 += diff;
 		buf2 += diff;
+		gbufp += diff;
 		start = hbstop_offset;
 	}
 	int end = draw_end > hbstrt_offset ? hbstrt_offset : draw_end;
@@ -6711,6 +6714,16 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 			*buf1++ = bgcol;
 			total--;
 		}
+	}
+
+	total = end - start;
+	if (need_genlock_data && gbuf && total) {
+		int max = gbuf_end - gbufp;
+		total += 8;
+		if (total > max) {
+			total = max;
+		}
+		memset(gbufp, 0, total);
 	}
 
 }
@@ -6788,6 +6801,8 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	uae_u32 bgcol;
 	if (aga_mode) {
 		bgcol = brdblank ? 0x000000 : ls->color0;
+	} else if (res == 2) {
+		bgcol = brdblank ? 0x000000 : bordercolor_ecs_shres;
 	} else {
 		bgcol = brdblank ? 0x000000 : xcolors[ls->color0];
 	}
@@ -6914,6 +6929,16 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	
 	ltsf(draw_start, draw_end, draw_startoffset, hbstrt_offset, hbstop_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset,
 		planecnt, bgcol, cp, cp2, cpadd, cpadds, bufadd, ls);
+
+	// clear some more bytes to clear possible lightpen cursor graphics
+	if (need_genlock_data && gbuf) {
+		int max = gbuf_end - gbuf;
+		int total = 8;
+		if (total > max) {
+			total = max;
+		}
+		memset(gbuf, 0, total);
+	}
 
 #else
 

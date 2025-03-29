@@ -9137,7 +9137,13 @@ static void lts_ecs_fm0_n0_p2_ihires_dhires_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -9234,7 +9240,13 @@ static void lts_ecs_fm0_n1_p2_ihires_dhires_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -9336,7 +9348,13 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dhires_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -9435,7 +9453,13 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dhires_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -9551,7 +9575,13 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -9648,7 +9678,13 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -9750,7 +9786,13 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -9849,7 +9891,13 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dhires_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -16041,9 +16089,27 @@ static void lts_ecs_fm0_n0_p2_ihires_dshres_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
-						dpix_val2 = dpix_val0;
-						dpix_val3 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+					}
+				}
+				uae_u32 sv2 = sv0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+					}
+				}
+				uae_u32 sv3 = sv0;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -16168,9 +16234,27 @@ static void lts_ecs_fm0_n1_p2_ihires_dshres_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
-						dpix_val2 = dpix_val0;
-						dpix_val3 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+					}
+				}
+				uae_u32 sv2 = sv0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+					}
+				}
+				uae_u32 sv3 = sv0;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -16300,9 +16384,27 @@ static void lts_ecs_fm0_dpf0_p2_ihires_dshres_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
-						dpix_val2 = dpix_val0;
-						dpix_val3 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+					}
+				}
+				uae_u32 sv2 = sv0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+					}
+				}
+				uae_u32 sv3 = sv0;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -16429,9 +16531,27 @@ static void lts_ecs_fm0_dpf1_p2_ihires_dshres_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
-						dpix_val2 = dpix_val0;
-						dpix_val3 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+					}
+				}
+				uae_u32 sv2 = sv0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+					}
+				}
+				uae_u32 sv3 = sv0;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -16575,9 +16695,27 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
-						dpix_val2 = dpix_val0;
-						dpix_val3 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+					}
+				}
+				uae_u32 sv2 = sv0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+					}
+				}
+				uae_u32 sv3 = sv0;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -16702,9 +16840,27 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
-						dpix_val2 = dpix_val0;
-						dpix_val3 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+					}
+				}
+				uae_u32 sv2 = sv0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+					}
+				}
+				uae_u32 sv3 = sv0;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -16834,9 +16990,27 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
-						dpix_val2 = dpix_val0;
-						dpix_val3 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+					}
+				}
+				uae_u32 sv2 = sv0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+					}
+				}
+				uae_u32 sv3 = sv0;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
 					}
 				}
 				uae_u32 t0 = 0;
@@ -16963,9 +17137,27 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dshres_spr(void)
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
-						dpix_val1 = dpix_val0;
-						dpix_val2 = dpix_val0;
-						dpix_val3 = dpix_val0;
+					}
+				}
+				uae_u32 sv1 = sv0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+					}
+				}
+				uae_u32 sv2 = sv0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+					}
+				}
+				uae_u32 sv3 = sv0;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
 					}
 				}
 				uae_u32 t0 = 0;

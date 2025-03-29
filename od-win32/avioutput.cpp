@@ -134,7 +134,7 @@ static LPBITMAPINFOHEADER lpbi;
 static PCOMPVARS pcompvars;
 
 extern bool need_genlock_data;
-extern uae_u16 **row_map_genlock;
+extern uae_u8 **row_map_genlock;
 
 static bool usealpha(void)
 {

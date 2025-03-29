@@ -31,7 +31,7 @@ int screenshot_clipmode = 0;
 int screenshot_multi = 0;
 
 extern bool need_genlock_data;
-extern uae_u16 **row_map_genlock;
+extern uae_u8 **row_map_genlock;
 
 static bool usealpha(void)
 {
