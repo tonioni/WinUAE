@@ -7179,11 +7179,11 @@ const struct memoryboardtype memoryboards[]
 	},
 	{
 		_T("Supra"), _T("SupraRAM 500RX"),
-		2, 0, 1056, 10
+		2, 0, 1056, 9
 	},
 	{
 		_T("Supra"), _T("SupraRAM 2000"),
-		2, 0, 1056, 9
+		2, 0, 1056, 10
 	},
 	// z3
 	{
