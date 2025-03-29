@@ -30,18 +30,26 @@
 #include "gui.h"
 #include "cdtv.h"
 #include "akiko.h"
+#ifdef ARCADIA
 #include "arcadia.h"
+#endif
+#ifdef ENFORCER
 #include "enforcer.h"
+#endif
 #include "threaddep/thread.h"
 #include "gayle.h"
 #include "debug.h"
 #include "debugmem.h"
 #include "gfxboard.h"
 #include "cpuboard.h"
+#ifdef WITH_PPC
 #include "uae/ppc.h"
+#endif
 #include "devices.h"
 #include "inputdevice.h"
+#ifdef WITH_DRACO
 #include "draco.h"
+#endif
 
 bool canbang;
 uaecptr highest_ram;
@@ -1408,7 +1416,9 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr addr)
 					}
 					write_log (_T("\n"));
 				}
+#ifdef DEBUGGER
 				memory_map_dump();
+#endif
 			}
 			if (0 || (gary_toenb && (gary_nonrange(addr) || (size > 1 && gary_nonrange(addr + size - 1))))) {
 				hardware_exception2(addr, 0, true, true, size);
@@ -1785,10 +1795,12 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 
 	if (romextfile[0] == '\0')
 		return false;
+#ifdef ARCADIA
 	if (is_arcadia_rom (romextfile) == ARCADIA_BIOS) {
 		extendedkickmem_type = EXTENDED_ROM_ARCADIA;
 		return false;
 	}
+#endif
 	f = read_rom_name (romextfile, false);
 	if (!f) {
 		notify_user (NUMSG_NOEXTROM);
@@ -1797,11 +1809,13 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 	zfile_fseek (f, 0, SEEK_END);
 	size = zfile_ftell32(f);
 	extendedkickmem_bank.reserved_size = ROM_SIZE_512;
+#ifdef ARCADIA
 	struct romdata *rd = get_alg_rom(romextfile);
 	if (rd) {
 		size = rd->size;
 		type = EXTENDED_ROM_ALG;
 	}
+#endif
 	off = 0;
 	if (type == 0) {
 		if (currprefs.cs_cd32cd) {
@@ -2688,7 +2702,9 @@ static void allocate_memory (void)
 		if (a3000hmem_bank.allocated_size > 0)
 			restore_ram (a3000hmem_filepos, a3000hmem_bank.baseaddr);
 	} else {
+#ifdef ARCADIA
 		alg_flag = 0;
+#endif
 	}
 #ifdef AGA
 	chipmem_bank_ce2.baseaddr = chipmem_bank.baseaddr;
@@ -2811,7 +2827,7 @@ void map_overlay (int chip)
 
 	if (chip < 0)
 		chip = overlay_state;
-
+#ifdef WITH_DRACO
 	if (currprefs.cs_compatible == CP_CASABLANCA) {
 		casablanca_map_overlay();
 		return;
@@ -2819,7 +2835,7 @@ void map_overlay (int chip)
 		draco_map_overlay();
 		return;
 	}
-
+#endif
 	size = chipmem_bank.allocated_size >= 0x180000 ? (chipmem_bank.allocated_size >> 16) : 32;
 	if (bogomem_aliasing)
 		size = 8;
@@ -3263,8 +3279,10 @@ void memory_reset (void)
 		break;
 #endif
 	case EXTENDED_ROM_ALG:
+#ifdef ARCADIA
 		map_banks_set(&extendedkickmem_bank, 0xF0, 4, 0);
 		alg_map_banks();
+#endif
 		break;
 	}
 

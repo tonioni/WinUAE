@@ -46,8 +46,12 @@
 #include "gayle.h"
 #include "idecontrollers.h"
 #include "savestate.h"
+#ifdef A2091
 #include "a2091.h"
+#endif
+#ifdef NCR
 #include "ncr_scsi.h"
+#endif
 #include "cdtv.h"
 #include "sana2.h"
 #include "bsdsocket.h"

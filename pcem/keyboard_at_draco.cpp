@@ -197,7 +197,9 @@ static void kbc_at_dev_queue_add(void *d, uint8_t val, int state)
     if (keyboard_mode == 3) {
         //val = draco_kbc_translate(val);
     }
+#ifdef WITH_DRACO
     draco_kdb_queue_add(d, val, state);
+#endif
 }
 
 

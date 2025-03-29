@@ -100,7 +100,7 @@ int statfs ();
 # include <sys/mount.h>
 #endif
 
-#if HAVE_SYS_VFS_H
+#if HAVE_SYS_VFS_H and !defined(__MACH__)
 # include <sys/vfs.h>
 #endif
 
@@ -116,7 +116,7 @@ int statfs ();
 # include <fcntl.h>
 #endif
 
-#if HAVE_SYS_STATFS_H
+#if HAVE_SYS_STATFS_H and !defined(__MACH__)
 # include <sys/statfs.h>
 #endif
 

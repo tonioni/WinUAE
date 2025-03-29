@@ -47,10 +47,15 @@
 #include "enforcer.h"
 #endif
 #include "threaddep/thread.h"
+#ifdef WITH_LUA
 #include "luascript.h"
+#endif
+#include "crc32.h"
 #include "devices.h"
 #include "rommgr.h"
+#ifdef WITH_SPECIALMONITORS
 #include "specialmonitors.h"
+#endif
 
 
 #define VPOSW_DEBUG 0
@@ -6217,6 +6222,7 @@ void vsync_event_done(void)
 		events_reset_syncline();
 		return;
 	}
+#ifdef WITH_BEAMRACER
 	if (currprefs.gfx_display_sections <= 1) {
 		if (vsync_vblank >= 85)
 			linesync_beam_single_dual();
@@ -6230,6 +6236,7 @@ void vsync_event_done(void)
 		else
 			linesync_beam_multi_single();
 	}
+#endif
 }
 
 static void cia_hsync_do(void)
@@ -6341,7 +6348,7 @@ static void hsync_handler_post(bool onvsync)
 		maybe_process_pull_audio();
 
 	} else if (isvsync_chipset() < 0) {
-
+#ifdef WITH_BEAMRACER
 		if (currprefs.gfx_display_sections <= 1) {
 			if (vsync_vblank >= 85)
 				input_read_done = linesync_beam_single_dual();
@@ -6355,7 +6362,7 @@ static void hsync_handler_post(bool onvsync)
 			else
 				input_read_done = linesync_beam_multi_single();
 		}
-
+#endif
 	} else if (!currprefs.cpu_thread && !cpu_sleepmode && currprefs.m68k_speed < 0 && !currprefs.cpu_memory_cycle_exact) {
 
 		static int sleeps_remaining;
@@ -6602,7 +6609,9 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	target_reset();
 	devices_reset(hardreset);
 	write_log(_T("Reset at %08X. Chipset mask = %08X\n"), M68K_GETPC, currprefs.chipset_mask);
+#ifdef DEBUGGER
 	memory_map_dump();
+#endif
 
 	rga_slot_first_offset = 0;
 	rga_slot_in_offset = 1;
@@ -6838,8 +6847,9 @@ void custom_reset(bool hardreset, bool keyboardreset)
 			INTENA(0x8000 | 0x4000 | 0x1000 | 0x2000 | 0x0080 | 0x0010 | 0x0008 | 0x0001);
 		}
 	}
-
+#ifdef WITH_SPECIALMONITORS
 	specialmonitor_reset();
+#endif
 	update_mirrors();
 
 	unset_special(~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE | SPCFLAG_CHECK));
@@ -7137,7 +7147,7 @@ static uae_u32 REGPARAM2 custom_wget_1(int hpos, uaecptr addr, int noput, bool i
 #endif
 
 	default:
-writeonly:;
+writeonly:
 		/* OCS/ECS:
 		* reading write-only register causes write with last value in chip
 		* bus (custom registers, chipram, slowram)

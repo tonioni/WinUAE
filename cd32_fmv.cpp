@@ -26,6 +26,7 @@
 
 #include "cda_play.h"
 #include "archivers/mp2/kjmp2.h"
+
 #include "mpeg2.h"
 #include "mpeg2convert.h"
 
@@ -1590,3 +1591,4 @@ addrbank *cd32_fmv_init (struct autoconfig_info *aci)
 
 	return &fmv_rom_bank;
 }
+

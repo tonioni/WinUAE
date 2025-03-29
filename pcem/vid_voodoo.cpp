@@ -1085,7 +1085,9 @@ void *voodoo_card_init()
                 ai88[c].b = c & 0xff;
         }
 #ifndef NO_CODEGEN
+#if (defined WIN32 || defined WIN64)
         voodoo_codegen_init(voodoo);
+#endif
 #endif
 
         voodoo->disp_buffer = 0;
@@ -1203,7 +1205,9 @@ void *voodoo_2d3d_card_init(int type)
                 ai88[c].b = c & 0xff;
         }
 #ifndef NO_CODEGEN
+#if (defined WIN32 || defined WIN64)
         voodoo_codegen_init(voodoo);
+#endif
 #endif
 
         voodoo->disp_buffer = 0;
@@ -1318,7 +1322,9 @@ void voodoo_card_close(voodoo_t *voodoo)
                 free(voodoo->texture_cache[0][c].data);
         }
 #ifndef NO_CODEGEN
+#if (defined WIN32 || defined WIN64)
         voodoo_codegen_close(voodoo);
+#endif
 #endif
         if (voodoo->type < VOODOO_BANSHEE && voodoo->fb_mem)
         {

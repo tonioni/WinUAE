@@ -936,8 +936,10 @@ static void gfxboard_rethink(void)
 		if (gb->pcemdev && gb->pcemobject) {
 			int irq = 0;
 			if (gb->board->bustype == GFXBOARD_BUSTYPE_DRACO) {
+#ifdef WITH_DRACO
 				void draco_svga_irq(bool state);
 				draco_svga_irq(gb->gfxboard_intreq);
+#endif
 			} else if (gb->gfxboard_intena) {
 				bool intreq = gb->gfxboard_intreq;
 				if (gb->gfxboard_external_interrupt) {
@@ -6161,7 +6163,9 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 	if (boardnum == GFXBOARD_ID_ALTAIS_Z3) {
 
 		if ((addr & 0xffff) < 0x100) {
+#ifdef WITH_DRACO
 			draco_bustimeout(addr);
+#endif
 			return;
 		}
 		addr &= 0xffff;
@@ -6627,7 +6631,9 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 	if (boardnum == GFXBOARD_ID_ALTAIS_Z3) {
 
 		if ((addr & 0xffff) < 0x100) {
+#ifdef WITH_DRACO
 			draco_bustimeout(addr);
+#endif
 			return v;
 		}
 		addr &= 0xffff;

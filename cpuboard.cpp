@@ -29,7 +29,9 @@
 #include "debug.h"
 #include "flashrom.h"
 #include "uae.h"
+#ifdef WITH_PPC
 #include "uae/ppc.h"
+#endif
 #include "uae/vm.h"
 #include "idecontrollers.h"
 #include "scsi.h"
@@ -170,6 +172,7 @@ static bool blizzardmaprom_bank_mapped, blizzardmaprom2_bank_mapped;
 static bool cpuboard_non_byte_ea;
 static uae_u16 a2630_io;
 
+#ifdef WITH_PPC
 static bool ppc_irq_pending;
 
 static void set_ppc_interrupt(void)
@@ -241,6 +244,7 @@ bool ppc_interrupt(int new_m68k_ipl)
 
 	return m68kint;
 }
+#endif
 
 static bool mapromconfigured(void)
 {
@@ -401,7 +405,7 @@ static addrbank cpuboardmem2_bank = {
 	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
 
-
+#ifdef WITH_CPUBOARD
 DECLARE_MEMORY_FUNCTIONS(blizzardio);
 static addrbank blizzardio_bank = {
 	blizzardio_lget, blizzardio_wget, blizzardio_bget,
@@ -539,6 +543,7 @@ static void REGPARAM2 blizzardram_nojit_bput(uaecptr addr, uae_u32 b)
 	blizzardram_nojit_bank.baseaddr[addr] = b;
 }
 #endif
+#endif // WITH_CPUBOARD
 
 static void no_rom_protect(void)
 {
@@ -569,6 +574,7 @@ static void maprom_writeprotect(uae_u8 *addr, int size)
 		uae_vm_protect(addr, size, UAE_VM_READ);
 }
 
+#ifdef WITH_CPUBOARD
 MEMORY_BGET(blizzardmaprom2);
 MEMORY_WGET(blizzardmaprom2);
 MEMORY_LGET(blizzardmaprom2);
@@ -995,6 +1001,7 @@ static void csamagnum40_domaprom(void)
 		set_roms_modified();
 	}
 }
+#endif
 
 static const uae_u32 gvp_a530_maprom[7] =
 {
@@ -1057,19 +1064,27 @@ void cpuboard_rethink(void)
 			safe_interrupt_set(IRQ_SOURCE_CPUBOARD, 0, false);
 			if (currprefs.cachesize)
 				atomic_or(&uae_int_requested, 0x010000);
+#ifdef WITH_PPC
 			uae_ppc_wakeup_main();
+#endif
 		} else if (!(io_reg[CSIII_REG_IRQ] & (P5_IRQ_PPC_1 | P5_IRQ_PPC_2))) {
 			safe_interrupt_set(IRQ_SOURCE_CPUBOARD, 1, false);
 			if (currprefs.cachesize)
 				atomic_or(&uae_int_requested, 0x010000);
+#ifdef WITH_PPC
 			uae_ppc_wakeup_main();
+#endif
 		} else {
 			atomic_and(&uae_int_requested, ~0x010000);
 		}
+#ifdef WITH_PPC
 		check_ppc_int_lvl();
 		ppc_interrupt(intlev());
+#endif
 	}
 }
+
+#ifdef WITH_CPUBOARD
 
 static void blizzardppc_maprom(void)
 {
@@ -1554,14 +1569,18 @@ static void REGPARAM2 blizzardio_lput(uaecptr addr, uae_u32 v)
 	}
 }
 
+#endif //WITH_CPUBOARD
+
 static void cpuboard_hsync(void)
 {
 	// we should call check_ppc_int_lvl() immediately
 	// after PPC CPU's interrupt flag is cleared but this
 	// should be fast enough for now
+#ifdef WITH_PPC
 	if (is_csmk3(&currprefs) || is_blizzardppc(&currprefs)) {
 		check_ppc_int_lvl();
 	}
+#endif
 }
 
 static void cpuboard_vsync(void)
@@ -1579,7 +1598,7 @@ void cpuboard_map(void)
 		return;
 
 	bool fallback_cpu = currprefs.cpu_model < 68020;
-
+#ifdef WITH_CPUBOARD
 	if (is_magnum40(&currprefs)) {
 		map_banks(&blizzardio_bank, 0x0c0c0000 >> 16, 0x10000 >> 16, 0);
 	}
@@ -1728,6 +1747,7 @@ void cpuboard_map(void)
 	if (is_a1230s2(&currprefs)) {
 		map_banks(&blizzardio_bank, 0x03000000 >> 16, 1, 0);
 	}
+#endif //WITH_CPUBOARD
 }
 
 bool cpuboard_forced_hardreset(void)
@@ -1785,7 +1805,9 @@ void cpuboard_cleanup(void)
 	flashrom_file = NULL;
 
 //	if (blizzard_jit) {
+#ifdef WITH_CPUBOARD
 		mapped_free(&blizzardram_bank);
+#endif //WITH_CPUBOARD
 #if 0
 } else {
 		if (blizzardram_nojit_bank.baseaddr) {
@@ -1797,12 +1819,15 @@ void cpuboard_cleanup(void)
 		}
 	}
 #endif
+#ifdef WITH_CPUBOARD
 	if (blizzardmaprom_bank_mapped)
 		mapped_free(&blizzardmaprom_bank);
 	if (blizzardmaprom2_bank_mapped)
 		mapped_free(&blizzardmaprom2_bank);
+#endif //WITH_CPUBOARD
 	maprom_unwriteprotect();
 
+#ifdef WITH_CPUBOARD
 	blizzardram_bank.baseaddr = NULL;
 //	blizzardram_nojit_bank.baseaddr = NULL;
 	blizzardmaprom_bank.baseaddr = NULL;
@@ -1815,11 +1840,14 @@ void cpuboard_cleanup(void)
 
 	mapped_free(&blizzardea_bank);
 	blizzardea_bank.baseaddr = NULL;
+#endif //WITH_CPUBOARD
 
 	cpuboard_size = cpuboard2_size = -1;
 
+#ifdef WITH_CPUBOARD
 	blizzardmaprom_bank.flags &= ~(ABFLAG_INDIRECT | ABFLAG_NOALLOC);
 	blizzardmaprom2_bank.flags &= ~(ABFLAG_INDIRECT | ABFLAG_NOALLOC);
+#endif //WITH_CPUBOARD
 
 	mapped_free(&cpuboardmem1_bank);
 	mapped_free(&cpuboardmem2_bank);
@@ -1869,6 +1897,7 @@ static void cpuboard_init_2(void)
 	cpuboard_size = currprefs.cpuboardmem1.size;
 	cpuboardmem1_bank.reserved_size = 0;
 	cpuboardmem2_bank.reserved_size = 0;
+#ifdef WITH_CPUBOARD
 
 	if (is_kupke(&currprefs) || is_mtec_ematrix530(&currprefs) || is_sx32pro(&currprefs) || is_dce_typhoon2(&currprefs) || is_apollo630(&currprefs)) {
 		// plain 64k autoconfig, nothing else.
@@ -2185,6 +2214,7 @@ static void cpuboard_init_2(void)
 
 	}
 
+#endif //WITH_CPUBOARD
 
 	if (!cpuboardmem1_bank.baseaddr)
 		cpuboardmem1_bank.reserved_size = 0;
@@ -2207,8 +2237,10 @@ void cpuboard_init(void)
 void cpuboard_overlay_override(void)
 {
 	if (is_a2630(&currprefs) || is_harms_3kp(&currprefs)) {
+#ifdef WITH_CPUBOARD
 		if (!(a2630_io & 2))
 			map_banks(&blizzardf0_bank, 0xf80000 >> 16, f0rom_size >> 16, 0);
+#endif //WITH_CPUBOARD
 		if (mem25bit_bank.allocated_size)
 			map_banks(&chipmem_bank, (mem25bit_bank.start + mem25bit_bank.allocated_size) >> 16, (1024 * 1024) >> 16, 0);
 		else
@@ -2218,12 +2250,14 @@ void cpuboard_overlay_override(void)
 
 void cpuboard_clear(void)
 {
+#ifdef WITH_CPUBOARD
 	if (blizzardmaprom_bank.baseaddr)
 		memset(blizzardmaprom_bank.baseaddr, 0, 524288);
 	if (blizzardmaprom2_bank.baseaddr)
 		memset(blizzardmaprom2_bank.baseaddr, 0, 524288);
 	if (is_csmk3(&currprefs)) // SCSI RAM
 		memset(blizzardf0_bank.baseaddr + 0x40000, 0, 0x10000);
+#endif
 }
 
 // Adds resource resident that CSPPC/BPPC flash updater checks.
@@ -2277,6 +2311,7 @@ bool cpuboard_maprom(void)
 {
 	if (!currprefs.cpuboard_type || !cpuboard_size)
 		return false;
+#ifdef WITH_CPUBOARD
 	if (is_blizzard(&currprefs) || is_blizzardppc(&currprefs)) {
 		if (maprom_state)
 			blizzard_copymaprom();
@@ -2284,6 +2319,7 @@ bool cpuboard_maprom(void)
 		if (maprom_state)
 			cyberstorm_copymaprom();
 	}
+#endif
 	return true;
 }
 
@@ -2368,7 +2404,9 @@ bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write)
 				if (w & 2) {
 					if (currprefs.mmu_model == 68030) {
 						// HACK!
+#ifdef CPUEMU_22
 						mmu030_fake_prefetch = 0x4ed0;
+#endif
 					}
 					map_banks(&kickmem_bank, 0xF8, 8, 0);
 					write_log(_T("A2630 boot rom unmapped\n"));
@@ -2816,7 +2854,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 
 		write_log(_T("CPUBoard '%s' ROM '%s' %lld loaded\n"), boardname, zfile_getname(autoconfig_rom), zfile_size(autoconfig_rom));
 	}
-
+#ifdef WITH_CPUBOARD
 	uae_u8 *blizzardea_tmp = blizzardea_bank.baseaddr;
 	uae_u8 *blizzardf0_tmp = blizzardf0_bank.baseaddr;
 	if (!aci->doinit) {
@@ -2825,8 +2863,12 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	} else {
 		protect_roms(false);
 	}
+#else
+		protect_roms(false);
+#endif
 
 	cpuboard_non_byte_ea = true;
+#ifdef WITH_CPUBOARD
 
 	if (is_sx32pro(p)) {
 		earom_size = 65536;
@@ -3093,35 +3135,43 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		autoconfig_rom = NULL;
 	}
 
+#endif //WITH_CPUBOARD
 	if (autoconf_stop) {
 		aci->addrbank = &expamem_none;
 	} else if (!autoconf) {
 		aci->zorro = 0;
 	} else if (autoconfig_data[0]) {
+#ifdef WITH_CPUBOARD
 		aci->addrbank = &blizzarde8_bank;
 		memcpy(aci->autoconfig_bytes, autoconfig_data, sizeof aci->autoconfig_bytes);
 		aci->autoconfigp = aci->autoconfig_bytes;
+#endif
 		aci->zorro = 2;
 		aci->autoconfig_automatic = true;
 	} else {
+#ifdef WITH_CPUBOARD
 		aci->addrbank = &blizzarde8_bank;
 		memcpy(aci->autoconfig_raw, blizzardea_bank.baseaddr, sizeof aci->autoconfig_raw);
+#endif
 		aci->zorro = 2;
 	}
 
 	zfile_fclose(autoconfig_rom);
 
 	if (!aci->doinit) {
+#ifdef WITH_CPUBOARD
 		xfree(blizzardea_bank.baseaddr);
 		xfree(blizzardf0_bank.baseaddr);
 		blizzardea_bank.baseaddr = blizzardea_tmp;
 		blizzardf0_bank.baseaddr = blizzardf0_tmp;
+#endif
 		flash_free(flashrom);
 		flashrom = NULL;
 		return true;
 	} else {
 		protect_roms(true);
 	}
+#ifdef WITH_CPUBOARD
 
 	if (f0rom_size) {
 		if (is_a2630(p)) {
@@ -3145,6 +3195,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			map_banks(&blizzardf0_bank, 0xf00000 >> 16, (f0rom_size > 262144 ? 262144 : f0rom_size) >> 16, 0);
 		}
 	}
+#endif //WITH_CPUBOARD
 
 	device_add_vsync_pre(cpuboard_vsync);
 	device_add_hsync(cpuboard_hsync);

@@ -29,6 +29,8 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#ifdef WITH_X86
+
 #include "options.h"
 #include "custom.h"
 #include "memory.h"
@@ -4325,3 +4327,5 @@ void x86_initfloppy(X86_INTERRUPT_CALLBACK irq_callback)
 	xb->irq_callback = irq_callback;
 	floppy_hardreset();
 }
+
+#endif //WITH_X86

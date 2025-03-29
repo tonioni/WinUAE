@@ -33,14 +33,18 @@
 #include "gui.h"
 #include "xwin.h"
 #include "debug.h"
+#ifdef WITH_SNDBOARD
 #include "sndboard.h"
+#endif
 #ifdef AVIOUTPUT
 #include "avioutput.h"
 #endif
 #ifdef AHI
 #include "traps.h"
 #include "ahidsound.h"
+#ifdef AHI_v2
 #include "ahidsound_new.h"
+#endif
 #endif
 #include "threaddep/thread.h"
 
@@ -2029,7 +2033,9 @@ void audio_reset (void)
 
 #ifdef AHI
 	ahi_close_sound ();
+#ifdef AHI_v2
 	free_ahi_v2 ();
+#endif
 #endif
 	reset_sound ();
 	memset (sound_filter_state, 0, sizeof sound_filter_state);
@@ -2172,7 +2178,9 @@ void set_audio (void)
 
 	sound_cd_volume[0] = sound_cd_volume[1] = (100 - (currprefs.sound_volume_cd < 0 ? 0 : currprefs.sound_volume_cd)) * 32768 / 100;
 	sound_paula_volume[0] = sound_paula_volume[1] = (100 - currprefs.sound_volume_paula) * 32768 / 100;
+#ifdef WITH_SNDBOARD
 	sndboard_ext_volume();
+#endif
 
 	if (ch >= 0) {
 		if (currprefs.produce_sound >= 2) {

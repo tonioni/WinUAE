@@ -55,7 +55,9 @@ static uae_u32 cycleoffset;
 
 static uae_u32 pcs[16];
 static uae_u64 pcs2[16];
+#ifdef DEBUGGER
 extern void activate_debugger (void);
+#endif
 static int warned;
 
 static void setlasthsync (void)

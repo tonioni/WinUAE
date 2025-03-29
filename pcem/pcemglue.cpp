@@ -1,3 +1,5 @@
+#include "sysconfig.h"
+#include "sysdeps.h"
 
 #include "uae.h"
 #include "ibm.h"
@@ -16,13 +18,14 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#endif
+
+#ifdef WITH_MIDI
 #include "midi.h"
 #endif
 
 #include "pcemglue.h"
 
-#include "sysconfig.h"
-#include "sysdeps.h"
 #include "threaddep/thread.h"
 #include "machdep/maccess.h"
 #include "gfxboard.h"
@@ -91,8 +94,9 @@ void pclog(char const *format, ...)
 	write_log("%s", buf);
 	va_end(parms);
 }
-
+#ifdef DEBUGGER
 extern void activate_debugger(void);
+#endif
 void fatal(char const *format, ...)
 {
 	va_list parms;
@@ -101,7 +105,9 @@ void fatal(char const *format, ...)
 	vsprintf(buf, format, parms);
 	write_log("PCEMFATAL: %s", buf);
 	va_end(parms);
+#ifdef DEBUGGER
 	activate_debugger();
+#endif
 }
 
 void video_updatetiming(void)
@@ -349,16 +355,20 @@ static int midi_open;
 
 void midi_write(uint8_t v)
 {
+#ifdef WITH_MIDI
 	if (!midi_open) {
 		midi_open = Midi_Open();
 	}
 	Midi_Parse(midi_output, &v);
+#endif
 }
 
 void pcem_close(void)
 {
+#ifdef WITH_MIDI
 	if (midi_open)
 		Midi_Close();
+#endif
 	midi_open = 0;
 }
 

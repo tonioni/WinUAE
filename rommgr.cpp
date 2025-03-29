@@ -2432,11 +2432,13 @@ int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 		_stprintf(p->flashfile + _tcslen(p->flashfile), _T("%s.nvr"), rd->name);
 		clean_path(p->flashfile);
 	}
+#ifdef ARCADIA
 	if (rd->type & ROMTYPE_ALG) {
 		fetch_videopath(p->genlock_video_file, sizeof(p->genlock_video_file) / sizeof(TCHAR));
 		_stprintf(p->genlock_video_file + _tcslen(p->genlock_video_file), _T("%s.avi"), rd->name);
 		clean_path(p->genlock_video_file);
 	}
+#endif
 	return 1;
 }
 

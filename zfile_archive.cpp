@@ -529,7 +529,11 @@ static ISzAlloc allocTempImp;
 static SRes SzFileReadImp (void *object, void *buffer, size_t *size)
 {
 	CFileInStream *s = (CFileInStream *)object;
+#ifdef _WIN32
 	struct zfile *zf = (struct zfile*)s->file.myhandle;
+#else
+	struct zfile *zf = (struct zfile*)s->file.file;
+#endif
 	*size = zfile_fread (buffer, 1, *size, zf);
 	return SZ_OK;
 }
@@ -537,7 +541,11 @@ static SRes SzFileReadImp (void *object, void *buffer, size_t *size)
 static SRes SzFileSeekImp(void *object, Int64 *pos, ESzSeek origin)
 {
 	CFileInStream *s = (CFileInStream *)object;
+#ifdef _WIN32
 	struct zfile *zf = (struct zfile*)s->file.myhandle;
+#else
+	struct zfile *zf =(struct zfile*) s->file.file;
+#endif
 	int org = 0;
 	switch (origin)
 	{
@@ -598,7 +606,11 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 	ctx->blockIndex = 0xffffffff;
 	ctx->archiveStream.s.Read = SzFileReadImp;
 	ctx->archiveStream.s.Seek = SzFileSeekImp;
+#ifdef _WIN32
 	ctx->archiveStream.file.myhandle = (void*)z;
+#else
+	ctx->archiveStream.file.file = (FILE*)z;
+#endif
 	LookToRead_CreateVTable (&ctx->lookStream, False);
 	ctx->lookStream.realStream = &ctx->archiveStream.s;
 	LookToRead_Init (&ctx->lookStream);

@@ -72,6 +72,16 @@ static int g_max_handle = -1;
 #ifndef OS_NAME
 #define OS_NAME _T("windows")
 #endif
+#else
+#ifdef __MACH__
+#ifndef OS_NAME
+#define OS_NAME _T("macos")
+#endif
+#else
+#ifndef OS_NAME
+#define OS_NAME _T("linux")
+#endif
+#endif
 #endif
 
 #if defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64)
@@ -80,6 +90,8 @@ static int g_max_handle = -1;
     #define ARCH_NAME _T("x86")
 #elif defined(__ppc__)
     #define ARCH_NAME _T("ppc")
+#elif defined(__arm__)
+	#define ARCH_NAME _T("arm")
 #else
     #define ARCH_NAME _T("unknown")
 #endif

@@ -6,7 +6,9 @@
 #define LSB_FIRST
 
 extern void write_log(const char *, ...);
+#ifdef DEBUGGER
 extern void activate_debugger(void);
+#endif
 
 #define MIN(a, b) ((a) > (b) ? (a) : (b))
 
@@ -44,7 +46,9 @@ inline UINT64 mulu_32x32(UINT32 a, UINT32 b)
 	return (UINT64)a * (UINT64)b;
 }
 
+#ifndef NULL
 #define NULL 0
+#endif
 
 class direct_read_data
 {

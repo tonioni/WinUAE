@@ -35,11 +35,15 @@
 #include "calc.h"
 #include "gfxboard.h"
 #include "cpuboard.h"
+#ifdef WITH_LUA
 #include "luascript.h"
+#endif
 #include "ethernet.h"
 #include "native2amiga_api.h"
 #include "ini.h"
+#ifdef WITH_SPECIALMONITORS
 #include "specialmonitors.h"
+#endif
 
 #define cfgfile_warning write_log
 #define cfgfile_warning_obsolete write_log
@@ -2161,11 +2165,13 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		}
 	}
 
+#ifdef WITH_LUA
 	for (i = 0; i < MAX_LUA_STATES; i++) {
 		if (p->luafiles[i][0]) {
 			cfgfile_write_path2(f, _T("lua"), p->luafiles[i], PATH_NONE);
 		}
 	}
+#endif
 
 	if (p->trainerfile[0])
 		cfgfile_write_path2(f, _T("trainerfile"), p->trainerfile, PATH_NONE);
@@ -2618,9 +2624,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		}
 		cfgfile_dwrite_str(f, _T("genlock_effects"), tmp);
 	}
-
-
+#ifdef WITH_SPECIALMONITORS
 	cfgfile_dwrite_strarr(f, _T("monitoremu"), specialmonitorconfignames, p->monitoremu);
+#endif
 	cfgfile_dwrite(f, _T("monitoremu_monitor"), _T("%d"), p->monitoremu_mon);
 	cfgfile_dwrite_coords(f, _T("lightpen_offset"), p->lightpen_offset[0], p->lightpen_offset[1]);
 	cfgfile_dwrite_bool(f, _T("lightpen_crosshair"), p->lightpen_crosshair);
@@ -2827,8 +2833,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		}
 		cfgfile_writeramboard(p, f, _T("fastmem"), i, &p->fastmem[i]);
 	}
+#ifdef DEBUGGER
 	cfgfile_write(f, _T("debugmem_start"), _T("0x%x"), p->debugmem_start);
 	cfgfile_write(f, _T("debugmem_size"), _T("%d"), p->debugmem_size / 0x100000);
+#endif
 	cfgfile_write(f, _T("mem25bit_size"), _T("%d"), p->mem25bit.size / 0x100000);
 	cfgfile_writeramboard(p, f, _T("mem25bit"), 0, &p->mem25bit);
 	cfgfile_write(f, _T("a3000mem_size"), _T("%d"), p->mbresmem_low.size / 0x100000);
@@ -3609,6 +3617,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		}
 	}
 
+#ifdef WITH_LUA
 	if (!_tcsicmp (option, _T("lua"))) {
 		for (i = 0; i < MAX_LUA_STATES; i++) {
 			if (!p->luafiles[i][0]) {
@@ -3618,7 +3627,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		}
 		return 1;
 	}
-		
+#endif
+
 	if (cfgfile_strval (option, value, _T("gfx_autoresolution_min_vertical"), &p->gfx_autoresolution_minv, vertmode, 0)) {
 		p->gfx_autoresolution_minv--;
 		return 1;
@@ -3794,8 +3804,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}	
 
+#ifdef DEBUGGER
 	if (cfgfile_multichoice(option, value, _T("debugging_features"), &p->debugging_features, debugfeatures))
 		return 1;
+#endif
 
 	if (cfgfile_yesno(option, value, _T("gfx_api_hdr"), &vb)) {
 		if (vb && p->gfx_api == 2) {
@@ -6049,7 +6061,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strval(option, value, _T("comp_trustnaddr"), &p->comptrustnaddr, compmode, 0)
 		|| cfgfile_strval(option, value, _T("collision_level"), &p->collision_level, collmode, 0)
 		|| cfgfile_strval(option, value, _T("parallel_matrix_emulation"), &p->parallel_matrix_emulation, epsonprinter, 0)
+#ifdef WITH_SPECIALMONITORS
 		|| cfgfile_strval(option, value, _T("monitoremu"), &p->monitoremu, specialmonitorconfignames, 0)
+#endif
 		|| cfgfile_strval(option, value, _T("genlockmode"), &p->genlock_image, genlockmodes, 0)
 		|| cfgfile_strval(option, value, _T("waiting_blits"), &p->waiting_blits, waitblits, 0)
 		|| cfgfile_strval(option, value, _T("floppy_auto_extended_adf"), &p->floppy_auto_ext2, autoext2, 0)
@@ -7687,7 +7701,9 @@ int parse_cmdline_option (struct uae_prefs *p, TCHAR c, const TCHAR *arg)
 
 		/* case 'g': p->use_gfxlib = 1; break; */
 	case 'G': p->start_gui = 0; break;
+#ifdef DEBUGGER
 	case 'D': p->start_debugger = 1; break;
+#endif
 
 	case 'n':
 		if (_tcschr (arg, 'i') != 0)
@@ -8042,9 +8058,13 @@ static int execcmdline(struct uae_prefs *prefs, int argv, TCHAR **argc, TCHAR *o
 						}
 					}
 					filesys_shellexecute2(cmd, NULL, NULL, 0, 0, 0, flags, NULL, 0, shellexec_cb, NULL);
-				} else if (!_tcsicmp(argc[i], _T("dbg"))) {
+				} 
+#ifdef DEBUGGER
+		else if (!_tcsicmp(argc[i], _T("dbg"))) {
 					debug_parser(argc[i + 1], out, outsize);
-				} else if (!inputdevice_uaelib(argc[i], argc[i + 1])) {
+				}
+#endif
+				else if (!inputdevice_uaelib(argc[i], argc[i + 1])) {
 					if (!cfgfile_parse_uaelib_option(prefs, argc[i], argc[i + 1], 0)) {
 						if (!cfgfile_parse_option(prefs, argc[i], argc[i + 1], 0)) {
 							ret = 5;
@@ -8604,11 +8624,11 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	_tcscpy (p->floppyslots[1].df, _T("df1.adf"));
 	_tcscpy (p->floppyslots[2].df, _T("df2.adf"));
 	_tcscpy (p->floppyslots[3].df, _T("df3.adf"));
-
+#ifdef WITH_LUA
 	for (int i = 0; i < MAX_LUA_STATES; i++) {
 		p->luafiles[i][0] = 0;
 	}
-
+#endif
 	configure_rom (p, roms, 0);
 	_tcscpy (p->romextfile, _T(""));
 	_tcscpy (p->romextfile2, _T(""));
@@ -8938,6 +8958,8 @@ static void set_68020_compa (struct uae_prefs *p, int compa, int cd32)
 		p->address_space_24 = 0;
 #ifdef JIT
 		p->cachesize = MAX_JIT_CACHE;
+#else
+		p->cachesize = 0;
 #endif
 		break;
 	}
@@ -8991,7 +9013,11 @@ static int bip_a3000 (struct uae_prefs *p, int config, int compa, int romcheck)
 		p->mmu_model = 68030;
 	} else {
 #ifdef JIT
+		p->mmu_model = 0;
 		p->cachesize = MAX_JIT_CACHE;
+#else
+		p->mmu_model = 0;
+		p->cachesize = 0;
 #endif
 	}
 	p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
@@ -9023,6 +9049,7 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->mbresmem_low.size = 8 * 1024 * 1024;
 	p->cpu_model = 68030;
 	p->fpu_model = 68882;
+	p->mmu_model = 0;
 	switch (config)
 	{
 		case 1:
@@ -9032,11 +9059,13 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 		case 2:
 		p->cpu_model = 68060;
 		p->fpu_model = 68060;
+#ifdef WITH_PPC
 		p->ppc_mode = 1;
 		cpuboard_setboard(p, BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_PPC);
 		p->cpuboardmem1.size = 128 * 1024 * 1024;
 		int roms_ppc[] = { 98, -1 };
 		configure_rom(p, roms_ppc, romcheck);
+#endif
 		break;
 	}
 	p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
@@ -9046,6 +9075,8 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->produce_sound = 2;
 #ifdef JIT
 	p->cachesize = MAX_JIT_CACHE;
+#else
+	p->cachesize = 0;
 #endif
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
@@ -9070,6 +9101,7 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->mbresmem_low.size = 8 * 1024 * 1024;
 	p->cpu_model = 68030;
 	p->fpu_model = 68882;
+	p->mmu_model = 0;
 	if (config > 0) {
 		p->cpu_model = 68040;
 		p->fpu_model = 68040;
@@ -9081,6 +9113,8 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->produce_sound = 2;
 #ifdef JIT
 	p->cachesize = MAX_JIT_CACHE;
+#else
+	p->cachesize = 0;
 #endif
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
@@ -9093,6 +9127,7 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 
 static void bip_velvet(struct uae_prefs *p, int config, int compa, int romcheck)
 {
+	p->mmu_model = 0;
 	p->chipset_mask = CSMASK_A1000;
 	p->bogomem.size = 0;
 	p->sound_filter = FILTER_SOUND_ON;
@@ -9113,6 +9148,7 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 
 	roms[0] = 24;
 	roms[1] = -1;
+	p->mmu_model = 0;
 	p->chipset_mask = CSMASK_A1000;
 	p->bogomem.size = 0;
 	p->sound_filter = FILTER_SOUND_ON;
@@ -9138,6 +9174,7 @@ static int bip_cdtvcr (struct uae_prefs *p, int config, int compa, int romcheck)
 {
 	int roms[4];
 
+	p->mmu_model = 0;
 	p->bogomem.size = 0;
 	p->chipmem.size = 0x100000;
 	p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
@@ -9174,6 +9211,7 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 	if (config >= 2)
 		return bip_cdtvcr(p, config - 2, compa, romcheck);
 
+	p->mmu_model = 0;
 	p->bogomem.size = 0;
 	p->chipmem.size = 0x100000;
 	p->chipset_mask = CSMASK_ECS_AGNUS;
@@ -9216,6 +9254,7 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->floppyslots[0].dfxtype = DRV_NONE;
 	p->floppyslots[1].dfxtype = DRV_NONE;
 	p->cs_unmapped_space = 1;
+	p->mmu_model = 0;
 	set_68020_compa (p, compa, 1);
 	p->cs_compatible = CP_CD32;
 	built_in_chipset_prefs (p);
@@ -9260,54 +9299,65 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 	roms_bliz[0] = -1;
 	roms_bliz[1] = -1;
 	p->cs_rtc = 0;
+	p->mmu_model = 0;
 	p->cs_compatible = CP_A1200;
 	built_in_chipset_prefs (p);
-	switch (config)
-	{
-		case 1:
-		p->fastmem[0].size = 0x400000;
-		p->cs_rtc = 1;
-		break;
-		case 2:
-		cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1230IV);
-		p->cpuboardmem1.size = 32 * 1024 * 1024;
-		p->cpu_model = 68030;
-		p->cs_rtc = 1;
-		roms_bliz[0] = 89;
-		configure_rom(p, roms_bliz, romcheck);
-		break;
-		case 3:
-		cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1260);
-		p->cpuboardmem1.size = 32 * 1024 * 1024;
-		p->cpu_model = 68040;
-		p->fpu_model = 68040;
-		p->cs_rtc = 1;
-		roms_bliz[0] = 90;
-		configure_rom(p, roms_bliz, romcheck);
-		break;
-		case 4:
-		cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1260);
-		p->cpuboardmem1.size = 32 * 1024 * 1024;
-		p->cpu_model = 68060;
-		p->fpu_model = 68060;
-		p->cs_rtc = 1;
-		roms_bliz[0] = 90;
-		configure_rom(p, roms_bliz, romcheck);
-		break;
-		case 5:
-		cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_PPC);
-		p->cpuboardmem1.size = 256 * 1024 * 1024;
-		p->cpu_model = 68060;
-		p->fpu_model = 68060;
-		p->ppc_mode = 1;
-		p->cs_rtc = 1;
-		roms[0] = 15;
-		roms[1] = 11;
-		roms[2] = -1;
-		roms_bliz[0] = 100;
-		configure_rom(p, roms_bliz, romcheck);
-		break;
-	}
+    switch (config)
+    {
+        case 1:
+            p->fastmem[0].size = 0x400000;
+            p->cs_rtc = 1;
+            break;
+#ifdef WITH_CPUBOARD
+        case 2:
+            cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1230IV);
+            p->cpuboardmem1.size = 32 * 1024 * 1024;
+            p->cpu_model = 68030;
+            p->cs_rtc = 1;
+            roms_bliz[0] = 89;
+            configure_rom(p, roms_bliz, romcheck);
+            break;
+        case 3:
+            cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1260);
+            p->cpuboardmem1.size = 32 * 1024 * 1024;
+            p->cpu_model = 68040;
+            p->fpu_model = 68040;
+            p->cs_rtc = 1;
+            roms_bliz[0] = 90;
+            configure_rom(p, roms_bliz, romcheck);
+            break;
+        case 4:
+            cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1260);
+            p->cpuboardmem1.size = 32 * 1024 * 1024;
+            p->cpu_model = 68060;
+            p->fpu_model = 68060;
+            p->cs_rtc = 1;
+            roms_bliz[0] = 90;
+            configure_rom(p, roms_bliz, romcheck);
+            break;
+#ifdef WITH_PPC
+        case 5:
+            cpuboard_setboard(p, BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_PPC);
+            p->cpuboardmem1.size = 256 * 1024 * 1024;
+            p->cpu_model = 68060;
+            p->fpu_model = 68060;
+            p->ppc_mode = 1;
+            p->cs_rtc = 1;
+            roms[0] = 15;
+            roms[1] = 11;
+            roms[2] = -1;
+            roms_bliz[0] = 100;
+            configure_rom(p, roms_bliz, romcheck);
+            break;
+#endif
+#else
+        case 2:
+            p->fastmem[0].size = 0x800000;
+            p->cs_rtc = 1;
+            break;
+#endif
+	default: break;
+    }
 	set_68020_compa (p, compa, 0);
 	return configure_rom (p, roms, romcheck);
 }
@@ -9324,6 +9374,7 @@ static int bip_a600 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->cs_compatible = CP_A600;
 	p->bogomem.size = 0;
 	p->chipmem.size = 0x100000;
+	p->mmu_model = 0;
 	if (config > 0)
 		p->cs_rtc = 1;
 	if (config == 1)
@@ -9429,6 +9480,8 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->produce_sound = 2;
 #ifdef JIT
 	p->cachesize = MAX_JIT_CACHE;
+#else
+	p->cachesize = 0;
 #endif
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
