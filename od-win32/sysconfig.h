@@ -153,10 +153,10 @@
 // Special Monitors support
 #define WITH_SPECIALMONITORS
 
-//#define VIDEOGRAB 1
+#define VIDEOGRAB 1
 
 // Beam racing support
-//#define WITH_BEAMRACER
+#define WITH_BEAMRACER
 
 #define A_ZIP
 #define A_RAR

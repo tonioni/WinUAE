@@ -3171,6 +3171,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	} else {
 		protect_roms(true);
 	}
+#ifdef WITH_CPUBOARD
 
 	if (f0rom_size) {
 		if (is_a2630(p)) {

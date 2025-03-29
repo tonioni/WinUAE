@@ -27,16 +27,8 @@
 #include "cda_play.h"
 #include "archivers/mp2/kjmp2.h"
 
-#ifdef USE_LIBMPEG2
-#if (!defined _WIN32 && !defined ANDROID)
-extern "C" {
-#include "mpeg2dec/mpeg2.h"
-#include "mpeg2dec/mpeg2convert.h"
-}
-#else
 #include "mpeg2.h"
 #include "mpeg2convert.h"
-#endif
 
 #define FMV_DEBUG 0
 static int fmv_audio_debug = 0;
@@ -1599,3 +1591,4 @@ addrbank *cd32_fmv_init (struct autoconfig_info *aci)
 
 	return &fmv_rom_bank;
 }
+

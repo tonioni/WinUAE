@@ -1,3 +1,5 @@
+#include "sysconfig.h"
+#include "sysdeps.h"
 
 #include "uae.h"
 #include "ibm.h"
@@ -24,8 +26,6 @@
 
 #include "pcemglue.h"
 
-#include "sysconfig.h"
-#include "sysdeps.h"
 #include "threaddep/thread.h"
 #include "machdep/maccess.h"
 #include "gfxboard.h"

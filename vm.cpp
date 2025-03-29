@@ -25,7 +25,7 @@
 #endif
 
 //#if defined(LINUX) && defined(CPU_x86_64)
-#if defined(CPU_x86_64) && !defined(__APPLE__)
+#if defined(CPU_x86_64) && !defined(__APPLE__) && !defined(_WIN32)
 #define HAVE_MAP_32BIT 1
 #endif
 
