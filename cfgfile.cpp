@@ -8958,8 +8958,6 @@ static void set_68020_compa (struct uae_prefs *p, int compa, int cd32)
 		p->address_space_24 = 0;
 #ifdef JIT
 		p->cachesize = MAX_JIT_CACHE;
-#else
-		p->cachesize = 0;
 #endif
 		break;
 	}
@@ -9013,11 +9011,7 @@ static int bip_a3000 (struct uae_prefs *p, int config, int compa, int romcheck)
 		p->mmu_model = 68030;
 	} else {
 #ifdef JIT
-		p->mmu_model = 0;
 		p->cachesize = MAX_JIT_CACHE;
-#else
-		p->mmu_model = 0;
-		p->cachesize = 0;
 #endif
 	}
 	p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
@@ -9049,7 +9043,6 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->mbresmem_low.size = 8 * 1024 * 1024;
 	p->cpu_model = 68030;
 	p->fpu_model = 68882;
-	p->mmu_model = 0;
 	switch (config)
 	{
 		case 1:
@@ -9075,8 +9068,6 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->produce_sound = 2;
 #ifdef JIT
 	p->cachesize = MAX_JIT_CACHE;
-#else
-	p->cachesize = 0;
 #endif
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
@@ -9101,7 +9092,6 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->mbresmem_low.size = 8 * 1024 * 1024;
 	p->cpu_model = 68030;
 	p->fpu_model = 68882;
-	p->mmu_model = 0;
 	if (config > 0) {
 		p->cpu_model = 68040;
 		p->fpu_model = 68040;
@@ -9113,8 +9103,6 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->produce_sound = 2;
 #ifdef JIT
 	p->cachesize = MAX_JIT_CACHE;
-#else
-	p->cachesize = 0;
 #endif
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
@@ -9127,7 +9115,6 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 
 static void bip_velvet(struct uae_prefs *p, int config, int compa, int romcheck)
 {
-	p->mmu_model = 0;
 	p->chipset_mask = CSMASK_A1000;
 	p->bogomem.size = 0;
 	p->sound_filter = FILTER_SOUND_ON;
@@ -9148,7 +9135,6 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 
 	roms[0] = 24;
 	roms[1] = -1;
-	p->mmu_model = 0;
 	p->chipset_mask = CSMASK_A1000;
 	p->bogomem.size = 0;
 	p->sound_filter = FILTER_SOUND_ON;
@@ -9174,7 +9160,6 @@ static int bip_cdtvcr (struct uae_prefs *p, int config, int compa, int romcheck)
 {
 	int roms[4];
 
-	p->mmu_model = 0;
 	p->bogomem.size = 0;
 	p->chipmem.size = 0x100000;
 	p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
@@ -9211,7 +9196,6 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 	if (config >= 2)
 		return bip_cdtvcr(p, config - 2, compa, romcheck);
 
-	p->mmu_model = 0;
 	p->bogomem.size = 0;
 	p->chipmem.size = 0x100000;
 	p->chipset_mask = CSMASK_ECS_AGNUS;
@@ -9254,7 +9238,6 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->floppyslots[0].dfxtype = DRV_NONE;
 	p->floppyslots[1].dfxtype = DRV_NONE;
 	p->cs_unmapped_space = 1;
-	p->mmu_model = 0;
 	set_68020_compa (p, compa, 1);
 	p->cs_compatible = CP_CD32;
 	built_in_chipset_prefs (p);
@@ -9299,7 +9282,6 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 	roms_bliz[0] = -1;
 	roms_bliz[1] = -1;
 	p->cs_rtc = 0;
-	p->mmu_model = 0;
 	p->cs_compatible = CP_A1200;
 	built_in_chipset_prefs (p);
     switch (config)
@@ -9374,7 +9356,6 @@ static int bip_a600 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->cs_compatible = CP_A600;
 	p->bogomem.size = 0;
 	p->chipmem.size = 0x100000;
-	p->mmu_model = 0;
 	if (config > 0)
 		p->cs_rtc = 1;
 	if (config == 1)
@@ -9480,8 +9461,6 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->produce_sound = 2;
 #ifdef JIT
 	p->cachesize = MAX_JIT_CACHE;
-#else
-	p->cachesize = 0;
 #endif
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
