@@ -20,6 +20,7 @@ static TCHAR disasm_areg, disasm_dreg, disasm_byte, disasm_word, disasm_long;
 static TCHAR disasm_pcreg[3], disasm_fpreg[3];
 static bool absshort_long = false;
 
+#ifdef DEBUGGER
 void disasm_init(void)
 {
 	_tcscpy(disasm_pcreg, _T("PC"));
@@ -204,7 +205,7 @@ static void showea_val(TCHAR *buffer, uae_u16 opcode, uaecptr addr, int size)
 	struct instr *table = &table68k[opcode];
 
 #ifndef CPU_TESTER
-#if UAE
+#ifdef UAE
 	if (addr >= 0xe90000 && addr < 0xf00000)
 		goto skip;
 	if (addr >= 0xdff000 && addr < 0xe00000)
@@ -2560,3 +2561,4 @@ void sm68k_disasm (TCHAR *instrname, TCHAR *instrcode, uaecptr addr, uaecptr *ne
 	if (nextpc)
 		*nextpc = pc;
 }
+#endif

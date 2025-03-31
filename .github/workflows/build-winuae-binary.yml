@@ -1,0 +1,108 @@
+name: Build WinUAE binary
+
+on:
+  workflow_dispatch:
+  push:
+    branches: 
+      - master
+  pull_request:
+    branches:
+      - master
+      
+env:
+  SOLUTION_FILE_PATH: od-win32\\winuae_msvc15
+
+jobs:
+  Build-WinUAE-32bit-binary:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2.0.0
+
+    # Running roughly step 4 of README.md
+    - name: Download WinUAE includes and libs
+      shell: powershell
+      run: Invoke-WebRequest -Uri "https://download.abime.net/winuae/files/b/winuaeinclibs.zip" -OutFile "winuaeinclibs.zip"
+
+    - name: Unpack WinUAE includes and libs to C:\\dev
+      uses: ihiroky/extract-action@v1
+      with:
+        file_path: winuaeinclibs.zip
+        extract_dir: C:\\dev
+
+    # Running roughly step 6 of README.md
+    - name: Download AROS ROM cpp
+      shell: powershell
+      run: Invoke-WebRequest -Uri "https://download.abime.net/winuae/files/b/aros.rom.cpp.zip" -OutFile "aros.rom.cpp.zip"
+
+    - name: Unpack AROS ROM cpp
+      uses: ihiroky/extract-action@v1
+      with:
+        file_path: aros.rom.cpp.zip
+        extract_dir: .
+
+    # Running roughly step 7 of README.md
+    - name: Add NASM to PATH
+      uses: ilammy/setup-nasm@v1.5.1
+
+    # Running roughly step 12 of README.md
+    - name: Build Win32 FullRelease
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: msbuild /m /p:Platform=Win32 /p:Configuration=FullRelease ${{env.SOLUTION_FILE_PATH}}
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: WinUAE 32-bit
+        path: D:\\Amiga
+
+  Build-WinUAE-64bit-binary:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2.0.0
+
+    # Running roughly step 4 of README.md
+    - name: Download WinUAE includes and libs
+      shell: powershell
+      run: Invoke-WebRequest -Uri "https://download.abime.net/winuae/files/b/winuaeinclibs.zip" -OutFile "winuaeinclibs.zip"
+
+    - name: Unpack WinUAE includes and libs to C:\\dev
+      uses: ihiroky/extract-action@v1
+      with:
+        file_path: winuaeinclibs.zip
+        extract_dir: C:\\dev
+
+    # Running roughly step 6 of README.md
+    - name: Download AROS ROM cpp
+      shell: powershell
+      run: Invoke-WebRequest -Uri "https://download.abime.net/winuae/files/b/aros.rom.cpp.zip" -OutFile "aros.rom.cpp.zip"
+
+    - name: Unpack AROS ROM cpp
+      uses: ihiroky/extract-action@v1
+      with:
+        file_path: aros.rom.cpp.zip
+        extract_dir: .
+
+    # Running roughly step 7 of README.md
+    - name: Add NASM to PATH
+      uses: ilammy/setup-nasm@v1.5.1
+
+    # Running roughly step 12 of README.md
+    - name: Build x64 FullRelease
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: msbuild /m /p:Platform=x64 /p:Configuration=FullRelease ${{env.SOLUTION_FILE_PATH}}
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: WinUAE 64-bit
+        path: D:\\Amiga

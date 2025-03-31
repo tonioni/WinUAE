@@ -12,10 +12,13 @@
 #include "specialmonitors.h"
 #include "debug.h"
 #include "zfile.h"
+#ifdef VIDEOGRAB
 #include "videograb.h"
+#endif
 #include "arcadia.h"
 
-#define VIDEOGRAB 1
+// We have this in sysconfig.h
+//#define VIDEOGRAB 1
 
 const TCHAR *specialmonitorfriendlynames[] =
 {
@@ -2379,7 +2382,7 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 
 	uae_u8 *genlock_image = NULL;
 
-#if VIDEOGRAB
+#ifdef VIDEOGRAB
 	if (currprefs.genlock_image == 5) {
 		genlock_blank = false;
 		if ((!genlock_video && !genlock_error) || _tcsicmp(_T(":CAPTURE:"), genlock_video_file)) {
@@ -2479,7 +2482,7 @@ skip:
 		xfree(genlock_image_data);
 		genlock_image_data = NULL;
 	}
-#if VIDEOGRAB
+#ifdef VIDEOGRAB
 	if (genlock_video && currprefs.genlock_image != 4 && currprefs.genlock_image != 5 && currprefs.genlock_image < 6) {
 		uninitvideograb();
 		genlock_video = false;
@@ -3659,7 +3662,9 @@ void specialmonitor_reset(void)
 {
 	if (!currprefs.monitoremu)
 		return;
+#ifdef VIDEOGRAB
 	uninitvideograb();
+#endif
 	specialmonitor_store_fmode(-1, -1, 0);
 	fc24_reset();
 }

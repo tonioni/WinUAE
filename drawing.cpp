@@ -35,7 +35,9 @@
 #ifdef CD32
 #include "cd32_fmv.h"
 #endif
+#ifdef WITH_SPECIALMONITORS
 #include "specialmonitors.h"
+#endif
 #include "devices.h"
 #include "gfxboard.h"
 
@@ -706,11 +708,12 @@ void set_custom_limits (int w, int h, int dx, int dy, bool blank)
 		h = 0;
 		dy = 0;
 	}
-
+#ifdef WITH_SPECIALMONITORS
 	if (specialmonitor_uses_control_lines() || !blank) {
 		w = -1;
 		h = -1;
 	}
+#endif
 
 	if (w <= 0 || dx < 0) {
 		visible_left_start = 0;
@@ -1563,7 +1566,9 @@ static void draw_debug_status_line(int monid, int line)
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
 	xlinebuffer = row_map[line];
 	xlinebuffer_genlock = row_map_genlock[line];
+#ifdef DEBUGGER
 	debug_draw(xlinebuffer, xlinebuffer_genlock, line, vidinfo->inbuffer->outwidth, vidinfo->inbuffer->outheight, xredcolors, xgreencolors, xbluecolors);
+#endif
 }
 
 #define LIGHTPEN_HEIGHT 12
@@ -1748,6 +1753,7 @@ bool drawing_can_lineoptimizations(void)
 
 static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
 {
+#ifdef DEBUGGER
 	if (debug_dma > 1 || debug_heatmap > 1) {
 		if (denise_lock()) {
 			for (int i = 0; i < vb->outheight; i++) {
@@ -1756,6 +1762,7 @@ static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
 			}
 		}
 	}
+#endif
 
 	if (lightpen_active) {
 		if (lightpen_active & 1) {
@@ -1820,6 +1827,7 @@ static void finish_drawing_frame(bool drawlines)
 	vbout->last_drawn_line = 0;
 	draw_frame_extras(vbin, -1, -1);
 
+#ifdef WITH_SPECIALMONITORS
 	// video port adapters
 	if (currprefs.monitoremu) {
 		if (!denise_lock()) {
@@ -1886,6 +1894,7 @@ static void finish_drawing_frame(bool drawlines)
 		}
 		vbcopied = true;
 	}
+#endif
 
 #ifdef CD32
 	// cd32 fmv
@@ -1904,6 +1913,7 @@ static void finish_drawing_frame(bool drawlines)
 #endif
 
 	// grayscale
+#ifdef WITH_SPECIALMONITORS
 	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated &&
 		((!currprefs.genlock && (!bplcolorburst_field && currprefs.cs_color_burst)) || currprefs.gfx_grayscale)) {
 		if (!denise_lock()) {
@@ -1916,6 +1926,7 @@ static void finish_drawing_frame(bool drawlines)
 		}
 		vbcopied = true;
 	}
+#endif
 
 	if (denise_locked) {
 		if (!vbcopied) {

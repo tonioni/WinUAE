@@ -269,12 +269,15 @@ static void idecontroller_rethink(void)
 {
 	bool irq = false;
 	for (int i = 0; ide_boards[i]; i++) {
+#ifdef WITH_X86
 		if (ide_boards[i] == x86_at_ide_board[0] || ide_boards[i] == x86_at_ide_board[1]) {
 			bool x86irq = ide_rethink(ide_boards[i], true);
 			if (x86irq && ide_boards[i] == x86_at_ide_board[0]) {
 				x86_doirq(14);
 			}
-		} else {
+		} else
+#endif
+		{
 			if (ide_rethink(ide_boards[i], false))
 				safe_interrupt_set(IRQ_SOURCE_IDE, i, ide_boards[i]->intlev6);
 		}
@@ -746,7 +749,9 @@ static uae_u32 ide_read_byte2(struct ide_board *board, uaecptr addr)
 				v = board->rom[addr & board->rom_mask];
 			}
 		} else if ((addr & 0x8700) == 0x8400 || (addr & 0x8700) == 0x8000) {
+#ifdef NCR9X
 			v = golemfast_ncr9x_scsi_get(oaddr, getidenum(board, golemfast_board));
+#endif
 		} else if ((addr & 0x8700) == 0x8100) {
 			int regnum = get_golemfast_reg(addr, board);
 			if (regnum >= 0) {
@@ -773,8 +778,10 @@ static uae_u32 ide_read_byte2(struct ide_board *board, uaecptr addr)
 			}
 		} else if ((addr >= 0xf000 && addr <= 0xf00f) || (addr >= 0xf100 && addr <= 0xf10f)) {
 			// scsi dma controller
+#ifdef NCR9X
 			if (board->subtype)
 				v = masoboshi_ncr9x_scsi_get(oaddr, getidenum(board, masoboshi_board));
+#endif
 		} else if (addr == 0xf040) {
 			v = 1;
 			if (ide_irq_check(board->ide[0], false)) {
@@ -792,9 +799,11 @@ static uae_u32 ide_read_byte2(struct ide_board *board, uaecptr addr)
 			if (regnum >= 0) {
 				v = get_ide_reg(board, regnum);
 			} else if (addr >= MASOBOSHI_SCSI_OFFSET && addr < MASOBOSHI_SCSI_OFFSET_END) {
+#ifdef NCR9X
 				if (board->subtype)
 					v = masoboshi_ncr9x_scsi_get(oaddr, getidenum(board, masoboshi_board));
 				else
+#endif
 					v = 0xff;
 			}
 		}
@@ -812,9 +821,11 @@ static uae_u32 ide_read_byte2(struct ide_board *board, uaecptr addr)
 			}
 		}
 		if (addr >= TRIFECTA_SCSI_OFFSET && addr < TRIFECTA_SCSI_OFFSET_END) {
+#ifdef NCR9X
 			if (board->subtype)
 				v = trifecta_ncr9x_scsi_get(oaddr, getidenum(board, trifecta_board));
 			else
+#endif
 				v = 0xff;
 		}
 		if (addr == 0x401) {
@@ -1479,14 +1490,18 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 				board->configured = 1;
 				if (board->type == ROCHARD_IDE) {
 					rochard_scsi_init(board->original_rc, board->baseaddress);
+#ifdef NCR9X
 				} else if (board->type == MASOBOSHI_IDE) {
 					ncr_masoboshi_autoconfig_init(board->original_rc, board->baseaddress);
 				} else if (board->type == GOLEMFAST_IDE) {
 					ncr_golemfast_autoconfig_init(board->original_rc, board->baseaddress);
+#endif
 				} else if (board->type == DATAFLYERPLUS_IDE) {
 					dataflyerplus_scsi_init(board->original_rc, board->baseaddress);
+#ifdef NCR9X
 				} else if (board->type == TRIFECTA_IDE) {
 					ncr_trifecta_autoconfig_init(board->original_rc, board->baseaddress);
+#endif
 				}
 				expamem_next(ab, NULL);
 			}
@@ -1576,10 +1591,12 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 			write_log(_T("ALF PUT %08x %02x %d %08x\n"), addr, v, regnum, M68K_GETPC);
 #endif
 		} else if (board->type == GOLEMFAST_IDE) {
-
+#ifdef NCR9X
 			if ((addr & 0x8700) == 0x8400 || (addr & 0x8700) == 0x8000) {
 				golemfast_ncr9x_scsi_put(oaddr, v, getidenum(board, golemfast_board));
-			} else if ((addr & 0x8700) == 0x8100) {
+			} else
+#endif
+			if ((addr & 0x8700) == 0x8100) {
 				int regnum = get_golemfast_reg(addr, board);
 				if (regnum >= 0)
 					put_ide_reg(board, regnum, v);
@@ -1594,14 +1611,20 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 			if (regnum >= 0) {
 				put_ide_reg(board, regnum, v);
 			} else if (addr >= MASOBOSHI_SCSI_OFFSET && addr < MASOBOSHI_SCSI_OFFSET_END) {
+#ifdef NCR9X
 				if (board->subtype)
 					masoboshi_ncr9x_scsi_put(oaddr, v, getidenum(board, masoboshi_board));
+#endif
 			} else if ((addr >= 0xf000 && addr <= 0xf007)) {
+#ifdef NCR9X
 				if (board->subtype)
 					masoboshi_ncr9x_scsi_put(oaddr, v, getidenum(board, masoboshi_board));
+#endif
 			} else if (addr >= 0xf00a && addr <= 0xf00f) {
+#ifdef NCR9X
 				// scsi dma controller
 				masoboshi_ncr9x_scsi_put(oaddr, v, getidenum(board, masoboshi_board));
+#endif
 			} else if (addr >= 0xf040 && addr <= 0xf04f) {
 				// ide dma controller
 				if (addr >= 0xf04c && addr < 0xf050) {
@@ -1661,11 +1684,15 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 				}
 			}
 			if (addr >= TRIFECTA_SCSI_OFFSET && addr < TRIFECTA_SCSI_OFFSET_END) {
+#ifdef NCR9X
 				if (board->subtype)
 					trifecta_ncr9x_scsi_put(oaddr, v, getidenum(board, trifecta_board));
+#endif
 			}
 			if (addr >= 0x400 && addr <= 0x407) {
+#ifdef NCR9X
 				trifecta_ncr9x_scsi_put(oaddr, v, getidenum(board, trifecta_board));
+#endif
 			}
 			
 		} else if (board->type == APOLLO_IDE) {
@@ -2513,12 +2540,16 @@ void masoboshi_add_idescsi_unit (int ch, struct uaedev_config_info *ci, struct r
 {
 	if (ch < 0) {
 		masoboshi_add_ide_unit(ch, ci, rc);
+#ifdef NCR9X
 		masoboshi_add_scsi_unit(ch, ci, rc);
+#endif
 	} else {
 		if (ci->controller_type < HD_CONTROLLER_TYPE_SCSI_FIRST)
 			masoboshi_add_ide_unit(ch, ci, rc);
+#ifdef NCR9X
 		else
 			masoboshi_add_scsi_unit(ch, ci, rc);
+#endif
 	}
 }
 
@@ -2571,12 +2602,16 @@ void trifecta_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct rom
 {
 	if (ch < 0) {
 		trifecta_add_ide_unit(ch, ci, rc);
+#ifdef NCR9X
 		trifecta_add_scsi_unit(ch, ci, rc);
+#endif
 	} else {
 		if (ci->controller_type < HD_CONTROLLER_TYPE_SCSI_FIRST)
 			trifecta_add_ide_unit(ch, ci, rc);
+#ifdef NCR9X
 		else
 			trifecta_add_scsi_unit(ch, ci, rc);
+#endif
 	}
 }
 
@@ -2784,12 +2819,16 @@ void golemfast_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct ro
 {
 	if (ch < 0) {
 		golemfast_add_ide_unit(ch, ci, rc);
+#ifdef NCR9X
 		golemfast_add_scsi_unit(ch, ci, rc);
+#endif
 	} else {
 		if (ci->controller_type < HD_CONTROLLER_TYPE_SCSI_FIRST)
 			golemfast_add_ide_unit(ch, ci, rc);
+#ifdef NCR9X
 		else
 			golemfast_add_scsi_unit(ch, ci, rc);
+#endif
 	}
 }
 
@@ -3327,6 +3366,7 @@ void ripple_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 	add_ide_standard_unit(ch, ci, rc, ripple_board, RIPPLE_IDE, false, false, 4);
 }
 
+#ifdef WITH_X86
 extern void x86_xt_ide_bios(struct zfile*, struct romconfig*);
 static bool x86_at_hd_init(struct autoconfig_info *aci, int type)
 {
@@ -3457,3 +3497,4 @@ uae_u16 x86_ide_hd_get(int portnum, int size)
 	}
 	return v;
 }
+#endif
