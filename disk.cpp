@@ -41,7 +41,9 @@ int disk_debug_track = -1;
 #ifdef FDI2RAW
 #include "fdi2raw.h"
 #endif
+#ifdef CATWEASEL
 #include "catweasel.h"
+#endif
 #ifdef DRIVESOUND
 #include "driveclick.h"
 #endif
@@ -53,7 +55,9 @@ int disk_debug_track = -1;
 #endif
 #include "crc32.h"
 #include "inputrecord.h"
+#ifdef AMAX
 #include "amax.h"
+#endif
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -1372,7 +1376,9 @@ static int drive_insert (drive *drv, struct uae_prefs *p, int dnum, const TCHAR 
 	drv->buffered_side = -1;
 	if (!fake) {
 		drv->dskeject = false;
+#ifdef RETROPLATFORM
 		gui_disk_image_change (dnum, outname, drv->wrprot);
+#endif
 	}
 
 	if (!drv->motoroff) {
@@ -2995,7 +3001,9 @@ static void drive_eject (drive * drv)
 	drive_settype_id (drv); /* Back to 35 DD */
 	if (disk_debug_logging > 0)
 		write_log (_T("eject drive %ld\n"), drv - &floppy[0]);
+#ifdef RETROPLATFORM
 	gui_disk_image_change(drv->drvnum, NULL, drv->wrprot);
+#endif
 	inprec_recorddiskchange (drv->drvnum, NULL, false);
 }
 
@@ -3689,8 +3697,10 @@ uae_u8 DISK_status_ciaa(void)
 	for (int dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 		drive *drv = floppy + dr;
 		if (drv->amax) {
+#ifdef AMAX
 			if (amax_active())
 				st = amax_disk_status (st);
+#endif
 		} else if (!((selected | disabled) & (1 << dr))) {
 			if (drive_running (drv)) {
 				if (drv->catweasel) {
@@ -4705,7 +4715,7 @@ void DISK_hsync (void)
 
 #ifdef FLOPPYBRIDGE
 		if (drv->bridge && drv->writepending) {
-			// With bridge we wait for the disk to commit the data before fireing the DMA
+			// With bridge we wait for the disk to commit the data before firing the DMA
 			if (drv->bridge->isWriteComplete()) {
 				disk_dmafinished();
 				drv->writepending = false;
@@ -5455,7 +5465,9 @@ void DISK_init (void)
 #endif
 	if (disk_empty (0))
 		write_log (_T("No disk in drive 0.\n"));
+#ifdef AMAX
 	amax_init ();
+#endif
 }
 
 void DISK_reset (void)

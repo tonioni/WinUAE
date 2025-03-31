@@ -336,7 +336,9 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 		if (bestpc_idxs[i] == -1) {
 			for (j = 0; j < 5; j++) {
 				pospc -= 2;
+#ifdef DEBUGGER
 				sm68k_disasm (buf, NULL, pospc, &nextpc, 0xffffffff);
+#endif
 				if (nextpc == temppc) {
 					bestpc_idxs[i] = j;
 					bestpc_array[i][j] = bestpc = pospc;
@@ -383,7 +385,9 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 			continue;
 		}
 
+#ifdef DEBUGGER
 		sm68k_disasm (buf, instrcode, bestpc, NULL, 0xffffffff);
+#endif
 		_stprintf (lines[i], _T("%08x :   %-20s %s\n"), bestpc, instrcode, buf);
 		temppc = bestpc;
 	}
@@ -397,7 +401,9 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 	/* Now the instruction after the pc including the pc */
 	temppc = pc;
 	for (i = 0; i < (INSTRUCTIONLINES + 1) / 2; i++) {
+#ifdef DEBUGGER
 		sm68k_disasm (buf, instrcode, temppc, &nextpc, 0xffffffff);
+#endif
 		_stprintf (enforcer_buf_ptr, _T("%08x : %s %-20s %s\n"), temppc,
 			(i == 0 ? _T("*") : _T(" ")), instrcode, buf);
 		enforcer_buf_ptr += _tcslen (enforcer_buf_ptr);
@@ -411,10 +417,14 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 
 	console_out (enforcer_buf);
 	write_log (_T("%s"), enforcer_buf);
+#ifdef DEBUGGER
 	if (!debug_enforcer()) {
+#endif
 		sleep_millis (5);
 		doflashscreen ();
+#ifdef DEBUGGER
 	}
+#endif
 
 end:
 	xfree (native_task_name);

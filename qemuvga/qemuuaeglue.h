@@ -3,8 +3,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "sysconfig.h"
 
+#ifdef DEBUGGER
 extern void activate_debugger(void);
+#endif
 
 //#define DEBUG_VGA_REG
 //#define DEBUG_VGA

@@ -37,7 +37,9 @@
 #include "newcpu.h"
 #include "uae.h"
 #include "picasso96.h"
+#ifdef CATWEASEL
 #include "catweasel.h"
+#endif
 #include "debug.h"
 #include "ar.h"
 #include "gui.h"
@@ -45,12 +47,18 @@
 #include "audio.h"
 #include "sounddep/sound.h"
 #include "savestate.h"
+#ifdef ARCADIA
 #include "arcadia.h"
+#endif
 #include "zfile.h"
 #include "cia.h"
 #include "autoconf.h"
+#ifdef WITH_X86
 #include "x86.h"
+#endif
+#ifdef WITH_DRACO
 #include "draco.h"
+#endif
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -199,8 +207,10 @@ static int temp_uid_cnt[IDTYPE_MAX];
 static int gp_swappeddevices[MAX_INPUT_DEVICES][IDTYPE_MAX];
 static int osk_state;
 
+#ifdef WITH_DRACO
 extern int draco_keyboard_get_rate(void);
 static int draco_keybord_repeat_cnt, draco_keybord_repeat_code;
+#endif
 
 bool osk_status(void)
 {
@@ -2749,6 +2759,7 @@ void inputdevice_tablet_strobe (void)
 
 int inputdevice_get_lightpen_id(void)
 {
+#ifdef ARCADIA
 	if (!alg_flag) {
 		if (lightpen_enabled2) 
 			return alg_get_player(potgo_value);
@@ -2756,6 +2767,9 @@ int inputdevice_get_lightpen_id(void)
 	} else {
 		return alg_get_player(potgo_value);
 	}
+#else
+	return -1;
+#endif
 }
 
 void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int buttonmask, bool touchmode, int devid, int lpnum)
@@ -3410,12 +3424,16 @@ static void mouseupdate (int pct, bool vsync)
 	static int mxd, myd;
 
 	if (vsync) {
-
-		if (x86_mouse(0, 0, 0, 0, -1) || draco_mouse(0, 0, 0, 0, -1)) {
+#ifdef WITH_DRACO
+		if (
+#ifdef WITH_X86
+			x86_mouse(0, 0, 0, 0, -1) ||
+#endif
+			draco_mouse(0, 0, 0, 0, -1)) {
 			pcmouse = true;
 			pct = 1000;
 		}
-
+#endif
 
 		if (mxd < 0) {
 			if (mouseedge_x > 0)
@@ -3507,9 +3525,12 @@ static void mouseupdate (int pct, bool vsync)
 					pc_mouse_buttons[i] |= 4;
 				else
 					pc_mouse_buttons[i] &= ~4;
-
+#ifdef WITH_X86
 				x86_mouse(0, v1, v2, v3, pc_mouse_buttons[i]);
+#endif
+#ifdef WITH_DRACO
 				draco_mouse(0, v1, v2, v3, pc_mouse_buttons[i]);
+#endif
 			}
 
 
@@ -3683,7 +3704,9 @@ uae_u16 JOY0DAT (void)
 	readinput ();
 	v = getjoystate (0);
 	v = dongle_joydat (0, v);
+#ifdef ARCADIA
 	v = alg_joydat(0, v);
+#endif
 	return v;
 }
 
@@ -3693,7 +3716,9 @@ uae_u16 JOY1DAT (void)
 	readinput ();
 	v = getjoystate (1);
 	v = dongle_joydat (1, v);
+#ifdef ARCADIA
 	v = alg_joydat(1, v);
+#endif
 	return v;
 }
 
@@ -4026,11 +4051,11 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 			// normal second button pressed: always zero. Overrides CD32 mode.
 			if (getbuttonstate(i, JOYBUTTON_2))
 				potgor &= ~p9dat;
-
-		} else  if (alg_flag) {
+#ifdef ARCADIA
+		} else if (alg_flag) {
 
 			potgor = alg_potgor(potgo_value);
-
+#endif
 		} else if (lightpen_enabled2 && lightpen_port_number() == i) {
 
 			int button;
@@ -4268,8 +4293,10 @@ int handle_custom_event (const TCHAR *custom, int append)
 			set_config_changed ();
 		} else if (!_tcsnicmp(p, _T("shellexec "), 10)) {
 			uae_ShellExecute(p + 10);
+#ifdef DEBUGGER
 		} else if (!_tcsnicmp(p, _T("dbg "), 4)) {
 			debug_parser(p + 4, NULL, -1);
+#endif
 		} else if (!_tcsnicmp (p, _T("kbr "), 4)) {
 			inject_events (p + 4);
 		} else if (!_tcsnicmp (p, _T("evt "), 4)) {
@@ -4394,6 +4421,7 @@ void inputdevice_hsync (bool forceread)
 			maybe_read_input();
 		}
 	}
+#ifdef WITH_DRACO
 	if (draco_keybord_repeat_cnt > 0) {
 		draco_keybord_repeat_cnt--;
 		if (draco_keybord_repeat_cnt == 0) {
@@ -4405,6 +4433,7 @@ void inputdevice_hsync (bool forceread)
 			draco_keycode(draco_keybord_repeat_code, 1);
 		}
 	}
+#endif
 }
 
 static uae_u16 POTDAT (int joy)
@@ -5269,14 +5298,19 @@ static int handle_input_event2(int nr, int state, int max, int flags, int extra)
 		isaks = true;
 	}
 
+#ifdef DEBUGGER
 	if (isaks) {
 		if (debug_trainer_event(ie->data, state))
+		{
 			return 0;
+		}
 	} else {
 		if (debug_trainer_event(nr, state))
+		{
 			return 0;
+		}
 	}
-
+#endif
 	if (!isaks) {
 		if (input_record && input_record != INPREC_RECORD_PLAYING)
 			inprec_recordevent (nr, state, max, autofire);
@@ -5839,8 +5873,12 @@ void inputdevice_reset (void)
 	}
 	lightpen_trigger2 = 0;
 	cubo_flag = 0;
+#ifdef ARCADIA
 	alg_flag &= 1;
+#endif
+#ifdef WITH_DRACO
 	draco_keybord_repeat_cnt = 0;
+#endif
 }
 
 static int getoldport (struct uae_input_device *id)
@@ -7683,9 +7721,11 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 			}
 		}
 	}
+#ifdef ARCADIA
 	if (arcadia_bios) {
 		setcompakb(prefs, keyboard_default_kbmaps[KBR_DEFAULT_MAP_ARCADIA], ip_arcadia, 0, 0);
 	}
+#endif
 	if (0 && currprefs.cs_cdtvcd) {
 		setcompakb(prefs, keyboard_default_kbmaps[KBR_DEFAULT_MAP_CDTV], ip_mediacdtv, 0, 0);
 	}
@@ -10492,6 +10532,7 @@ void clear_inputstate (void)
 
 void inputdevice_draco_key(int kc)
 {
+#ifdef WITH_DRACO
 	int state = (kc & 1) == 0;
 	kc >>= 1;
 	for (int i = 1; events[i].name; i++) {
@@ -10513,4 +10554,5 @@ void inputdevice_draco_key(int kc)
 			}
 		}
 	}
+#endif
 }
