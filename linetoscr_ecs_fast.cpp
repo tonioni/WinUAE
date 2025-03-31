@@ -472,223 +472,23 @@ static void lts_ecs_kehb_ihires_dlores_b1(int draw_start, int draw_end, int draw
 }
 static void lts_ecs_n_ishres_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {
-	uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;
-	int bufaddv = 1 << bufadd;
-	int cpaddv = 1 << cpadd;
-	int end = draw_end;
-	if (end > hbstrt_offset) {
-		end = hbstrt_offset;
-	}
-	int cnt = draw_end;
-	if (cnt > draw_startoffset) {
-		cnt = draw_startoffset;
-	}
-	if (cnt > hbstop_offset) {
-		cnt = hbstop_offset;
-	}
-	if (cnt > bpl1dat_trigger_offset) {
-		cnt = bpl1dat_trigger_offset;
-	}
-	while (cnt < end) {
-		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-			if (cnt >= draw_startoffset) {
-				if (cnt < hbstop_offset) {
-					buf1++;
-				} else {
-					*buf1++ = bgcolor;
-				}
-			}
-		} else {
-			bpl = true;
-			uae_u8 c0 = *cp++;
-			uae_u8 c1 = *cp++;
-			cp += 2;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
-			*buf1++ = dpix_val0;
-		}
-		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpaddv;
-		}
-		cnt += bufaddv;
-	}
+	lts_null();
 }
 static void lts_ecs_dpf_ishres_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {
-	uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;
-	int bufaddv = 1 << bufadd;
-	int cpaddv = 1 << cpadd;
-	int end = draw_end;
-	if (end > hbstrt_offset) {
-		end = hbstrt_offset;
-	}
-	int cnt = draw_end;
-	if (cnt > draw_startoffset) {
-		cnt = draw_startoffset;
-	}
-	if (cnt > hbstop_offset) {
-		cnt = hbstop_offset;
-	}
-	if (cnt > bpl1dat_trigger_offset) {
-		cnt = bpl1dat_trigger_offset;
-	}
-	while (cnt < end) {
-		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-			if (cnt >= draw_startoffset) {
-				if (cnt < hbstop_offset) {
-					buf1++;
-				} else {
-					*buf1++ = bgcolor;
-				}
-			}
-		} else {
-			bpl = true;
-			uae_u8 c0 = *cp++;
-			uae_u8 c1 = *cp++;
-			cp += 2;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
-			*buf1++ = dpix_val0;
-		}
-		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpaddv;
-		}
-		cnt += bufaddv;
-	}
+	lts_null();
 }
 static void lts_ecs_ehb_ishres_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {
-	uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;
-	int bufaddv = 1 << bufadd;
-	int cpaddv = 1 << cpadd;
-	int end = draw_end;
-	if (end > hbstrt_offset) {
-		end = hbstrt_offset;
-	}
-	int cnt = draw_end;
-	if (cnt > draw_startoffset) {
-		cnt = draw_startoffset;
-	}
-	if (cnt > hbstop_offset) {
-		cnt = hbstop_offset;
-	}
-	if (cnt > bpl1dat_trigger_offset) {
-		cnt = bpl1dat_trigger_offset;
-	}
-	while (cnt < end) {
-		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-			if (cnt >= draw_startoffset) {
-				if (cnt < hbstop_offset) {
-					buf1++;
-				} else {
-					*buf1++ = bgcolor;
-				}
-			}
-		} else {
-			bpl = true;
-			uae_u8 c0 = *cp++;
-			uae_u8 c1 = *cp++;
-			cp += 2;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
-			*buf1++ = dpix_val0;
-		}
-		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpaddv;
-		}
-		cnt += bufaddv;
-	}
+	lts_null();
 }
 static void lts_ecs_ham_ishres_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {
-	uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;
-	int bufaddv = 1 << bufadd;
-	int cpaddv = 1 << cpadd;
-	int end = draw_end;
-	if (end > hbstrt_offset) {
-		end = hbstrt_offset;
-	}
-	int cnt = draw_end;
-	if (cnt > draw_startoffset) {
-		cnt = draw_startoffset;
-	}
-	if (cnt > hbstop_offset) {
-		cnt = hbstop_offset;
-	}
-	if (cnt > bpl1dat_trigger_offset) {
-		cnt = bpl1dat_trigger_offset;
-	}
-	while (cnt < end) {
-		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-			if (cnt >= draw_startoffset) {
-				if (cnt < hbstop_offset) {
-					buf1++;
-				} else {
-					*buf1++ = bgcolor;
-				}
-			}
-		} else {
-			bpl = true;
-			uae_u8 c0 = *cp++;
-			uae_u8 c1 = *cp++;
-			cp += 2;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
-			*buf1++ = dpix_val0;
-		}
-		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpaddv;
-		}
-		cnt += bufaddv;
-	}
+	lts_null();
 }
 static void lts_ecs_kehb_ishres_dlores_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {
-	uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;
-	int bufaddv = 1 << bufadd;
-	int cpaddv = 1 << cpadd;
-	int end = draw_end;
-	if (end > hbstrt_offset) {
-		end = hbstrt_offset;
-	}
-	int cnt = draw_end;
-	if (cnt > draw_startoffset) {
-		cnt = draw_startoffset;
-	}
-	if (cnt > hbstop_offset) {
-		cnt = hbstop_offset;
-	}
-	if (cnt > bpl1dat_trigger_offset) {
-		cnt = bpl1dat_trigger_offset;
-	}
-	while (cnt < end) {
-		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-			if (cnt >= draw_startoffset) {
-				if (cnt < hbstop_offset) {
-					buf1++;
-				} else {
-					*buf1++ = bgcolor;
-				}
-			}
-		} else {
-			bpl = true;
-			uae_u8 c0 = *cp++;
-			uae_u8 c1 = *cp++;
-			cp += 2;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
-			*buf1++ = dpix_val0;
-		}
-		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpaddv;
-		}
-		cnt += bufaddv;
-	}
+	lts_null();
 }
 static void lts_ecs_n_ilores_dhires_b1(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {
@@ -2725,238 +2525,23 @@ static void lts_ecs_kehb_ihires_dlores_b2(int draw_start, int draw_end, int draw
 }
 static void lts_ecs_n_ishres_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {
-	uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;
-	int bufaddv = 1 << bufadd;
-	int cpaddv = 1 << cpadd;
-	int end = draw_end;
-	if (end > hbstrt_offset) {
-		end = hbstrt_offset;
-	}
-	int cnt = draw_end;
-	if (cnt > draw_startoffset) {
-		cnt = draw_startoffset;
-	}
-	if (cnt > hbstop_offset) {
-		cnt = hbstop_offset;
-	}
-	if (cnt > bpl1dat_trigger_offset) {
-		cnt = bpl1dat_trigger_offset;
-	}
-	while (cnt < end) {
-		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-			if (cnt >= draw_startoffset) {
-				if (cnt < hbstop_offset) {
-					buf1++;
-					buf2++;
-				} else {
-					*buf1++ = bgcolor;
-					*buf2++ = bgcolor;
-				}
-			}
-		} else {
-			bpl = true;
-			uae_u8 c0 = *cp++;
-			uae_u8 c1 = *cp++;
-			cp += 2;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
-			*buf1++ = dpix_val0;
-			*buf2++ = dpix_val0;
-		}
-		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpaddv;
-		}
-		cnt += bufaddv;
-	}
+	lts_null();
 }
 static void lts_ecs_dpf_ishres_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {
-	uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;
-	int bufaddv = 1 << bufadd;
-	int cpaddv = 1 << cpadd;
-	int end = draw_end;
-	if (end > hbstrt_offset) {
-		end = hbstrt_offset;
-	}
-	int cnt = draw_end;
-	if (cnt > draw_startoffset) {
-		cnt = draw_startoffset;
-	}
-	if (cnt > hbstop_offset) {
-		cnt = hbstop_offset;
-	}
-	if (cnt > bpl1dat_trigger_offset) {
-		cnt = bpl1dat_trigger_offset;
-	}
-	while (cnt < end) {
-		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-			if (cnt >= draw_startoffset) {
-				if (cnt < hbstop_offset) {
-					buf1++;
-					buf2++;
-				} else {
-					*buf1++ = bgcolor;
-					*buf2++ = bgcolor;
-				}
-			}
-		} else {
-			bpl = true;
-			uae_u8 c0 = *cp++;
-			uae_u8 c1 = *cp++;
-			cp += 2;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
-			*buf1++ = dpix_val0;
-			*buf2++ = dpix_val0;
-		}
-		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpaddv;
-		}
-		cnt += bufaddv;
-	}
+	lts_null();
 }
 static void lts_ecs_ehb_ishres_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {
-	uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;
-	int bufaddv = 1 << bufadd;
-	int cpaddv = 1 << cpadd;
-	int end = draw_end;
-	if (end > hbstrt_offset) {
-		end = hbstrt_offset;
-	}
-	int cnt = draw_end;
-	if (cnt > draw_startoffset) {
-		cnt = draw_startoffset;
-	}
-	if (cnt > hbstop_offset) {
-		cnt = hbstop_offset;
-	}
-	if (cnt > bpl1dat_trigger_offset) {
-		cnt = bpl1dat_trigger_offset;
-	}
-	while (cnt < end) {
-		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-			if (cnt >= draw_startoffset) {
-				if (cnt < hbstop_offset) {
-					buf1++;
-					buf2++;
-				} else {
-					*buf1++ = bgcolor;
-					*buf2++ = bgcolor;
-				}
-			}
-		} else {
-			bpl = true;
-			uae_u8 c0 = *cp++;
-			uae_u8 c1 = *cp++;
-			cp += 2;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
-			*buf1++ = dpix_val0;
-			*buf2++ = dpix_val0;
-		}
-		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpaddv;
-		}
-		cnt += bufaddv;
-	}
+	lts_null();
 }
 static void lts_ecs_ham_ishres_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {
-	uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;
-	int bufaddv = 1 << bufadd;
-	int cpaddv = 1 << cpadd;
-	int end = draw_end;
-	if (end > hbstrt_offset) {
-		end = hbstrt_offset;
-	}
-	int cnt = draw_end;
-	if (cnt > draw_startoffset) {
-		cnt = draw_startoffset;
-	}
-	if (cnt > hbstop_offset) {
-		cnt = hbstop_offset;
-	}
-	if (cnt > bpl1dat_trigger_offset) {
-		cnt = bpl1dat_trigger_offset;
-	}
-	while (cnt < end) {
-		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-			if (cnt >= draw_startoffset) {
-				if (cnt < hbstop_offset) {
-					buf1++;
-					buf2++;
-				} else {
-					*buf1++ = bgcolor;
-					*buf2++ = bgcolor;
-				}
-			}
-		} else {
-			bpl = true;
-			uae_u8 c0 = *cp++;
-			uae_u8 c1 = *cp++;
-			cp += 2;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
-			*buf1++ = dpix_val0;
-			*buf2++ = dpix_val0;
-		}
-		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpaddv;
-		}
-		cnt += bufaddv;
-	}
+	lts_null();
 }
 static void lts_ecs_kehb_ishres_dlores_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {
-	uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;
-	int bufaddv = 1 << bufadd;
-	int cpaddv = 1 << cpadd;
-	int end = draw_end;
-	if (end > hbstrt_offset) {
-		end = hbstrt_offset;
-	}
-	int cnt = draw_end;
-	if (cnt > draw_startoffset) {
-		cnt = draw_startoffset;
-	}
-	if (cnt > hbstop_offset) {
-		cnt = hbstop_offset;
-	}
-	if (cnt > bpl1dat_trigger_offset) {
-		cnt = bpl1dat_trigger_offset;
-	}
-	while (cnt < end) {
-		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
-			if (cnt >= draw_startoffset) {
-				if (cnt < hbstop_offset) {
-					buf1++;
-					buf2++;
-				} else {
-					*buf1++ = bgcolor;
-					*buf2++ = bgcolor;
-				}
-			}
-		} else {
-			bpl = true;
-			uae_u8 c0 = *cp++;
-			uae_u8 c1 = *cp++;
-			cp += 2;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
-			*buf1++ = dpix_val0;
-			*buf2++ = dpix_val0;
-		}
-		if (cnt >= bpl1dat_trigger_offset && !bpl) {
-			cp += cpaddv;
-		}
-		cnt += bufaddv;
-	}
+	lts_null();
 }
 static void lts_ecs_n_ilores_dhires_b2(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)
 {

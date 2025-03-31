@@ -5581,11 +5581,15 @@ static void select_lts(void)
 
 	} else if (ecs_denise && denise_res == RES_SUPERHIRES) {
 
-		int idx = hresolution;
-		if (need_genlock_data) {
-			lts = linetoscr_ecs_shres_genlock_funcs[idx];
+		if (hresolution == RES_LORES) {
+			lts = lts_null;
 		} else {
-			lts = linetoscr_ecs_shres_funcs[idx];
+			int idx = hresolution - 1;
+			if (need_genlock_data) {
+				lts = linetoscr_ecs_shres_genlock_funcs[idx];
+			} else {
+				lts = linetoscr_ecs_shres_funcs[idx];
+			}
 		}
 
 	} else {

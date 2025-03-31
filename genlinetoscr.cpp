@@ -809,6 +809,7 @@ static void gen_init(void)
 static bool gen_head(void)
 {
 	char funcname[200];
+
 	sprintf(funcname, "lts_%s_%s_%s%d_p%d_i%s_d%s%s%s%s",
 		aga ? "aga" : "ecs",
 		bplfmode == 0 ? "fm0" : (bplfmode == 1 ? "fm1" : "fm2"),
@@ -826,6 +827,10 @@ static bool gen_head(void)
 	outf("static void %s(void)", funcname);
 	outf("{");
 
+	// shres on lores is useless
+	if (res == 2 && outres == 0) {
+		return false;
+	}
 	// skip non-existing modes
 	if (!aga) {
 		if (planes > 4 && res > 0) {
@@ -879,6 +884,10 @@ static bool gen_fasthead(void)
 	outf("static void %s(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,"
 		"int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)", funcname);
 	outf("{");
+	// shres on lores is useless
+	if (res == 2 && outres == 0) {
+		return false;
+	}
 	return true;
 }
 
@@ -1478,7 +1487,7 @@ int main (int argc, char *argv[])
 	ntsc = -1;
 
 	for (genlock = 0; genlock < 2; genlock++) {
-		for (outres = 0; outres < 3; outres++) {
+		for (outres = 1; outres < 3; outres++) {
 			char funcname[200];
 			sprintf(funcname, "lts_ecs_shres_d%s%s", 
 				outres == 0 ? "lores" : (outres == 1 ? "hires" : "shres"),
