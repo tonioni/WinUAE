@@ -4967,7 +4967,13 @@ static void vsync_display_render(void)
 {
 	if (!vsync_display_rendered) {
 		vsyncmintimepre = read_processor_time();
+		if (has_draw_denise()) {
+			end_draw_denise();
+		}
 		vsync_handler_render();
+		if (!custom_disabled) {
+			start_draw_denise();
+		}
 		vsync_display_rendered = true;
 	}
 }
@@ -6492,6 +6498,8 @@ void custom_cpuchange(void)
 
 void custom_reset(bool hardreset, bool keyboardreset)
 {
+	custom_end_drawing();
+
 	if (hardreset) {
 		board_prefs_changed(-1, -1);
 		initial_frame = true;
@@ -11147,12 +11155,6 @@ static void custom_trigger_start_nosync(void)
 	if (linear_vpos >= maxvpos + lof_store) {
 		nosignal_trigger = true;
 		linear_vpos = 0;
-		if (has_draw_denise()) {
-			end_draw_denise();
-		}
-		if (!custom_disabled) {
-			start_draw_denise();
-		}
 		vsync_handler_post();
 		devices_vsync_pre();
 		inputdevice_read_msg(true);
@@ -11196,10 +11198,6 @@ static void custom_trigger_start(void)
 
 	if (vpos == vsync_startline) {
 
-		if (has_draw_denise()) {
-			end_draw_denise();
-		}
-
 		linear_vpos_prev[2] = linear_vpos_prev[1];
 		linear_vpos_prev[1] = linear_vpos_prev[0];
 		linear_vpos_prev[0] = linear_vpos;
@@ -11207,9 +11205,6 @@ static void custom_trigger_start(void)
 
 		virtual_vsync_check();
 
-		if (!custom_disabled) {
-			start_draw_denise();
-		}
 	}
 
 	bool vposzero = false;
