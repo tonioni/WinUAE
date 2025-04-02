@@ -2583,12 +2583,7 @@ static void sprwrite(int reg, uae_u32 v)
 			}
 		}
 		s->xpos = sprxp;
-
-		if (aga_mode) {
-			dspr[num & ~1].attached = ((dspr[num & ~1].ctl | dspr[num | 1].ctl) & 0x80) != 0;
-		} else {
-			dspr[num & ~1].attached = (dspr[num | 1].ctl & 0x80) != 0;
-		}
+		dspr[num & ~1].attached = (dspr[num | 1].ctl & 0x80) != 0;
 		if (s->armed) {
 			spr_nearest();
 		}
