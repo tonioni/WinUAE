@@ -5348,8 +5348,16 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 			denise_cck++;
 		}
 
-		if (buf1 && gbuf && denise_pixtotal_max > 0) {
-			memset(gbuf, 0, ((2 * denise_pixtotal_max) << hresolution) * sizeof(uae_u16));
+		if (buf1 && denise_pixtotal_max > 0) {
+#if 0
+			memset(buf1, 0, ((2 * denise_pixtotal_max) << hresolution) * sizeof(uae_u32));
+			if (buf2 && buf1 != buf2) {
+				memset(buf2, 0, ((2 * denise_pixtotal_max) << hresolution) * sizeof(uae_u32));
+			}
+#endif
+			if (gbuf) {
+				memset(gbuf, 0, (2 * denise_pixtotal_max) << hresolution);
+			}
 		}
 
 	} else {
@@ -5461,7 +5469,7 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 							memset(p1, 0, ww * sizeof(uae_u32));
 							if (bufg) {
 								uae_u8 *gp1 = (p1 - ptrs) + bufg;
-								memset(gp1, 0, ww * sizeof(uae_u16));
+								memset(gp1, 0, ww);
 							}
 						}
 					} else {
@@ -5469,7 +5477,7 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 							memset(p1 - ww, 0, w * sizeof(uae_u32));
 							if (bufg) {
 								uae_u8 *gp1 = (p1 - ptrs) + bufg;
-								memset(gp1 - ww, 0, w * sizeof(uae_u16));
+								memset(gp1 - ww, 0, w);
 							}
 						}
 					}
