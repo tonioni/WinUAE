@@ -1,4 +1,25 @@
 
+Beta 19:
+
+- Display panel lores combined with superhires native mode is not anymore supported (It wasn't really working that well in previous versions either). Nothing is drawn in this combination.
+- Filter panel adjustments also affect GDI mode in real time. It still has ugly flicker. Use only if D3D9/D3D11 is not available.
+- Output D3D9/D3D11 texture was still locked when it was rendered. Old D3D9 drivers didn't like it (and was wrong in any case)
+- Integer scaling superhires aspect ratio correction didn't work.
+- If selected graphics API is not supported, test all other options. Previously failing D3D9 switched to GDI, even if D3D11 was available.
+- Interlace + TV overscan modes: extra black line was visible near the end of display. (fast optimized modes are not yet fixed)
+- Fixed attached sprites (only odd sprites affect attachment state)
+
+Beta 18:
+
+- PCI bridge autoconfig was unreliable, at least with Mediators, first boot worked, following reboot might not have. (broke few betas ago)
+- D3D11 mode OSD was not drawn and usually had single frame in wrong position during mode changes.
+- Wait for blitter option could cause recursive calls (and in worst case crash due to stack overflow) if delayed chipset pipeline callback was active.
+- Some updates to fast mode drawing. (was accidentally disabled in b17, genlock support fixed, odd to even bitplane collisions (CLXDAT bit 0) supported and some other adjustments)
+- Second refresh cycle was not processed in RGA pipeline because inactive NTSC STRLONG check incorrectly skipped part of pipeline processing. Whatever copper wrote in previous cycle was not written to Denise custom register causing strange side-effects.
+- OCS/ECS sprite behind hires bitplane drew bitplane in lores. (Also drew in lores when sprite was on top of bitplane but it was not visible because sprite lores pixel hide both bitplane hires pixels)
+- ECS Superhires fast mode drawing supported. (Except if display panel is set to lores but that is useless combination anyway)
+- Virtual mouse driver horizontal movement works again.
+
 Beta 17:
 
 - Interlace artifact remove option didn't fully work in non-ce modes. (fast mode lines were not "scandoubled")
