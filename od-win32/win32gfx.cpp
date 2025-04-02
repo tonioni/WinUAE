@@ -2936,11 +2936,6 @@ void gfx_set_picasso_colors(int monid, RGBFTYPE rgbfmt)
 	alloc_colors_picasso(red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift, rgbfmt, p96_rgbx16);
 }
 
-static void gfxmode_reset(int monid)
-{
-	struct amigadisplay *ad = &adisplays[monid];
-}
-
 int machdep_init(void)
 {
 	for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
@@ -2972,10 +2967,8 @@ int graphics_init(bool mousecapture)
 	systray (hHiddenWnd, TRUE);
 	systray (hHiddenWnd, FALSE);
 	d3d_select(&currprefs);
-	gfxmode_reset(0);
 	if (open_windows(&AMonitors[0], mousecapture, false)) {
 		if (currprefs.monitoremu_mon > 0 && currprefs.monitoremu) {
-			gfxmode_reset(currprefs.monitoremu_mon);
 			open_windows(&AMonitors[currprefs.monitoremu_mon], mousecapture, false);
 		}
 		return true;
@@ -3765,6 +3758,8 @@ static BOOL doInit(struct AmigaMonitor *mon)
 {
 	int ret = 0;
 	bool modechanged;
+	int retrymask = 0;
+	int original_api = currprefs.gfx_api;
 
 retry:
 	struct vidbuf_description *avidinfo = &adisplays[mon->monitor_id].gfxvidinfo;
@@ -3776,7 +3771,7 @@ retry:
 	if (wasfs[1] == 0)
 		regqueryint(NULL, wasfsname[1], &wasfs[1]);
 
-	gfxmode_reset(mon->monitor_id);
+	d3d_select(&currprefs);
 
 	for (;;) {
 		updatemodes(mon);
@@ -3837,42 +3832,75 @@ retry:
 		const TCHAR *err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
 			&mon->currentmode.freq, fmh, fmv, &errv);
 		if (errv > 0) {
+			// GDI but fullscreen/not supported
 			if (errv == 2 && currprefs.gfx_api == 0) {
-				write_log("Retrying D3D %s\n", err);
-				changed_prefs.gfx_api = currprefs.gfx_api = 2;
-				update_gfxparams(mon);
-				goto retry;
+				if (!(retrymask & (1 << 2))) {
+					retrymask |= 1 << 2;
+					write_log(_T("Retrying: D3D11, ERR=%s\n"), err);
+					changed_prefs.gfx_api = currprefs.gfx_api = 2;
+					update_gfxparams(mon);
+					goto retry;
+				}
 			}
-			gfx_hdr = false;
-			if (currprefs.gfx_api >= 2) {
-				D3D_free(0, true);
-				changed_prefs.gfx_api = currprefs.gfx_api = 1;
-				d3d_select(&currprefs);
-				error_log(_T("Direct3D11 failed to initialize ('%s'), falling back to Direct3D9."), err);
-				errv = 0;
-				err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
-					&mon->currentmode.freq, fmh, fmv, &errv);
+			// D3D9 but not supported
+			if (errv == 1 && currprefs.gfx_api == 1) {
+				if (!(retrymask & (1 << 2))) {
+					retrymask |= 1 << 2;
+					write_log(_T("Retrying: D3D11, ERR=%s\n"), err);
+					changed_prefs.gfx_api = currprefs.gfx_api = 2;
+					update_gfxparams(mon);
+					goto retry;
+				} else if (!(retrymask & (1 << 0))) {
+					retrymask |= 1 << 0;
+					write_log(_T("Retrying: GDI, ERR=%s\n"), err);
+					changed_prefs.gfx_api = currprefs.gfx_api = 0;
+					update_gfxparams(mon);
+					goto retry;
+				}
+			}
+			// D3D11 but not supported
+			if (errv == 1 && currprefs.gfx_api == 2) {
+				if (!(retrymask & (1 << 1))) {
+					retrymask |= 1 << 1;
+					write_log(_T("Retrying: D3D9, ERR=%s\n"), err);
+					changed_prefs.gfx_api = currprefs.gfx_api = 1;
+					update_gfxparams(mon);
+					goto retry;
+				}
+			}
+			if (errv == 1 && currprefs.gfx_api == 3) {
+				if (!(retrymask & (1 << 2))) {
+					retrymask |= 1 << 2;
+					write_log(_T("Retrying: D3D11 NOHDR, ERR=%s\n"), err);
+					changed_prefs.gfx_api = currprefs.gfx_api = 2;
+					update_gfxparams(mon);
+					goto retry;
+				} else if (!(retrymask & (1 << 1))) {
+					retrymask |= 1 << 1;
+					write_log(_T("Retrying: D3D9, ERR=%s\n"), err);
+					changed_prefs.gfx_api = currprefs.gfx_api = 1;
+					update_gfxparams(mon);
+					goto retry;
+				} else if (!(retrymask & (1 << 0))) {
+					retrymask |= 1 << 0;
+					write_log(_T("Retrying: GDI, ERR=%s\n"), err);
+					changed_prefs.gfx_api = currprefs.gfx_api = 0;
+					update_gfxparams(mon);
+					goto retry;
+				}
 			}
 			if (errv > 0) {
-				D3D_free(0, true);
 				if (isfullscreen() > 0) {
 					int idx = mon->screen_is_picasso ? 1 : 0;
 					changed_prefs.gfx_apmode[idx].gfx_fullscreen = currprefs.gfx_apmode[idx].gfx_fullscreen = GFX_FULLWINDOW;
-					goto retry;
-				} else if (currprefs.gfx_api > 0) {
-					changed_prefs.gfx_api = currprefs.gfx_api = 0;
-					changed_prefs.gf[ad->gf_index].gfx_filter = currprefs.gf[ad->gf_index].gfx_filter = 1;
+					retrymask = 0;
+					changed_prefs.gfx_api = currprefs.gfx_api = original_api;
 					update_gfxparams(mon);
-					d3d_select(&currprefs);
-					error_log(_T("Direct3D9/11 failed to initialize ('%s'), falling back to GDI."), err);
-					errv = 0;
-					err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
-						&mon->currentmode.freq, fmh, fmv, &errv);
-					if (errv) {
-						error_log(_T("Failed to initialize any rendering modes."));
-					}
+					goto retry;
 				}
-				gfxmode_reset(mon->monitor_id);
+				if ((retrymask & (1 | 2 | 4)) == (1 | 2 | 4)) { // don't care about D3D11 HDR
+					error_log(_T("Failed to initialize any rendering modes."));
+				}
 				ret = -1;
 				goto oops;
 			}

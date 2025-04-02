@@ -2852,6 +2852,13 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	
 	write_log (_T("\n"));
 
+	if (!(d3dCaps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL) && (d3dCaps.TextureCaps & D3DPTEXTURECAPS_POW2)) {
+		D3D_free(monid, true);
+		_stprintf(errmsg, _T("%s: Display driver only supports power of 2 texture sizes."),
+			D3DHEAD);
+		return errmsg;
+	}
+
 	write_log (_T("%s: PS=%d.%d VS=%d.%d %d*%d*%d%s%s VS=%d B=%d%s %d (%dx%d)\n"),
 		D3DHEAD,
 		(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
@@ -3786,11 +3793,13 @@ static void xD3D_unlocktexture(int monid, int y_start, int y_end)
 		if (d3d->locked == 2) {
 			tex = d3d->texture2;
 		}
-		if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG))
+		if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG)) {
 			updateleds(d3d);
+		}
 		hr = tex->UnlockRect(0);
-		if (y_start >= 0 && y_end >= 0 && !d3d->turbo_skip)
+		if (y_start >= 0 && y_end >= 0 && !d3d->turbo_skip) {
 			xD3D_flushtexture(monid, y_start, y_end);
+		}
 	}
 	d3d->locked = 0;
 	d3d->fulllocked = 0;

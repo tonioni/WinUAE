@@ -407,6 +407,7 @@ static void gdi_showframe(int monid)
 static void gdi_refresh(int monid)
 {
 	gdi_clear(monid);
+	gdi_renderframe(monid, true, true);
 	gdi_showframe(monid);
 }
 
@@ -435,7 +436,7 @@ static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int *freq,
 
 	if (isfullscreen() > 0) {
 		*errp = 2;
-		return _T("GDI fullscreen not supported");
+		return _T("GDI: fullscreen not supported");
 	}
 	gdi_free(monid, true);
 	gdi->hwnd = ahwnd;
@@ -453,7 +454,7 @@ static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int *freq,
 	}
 
 	*errp = 1;
-	return _T("failed to allocate buffer");
+	return _T("GDI: failed to allocate buffers");
 }
 
 static HDC gdi_getDC(int monid, HDC hdc)
