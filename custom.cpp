@@ -5092,7 +5092,7 @@ static void check_interlace(void)
 		}
 	}
 	if (!ad->picasso_on) {
-		if (ad->interlace_on) {
+		if (ad->interlace_on && currprefs.gf[GF_INTERLACE].enable) {
 			ad->gf_index = GF_INTERLACE;
 		} else {
 			ad->gf_index = GF_NORMAL;
@@ -10757,7 +10757,7 @@ static void draw_line(void)
 	int cslen = 10;
 	draw_denise_line_queue(dvp, nextline_how, rga_denise_cycle_line, rga_denise_cycle_start, rga_denise_cycle, rga_denise_cycle_count,
 		display_hstart_cyclewait_skip, display_hstart_cyclewait_skip2,
-		wclks, cs, cslen, lol, l);
+		wclks, cs, cslen, lof_store, lol, l);
 }
 
 static void dmal_fast(void)
