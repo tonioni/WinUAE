@@ -412,8 +412,8 @@ void getfilterdata(int monid, struct displayscale *ds)
 						if (ch2 * (mult * 2) - adjh <= maxh && cw2 > ch2 * 2.4) {
 							multy *= 2;
 						}
-						maxw = (int)((maxw + mult - multadd) / mult);
-						maxh = (int)((maxh + mult - multadd) / mult);
+						maxw = (int)((maxw + mult - multadd) / multx);
+						maxh = (int)((maxh + mult - multadd) / multy);
 					}
 				}
 
