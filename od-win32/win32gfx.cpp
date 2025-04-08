@@ -2377,7 +2377,7 @@ int check_prefs_changed_gfx(void)
 		currprefs.gf[0].gfx_filter_autoscale = changed_prefs.gf[0].gfx_filter_autoscale;
 		currprefs.gf[2].gfx_filter_autoscale = changed_prefs.gf[2].gfx_filter_autoscale;
 
-		get_custom_limits (NULL, NULL, NULL, NULL, NULL);
+		get_custom_limits (NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 		fixup_prefs_dimensions (&changed_prefs);
 
 		return 1;

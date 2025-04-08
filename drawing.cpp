@@ -754,7 +754,7 @@ void store_custom_limits(int w, int h, int x, int y)
 #endif
 }
 
-int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh)
+int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hres, int *vres)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	int w, h, dx, dy, y1, y2, dbl1, dbl2;
@@ -764,6 +764,9 @@ int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 		reset_custom_limits();
 		return 0;
 	}
+
+	*hres = hresolution;
+	*vres = currprefs.gfx_vresolution;
 
 	if (!isnativevidbuf(0)) {
 		*pw = vidinfo->inbuffer->outwidth;

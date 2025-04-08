@@ -281,6 +281,8 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 	if (scalemode) {
 		int cw, ch, cx, cy, cv = 0, crealh = 0;
+		int hres = currprefs.gfx_resolution;
+		int vres = currprefs.gfx_vresolution;
 		static int oxmult, oymult;
 
 		filterxmult = (float)ds->scale;
@@ -340,7 +342,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 				}
 
 				if (scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
-					ok = get_custom_limits (&cw, &ch, &cx, &cy, &crealh) != 0;
+					ok = get_custom_limits (&cw, &ch, &cx, &cy, &crealh, &hres, &vres) != 0;
 					if (ok) {
 						set_custom_limits(cw, ch, cx, cy, true);
 						store_custom_limits(cw, ch, cx, cy);
@@ -373,47 +375,34 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 				extraw = 0;
 				extrah = 0;
-				xmult = 1.0;
-				ymult = 1.0;
+				mult = 1.0f;
+				xmult = 1.0f;
+				ymult = 1.0f;
 				filter_horiz_zoom = 0;
 				filter_vert_zoom = 0;
 				filter_horiz_zoom_mult = 1.0;
 				filter_vert_zoom_mult = 1.0;
 
-				float m = 1.0f;
-				if (manual) {
-					if (currprefs.gfx_resolution >= currprefs.gfx_vresolution) {
-						m = (float)(1 << (currprefs.gfx_resolution - currprefs.gfx_vresolution));
-					} else {
-						m = 1.0f / (1 << (currprefs.gfx_vresolution - currprefs.gfx_resolution));
-					}
+				if (hres >= vres) {
+					ymult = (float)(1 << (hres - vres));
+				} else {
+					xmult = (float)(1 << (vres - hres));
 				}
 
 				float multadd = 1.0f / (1 << currprefs.gf[idx].gfx_filter_integerscalelimit);
 				if (cw2 > 0 && ch2 > 0) {
-					if (cw2 > maxw || ch2 > maxh) {
-						while (cw2 / mult - adjw > maxw || ch2 / mult - adjh > maxh) {
+					if (cw2 * xmult > maxw || ch2 * ymult > maxh) {
+						while (cw2 * xmult / mult - adjw > maxw || ch2 * ymult / mult - adjh > maxh) {
 							mult += multadd;
 						}
-						float multx = mult, multy = mult;
-						maxw = (int)(maxw * mult);
-						maxh = (int)(maxh * mult);
+						maxw = (int)((maxw / xmult) * mult);
+						maxh = (int)((maxh / ymult) * mult);
 					} else {
-						while (((cw2 * (mult + multadd)) / m) - adjw <= maxw && ch2 * (mult + multadd) - adjh <= maxh) {
+						while ((cw2 * (xmult * mult + multadd)) - adjw <= maxw && ch2 * (ymult * mult + multadd) - adjh <= maxh) {
 							mult += multadd;
 						}
-
-						float multx = mult, multy = mult;
-						// if width is smaller than height, double width (programmed modes)
-						if (cw2 * (mult + multadd) - adjw <= maxw && cw2 < ch2) {
-							multx *= 2;
-						}
-						// if width is >=2.4x height, double height (non-doublescanned superhires)
-						if (ch2 * (mult * 2) - adjh <= maxh && cw2 > ch2 * 2.4) {
-							multy *= 2;
-						}
-						maxw = (int)((maxw + mult - multadd) / multx);
-						maxh = (int)((maxh + mult - multadd) / multy);
+						maxw = (int)(maxw / (xmult * mult));
+						maxh = (int)(maxh / (ymult * mult));
 					}
 				}
 
@@ -454,14 +443,14 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 		} else if (scalemode == AUTOSCALE_CENTER) {
 
-			cv = get_custom_limits(&cw, &ch, &cx, &cy, &crealh);
+			cv = get_custom_limits(&cw, &ch, &cx, &cy, &crealh, &hres, &vres);
 			if (cv) {
 				store_custom_limits(cw, ch, cx, cy);
 			}
 
 		} else if (scalemode == AUTOSCALE_RESIZE) {
 
-			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh);
+			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh, &hres, &vres);
 			if (cv) {
 				set_custom_limits(cw, ch, cx, cy, false);
 				store_custom_limits(cw, ch, cx, cy);
@@ -470,7 +459,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 		} else {
 
-			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh);
+			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh, &hres, &vres);
 			if (cv) {
 				set_custom_limits (cw, ch, cx, cy, true);
 				store_custom_limits (cw, ch, cx, cy);

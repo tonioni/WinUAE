@@ -216,8 +216,8 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		}
 
 		if (!WIN32GFX_IsPicassoScreen(mon) && screenshot_clipmode == 1) {
-			int cw, ch, cx, cy, crealh = 0;
-			if (get_custom_limits(&cw, &ch, &cx, &cy, &crealh)) {
+			int cw, ch, cx, cy, crealh = 0, hres, vres;
+			if (get_custom_limits(&cw, &ch, &cx, &cy, &crealh, &hres, &vres)) {
 				int maxw = currprefs.screenshot_max_width << currprefs.gfx_resolution;
 				int maxh = currprefs.screenshot_max_height << currprefs.gfx_vresolution;
 				int minw = currprefs.screenshot_min_width << currprefs.gfx_resolution;
