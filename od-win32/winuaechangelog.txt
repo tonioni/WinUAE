@@ -1,4 +1,15 @@
 
+
+Beta 20:
+
+- Long/short field mode change (single LOF change, not interlace continuous toggle) didn't recalculate internal screen mode configuration. As a side-effect it also caused random last line to not being updated correctly when switching from long to short.
+- Fixed fast mode drawing and TV overscan mode top/bottom lines not being always updated correctly.
+- Audio hack that prevents high CPU usage if program sets (uselessly) AUDxPER to very low value is now more aggressive but not aggressive enough to break Spaceport. (R-Type II, ReadySoft 64 emulator)
+- Serial port transmit works again in non-ce modes.
+- Integer scale horizontal/vertical resolution aspect ratio correction should now work more sanely (for example if superhires + vertical doubling, result is always vertically doubled first, after that integer scaling ratio is selected). Supports also programmed doublescan modes.
+- In AGA mode reads from write-only registers are now closer to 5.3.1 and older version behavior. (Artificial Paradise / NGC)
+- If resolution/plane count was set before FMODE was updated and original FMODE was too small for new mode, drawing mode was reset to normal (HAM and EHB was drawn as normal mode). Affected hires and shres AGA HAM and EHB modes.
+
 Beta 19:
 
 - Display panel lores combined with superhires native mode is not anymore supported (It wasn't really working that well in previous versions either). Nothing is drawn in this combination.

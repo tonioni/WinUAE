@@ -3,7 +3,7 @@
 *
 * SanaII emulation
 *
-* partially based on code from 3c589 PCMCIA driver by Neil Cafferke
+* partially based on code from 3c589 PCMCIA driver by Neil Cafferkey
 *
 * Copyright 2007 Toni Wilen
 *
