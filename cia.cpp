@@ -1577,7 +1577,7 @@ static void CIA_thi_write(int num, int tnum, uae_u8 val)
 	if (!acc_mode()) {
 		// if inaccurate mode: do everything immediately
 
-		if (!(t->cr & CR_START)) {
+		if (!(t->cr & CR_START) || (t->cr & CR_RUNMODE)) {
 			t->timer = t->latch;
 		}
 
