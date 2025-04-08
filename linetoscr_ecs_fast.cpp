@@ -25,7 +25,7 @@ static void lts_ecs_n_ilores_dlores_b1(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -70,7 +70,7 @@ static void lts_ecs_dpf_ilores_dlores_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -118,7 +118,7 @@ static void lts_ecs_ehb_ilores_dlores_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -168,7 +168,7 @@ static void lts_ecs_ham_ilores_dlores_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -213,7 +213,7 @@ static void lts_ecs_kehb_ilores_dlores_b1(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -258,7 +258,7 @@ static void lts_ecs_n_ihires_dlores_b1(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -303,7 +303,7 @@ static void lts_ecs_dpf_ihires_dlores_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -351,7 +351,7 @@ static void lts_ecs_ehb_ihires_dlores_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -401,7 +401,7 @@ static void lts_ecs_ham_ihires_dlores_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -446,7 +446,7 @@ static void lts_ecs_kehb_ihires_dlores_b1(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -511,7 +511,7 @@ static void lts_ecs_n_ilores_dhires_b1(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -561,7 +561,7 @@ static void lts_ecs_dpf_ilores_dhires_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -617,7 +617,7 @@ static void lts_ecs_ehb_ilores_dhires_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -677,7 +677,7 @@ static void lts_ecs_ham_ilores_dhires_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -727,7 +727,7 @@ static void lts_ecs_kehb_ilores_dhires_b1(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -777,7 +777,7 @@ static void lts_ecs_n_ihires_dhires_b1(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -822,7 +822,7 @@ static void lts_ecs_dpf_ihires_dhires_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -870,7 +870,7 @@ static void lts_ecs_ehb_ihires_dhires_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -920,7 +920,7 @@ static void lts_ecs_ham_ihires_dhires_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -965,7 +965,7 @@ static void lts_ecs_kehb_ihires_dhires_b1(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -1010,7 +1010,7 @@ static void lts_ecs_n_ishres_dhires_b1(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -1053,7 +1053,7 @@ static void lts_ecs_dpf_ishres_dhires_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -1096,7 +1096,7 @@ static void lts_ecs_ehb_ishres_dhires_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -1139,7 +1139,7 @@ static void lts_ecs_ham_ishres_dhires_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -1182,7 +1182,7 @@ static void lts_ecs_kehb_ishres_dhires_b1(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -1225,7 +1225,7 @@ static void lts_ecs_n_ilores_dshres_b1(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 4;
@@ -1285,7 +1285,7 @@ static void lts_ecs_dpf_ilores_dshres_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 4;
@@ -1357,7 +1357,7 @@ static void lts_ecs_ehb_ilores_dshres_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 4;
@@ -1437,7 +1437,7 @@ static void lts_ecs_ham_ilores_dshres_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 4;
@@ -1497,7 +1497,7 @@ static void lts_ecs_kehb_ilores_dshres_b1(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 4;
@@ -1557,7 +1557,7 @@ static void lts_ecs_n_ihires_dshres_b1(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -1607,7 +1607,7 @@ static void lts_ecs_dpf_ihires_dshres_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -1663,7 +1663,7 @@ static void lts_ecs_ehb_ihires_dshres_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -1723,7 +1723,7 @@ static void lts_ecs_ham_ihires_dshres_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -1773,7 +1773,7 @@ static void lts_ecs_kehb_ihires_dshres_b1(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -1823,7 +1823,7 @@ static void lts_ecs_n_ishres_dshres_b1(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -1868,7 +1868,7 @@ static void lts_ecs_dpf_ishres_dshres_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -1913,7 +1913,7 @@ static void lts_ecs_ehb_ishres_dshres_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -1958,7 +1958,7 @@ static void lts_ecs_ham_ishres_dshres_b1(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2003,7 +2003,7 @@ static void lts_ecs_kehb_ishres_dshres_b1(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2048,7 +2048,7 @@ static void lts_ecs_n_ilores_dlores_b2(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2096,7 +2096,7 @@ static void lts_ecs_dpf_ilores_dlores_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2147,7 +2147,7 @@ static void lts_ecs_ehb_ilores_dlores_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2200,7 +2200,7 @@ static void lts_ecs_ham_ilores_dlores_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2248,7 +2248,7 @@ static void lts_ecs_kehb_ilores_dlores_b2(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2296,7 +2296,7 @@ static void lts_ecs_n_ihires_dlores_b2(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2344,7 +2344,7 @@ static void lts_ecs_dpf_ihires_dlores_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2395,7 +2395,7 @@ static void lts_ecs_ehb_ihires_dlores_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2448,7 +2448,7 @@ static void lts_ecs_ham_ihires_dlores_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2496,7 +2496,7 @@ static void lts_ecs_kehb_ihires_dlores_b2(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2564,7 +2564,7 @@ static void lts_ecs_n_ilores_dhires_b2(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -2619,7 +2619,7 @@ static void lts_ecs_dpf_ilores_dhires_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -2680,7 +2680,7 @@ static void lts_ecs_ehb_ilores_dhires_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -2745,7 +2745,7 @@ static void lts_ecs_ham_ilores_dhires_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -2800,7 +2800,7 @@ static void lts_ecs_kehb_ilores_dhires_b2(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -2855,7 +2855,7 @@ static void lts_ecs_n_ihires_dhires_b2(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2903,7 +2903,7 @@ static void lts_ecs_dpf_ihires_dhires_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -2954,7 +2954,7 @@ static void lts_ecs_ehb_ihires_dhires_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -3007,7 +3007,7 @@ static void lts_ecs_ham_ihires_dhires_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -3055,7 +3055,7 @@ static void lts_ecs_kehb_ihires_dhires_b2(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -3103,7 +3103,7 @@ static void lts_ecs_n_ishres_dhires_b2(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -3149,7 +3149,7 @@ static void lts_ecs_dpf_ishres_dhires_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -3195,7 +3195,7 @@ static void lts_ecs_ehb_ishres_dhires_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -3241,7 +3241,7 @@ static void lts_ecs_ham_ishres_dhires_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -3287,7 +3287,7 @@ static void lts_ecs_kehb_ishres_dhires_b2(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -3333,7 +3333,7 @@ static void lts_ecs_n_ilores_dshres_b2(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 4;
@@ -3402,7 +3402,7 @@ static void lts_ecs_dpf_ilores_dshres_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 4;
@@ -3483,7 +3483,7 @@ static void lts_ecs_ehb_ilores_dshres_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 4;
@@ -3572,7 +3572,7 @@ static void lts_ecs_ham_ilores_dshres_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 4;
@@ -3641,7 +3641,7 @@ static void lts_ecs_kehb_ilores_dshres_b2(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 4;
@@ -3710,7 +3710,7 @@ static void lts_ecs_n_ihires_dshres_b2(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -3765,7 +3765,7 @@ static void lts_ecs_dpf_ihires_dshres_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -3826,7 +3826,7 @@ static void lts_ecs_ehb_ihires_dshres_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -3891,7 +3891,7 @@ static void lts_ecs_ham_ihires_dshres_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -3946,7 +3946,7 @@ static void lts_ecs_kehb_ihires_dshres_b2(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1 += 2;
@@ -4001,7 +4001,7 @@ static void lts_ecs_n_ishres_dshres_b2(int draw_start, int draw_end, int draw_st
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -4050,7 +4050,7 @@ static void lts_ecs_dpf_ishres_dshres_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -4099,7 +4099,7 @@ static void lts_ecs_ehb_ishres_dshres_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -4148,7 +4148,7 @@ static void lts_ecs_ham_ishres_dshres_b2(int draw_start, int draw_end, int draw_
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;
@@ -4197,7 +4197,7 @@ static void lts_ecs_kehb_ishres_dshres_b2(int draw_start, int draw_end, int draw
 	}
 	while (cnt < end) {
 		bool bpl = false;
-		if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
+		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt >= draw_startoffset) {
 				if (cnt < hbstop_offset) {
 					buf1++;

@@ -1030,7 +1030,7 @@ static void gen_fastdraw(void)
 
 	outf("while (cnt < end) {");
 	outf("	bool bpl = false;");
-	outf("	if (cnt < bpl1dat_trigger_offset || cnt < hstrt_offset || cnt >= hstop_offset) {");
+	outf("	if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {");
 	outf("		if (cnt >= draw_startoffset) {");
 	outf("		if (cnt < hbstop_offset) {");
 	if (doubling <= 0) {

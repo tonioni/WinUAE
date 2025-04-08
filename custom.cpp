@@ -115,19 +115,19 @@ static uae_u16 pipelined_write_value;
 static struct rgabuf rga_pipe[RGA_SLOT_TOTAL + 1];
 struct denise_rga rga_denise[DENISE_RGA_SLOT_TOTAL];
 static struct linestate *current_line_state;
-static struct linestate lines[MAX_SCANDOUBLED_LINES][2];
+static struct linestate lines[MAX_SCANDOUBLED_LINES + 1][2];
 static int rga_denise_cycle, rga_denise_cycle_start, rga_denise_cycle_count;
 static int rga_denise_cycle_line = 1;
 static struct pipeline_reg preg;
 static struct pipeline_func pfunc[MAX_PIPELINE_REG];
-static uae_u16 prev_strobe;
+static uae_u16 prev_strobe, strobe_fast;
 static uae_u32 custom_state_flags;
 static int not_safe_mode;
 static bool dmal_next;
 static int fast_lines_cnt;
 static bool lineoptimizations_draw_always;
 
-static uae_u32 scandoubled_bpl_ptr[MAX_SCANDOUBLED_LINES][2][MAX_PLANES];
+static uae_u32 scandoubled_bpl_ptr[MAX_SCANDOUBLED_LINES + 1][2][MAX_PLANES];
 static bool scandoubled_bpl_ena[MAX_SCANDOUBLED_LINES + 1];
 
 static evt_t blitter_dma_change_cycle, copper_dma_change_cycle, sprite_dma_change_cycle_on, sprite_dma_change_cycle_off;
@@ -393,13 +393,13 @@ static int linear_display_vpos;
 int current_linear_vpos, current_linear_hpos;
 static int current_linear_vpos_temp, current_linear_hpos_temp;
 static int current_linear_temp_change;
+static bool display_redraw;
 static int display_hstart_cyclewait, display_hstart_cyclewait_cnt, display_hstart_cyclewait_end;
 static int display_hstart_cyclewait_skip, display_hstart_cyclewait_skip2;
 static bool display_hstart_cyclewait_start;
 static int agnus_trigger_cck;
 static int linear_vpos_changes;
 static enum nln_how nextline_how;
-static int lof_changed = 0, lof_changing = 0;
 static bool prevlofs[3];
 static bool vsync_rendered, frame_rendered, frame_shown;
 static frame_time_t vsynctimeperline;
@@ -1593,7 +1593,6 @@ void compute_framesync(void)
 		changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = vblank_hz;
 	}
 	stored_chipset_refresh = cr;
-	lof_changing = 0;
 	vb->inxoffset = -1;
 	vb->inyoffset = -1;
 	updateextblk();
@@ -2456,7 +2455,6 @@ static void VPOSW(uae_u16 v)
 #if 1
 	if (lof_store != ((v & 0x8000) ? 1 : 0)) {
 		lof_store = (v & 0x8000) ? 1 : 0;
-		lof_changing = lof_store ? 1 : -1;
 	}
 #endif
 	// LOL is always reset when VPOSW is written to.
@@ -4899,7 +4897,7 @@ static void vsync_handler_render(void)
 	if (!vsync_rendered) {
 		frame_time_t start, end;
 		start = read_processor_time();
-		vsync_handle_redraw(lof_store, lof_changed, bplcon0, bplcon3, isvsync_chipset() >= 0, initial_frame);
+		vsync_handle_redraw(lof_store, bplcon0, bplcon3, isvsync_chipset() >= 0, initial_frame);
 		initial_frame = false;
 		vsync_rendered = true;
 		end = read_processor_time();
@@ -4967,6 +4965,13 @@ static void vsync_display_render(void)
 {
 	if (!vsync_display_rendered) {
 		vsyncmintimepre = read_processor_time();
+
+		if (!custom_disabled) {
+			draw_denise_vsync_queue(display_redraw);
+			display_redraw = false;
+		}
+		draw_denise_line_queue_flush();
+
 		if (has_draw_denise()) {
 			end_draw_denise();
 		}
@@ -4986,7 +4991,8 @@ static void vsync_check_vsyncmode(void)
 				if (linear_hpos_prev[2] == linear_hpos_prev[0] || linear_hpos_prev[1] == linear_hpos_prev[0]) {
 					int hp = linear_hpos_prev[0] > linear_hpos_prev[2] ? linear_hpos_prev[0] : linear_hpos_prev[2];
 					int vp = linear_vpos_prev[0] > linear_vpos_prev[2] ? linear_vpos_prev[0] : linear_vpos_prev[2];
-					if (abs(hp - current_linear_hpos_temp) > 1 || abs(vp - current_linear_vpos_temp) > 1) {
+					int ydiff = (prevlofs[0] != prevlofs[1] && prevlofs[0] == prevlofs[2]) ? 2 : 1;
+					if (abs(hp - current_linear_hpos_temp) >= 2 || abs(vp - current_linear_vpos_temp) >= ydiff) {
 						current_linear_hpos_temp = hp;
 						current_linear_vpos_temp = vp;
 						current_linear_temp_change = 2;
@@ -5006,6 +5012,7 @@ static void vsync_check_vsyncmode(void)
 				init_beamcon0();
 				compute_framesync();
 				devices_syncchange();
+				display_redraw = true;
 			}
 		}
 	}
@@ -5076,6 +5083,7 @@ static void check_interlace(void)
 		interlace_seen = is;
 		init_hz();
 		changed = true;
+		display_redraw = true;
 	} else if (nis) {
 		interlace_seen = 0;
 		init_hz();
@@ -6416,7 +6424,6 @@ static void hsync_handler(bool vs)
 	}
 	if (vpos == vsync_startline + 1 && !maxvpos_display_vsync_next) {
 		inputdevice_read_msg(true);
-		draw_denise_line_queue_flush();
 		vsync_display_render();
 		vsync_display_rendered = false;
 		if (currprefs.cs_hvcsync == 0) {
@@ -6753,7 +6760,6 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	check_harddis();
 
 	init_hz_reset();
-	lof_changing = 0;
 
 	audio_reset();
 	cop_state.strobe_next = COP_stop;
@@ -7083,7 +7089,11 @@ writeonly:
 			if (cycs - CYCLE_UNIT == last_rga_cycle) {
 				v = regs.chipset_latch_rw;
 			} else {
-				v = 0xffff;
+				if (aga_mode) {
+					v = regs.chipset_latch_rw >> ((addr & 2) ? 0 : 16);
+				} else {
+					v = 0xffff;
+				}
 			}
 
 #if 0
@@ -10421,18 +10431,12 @@ static int getlinetype(void)
 {
 	int type = 0;
 	
-	if (get_strobe_reg(0) != 0x3c) {
+	if (strobe_fast != 0x3c) {
 		type = LINETYPE_BLANK;
-	} else {
-		if (vdiwstate == diw_states::DIW_waiting_start || GET_PLANES(bplcon0) == 0 || !dmaen(DMA_BITPLANE)) {
-			if ((bplcon0 & 1) && (bplcon3 & 0x20)) {
-				type = LINETYPE_BLANK;
-			} else {
-				type = LINETYPE_BORDER;
-			}
-		} else if (ddfstop > ddfstrt && ddfstrt >= 0x14 && GET_RES_AGNUS(bplcon0) == GET_RES_DENISE(bplcon0) && dmaen(DMA_BITPLANE)) {
-			type = LINETYPE_BPL;
-		}
+	} else if (vdiwstate == diw_states::DIW_waiting_start || GET_PLANES(bplcon0) == 0 || !dmaen(DMA_BITPLANE)) {
+		type = LINETYPE_BORDER;
+	} else if (ddfstop > ddfstrt && ddfstrt >= 0x14 && GET_RES_AGNUS(bplcon0) == GET_RES_DENISE(bplcon0) && dmaen(DMA_BITPLANE)) {
+		type = LINETYPE_BPL;
 	}
 	return type;
 }
@@ -10519,7 +10523,7 @@ static bool draw_border_fast(struct linestate *l, int ldv)
 	if (l->hbstrt_offset < 0 || l->hbstop_offset < 0) {
 		return false;
 	}
-	l->color0 = aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0];
+	l->color0 = ((bplcon0 & 1) && (bplcon3 & 0x20)) ? 0 : (aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0]);
 	int dvp = calculate_linetype(ldv);
 	draw_denise_border_line_fast_queue(dvp, nextline_how, l);
 	return true;
@@ -10595,23 +10599,24 @@ static bool draw_always(void)
 	return false;
 }
 
-
 static void resetlinestate(void)
 {
-	if (linear_vpos >= MAX_SCANDOUBLED_LINES) {
+	int lvpos = linear_vpos + 1;
+	if (lvpos >= MAX_SCANDOUBLED_LINES) {
 		return;
 	}
-	struct linestate *l = &lines[linear_vpos][lof_display];
+	struct linestate *l = &lines[lvpos][lof_display];
 	l->type = 0;
 	l->cnt = displayresetcnt - 1;
 }
 
 static void storelinestate(void)
 {
-	if (linear_vpos >= MAX_SCANDOUBLED_LINES) {
+	int lvpos = linear_vpos + 1;
+	if (lvpos >= MAX_SCANDOUBLED_LINES) {
 		return;
 	}
-	struct linestate *l = &lines[linear_vpos][lof_display];
+	struct linestate *l = &lines[lvpos][lof_display];
 
 	l->type = getlinetype();
 	if (!l->type) {
@@ -10628,21 +10633,14 @@ static void storelinestate(void)
 	l->ddfstop = ddfstop;
 	l->diwstrt = diwstrt;
 	l->diwstop = diwstop;
-	l->color0 = aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0];
+	l->color0 = ((bplcon0 & 1) && (bplcon3 & 0x20)) ? 0 : (aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0]);
 
 	l->bplcon3 = bplcon3;
 	l->bplcon4 = bplcon4;
 	l->diwhigh = diwhigh;
 	l->fmode = fmode;
-	l->ltsidx = -1;
 
 	if (l->type == LINETYPE_BPL) {
-#if 0
-		if (!l->linedatastate) {
-			l->linedatastate = xmalloc(uae_u8, MAX_STORED_BPL_DATA_BYTES + 256 * sizeof(uae_u32));
-		}
-		l->linecolorstate = l->linedatastate;
-#endif
 		int stop = !harddis_h && ddfstop > 0xd8 ? 0xd8 : ddfstop;
 		int len = ((stop - ddfstrt) + fetchunit - 1) / fetchunit + 1;
 		len = len * fetchunit / fetchstart;
@@ -10650,55 +10648,29 @@ static void storelinestate(void)
 		if (len < MAX_STORED_BPL_DATA) {
 			len <<= fetchmode;
 			l->bpllen = len;
-#if 0
-			uae_u8 *dpt = l->linedatastate;
-			int planes = GET_PLANES(bplcon0);
-			for (int i = 0; i < planes; i++) {
-				uaecptr apt = bplpt[i];
-#if 0
-				if (custom_fastmode_bplextendmask & (1 << i)) {
-					apt += fetchmode_bytes + getbplmod(i);
-				}
-#endif
-				if (!valid_address(apt, len)) {
-					l->type = 0;
-					return;
-				}
-				uae_u8 *pt = get_real_address(apt);
-				memcpy(dpt, pt, len);
-				dpt += len;
-			}
-			int colors = getcolorcount(planes);
-			l->colors = colors;
-			l->linecolorstate = dpt;
-			if (aga_mode) {
-				memcpy(dpt, agnus_colors.color_regs_aga, colors * sizeof(uae_u32));
-			} else {
-				memcpy(dpt, agnus_colors.color_regs_ecs, colors * sizeof(uae_u16));
-			}
-#endif
 		}
 	}
 }
 
 static bool checkprevfieldlinestateequal(void)
 {
-	if (linear_vpos >= MAX_SCANDOUBLED_LINES) {
+	int lvpos = linear_vpos + 1;
+	if (lvpos >= MAX_SCANDOUBLED_LINES + 1 || linear_display_vpos + 1 >= MAX_SCANDOUBLED_LINES) {
 		return false;
 	}
 	bool ret = false;
 	bool always = draw_always();
-	struct linestate *l = &lines[linear_vpos][lof_display];
+	struct linestate *l = &lines[lvpos][lof_display];
 
 	int type = getlinetype();
 	if (type && type == l->type && displayresetcnt == l->cnt) {
-		if (type == LINETYPE_BLANK && l->vb) {
+		if (type == LINETYPE_BLANK && strobe_fast != 0x3c) {
 			if (1) {
 				ret = true;
 			}
-		} else if (type == LINETYPE_BORDER && !l->vb) {
+		} else if (type == LINETYPE_BORDER && strobe_fast == 0x3c && !l->blankedline) {
 			if (1) {
-				uae_u32 c = aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0];
+				uae_u32 c = ((bplcon0 & 1) && (bplcon3 & 0x20)) ? 0 : (aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0]);
 				if (!always && c == l->color0) {
 					ret = true;
 				} else if (always || currprefs.cs_optimizations == DISPLAY_OPTIMIZATIONS_FULL) {
@@ -10706,24 +10678,35 @@ static bool checkprevfieldlinestateequal(void)
 					ret = draw_border_fast(l, linear_display_vpos + 1);
 				}
 			}
-		} else if (type == LINETYPE_BPL && !l->vb) {
+		} else if (type == LINETYPE_BPL && strobe_fast == 0x3c && !l->blankedline) {
 			if (1) {
 				int r = checkprevfieldlinestateequalbpl(l);
 				if ((r && always) || (r && currprefs.cs_optimizations == DISPLAY_OPTIMIZATIONS_FULL)) {
 					// no match but same parameters: do quick BPL emulation
+					int planes = GET_PLANES(bplcon0);
 					storelinestate();
 					r = draw_line_fast(l, linear_display_vpos + 1, bplpt, true);
-					if (doflickerfix_active() && scandoubled_bpl_ena[linear_vpos + 1]) {
-						lof_display ^= 1;
-						struct linestate *l2 = &lines[linear_vpos][lof_display];
-						scandoubled_line = 1;
-						uaecptr bplptx[MAX_PLANES];
-						for (int i = 0; i < MAX_PLANES; i++) {
-							bplptx[i] = scandoubled_bpl_ptr[linear_vpos][lof_display][i];
+					if (doflickerfix_active()) {
+						if (scandoubled_bpl_ena[lvpos]) {
+							lof_display ^= 1;
+							struct linestate *l2 = &lines[lvpos][lof_display];
+							scandoubled_line = 1;
+							uaecptr bplptx[MAX_PLANES];
+							bool skip = false;
+							for (int i = 0; i < planes; i++) {
+								bplptx[i] = scandoubled_bpl_ptr[lvpos][lof_display][i];
+								if (bplptx[i] == 0 || bplptx[i] == 0xffffffff) {
+									skip = true;
+								}
+							}
+							if (skip) {
+								draw_border_fast(l, linear_display_vpos + 2);
+							} else {
+								draw_line_fast(l2, linear_display_vpos + 2, bplptx, false);
+							}
+							scandoubled_line = 0;
+							lof_display ^= 1;
 						}
-						draw_line_fast(l2, linear_display_vpos + 1, bplptx, false);
-						scandoubled_line = 0;
-						lof_display ^= 1;
 					}
 				}
 				ret = r > 0;
@@ -11325,6 +11308,7 @@ static void custom_trigger_start(void)
 			}
 		}
 #endif
+		strobe_fast = get_strobe_reg(0);
 		int canline = can_fast_custom();
 		if (canline) {
 			calculate_linetype(linear_display_vpos + 1);
@@ -12370,9 +12354,6 @@ static void sync_equalline_handler(void)
 	fast_lines_cnt++;
 
 	custom_trigger_start();
-
-	int dvp = calculate_linetype(linear_display_vpos);
-	denise_set_line(dvp);
 
 	check_vsyncs_fast();
 

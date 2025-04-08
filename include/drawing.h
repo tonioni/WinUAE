@@ -79,7 +79,7 @@ STATIC_INLINE xcolnr getxcolor(int c)
 }
 
 /* functions for reading, writing, copying and comparing struct color_entry */
-STATIC_INLINE int color_reg_get (struct color_entry *ce, int c)
+STATIC_INLINE int color_reg_get(struct color_entry *ce, int c)
 {
 #ifdef AGA
 	if (aga_mode)
@@ -92,8 +92,8 @@ STATIC_INLINE int color_reg_get (struct color_entry *ce, int c)
 #define MAX_PIXELS_PER_LINE 2304
 
 /* Functions in drawing.c.  */
-extern int coord_native_to_amiga_y (int);
-extern int coord_native_to_amiga_x (int);
+extern int coord_native_to_amiga_y(int);
+extern int coord_native_to_amiga_x(int);
 
 /* Determine how to draw a scan line.  */
 enum nln_how {
@@ -110,24 +110,24 @@ enum nln_how {
 	nln_upper_black,
 	nln_lower_black,
 	nln_upper_black_always,
-	nln_lower_black_always
+	nln_lower_black_always,
+	nln_none
 };
 
-extern void vsync_handle_redraw (int long_field, int lof_changed, uae_u16, uae_u16, bool drawlines, bool initial);
-extern bool vsync_handle_check (void);
-extern void reset_drawing (void);
-extern void drawing_init (void);
-extern bool frame_drawn (int monid);
+extern void vsync_handle_redraw(int long_field, uae_u16, uae_u16, bool drawlines, bool initial);
+extern bool vsync_handle_check(void);
+extern void reset_drawing(void);
+extern void drawing_init(void);
+extern bool frame_drawn(int monid);
 extern void redraw_frame(void);
 extern void full_redraw_all(void);
-extern int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh);
-extern void store_custom_limits (int w, int h, int dx, int dy);
-extern void set_custom_limits (int w, int h, int dx, int dy, bool blank);
-extern void check_custom_limits (void);
-extern void get_custom_topedge (int *x, int *y, bool max);
-extern void get_custom_raw_limits (int *pw, int *ph, int *pdx, int *pdy);
-void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl);
 extern int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hres, int *vres);
+extern void store_custom_limits(int w, int h, int dx, int dy);
+extern void set_custom_limits(int w, int h, int dx, int dy, bool blank);
+extern void check_custom_limits(void);
+extern void get_custom_topedge(int *x, int *y, bool max);
+extern void get_custom_raw_limits(int *pw, int *ph, int *pdx, int *pdy);
+void get_custom_mouse_limits(int *pw, int *ph, int *pdx, int *pdy, int dbl);
 extern void putpixel(uae_u8 *buf, uae_u8 *genlockbuf, int x, xcolnr c8);
 extern void allocvidbuffer(int monid, struct vidbuffer *buf, int width, int height, int depth);
 extern void freevidbuffer(int monid, struct vidbuffer *buf);
@@ -169,9 +169,8 @@ struct linestate
 	int bpl1dat_trigger_offset;
 	int internal_pixel_cnt;
 	int internal_pixel_start_cnt;
+	bool blankedline;
 	int fetchmode_size, fetchstart_mask;
-	int ltsidx;
-	bool vb;
 	uae_u16 strobe;
 	int strobe_pos;
 };
@@ -191,9 +190,8 @@ void denise_reset(bool);
 bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 cycle);
 void denise_store_registers(void);
 void denise_restore_registers(void);
-void denise_set_line(int gfx_ypos);
-void denise_mark_last_line(void);
 bool denise_is_vb(void);
+void draw_denise_vsync_queue(int);
 void draw_denise_line_queue_flush(void);
 void quick_denise_rga_queue(int linecnt, int startpos, int endpos);
 void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos);
