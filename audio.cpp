@@ -60,7 +60,7 @@
 
 #define PERIOD_MIN 1
 #define PERIOD_MIN_NONCE 60
-#define PERIOD_MIN_LOOP 16
+#define PERIOD_MIN_LOOP 24
 #define PERIOD_MIN_LOOP_COUNT 64
 
 #define PERIOD_LOW 124
@@ -1507,6 +1507,23 @@ STATIC_INLINE int is_audio_active (void)
 	return audio_work_to_do;
 }
 
+static void audio_low_period_hack(struct audio_channel_data *cdp)
+{
+	// if very low period sample repeats, set higher period value to not cause huge performance drop
+	// For example: Spaceport, R-Type II, Rambo III
+	int nr = cdp - audio_channel;
+	if ((cdp->state == 2 || cdp->state == 3) && cdp->per < PERIOD_MIN_LOOP * CYCLE_UNIT && !(intena & (1 << (nr + 7))) && !(currprefs.cs_hacks & 32)) {
+		int add = 1;
+		if (cdp->len == 0 || cdp->len > 1000) {
+			add = 5;
+		}
+		cdp->minperloop += add;
+		if (cdp->minperloop >= PERIOD_MIN_LOOP_COUNT) {
+			cdp->per = 3 * maxhpos * CYCLE_UNIT;
+		}
+	}
+}
+
 static void update_volume(int nr, uae_u16 v)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
@@ -2505,20 +2522,7 @@ void event_audxdat_func(uae_u32 v)
 #endif
 			if (cdp->wlen == 1) {
 				cdp->wlen = cdp->len;
-				// if very low period sample repeats, set higher period value to not cause huge performance drop
-				// For example: Spaceport, R-Type II, Rambo III
-				if (cdp->per < PERIOD_MIN_LOOP * CYCLE_UNIT && !(intena & (1 << (nr + 7))) && !(currprefs.cs_hacks & 32)) {
-					int add = 1;
-					if (cdp->len == 0 || cdp->len > 10000) {
-						add = PERIOD_MIN_LOOP_COUNT;
-					} else if (cdp->len > 1000) {
-						add = 5;
-					}
-					cdp->minperloop += add;
-					if (cdp->minperloop >= PERIOD_MIN_LOOP_COUNT) {
-						cdp->per = PERIOD_MIN_LOOP * CYCLE_UNIT;
-					}
-				}
+				audio_low_period_hack(cdp);
 				if (!(v & 0x80000000)) {
 					cdp->intreq2 = true;
 				}
@@ -2772,6 +2776,10 @@ void led_filter_audio (void)
 
 void audio_vsync (void)
 {
+	for (int i = 0; i < 4; i++) {
+		audio_low_period_hack(audio_channel + i);
+	}
+
 #if 0
 #if SOUNDSTUFF > 0
 	int max, min;
