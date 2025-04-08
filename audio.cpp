@@ -2506,8 +2506,15 @@ void event_audxdat_func(uae_u32 v)
 			if (cdp->wlen == 1) {
 				cdp->wlen = cdp->len;
 				// if very low period sample repeats, set higher period value to not cause huge performance drop
-				if (cdp->per < PERIOD_MIN_LOOP * CYCLE_UNIT) {
-					cdp->minperloop++;
+				// For example: Spaceport, R-Type II, Rambo III
+				if (cdp->per < PERIOD_MIN_LOOP * CYCLE_UNIT && !(intena & (1 << (nr + 7))) && !(currprefs.cs_hacks & 32)) {
+					int add = 1;
+					if (cdp->len == 0 || cdp->len > 10000) {
+						add = PERIOD_MIN_LOOP_COUNT;
+					} else if (cdp->len > 1000) {
+						add = 5;
+					}
+					cdp->minperloop += add;
 					if (cdp->minperloop >= PERIOD_MIN_LOOP_COUNT) {
 						cdp->per = PERIOD_MIN_LOOP * CYCLE_UNIT;
 					}
