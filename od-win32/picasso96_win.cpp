@@ -389,7 +389,7 @@ static void ShowSupportedResolutions (void)
 	int i = 0;
 
 	write_log (_T("-----------------\n"));
-	while (newmodes[i].depth >= 0) {
+	while (newmodes[i].inuse) {
 		write_log (_T("%s\n"), newmodes[i].name);
 		i++;
 	}
@@ -882,12 +882,15 @@ static int doskip (void)
 void picasso_trigger_vblank(void)
 {
 	TrapContext *ctx = NULL;
-	if (!ABI_interrupt || !uaegfx_base || !interrupt_enabled || !currprefs.rtg_hardwareinterrupt)
+	bool disabled = !ABI_interrupt || !uaegfx_base || !interrupt_enabled || !currprefs.rtg_hardwareinterrupt;
+	if (disabled) {
 		return;
+	}
 	trap_put_long(ctx, uaegfx_base + CARD_IRQPTR, ABI_interrupt + PSSO_BoardInfo_SoftInterrupt);
-	trap_put_byte(ctx, uaegfx_base + CARD_IRQFLAG, 1);
-	if (currprefs.win32_rtgvblankrate != 0)
-		INTREQ (0x8000 | 0x0008);
+	trap_put_byte(ctx, uaegfx_base + CARD_IRQFLAG, currprefs.win32_rtgvblankrate ? 2 : 1);
+	if (currprefs.win32_rtgvblankrate != 0) {
+		INTREQ(0x8000 | 0x0008);
+	}
 }
 
 static bool is_uaegfx_active(void)
@@ -1193,8 +1196,15 @@ static void picasso_handle_vsync2(struct AmigaMonitor *mon)
 		return;
 	}
 
-	if (!ad->picasso_on)
+	if (uaegfx) {
+		if (thisisvsync) {
+			picasso_trigger_vblank();
+		}
+	}
+
+	if (!ad->picasso_on) {
 		return;
+	}
 
 	if (uaegfx && uaegfx_active)
 		if (setupcursor_needed)
@@ -1206,10 +1216,6 @@ static void picasso_handle_vsync2(struct AmigaMonitor *mon)
 		frame_drawn(monid);
 	}
 
-	if (uaegfx) {
-		if (thisisvsync)
-			picasso_trigger_vblank();
-	}
 
 #if 0
 	if (vsync < 0) {
@@ -1225,27 +1231,19 @@ void picasso_handle_vsync(void)
 {
 	struct AmigaMonitor *mon = &AMonitors[currprefs.rtgboards[0].monitor_id];
 	struct amigadisplay *ad = &adisplays[currprefs.rtgboards[0].monitor_id];
-	bool uaegfx = currprefs.rtgboards[0].rtgmem_type < GFXBOARD_HARDWARE;
 	bool uaegfx_active = is_uaegfx_active();
 
-	if (currprefs.rtgboards[0].rtgmem_size == 0)
-		return;
-
-	if (!ad->picasso_on && uaegfx) {
-		if (uaegfx_active) {
+	if (uaegfx_active) {
+		if (!ad->picasso_on) {
 			createwindowscursor(mon->monitor_id, 0, 1);
 		}
-		picasso_trigger_vblank();
-		if (!delayed_set_switch)
-			return;
-	}
-
-	int vsync = isvsync_rtg();
-	if (vsync < 0) {
-		p96hsync = 0;
-		picasso_handle_vsync2(mon);
-	} else if (currprefs.win32_rtgvblankrate == 0) {
-		picasso_handle_vsync2(mon);
+		int vsync = isvsync_rtg();
+		if (vsync < 0) {
+			p96hsync = 0;
+			picasso_handle_vsync2(mon);
+		} else if (currprefs.win32_rtgvblankrate == 0) {
+			picasso_handle_vsync2(mon);
+		}
 	}
 }
 
@@ -2832,9 +2830,9 @@ static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	uae_u16 flag = trap_get_dreg(ctx, 0) & 0xFFFF;
 	bool switched = false;
+	/* Put old switch-state in D0 */
+	bool oldstate = ad->picasso_on || ad->picasso_requested_on;
 
-	TCHAR p96text[100];
-	p96text[0] = 0;
 	if (flag && (state->BytesPerPixel == 0 || state->Width == 0 || state->Height == 0) && monid > 0) {
 		state->Width = 640;
 		state->VirtualWidth = state->Width;
@@ -2853,20 +2851,20 @@ static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 		delayed_set_switch = false;
 		atomic_or(&vidinfo->picasso_state_change, PICASSO_STATE_SETSWITCH);
 		ad->picasso_requested_on = flag != 0;
-		set_config_changed();
 		switched = true;
 	}
 	if (switched) {
+		TCHAR p96text[100];
+		p96text[0] = 0;
 		if (flag)
 			_stprintf(p96text, _T("Picasso96 %dx%dx%d (%dx%dx%d)"),
 				state->Width, state->Height, state->BytesPerPixel * 8,
 				vidinfo->width, vidinfo->height, vidinfo->pixbytes * 8);
-		write_log(_T("SetSwitch() - %s - %s. Monitor=%d\n"), flag ? p96text : _T("amiga"), delayed_set_switch ? _T("delayed") : _T("immediate"), monid);
+		write_log(_T("SetSwitch() - %s - %s. Monitor=%d, old=%d\n"), flag ? p96text : _T("amiga"), delayed_set_switch ? _T("delayed") : _T("immediate"), monid, oldstate);
 	}
 
-	/* Put old switch-state in D0 */
 	unlockrtg();
-	return !flag;
+	return oldstate;
 }
 
 
@@ -5489,11 +5487,18 @@ static void initvblankirq (TrapContext *ctx, uaecptr base)
 	trap_put_word(ctx, p2 + 8, 0x0205);
 	trap_put_long(ctx, p2 + 10, uaegfx_portsname);
 	trap_put_long(ctx, p2 + 14, base + CARD_IRQFLAG);
-	trap_put_long(ctx, p2 + 18, c);
+	trap_put_long(ctx, p2 + 18, c + 11 * 2);
 
-	trap_put_word(ctx, c, 0x4a11); c += 2;		// tst.b (a1) CARD_IRQFLAG
+	trap_put_long(ctx, c, 0x08910000); c += 4;	// bclr #0,(a1) CARD_IRQFLAG
 	trap_put_word(ctx, c, 0x670e); c += 2;		// beq.s label
-	trap_put_word(ctx, c, 0x4211); c += 2;		// clr.b (a1)
+	trap_put_long(ctx, c, 0x2c690008); c += 4;	// move.l 8(a1),a6 CARD_IRQEXECBASE
+	trap_put_long(ctx, c, 0x22690004); c += 4;	// move.l 4(a1),a1 CARD_IRQPTR
+	trap_put_long(ctx, c, 0x4eaeff4c); c += 4;	// jsr Cause(a6)
+	trap_put_word(ctx, c, 0x7000); c += 2;		// label: moveq #0,d0
+	trap_put_word(ctx, c, RTS); c += 2;			// rts
+
+	trap_put_long(ctx, c, 0x08910001); c += 4;	// bclr #1,(a1) CARD_IRQFLAG
+	trap_put_word(ctx, c, 0x670e); c += 2;		// beq.s label
 	trap_put_long(ctx, c, 0x2c690008); c += 4;	// move.l 8(a1),a6 CARD_IRQEXECBASE
 	trap_put_long(ctx, c, 0x22690004); c += 4;	// move.l 4(a1),a1 CARD_IRQPTR
 	trap_put_long(ctx, c, 0x4eaeff4c); c += 4;	// jsr Cause(a6)
