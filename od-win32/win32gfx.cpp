@@ -2835,9 +2835,11 @@ void gfx_set_picasso_state(int monid, int on)
 	struct gfx_filterdata *newf, *oldf;
 	int mode;
 
-	if (mon->screen_is_picasso == on)
+	if (mon->screen_is_picasso == on) {
 		return;
+	}
 	mon->screen_is_picasso = on;
+
 	rp_rtg_switch ();
 	memcpy (&wc, &mon->currentmode, sizeof (wc));
 

@@ -23,6 +23,7 @@ extern int interlace_seen;
 extern int visible_left_border, visible_right_border;
 extern int detected_screen_resolution;
 extern int hsync_end_left_border, hdisplay_left_border, denisehtotal;
+extern int vsync_startline;
 
 extern bool exthblanken;
 

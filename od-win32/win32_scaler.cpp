@@ -56,7 +56,7 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	v = currprefs.gfx_xcenter_size;
 	if (v <= 0) {
 		if (programmedmode && native) {
-			cw = avidinfo->outbuffer->outwidth << (RES_MAX - currprefs.gfx_resolution);
+			cw = maxhpos_display << (RES_MAX + (doublescan == 1));
 		} else {
 			if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
 				// keep old version compatibility
@@ -73,7 +73,7 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	v = currprefs.gfx_ycenter_size;
 	if (v <= 0) {
 		if (programmedmode && native) {
-			ch = avidinfo->outbuffer->outheight << (VRES_MAX - currprefs.gfx_vresolution);
+			ch = (maxvpos_display + maxvpos_display_vsync - minfirstline) << (VRES_MAX - (doublescan == 1 && !interlace_seen));
 		} else if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
 			// keep old version compatiblity
 			ch = native ? (ispal(NULL) ? AMIGA_HEIGHT_MAX_PAL : AMIGA_HEIGHT_MAX_NTSC) << VRES_MAX : avidinfo->outbuffer->outheight;
@@ -794,9 +794,13 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	if (!monid && currprefs.gfx_overscanmode <= OVERSCANMODE_BROADCAST) {
 		// if native screen: do not include vertical blank
 		h = get_vertical_visible_height(false);
+		if (h > vb->outheight) {
+			h = vb->outheight;
+		}
 	}
-	if (pitch)
+	if (pitch) {
 		*pitch = vb->rowbytes;
+	}
 	*widthp = w;
 	*heightp = h;
 	*depth = vb->pixbytes * 8;

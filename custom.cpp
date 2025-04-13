@@ -800,7 +800,7 @@ static bool safecpu(void)
 static void check_nocustom(void)
 {
 	struct amigadisplay* ad = &adisplays[0];
-	if (ad->picasso_on && currprefs.picasso96_nocustom) {
+	if (ad->picasso_on) {
 		custom_disabled = true;
 		line_disabled |= 2;
 	} else {
@@ -3515,11 +3515,13 @@ static void varsync(int reg, bool resync, int oldval)
 void set_picasso_hack_rate(int hz)
 {
 	struct amigadisplay *ad = &adisplays[0];
-	if (!ad->picasso_on)
+	if (!ad->picasso_on) {
 		return;
+	}
 	p96refresh_active = (int)(maxvpos_stored * vblank_hz_stored / hz);
-	if (!currprefs.cs_ciaatod)
+	if (!currprefs.cs_ciaatod) {
 		changed_prefs.cs_ciaatod = currprefs.cs_ciaatod = currprefs.ntscmode ? 2 : 1;
+	}
 	if (p96refresh_active > 0) {
 		new_beamcon0 |= BEAMCON0_VARBEAMEN;
 	}
@@ -10550,13 +10552,13 @@ static bool draw_line_fast(struct linestate *l, int ldv, uaecptr bplptp[8], bool
 		return false;
 	}
 	// no HAM+DPF
-	if ((bplcon0 & (0x800 | 0x400)) == (0x800 | 0x400)) {
+	if ((l->bplcon0 & (0x800 | 0x400)) == (0x800 | 0x400)) {
 		return false;
 	}
-	int planes = GET_PLANES(bplcon0);
+	int planes = GET_PLANES(l->bplcon0);
 	int bc1mask = aga_mode ? 0xffff : 0x00ff;
 	// no odd/even scroll if not DPF
-	if (!(bplcon0 & 0x400) && ((bplcon1 & bc1mask) & 0x0f0f) != (((bplcon1 & bc1mask) >> 4) & 0x0f0f)) {
+	if (!(l->bplcon0 & 0x400) && ((l->bplcon1 & bc1mask) & 0x0f0f) != (((l->bplcon1 & bc1mask) >> 4) & 0x0f0f)) {
 		return false;
 	}
 	int colors = getcolorcount(planes);
@@ -10694,8 +10696,8 @@ static bool checkprevfieldlinestateequal(void)
 				int r = checkprevfieldlinestateequalbpl(l);
 				if ((r && always) || (r && currprefs.cs_optimizations == DISPLAY_OPTIMIZATIONS_FULL)) {
 					// no match but same parameters: do quick BPL emulation
-					int planes = GET_PLANES(bplcon0);
 					storelinestate();
+					int planes = GET_PLANES(l->bplcon0);
 					r = draw_line_fast(l, linear_display_vpos + 1, bplpt, true);
 					if (doflickerfix_active()) {
 						if (scandoubled_bpl_ena[lvpos]) {
@@ -11130,17 +11132,7 @@ static void start_sync_imm_handler(void)
 	eventtab[ev_sync].handler = sync_imm_evhandler;
 	events_schedule();
 }
-#if 0
-static void sync_fast_evhandler(void);
-static void start_sync_fast_handler(void)
-{
-	eventtab[ev_sync].active = 1;
-	eventtab[ev_sync].oldcycles = get_cycles();
-	eventtab[ev_sync].evtime = get_cycles() + (display_hstart_fastmode - 1) * CYCLE_UNIT;
-	eventtab[ev_sync].handler = sync_fast_evhandler;
-	events_schedule();
-}
-#endif
+
 
 static void custom_trigger_start_nosync(void)
 {
@@ -11160,6 +11152,10 @@ static void custom_trigger_start_nosync(void)
 
 static void custom_trigger_start(void)
 {
+	if (vdiwstate == diw_states::DIW_waiting_stop && dmaen(DMA_BITPLANE)) {
+		bpl_autoscale();
+	}
+
 	vpos_prev = vpos;
 	vpos++;
 	vpos &= 2047;
@@ -11168,9 +11164,6 @@ static void custom_trigger_start(void)
 	}
 	linear_display_vpos = linear_vpos;
 	linear_vpos++;
-	if (vdiwstate == diw_states::DIW_waiting_stop && dmaen(DMA_BITPLANE)) {
-		bpl_autoscale();
-	}
 
 	linear_vpos_vsync++;
 	if (beamcon0_has_vsync) {
@@ -11260,29 +11253,11 @@ static void custom_trigger_start(void)
 	check_bpl_vdiw();
 
 	int custom_fastmode_prev = custom_fastmode;
-#if 0
-	if (custom_fastmode < 0) {
-		custom_fastmode++;
-	}
-	if (1 && can_fast_custom() && !custom_fastmode) {
-		custom_fastmode = 1;
-		eventtab[ev_sync].oldcycles = get_cycles();
-		eventtab[ev_sync].evtime = get_cycles() + (display_hstart_fastmode - 1) * CYCLE_UNIT;
-		eventtab[ev_sync].active = true;
-		events_schedule();
-	}
-#endif
 
 	if (custom_disabled && !eventtab[ev_sync].active && !currprefs.cpu_memory_cycle_exact && currprefs.cs_optimizations < DISPLAY_OPTIMIZATIONS_NONE) {
 		custom_fastmode = 0;
 		start_sync_imm_handler();
 		write_log("Chipset emulation inactive\n");
-#if 0
-	} else if (!currprefs.cpu_memory_cycle_exact && can_fast_custom()) {
-		if (!custom_fastmode) {
-			custom_fastmode = 1;
-		} else {
-			custom_fastmode = 2;
 	}
 	if (!canvhposw()) {
 		// ignore pending V(H)POSW writes if in normal mode
@@ -11291,8 +11266,6 @@ static void custom_trigger_start(void)
 			agnus_vpos_next = -1;
 			agnus_hpos_next = -1;
 		}
-		start_sync_fast_handler();
-#endif
 	}
 
 	if (vpos == 0 && fast_lines_cnt) {
@@ -12259,58 +12232,6 @@ static void do_cck(bool docycles)
 	}
 
 }
-
-#if 0
-// quick single line
-static void sync_fast_evhandler(void)
-{
-	if (custom_fastmode == 1 || custom_fastmode == 2) {
-		rga_denise_cycle += (REFRESH_FIRST_HPOS - 1);
-		rga_denise_cycle &= denise_rga_slot_size_mask;
-		uae_u16 str = get_strobe_reg(0);
-		write_drga(str, NULL, 0);
-		int diff = display_hstart_fastmode - 1;
-		agnus_hpos += diff;
-		linear_hpos += diff;
-		currcycle_cck += diff;
-		rga_denise_cycle_count += diff;
-		rga_denise_cycle += diff - (REFRESH_FIRST_HPOS - 1);
-		rga_denise_cycle &= denise_rga_slot_size_mask;
-		if (custom_fastmode == 2) {
-			custom_fastmode = 3;
-			decide_line_end();
-		} else {
-			do_draw_line();
-			custom_fastmode = 3;
-		}
-		eventtab[ev_sync].oldcycles = get_cycles();
-		eventtab[ev_sync].evtime = eventtab[ev_sync].oldcycles + (maxhpos + lol) * CYCLE_UNIT;
-		events_schedule();
-		return;
-	}
-
-	agnus_hpos = 1;
-	int diff = (get_cycles() - eventtab[ev_sync].oldcycles) / CYCLE_UNIT;
-	linear_hpos += diff;
-	currcycle_cck += diff;
-	rga_denise_cycle_count += diff;
-	rga_denise_cycle += diff;
-	rga_denise_cycle &= denise_rga_slot_size_mask;
-
-	custom_trigger_start();
-	check_extra();
-	do_imm_dmal();
-
-	draw_line_fast();
-	next_denise_rga();
-
-	eventtab[ev_sync].active = false;
-	if (can_fast_custom()) {
-		custom_fastmode = 2;
-		start_sync_fast_handler();
-	}
-}
-#endif
 
 // horizontal sync callback when line not changed + fast cpu
 static void sync_equalline_handler(void)
