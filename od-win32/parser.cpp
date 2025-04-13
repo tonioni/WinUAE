@@ -501,6 +501,26 @@ void unload_ghostscript (void)
 	psmode = 0;
 }
 
+static DWORD GetPrinterDriverVersion(HANDLE handle)
+{
+	DWORD needed = 0;
+	DWORD version = 0;
+	GetPrinterDriver(handle, NULL, 2, NULL, 0, &needed);
+	if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+		return -1;
+	}
+	BYTE *buffer = xcalloc(BYTE, needed);
+	if (buffer) {
+		if (!GetPrinterDriver(handle, NULL, 2, buffer, needed, &needed)) {
+			xfree(buffer);
+			return -1;
+		}
+		version = ((DRIVER_INFO_2*)buffer)->cVersion;
+		xfree(buffer);
+	}
+	return version;
+}
+
 static void openprinter (void)
 {
 	DOC_INFO_1 DocInfo;
@@ -519,10 +539,11 @@ static void openprinter (void)
 	} else if (hPrt == INVALID_HANDLE_VALUE) {
 		flushprtbuf ();
 		if (OpenPrinter (currprefs.prtname, &hPrt, NULL)) {
+			DWORD version = GetPrinterDriverVersion(hPrt);
 			// Fill in the structure with info about this "document."
 			DocInfo.pDocName = _T("WinUAE Document");
 			DocInfo.pOutputFile = NULL;
-			DocInfo.pDatatype = (currprefs.parallel_matrix_emulation || currprefs.parallel_postscript_detection) ? _T("TEXT") : _T("RAW");
+			DocInfo.pDatatype = (currprefs.parallel_matrix_emulation || currprefs.parallel_postscript_detection) ? _T("TEXT") : (version >= 4 ? _T("XPS_PASS") : _T("RAW"));
 			// Inform the spooler the document is beginning.
 			if ((dwJob = StartDocPrinter (hPrt, 1, (LPBYTE)&DocInfo)) == 0) {
 				error = GetLastError();
