@@ -2372,6 +2372,11 @@ static void check_line_enabled(void)
 	line_disabled |= custom_disabled ? 2 : 0;
 }
 
+static bool canvhposw(void)
+{
+	return !custom_disabled && !eventtab[ev_sync].active && currprefs.cpu_memory_cycle_exact;
+}
+
 static void incpos(uae_u16 *hpp, uae_u16 *vpp)
 {
 	uae_u16 hp = *hpp;
@@ -2390,12 +2395,14 @@ static void incpos(uae_u16 *hpp, uae_u16 *vpp)
 	if (hp == maxhpos || hp == maxhpos_long) {
 		hp = 0;
 	}
-	if (agnus_pos_change >= 1) {
-		if (agnus_vpos_next >= 0) {
-			vp = agnus_vpos_next;
-		}
-		if (agnus_hpos_next >= 0) {
-			hp = agnus_hpos_next;
+	if (canvhposw()) {
+		if (agnus_pos_change >= 1) {
+			if (agnus_vpos_next >= 0) {
+				vp = agnus_vpos_next;
+			}
+			if (agnus_hpos_next >= 0) {
+				hp = agnus_hpos_next;
+			}
 		}
 	}
 	*hpp = hp;
@@ -2470,9 +2477,11 @@ static void VPOSW(uae_u16 v)
 	}
 	newvpos |= v << 8;
 
-	agnus_vpos_next = newvpos;
-	agnus_pos_change = 2;
-	resetfulllinestate();
+	if (canvhposw()) {
+		agnus_vpos_next = newvpos;
+		agnus_pos_change = 2;
+		resetfulllinestate();
+	}
 }
 
 static void VHPOSW(uae_u32 v)
@@ -2493,9 +2502,11 @@ static void VHPOSW(uae_u32 v)
 	newvpos &= 0xff00;
 	newvpos |= v >> 8;
 
-	agnus_vpos_next = newvpos;
-	agnus_pos_change = 2;
-	resetfulllinestate();
+	if (canvhposw()) {
+		agnus_vpos_next = newvpos;
+		agnus_pos_change = 2;
+		resetfulllinestate();
+	}
 }
 
 // 80E1 -> 80E2 -> 8000 -> 8001 -> 8102 -> 8103
@@ -11272,6 +11283,13 @@ static void custom_trigger_start(void)
 			custom_fastmode = 1;
 		} else {
 			custom_fastmode = 2;
+	}
+	if (!canvhposw()) {
+		// ignore pending V(H)POSW writes if in normal mode
+		if (agnus_pos_change > -2) {
+			agnus_pos_change = -2;
+			agnus_vpos_next = -1;
+			agnus_hpos_next = -1;
 		}
 		start_sync_fast_handler();
 #endif
