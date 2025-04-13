@@ -1,5 +1,16 @@
 
 
+- Filter panel TV modes and filter overscan blanking work correctly again (not doing anything since b1). Extra horizontal and vertical blanking handling changed again, might cause side-effects.
+- NTSC horizontal long/short line artifacts are gone in TV overscan modes. NOTE: NTSC still have problems with some filter modes.
+- Ultra extreme debug marker colors changed.
+- Automatic scaling used also non-bitplanes to detect horizontal start/end. Now it matches 5.3.1.
+- Automatic scaling + fast drawing mode: detected topmost line was 1 line too large.
+- Screenshot when in non-PAL/NTSC mode memory out of bounds access fixed, caused random crashes also when entering GUI.
+- Fixed possible crash in fast mode drawing code if number of planes changes suddenly.
+- uaegfx vertical blank interrupt might have been duplicated or lost in some situations (very old bug), depending on RTG panel refresh rate setting.
+- Ignore V(H)POSW writes when in non-ce modes. KS V(H)POSW writes when screen mode changes caused strange side-effects, including unreliable RTG/native mode switches.
+- Passthrough printing fix for v4+ Windows printer drivers (untested)
+
 Beta 20:
 
 - Long/short field mode change (single LOF change, not interlace continuous toggle) didn't recalculate internal screen mode configuration. As a side-effect it also caused random last line to not being updated correctly when switching from long to short.
@@ -9,6 +20,7 @@ Beta 20:
 - Integer scale horizontal/vertical resolution aspect ratio correction should now work more sanely (for example if superhires + vertical doubling, result is always vertically doubled first, after that integer scaling ratio is selected). Supports also programmed doublescan modes.
 - In AGA mode reads from write-only registers are now closer to 5.3.1 and older version behavior. (Artificial Paradise / NGC)
 - If resolution/plane count was set before FMODE was updated and original FMODE was too small for new mode, drawing mode was reset to normal (HAM and EHB was drawn as normal mode). Affected hires and shres AGA HAM and EHB modes.
+- Non-accurate CPU mode and writing to CIA high timer register didn't load timer from latch immediately in oneshort mode when timer was already running (Introduced in some 4.9.x version)
 
 Beta 19:
 
