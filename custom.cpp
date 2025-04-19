@@ -391,6 +391,7 @@ int linear_vpos, linear_hpos, linear_vpos_prev[3], linear_hpos_prev[3];
 static int linear_vpos_vsync;
 static int linear_display_vpos;
 int current_linear_vpos, current_linear_hpos;
+int current_linear_vpos_nom, current_linear_hpos_short;
 static int current_linear_vpos_temp, current_linear_hpos_temp;
 static int current_linear_temp_change;
 static bool display_redraw;
@@ -1318,8 +1319,8 @@ frame_time_t vsynctimebase_orig;
 
 void compute_vsynctime(void)
 {
-	float svpos = maxvpos_nom + 0.0f;
-	float shpos = maxhpos_short + 0.0f;
+	float svpos = current_linear_vpos_nom + 0.0f;
+	float shpos = current_linear_hpos_short + 0.0f;
 	float syncadjust = 1.0;
 
 	fake_vblank_hz = 0;
@@ -1338,8 +1339,9 @@ void compute_vsynctime(void)
 			}
 		}
 	}
-	if (!fake_vblank_hz)
+	if (!fake_vblank_hz) {
 		fake_vblank_hz = vblank_hz;
+	}
 
 	if (currprefs.turbo_emulation) {
 		if (currprefs.turbo_emulation_limit > 0) {
@@ -1753,24 +1755,25 @@ static void init_beamcon0(void)
 
 	float clk = (float)(currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL);
 
+	int display_maxvpos = current_linear_vpos_nom;
+	int display_maxhpos = current_linear_hpos_short;
+	float halfhpos = 0;
+
 	if (!isntsc) {
 		maxvpos = MAXVPOS_PAL;
 		maxhpos = MAXHPOS_PAL;
 		minfirstline = VBLANK_STOP_PAL;
-		vblank_hz_nom = vblank_hz = VBLANK_HZ_PAL;
-		vblank_hz_shf = clk / ((maxvpos + 0.0f) * maxhpos);
-		vblank_hz_lof = clk / ((maxvpos + 1.0f) * maxhpos);
-		vblank_hz_lace = clk / ((maxvpos + 0.5f) * maxhpos);
+		vblank_hz_nom = vblank_hz = CHIPSET_CLOCK_PAL / ((float)display_maxvpos * display_maxhpos);
 	} else {
 		maxvpos = MAXVPOS_NTSC;
 		maxhpos = MAXHPOS_NTSC;
 		minfirstline = VBLANK_STOP_NTSC;
-		vblank_hz_nom = vblank_hz = VBLANK_HZ_NTSC;
-		float half = (beamcon0 & BEAMCON0_LOLDIS) ? 0 : 0.5f;
-		vblank_hz_shf = clk / ((maxvpos + 0.0f) * (maxhpos + half));
-		vblank_hz_lof = clk / ((maxvpos + 1.0f) * (maxhpos + half));
-		vblank_hz_lace = clk / ((maxvpos + 0.5f) * (maxhpos + half));
+		vblank_hz_nom = vblank_hz = CHIPSET_CLOCK_NTSC / ((float)display_maxvpos * display_maxhpos);
+		halfhpos = (beamcon0 & BEAMCON0_LOLDIS) ? 0 : 0.5f;
 	}
+	vblank_hz_shf = clk / ((display_maxvpos + 0.0f) * (display_maxhpos + halfhpos));
+	vblank_hz_lof = clk / ((display_maxvpos + 1.0f) * (display_maxhpos + halfhpos));
+	vblank_hz_lace = clk / ((display_maxvpos + 0.5f) * (display_maxhpos + halfhpos));
 
 	display_hstart_cyclewait_end = 4;
 	if (beamcon0 & bemcon0_hsync_mask) {
@@ -2111,6 +2114,8 @@ static void init_hz_reset(void)
 	linear_hpos_prev[2] = linear_hpos;
 	current_linear_vpos = linear_vpos + vsync_startline - lof_store;
 	current_linear_hpos = linear_hpos;
+	current_linear_vpos_nom = current_linear_vpos;
+	current_linear_hpos_short = linear_hpos;
 	current_linear_hpos_temp = current_linear_hpos;
 	current_linear_vpos_temp = current_linear_vpos;
 	current_linear_temp_change = 0;
@@ -2481,6 +2486,11 @@ static void VPOSW(uae_u16 v)
 		agnus_vpos_next = newvpos;
 		agnus_pos_change = 2;
 		resetfulllinestate();
+	} else if (!currprefs.cpu_memory_cycle_exact) {
+		if (newvpos > vpos && newvpos > minfirstline && vpos > minfirstline && newvpos < maxvpos) {
+			vpos = newvpos;
+			resetfulllinestate();
+		}
 	}
 }
 
@@ -2506,6 +2516,11 @@ static void VHPOSW(uae_u32 v)
 		agnus_vpos_next = newvpos;
 		agnus_pos_change = 2;
 		resetfulllinestate();
+	} else if (!currprefs.cpu_memory_cycle_exact) {
+		if (newvpos > vpos && newvpos > minfirstline && vpos > minfirstline && newvpos < maxvpos) {
+			vpos = newvpos;
+			resetfulllinestate();
+		}
 	}
 }
 
@@ -5022,6 +5037,8 @@ static void vsync_check_vsyncmode(void)
 				current_linear_vpos != current_linear_vpos_temp) {
 				current_linear_hpos = current_linear_hpos_temp;
 				current_linear_vpos = current_linear_vpos_temp;
+				current_linear_hpos_short = current_linear_hpos - lol;
+				current_linear_vpos_nom = current_linear_vpos - lof_store;
 				init_beamcon0();
 				compute_framesync();
 				devices_syncchange();
@@ -12693,12 +12710,12 @@ bool isvga(void)
 bool ispal(int *lines)
 {
 	if (lines) {
-		*lines = maxvpos_display;
+		*lines = current_linear_vpos_nom;
 	}
 	if (programmedmode == 1) {
 		return currprefs.ntscmode == 0;
 	}
-	return maxvpos_display >= MAXVPOS_NTSC + (MAXVPOS_PAL - MAXVPOS_NTSC) / 2;
+	return current_linear_vpos_nom >= MAXVPOS_NTSC + (MAXVPOS_PAL - MAXVPOS_NTSC) / 2;
 }
 
 void custom_end_drawing(void)
