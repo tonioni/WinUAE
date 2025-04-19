@@ -10582,7 +10582,10 @@ static bool draw_line_fast(struct linestate *l, int ldv, uaecptr bplptp[8], bool
 	int colors = getcolorcount(planes);
 	int len = l->bpllen;
 	for (int i = 0; i < planes; i++) {
-		uaecptr pt = bplptp[i];
+		uaecptr pt = bplptp[i] & chipmem_bank.mask;
+		if (!valid_address(pt, len)) {
+			return false;
+		}
 		l->bplpt[i] = get_real_address(pt);
 	}
 	if (color_table_changed) {
@@ -10613,6 +10616,7 @@ static bool draw_line_fast(struct linestate *l, int ldv, uaecptr bplptp[8], bool
 		// advance bpl pointers
 		for (int i = 0; i < planes; i++) {
 			int mod = getbplmod(i);
+			scandoubled_bpl_ptr[linear_vpos][lof_store][i] = bplpt[i];
 			bplpt[i] += mod + len;
 		}
 	}
@@ -10725,10 +10729,10 @@ static bool checkprevfieldlinestateequal(void)
 							uaecptr bplptx[MAX_PLANES];
 							bool skip = false;
 							for (int i = 0; i < planes; i++) {
-								bplptx[i] = scandoubled_bpl_ptr[lvpos][lof_display][i];
-								if (bplptx[i] == 0 || bplptx[i] == 0xffffffff) {
-									skip = true;
-								}
+								uaecptr li1 = scandoubled_bpl_ptr[lvpos][lof_store][i];
+								uaecptr li2 = scandoubled_bpl_ptr[lvpos][lof_store ^ 1][i];
+								skip = !li1 || !li2 || li1 == 0xffffffff || li2 == 0xffffffff;
+								bplptx[i] = bplpt[i] - li1 + li2;
 							}
 							if (skip) {
 								draw_border_fast(l, linear_display_vpos + 2);
