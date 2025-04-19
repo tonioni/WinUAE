@@ -909,13 +909,14 @@ static void rtg_render(void)
 	struct picasso96_state_struct *state = &picasso96_state[monid];
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	struct amigadisplay *ad = &adisplays[monid];
+	bool full = false;
 
 	if (D3D_restore)
 		D3D_restore(monid, true);
 	if (doskip () && p96skipmode == 0) {
 		;
 	} else {
-		bool full = vidinfo->full_refresh > 0;
+		full = vidinfo->full_refresh > 0;
 		if (uaegfx_active) {
 			if (!currprefs.rtg_multithread) {
 				picasso_flushpixels(0, gfxmem_banks[uaegfx_index]->start + natmem_offset, state->XYOffset - gfxmem_banks[uaegfx_index]->start, true);
@@ -926,7 +927,6 @@ static void rtg_render(void)
 			if (vidinfo->full_refresh > 0)
 				vidinfo->full_refresh--;
 		}
-		gfxboard_vsync_handler(full, true);
 		if (currprefs.rtg_multithread && uaegfx_active) {
 			if (ad->pending_render) {
 				ad->pending_render = false;
@@ -935,6 +935,7 @@ static void rtg_render(void)
 			write_comm_pipe_int(render_pipe, uaegfx_index, 0);
 		}
 	}
+	gfxboard_vsync_handler(full, true);
 }
 static void rtg_clear(int monid)
 {
@@ -1192,7 +1193,7 @@ static void picasso_handle_vsync2(struct AmigaMonitor *mon)
 	p96_framecnt++;
 
 	if (!uaegfx && !ad->picasso_on) {
-		rtg_render();
+		gfxboard_vsync_handler(false, true);
 		return;
 	}
 
@@ -1206,13 +1207,19 @@ static void picasso_handle_vsync2(struct AmigaMonitor *mon)
 		return;
 	}
 
-	if (uaegfx && uaegfx_active)
-		if (setupcursor_needed)
+	if (uaegfx && uaegfx_active) {
+		if (setupcursor_needed) {
 			setupcursor();
+		}
 		mouseupdate(mon);
+	}
 
 	if (thisisvsync) {
-		rtg_render();
+		if (uaegfx) {
+			rtg_render();
+		} else {
+			gfxboard_vsync_handler(false, true);
+		}
 		frame_drawn(monid);
 	}
 
@@ -1237,13 +1244,13 @@ void picasso_handle_vsync(void)
 		if (!ad->picasso_on) {
 			createwindowscursor(mon->monitor_id, 0, 1);
 		}
-		int vsync = isvsync_rtg();
-		if (vsync < 0) {
-			p96hsync = 0;
-			picasso_handle_vsync2(mon);
-		} else if (currprefs.win32_rtgvblankrate == 0) {
-			picasso_handle_vsync2(mon);
-		}
+	}
+	int vsync = isvsync_rtg();
+	if (vsync < 0) {
+		p96hsync = 0;
+		picasso_handle_vsync2(mon);
+	} else if (currprefs.win32_rtgvblankrate == 0) {
+		picasso_handle_vsync2(mon);
 	}
 }
 
