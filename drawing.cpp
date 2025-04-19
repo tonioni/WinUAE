@@ -3857,6 +3857,24 @@ void denise_update_reg(uae_u16 reg, uae_u16 v)
 	expand_drga_early2x(&dr);
 	expand_drga_early(&dr);
 	expand_drga(&dr);
+	// handle all queued writes immediately
+	reswitch_unalign = 0;
+	update_bplcon1();
+	if (denise_diwhigh2 >= 0) {
+		denise_diwhigh = denise_diwhigh2;
+		denise_diwhigh2 = -1;
+		diwhigh_written = true;
+		calchdiw();
+	}
+	if (aga_delayed_color_idx >= 0) {
+		update_color(aga_delayed_color_idx, aga_delayed_color_val, aga_delayed_color_con2, aga_delayed_color_con3);
+		aga_delayed_color_idx = -1;
+	}
+	bplmode = bplmode_new;
+	sbasecol[0] = sbasecol2[0];
+	sbasecol[1] = sbasecol2[1];
+	aga_unalign0 = 0;
+	aga_unalign1 = 0;
 	check_lts_request();
 }
 

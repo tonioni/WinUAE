@@ -7829,6 +7829,7 @@ uae_u8 *restore_custom(uae_u8 *src)
 	denise_update_reg(0x104, bplcon2);
 	denise_update_reg(0x106, bplcon3);
 	denise_update_reg(0x10c, bplcon4);
+	denise_update_reg(0x1e4, diwhigh);
 	denise_update_reg(0x08e, diwstrt);
 	denise_update_reg(0x090, diwstop);
 	if (diwhigh_written) {
