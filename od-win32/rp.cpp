@@ -1413,21 +1413,7 @@ static int screencap(LPCVOID pData, struct AmigaMonitor *mon)
 		if (rpsc->szScreenFiltered[0])
 			ok = screenshotf(0, rpsc->szScreenFiltered, 1, 1, 0, NULL);
 		if (rpsc->szScreenRaw[0]) {
-#if 0
-			struct vidbuf_description *avidinfo = &adisplays[0].gfxvidinfo;
-			struct vidbuffer vb;
-			int w = avidinfo->drawbuffer.inwidth;
-			int h = get_vertical_visible_height(true);
-			allocvidbuffer(0, &vb, w, h, avidinfo->drawbuffer.pixbytes * 8);
-			set_custom_limits(-1, -1, -1, -1);
-			draw_frame(&vb);
-			ok |= screenshotf(0, rpsc->szScreenRaw, 1, 1, 1, &vb);
-			if (log_rp & 2)
-				write_log(_T("Rawscreenshot %dx%d\n"), w, h);
-			freevidbuffer(0, &vb);
-#else
 			ok |= screenshotf(0, rpsc->szScreenRaw, 1, 1, 1, NULL);
-#endif
 		}
 		screenshotmode = ossm;
 		if (log_rp & 2)

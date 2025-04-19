@@ -1,4 +1,21 @@
 
+Beta 22:
+
+- Fast mode drawing + HAM + left TV overscan blanking part of display caused HAM artifacts.
+- Fast mode shres HAM in hires or hires HAM in lores didn't include skipped pixels in HAM color calculation.
+- Fast mode drawing didn't mask bitplane addresses with chip ram address mask.
+- Fast mode Remove interlace artifacts scrolling glitches mostly fixed.
+- Garbage was possible in right border if bitplane ended earlier than HDIW. Fast mode only.
+- Filter settings should not limit display width or height in extreme or higher overscan modes, extreme (and higher) should always show whole display area.
+- Hardware emulated RTG boards didn't have vsync timing (b21)
+- DIWHIGH state restore was unreliable.
+- Automatic scaling (and related filters) now also work correctly if HDIW end never matches.
+- Filtered lores option supported again. (If Amiga mode resolution is higher than display panel mode: normally every other pixel is dropped, filtered lores mode takes average color of two pixels)
+- VPOS(H)W write refresh rate changes work again. (For example Wings of Death, DynaBlaster fake 60Hz). Non-CE modes only accept forwards vpos move and not out of range values.
+- RTG with default settings (all 4 checkboxes in left side of RTG panel unticked) display positiong fixed.
+- Adjusted display position and screenshot position/size slightly to better match older versions.
+
+Beta 21:
 
 - Filter panel TV modes and filter overscan blanking work correctly again (not doing anything since b1). Extra horizontal and vertical blanking handling changed again, might cause side-effects.
 - NTSC horizontal long/short line artifacts are gone in TV overscan modes. NOTE: NTSC still have problems with some filter modes.
