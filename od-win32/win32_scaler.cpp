@@ -42,16 +42,24 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
 	int v, cx, cy, cw, ch;
 	bool native = isnativevidbuf(monid);
+	int hres = gethresolution();
 
 	cx = *cxp;
 	cy = *cyp;
 	v = currprefs.gfx_xcenter_pos;
-	if (v >= 0)
+	if (v >= 0) {
+		// v6 adjustment
+		v -= 1 << RES_MAX;
+		if (v < 0) {
+			v = 0;
+		}
 		cx = (v >> (RES_MAX - currprefs.gfx_resolution)) - cx;
+	}
 
 	v = currprefs.gfx_ycenter_pos;
-	if (v >= 0)
+	if (v >= 0) {
 		cy = (v >> (VRES_MAX - currprefs.gfx_vresolution)) - cy;
+	}
 
 	v = currprefs.gfx_xcenter_size;
 	if (v <= 0) {
@@ -73,12 +81,12 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	v = currprefs.gfx_ycenter_size;
 	if (v <= 0) {
 		if (programmedmode && native) {
-			ch = (maxvpos_display + maxvpos_display_vsync - minfirstline) << (VRES_MAX - (doublescan == 1 && !interlace_seen));
+			ch = (current_linear_vpos - minfirstline) << (VRES_MAX - (doublescan == 1 && !interlace_seen));
 		} else if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
 			// keep old version compatiblity
 			ch = native ? (ispal(NULL) ? AMIGA_HEIGHT_MAX_PAL : AMIGA_HEIGHT_MAX_NTSC) << VRES_MAX : avidinfo->outbuffer->outheight;
 		} else {
-			ch = native ? (maxvpos_display + maxvpos_display_vsync - minfirstline) << VRES_MAX : avidinfo->outbuffer->outheight;
+			ch = native ? (current_linear_vpos - minfirstline) << VRES_MAX : avidinfo->outbuffer->outheight;
 		}
 	} else {
 		ch = v;
@@ -296,7 +304,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 			if (scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_MAX) {
 				// do not default/TV scale programmed modes
-				if (beamcon0 & BEAMCON0_VARBEAMEN) {
+				if (programmedmode) {
 					goto cont;
 				}
 			}
@@ -610,14 +618,14 @@ void getfilterdata(int monid, struct displayscale *ds)
 		}
 
 	} else {
-	
+	cont:
+
 		ds->outwidth = ds->dstwidth;
 		ds->outheight = ds->dstheight;
 		ds->xoffset = (ds->srcwidth - ds->dstwidth) / 2;
 		ds->yoffset = (ds->srcheight - ds->dstheight) / 2;
 
 	}
-cont:
 
 	if (!filter_horiz_zoom_mult && !filter_vert_zoom_mult) {
 
@@ -801,10 +809,13 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	if (pitch) {
 		*pitch = vb->rowbytes;
 	}
+	// remove short/long line reserved areas
+	int extra = 1 << gethresolution();
+	w -= 2 * extra;
 	*widthp = w;
 	*heightp = h;
 	*depth = vb->pixbytes * 8;
-	return vb->bufmem;
+	return vb->bufmem + extra * sizeof(uae_u32);
 }
 
 #endif

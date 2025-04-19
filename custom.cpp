@@ -10775,7 +10775,7 @@ static void draw_line(void)
 	int cslen = 10;
 	draw_denise_line_queue(dvp, nextline_how, rga_denise_cycle_line, rga_denise_cycle_start, rga_denise_cycle, rga_denise_cycle_count,
 		display_hstart_cyclewait_skip, display_hstart_cyclewait_skip2,
-		wclks, cs, cslen, lof_store, lol, l);
+		wclks, cs, cslen, lof_store, lol, display_hstart_fastmode - display_hstart_cyclewait, l);
 }
 
 static void dmal_fast(void)

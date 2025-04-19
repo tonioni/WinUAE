@@ -177,8 +177,8 @@ struct linestate
 };
 
 extern struct color_entry denise_colors;
-void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, struct linestate *ls);
-void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int endpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lof, bool lol, struct linestate *ls);
+void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, int hdelay, struct linestate *ls);
+void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int endpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lof, bool lol, int hdelay, struct linestate *ls);
 void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
 void draw_denise_bitplane_line_fast_queue(int gfx_ypos, enum nln_how how, struct linestate *ls);
 void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
@@ -198,5 +198,6 @@ void quick_denise_rga_queue(int linecnt, int startpos, int endpos);
 void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos);
 bool drawing_can_lineoptimizations(void);
 void set_drawbuffer(void);
+int gethresolution(void);
 
 #endif /* UAE_DRAWING_H */
