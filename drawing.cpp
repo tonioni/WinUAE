@@ -5090,6 +5090,15 @@ static void emulate_black_level_calibration(uae_u32 *b1, uae_u32 *b2, uae_u32 *d
 	}
 }
 
+static uae_u32 filter_pixel(uae_u32 p1, uae_u32 p2)
+{
+	uae_u32 v = 0;
+	v |= ((((p1 >> 16) & 0xff) + ((p2 >> 16) & 0xff)) / 2) << 16;
+	v |= ((((p1 >>  8) & 0xff) + ((p2 >>  8) & 0xff)) / 2) << 8;
+	v |= ((((p1 >>  0) & 0xff) + ((p2 >>  0) & 0xff)) / 2) << 0;
+	return v;
+}
+
 // ultra extreme debug pixel patterns
 static uint32_t decode_denise_specials_debug(uint32_t v, int inc)
 {
@@ -5642,12 +5651,26 @@ static void select_lts(void)
 			int planes = denise_max_planes > 4 ? 1 : 0;
 			int oddeven = denise_max_odd_even ? 1 : 0;
 			int idx = (oddeven) + (bm * 2) + (planes * 2 * 5) + (spr * 2 * 5 * 2) + (denise_res * 2 * 5 * 2 * 2) + (hresolution * 2 * 5 * 2 * 2 * 3) + (bpldat_fmode * 2 * 5 * 2 * 2 * 3 * 3);
-			lts = linetoscr_aga_genlock_funcs[idx];
+			if (currprefs.gfx_lores_mode) {
+				lts = linetoscr_aga_genlock_funcs_filtered[idx];
+				if (!lts) {
+					lts = linetoscr_aga_genlock_funcs[idx];
+				}
+			} else {
+				lts = linetoscr_aga_genlock_funcs[idx];
+			}
 		} else {
 			int planes = denise_max_planes > 0 ? (denise_max_planes - 1) / 2 : 0;
 			int oddeven = denise_max_odd_even ? 1 : 0;
 			int idx = (oddeven) + (bm * 2) + (planes * 2 * 5) + (spr * 2 * 5 * 4) + (denise_res * 2 * 5 * 4 * 2) + (hresolution * 2 * 5 * 4 * 2 * 3) + (bpldat_fmode * 2 * 5 * 4 * 2 * 3 * 3);
-			lts = linetoscr_aga_funcs[idx];
+			if (currprefs.gfx_lores_mode) {
+				lts = linetoscr_aga_funcs_filtered[idx];
+				if (!lts) {
+					lts = linetoscr_aga_funcs[idx];
+				}
+			} else {
+				lts = linetoscr_aga_funcs[idx];
+			}
 		}
 
 	} else if (ecs_denise && denise_res == RES_SUPERHIRES) {
@@ -5699,7 +5722,14 @@ static void select_lts(void)
 			}
 			int oddeven = denise_max_odd_even;
 			int idx = (oddeven) + (bm * 2) + (planes * 2 * 4) + (spr * 2 * 4 * 4) + (denise_res * 2 * 4 * 4 * 2) + (hresolution * 2 * 4 * 4 * 2 * 2);
-			lts = strlong_emulation ? linetoscr_ecs_ntsc_funcs[idx] : linetoscr_ecs_funcs[idx];
+			if (currprefs.gfx_lores_mode) {
+				lts = strlong_emulation ? linetoscr_ecs_ntsc_funcs_filtered[idx] : linetoscr_ecs_funcs_filtered[idx];
+				if (!lts) {
+					lts = strlong_emulation ? linetoscr_ecs_ntsc_funcs[idx] : linetoscr_ecs_funcs[idx];
+				}
+			} else {
+				lts = strlong_emulation ? linetoscr_ecs_ntsc_funcs[idx] : linetoscr_ecs_funcs[idx];
+			}
 		}
 
 	}
@@ -6482,14 +6512,26 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	if (aga_mode) {
 		if (need_genlock_data) {
 			ltsf = linetoscr_aga_genlock_fast_funcs[ltsidx];
+			if (currprefs.gfx_lores_mode && linetoscr_aga_genlock_fast_funcs_filtered[ltsidx]) {
+				ltsf = linetoscr_aga_genlock_fast_funcs_filtered[ltsidx];
+			}
 		} else {
 			ltsf = linetoscr_aga_fast_funcs[ltsidx];
+			if (currprefs.gfx_lores_mode && linetoscr_aga_fast_funcs_filtered[ltsidx]) {
+				ltsf = linetoscr_aga_fast_funcs_filtered[ltsidx];
+			}
 		}
 	} else {
 		if (need_genlock_data) {
 			ltsf = linetoscr_ecs_genlock_fast_funcs[ltsidx];
+			if (currprefs.gfx_lores_mode && linetoscr_ecs_genlock_fast_funcs_filtered[ltsidx]) {
+				ltsf = linetoscr_ecs_genlock_fast_funcs_filtered[ltsidx];
+			}
 		} else {
 			ltsf = linetoscr_ecs_fast_funcs[ltsidx];
+			if (currprefs.gfx_lores_mode && linetoscr_ecs_fast_funcs_filtered[ltsidx]) {
+				ltsf = linetoscr_ecs_fast_funcs_filtered[ltsidx];
+			}
 		}
 	}
 

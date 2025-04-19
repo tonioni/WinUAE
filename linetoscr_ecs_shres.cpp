@@ -241,6 +241,9 @@ static LINETOSRC_FUNC linetoscr_ecs_shres_funcs[] = {
 	lts_ecs_shres_dshres,
 	NULL
 };
+static LINETOSRC_FUNC linetoscr_ecs_shres_funcs_filtered[] = {
+	NULL
+};
 static void lts_ecs_shres_dhires_genlock(void)
 {
 	while (denise_cck < denise_total) {
@@ -490,5 +493,8 @@ static void lts_ecs_shres_dshres_genlock(void)
 static LINETOSRC_FUNC linetoscr_ecs_shres_genlock_funcs[] = {
 	lts_ecs_shres_dhires_genlock,
 	lts_ecs_shres_dshres_genlock,
+	NULL
+};
+static LINETOSRC_FUNC linetoscr_ecs_shres_genlock_funcs_filtered[] = {
 	NULL
 };

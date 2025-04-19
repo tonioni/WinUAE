@@ -15,11 +15,11 @@
 
 static FILE *outfile;
 static int outfile_indent = 0;
-static int aga, outres, res, planes, modes, bplfmode, sprres, oddeven, ecsshres, genlock, ntsc;
+static int aga, outres, res, planes, modes, bplfmode, sprres, oddeven, ecsshres, genlock, ntsc, filtered;
 static int isbuf2 = 0;
 static int maxplanes = 8;
-static char funcnames[500000];
-static char *funcnamep;
+static char funcnames[500000], funcnamesf[500000];
+static char *funcnamep, *funcnamepf;
 
 typedef enum
 {
@@ -513,6 +513,9 @@ static void gen_sprmerge(int off, int k, int dbl)
 	for (int i = 0; i < dbl - 1; i++) {
 		outf("		dpix_val%d = dpix_val%d;", off + i + 1, off);
 	}
+	if (filtered) {
+		outf("		dpix_val%d = dpix_val%d;", off + 1, off);
+	}
 	outf("	}");
 	outf("}");
 }
@@ -558,22 +561,41 @@ static void gen_pix_aga(void)
 		if (res > outres) {
 			for (int i = 0; i < (1 << (res - outres)) - 1; i++) {
 				off++;
-				// HAM special case, all pixels must be processed.
-				if (modes == CMODE_HAM) {
+				if (filtered) {
 					gen_prepix(off);
 					outf("if (!denise_blank_active) {");
+					if (genlock) {
+						outf("gpix%d = get_genlock_transparency_border();", off);
+					}
 					outf("	dpix_val%d = bordercolor;", off);
 					outf("	if (denise_hdiw && bpl1dat_trigger) {");
 					outf("	pix%d = loaded_pixs[%d];", off, off);
-					outf("	decode_ham_pixel_aga(pix%d);", off);
-					outf("}");
+					outf("	clxdat |= bplcoltable[pix%d];", off);
+					gen_bplpixmode_aga(off);
+					outf("	}");
 					outf("	last_bpl_pix = pix%d;", off);
 					outf("}");
 					gen_shiftbpl_hr(maxplanes);
 					gen_copybpl_hr(off);
 					outf("loaded_pixs[%d] = loaded_pix;", off);
 				} else {
-					gen_shiftbpl(maxplanes);
+					// HAM special case, all pixels must be processed.
+					if (modes == CMODE_HAM) {
+						gen_prepix(off);
+						outf("if (!denise_blank_active) {");
+						outf("	dpix_val%d = bordercolor;", off);
+						outf("	if (denise_hdiw && bpl1dat_trigger) {");
+						outf("	pix%d = loaded_pixs[%d];", off, off);
+						outf("	decode_ham_pixel_aga(pix%d);", off);
+						outf("}");
+						outf("	last_bpl_pix = pix%d;", off);
+						outf("}");
+						gen_shiftbpl_hr(maxplanes);
+						gen_copybpl_hr(off);
+						outf("loaded_pixs[%d] = loaded_pix;", off);
+					} else {
+						gen_shiftbpl(maxplanes);
+					}
 				}
 			}
 			off++;
@@ -591,14 +613,15 @@ static void gen_pix_aga(void)
 		if (sprres >= 0) {
 			gen_sprmerge(off, off, 0);	
 		}
-
+		if (filtered) {
+			outf("dpix_val%d = filter_pixel(dpix_val%d, dpix_val%d);", off, off, off + 1);
+		}
 		if (ntsc) {
 			outf("dtbuf[h][%d] = dpix_val%d;", off, off);
 			if (genlock) {
 				outf("dtgbuf[h][%d] = gpix%d;", off, off);
 			}
 		}
-
 		if (res > outres) {
 			for (int i = 0; i < (1 << (res - outres - 1)); i++) {
 				off++;
@@ -736,6 +759,11 @@ static void gen_pix(void)
 		if (res > outres) {
 			off <<= (res - outres);
 		}
+
+		if (filtered) {
+			outf("dpix_val%d = filter_pixel(dpix_val%d, dpix_val%d);", off, off, off + 1);
+		}
+
 		if (sprt[i]) {
 			if (res == 0) {
 				gen_sprmerge(off, 0, outres == 0 ? 0 : (outres == 1 ? 2 : 4));
@@ -810,7 +838,7 @@ static bool gen_head(void)
 {
 	char funcname[200];
 
-	sprintf(funcname, "lts_%s_%s_%s%d_p%d_i%s_d%s%s%s%s",
+	sprintf(funcname, "lts_%s_%s_%s%d_p%d_i%s_d%s%s%s%s%s",
 		aga ? "aga" : "ecs",
 		bplfmode == 0 ? "fm0" : (bplfmode == 1 ? "fm1" : "fm2"),
 		modes == 0 ? "n" : (modes == 1 ? "dpf" : (modes == 2 ? "ehb" : (modes == 4 ? "kehb" : "ham"))),
@@ -820,12 +848,33 @@ static bool gen_head(void)
 		outres == 0 ? "lores" : (outres == 1 ? "hires" : "shres"),
 		sprres < 0 ? "" : "_spr",
 		ntsc > 0 ? "_ntsc" : "",
+		filtered > 0 ? "_filtered" : "",
 		genlock ? "_genlock" : "");
-	strcpy(funcnamep, funcname);
-	funcnamep += strlen(funcnamep) + 1;
-	*funcnamep = 0;
+
+	if (!filtered) {
+		strcpy(funcnamep, funcname);
+		funcnamep += strlen(funcnamep) + 1;
+		*funcnamep = 0;
+	} else {
+		if (res <= outres) {
+			strcpy(funcnamepf, " ");
+			funcnamepf += strlen(funcnamepf) + 1;
+			*funcnamepf = 0;
+		} else {
+			strcpy(funcnamepf, funcname);
+			funcnamepf += strlen(funcnamepf) + 1;
+			*funcnamepf = 0;
+		}
+	}
+
 	outf("static void %s(void)", funcname);
 	outf("{");
+
+	if (filtered) {
+		if (res <= outres) {
+			return false;
+		}
+	}
 
 	// shres on lores is useless
 	if (res == 2 && outres == 0) {
@@ -871,24 +920,100 @@ static bool gen_head(void)
 static bool gen_fasthead(void)
 {
 	char funcname[200];
-	sprintf(funcname, "lts_%s_%s_i%s_d%s_%s%s",
+	sprintf(funcname, "lts_%s_%s_i%s_d%s_%s%s%s",
 		aga ? "aga" : "ecs",
 		modes == 0 ? "n" : (modes == 1 ? "dpf" : (modes == 2 ? "ehb" : (modes == 4 ? "kehb" : "ham"))),
 		res == 0 ? "lores" : (res == 1 ? "hires" : "shres"),
 		outres == 0 ? "lores" : (outres == 1 ? "hires" : "shres"),
 		isbuf2 ? "b2" : "b1",
+		filtered > 0 ? "_filtered" : "",
 		genlock ? "_genlock" : "");
-	strcpy(funcnamep, funcname);
-	funcnamep += strlen(funcnamep) + 1;
-	*funcnamep = 0;
+
+	if (!filtered) {
+		strcpy(funcnamep, funcname);
+		funcnamep += strlen(funcnamep) + 1;
+		*funcnamep = 0;
+	} else {
+		if (res <= outres) {
+			strcpy(funcnamepf, " ");
+			funcnamepf += strlen(funcnamepf) + 1;
+			*funcnamepf = 0;
+		} else {
+			strcpy(funcnamepf, funcname);
+			funcnamepf += strlen(funcnamepf) + 1;
+			*funcnamepf = 0;
+		}
+	}
+
 	outf("static void %s(int draw_start, int draw_end, int draw_startoffset, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,"
 		"int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 *cp, uae_u8 *cp2, int cpadd, int *cpadds, int bufadd, struct linestate *ls)", funcname);
 	outf("{");
+
 	// shres on lores is useless
 	if (res == 2 && outres == 0) {
 		return false;
 	}
+
+	if (filtered) {
+		if (res <= outres) {
+			return false;
+		}
+	}
+
 	return true;
+}
+
+static void gen_fastdraw_drawmode_ecs(char *colname)
+{
+	if (modes == CMODE_DUALPF) {
+		outf("{");
+		outf("uae_u8 dpval = dpf_lookup[c];");
+		outf("%s = xcolors[colors_ocs[dpval]];", colname);
+		outf("}");
+	} else if (modes == CMODE_HAM) {
+		outf("%s = decode_ham_pixel_fast(c, colors_ocs);", colname);
+	} else if (modes == CMODE_EXTRAHB_ECS_KILLEHB) {
+		outf("%s = xcolors[colors_ocs[c & 31]];", colname);
+	} else if (modes == CMODE_EXTRAHB) {
+		outf("c &= bplehb_mask;");
+		outf("if (c <= 31) {");
+		outf("	%s = xcolors[colors_ocs[c]];", colname);
+		outf("} else {");
+		outf("	%s = xcolors[(colors_ocs[c - 32] >> 1) & 0x777];", colname);
+		outf("}");
+	} else {
+		outf("%s = xcolors[colors_ocs[c]];", colname);
+	}
+}
+
+static void gen_fastdraw_drawmode_aga(char *colname)
+{
+	if (modes == CMODE_DUALPF) {
+		outf("{");
+		outf("uae_u8 dpval = dpf_lookup[c];");
+		outf("if (dpf_lookup_no[c]) {");
+		outf("	dpval += dblpfofs[bpldualpf2of];");
+		outf("}");
+		outf("dpval ^= bxor;");
+		outf("%s = colors_aga[dpval];", colname);
+		outf("}");
+	} else if (modes == CMODE_HAM) {
+		outf("%s = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);", colname);
+	} else if (modes == CMODE_EXTRAHB_ECS_KILLEHB) {
+		outf("c ^= bxor;");
+		outf("%s = colors_aga[c & 31];", colname);
+	} else if (modes == CMODE_EXTRAHB) {
+		outf("c ^= bxor;");
+		outf("if (c & 0x20) {");
+		outf("	uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;");
+		outf("	%s = CONVERT_RGB(v);", colname);
+		outf("} else {");
+		outf("	%s = colors_aga[c];", colname);
+		outf("}");
+	} else {
+		outf("c ^= bxor;");
+		outf("%s = colors_aga[c];", colname);
+	}
 }
 
 static void gen_fastdraw_mode(int off, int total)
@@ -898,33 +1023,21 @@ static void gen_fastdraw_mode(int off, int total)
 	if (aga) {
 		outf("c = *cp;");
 		outf("clxdat |= bplcoltable[c];");
-		outf("cp += cpadds[%d];", off);
-		if (modes == CMODE_DUALPF) {
-			outf("{");
-			outf("uae_u8 dpval = dpf_lookup[c];");
-			outf("if (dpf_lookup_no[c]) {");
-			outf("	dpval += dblpfofs[bpldualpf2of];");
-			outf("}");
-			outf("dpval ^= bxor;");
-			outf("col = colors_aga[dpval];");
-			outf("}");
-		} else if (modes == CMODE_HAM) {
-			outf("col = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);");
-		} else if (modes == CMODE_EXTRAHB_ECS_KILLEHB) {
-			outf("c ^= bxor;");
-			outf("col = colors_aga[c & 31];");
-		} else if (modes == CMODE_EXTRAHB) {
-			outf("c ^= bxor;");
-			outf("if (c & 0x20) {");
-			outf("	uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;");
-			outf("	col = CONVERT_RGB(v);");
-			outf("} else {");
-			outf("	col = colors_aga[c];");
-			outf("}");
-		} else {
-			outf("c ^= bxor;");
-			outf("col = colors_aga[c];");
+		gen_fastdraw_drawmode_aga("col");
+		if (doubling < 0) {
+			outf("c = cp[1];");
+			outf("clxdat |= bplcoltable[c];");
+			if (filtered) {
+				outf("uae_u32 colf;");
+				gen_fastdraw_drawmode_aga("colf");
+				outf("col = filter_pixel(col, colf);");
+			} else {
+				if (modes == CMODE_HAM) {
+					outf("decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);");
+				}
+			}
 		}
+		outf("cp += cpadds[%d];", off);
 	} else if (res == 2) { // ECS shres
 		outf("uae_u8 c0 = *cp++;");
 		outf("uae_u8 c1 = *cp++;");
@@ -961,27 +1074,18 @@ static void gen_fastdraw_mode(int off, int total)
 	} else {
 		outf("c = *cp;");
 		outf("clxdat |= bplcoltable[c];");
+		gen_fastdraw_drawmode_ecs("col");
+		if (doubling < 0) {
+			outf("c = cp[1];");
+			outf("clxdat |= bplcoltable[c];");
+			if (filtered) {
+				outf("uae_u32 colf;");
+				gen_fastdraw_drawmode_ecs("colf");
+				outf("col = filter_pixel(col, colf);");
+			}
+		}
 		if (off == total - 1) {
 			outf("cp += cpaddv;");
-		}
-		if (modes == CMODE_DUALPF) {
-			outf("{");
-			outf("uae_u8 dpval = dpf_lookup[c];");
-			outf("col = xcolors[colors_ocs[dpval]];");
-			outf("}");
-		} else if (modes == CMODE_HAM) {
-			outf("col = decode_ham_pixel_fast(c, colors_ocs);");
-		} else if (modes == CMODE_EXTRAHB_ECS_KILLEHB) {
-			outf("col = xcolors[colors_ocs[c & 31]];");
-		} else if (modes == CMODE_EXTRAHB) {
-			outf("c &= bplehb_mask;");
-			outf("if (c <= 31) {");
-			outf("	col = xcolors[colors_ocs[c]];");
-			outf("} else {");
-			outf("	col = xcolors[(colors_ocs[c - 32] >> 1) & 0x777];");
-			outf("}");
-		} else {
-			outf("col = xcolors[colors_ocs[c]];");
 		}
 	}
 	outf("*buf1++ = col;");
@@ -1243,6 +1347,22 @@ static void write_funcs(const char *name)
 
 	funcnamep = funcnames;
 	*funcnamep = 0;
+
+	outf("static LINETOSRC_FUNC %s_filtered[] = {", name);
+	p = funcnamesf;
+	while (*p) {
+		if (p[0] == ' ') {
+			outf("NULL,");
+		} else {
+			outf("%s,", p);
+		}
+		p += strlen(p) + 1;
+	}
+	outf("NULL");
+	outf("};");
+
+	funcnamepf = funcnamesf;
+	*funcnamepf = 0;
 }
 
 static void write_funcs_fast(const char *name)
@@ -1258,6 +1378,22 @@ static void write_funcs_fast(const char *name)
 
 	funcnamep = funcnames;
 	*funcnamep = 0;
+
+	outf("static LINETOSRC_FUNCF %s_filtered[] = {", name);
+	p = funcnamesf;
+	while (*p) {
+		if (p[0] == ' ') {
+			outf("NULL,");
+		} else {
+			outf("%s,", p);
+		}
+		p += strlen(p) + 1;
+	}
+	outf("NULL");
+	outf("};");
+
+	funcnamepf = funcnamesf;
+	*funcnamepf = 0;
 }
 
 int main (int argc, char *argv[])
@@ -1270,6 +1406,8 @@ int main (int argc, char *argv[])
 
 	funcnamep = funcnames;
 	*funcnamep = 0;
+	funcnamepf = funcnamesf;
+	*funcnamepf = 0;
 	aga = 1;
 	oddeven = 1;
 	genlock = 0;
@@ -1297,6 +1435,17 @@ int main (int argc, char *argv[])
 									gen_null();
 								}
 								gen_tail();
+								filtered = 1;
+								if (gen_head()) {
+									gen_start();
+									gen_init();
+									gen_pix_aga();
+									gen_end();
+								} else {
+									gen_null();
+								}
+								gen_tail();
+								filtered = 0;
 							}
 						}
 					}
@@ -1331,6 +1480,17 @@ int main (int argc, char *argv[])
 									gen_null();
 								}
 								gen_tail();
+								filtered = 1;
+								if (gen_head()) {
+									gen_start();
+									gen_init();
+									gen_pix_aga();
+									gen_end();
+								} else {
+									gen_null();
+								}
+								gen_tail();
+								filtered = 0;
 							}
 						}
 					}
@@ -1367,6 +1527,17 @@ int main (int argc, char *argv[])
 								gen_null();
 							}
 							gen_tail();
+							filtered = 1;
+							if (gen_head()) {
+								gen_start();
+								gen_init();
+								gen_pix();
+								gen_end();
+							} else {
+								gen_null();
+							}
+							gen_tail();
+							filtered = 0;
 						}
 					}
 				}
@@ -1401,6 +1572,17 @@ int main (int argc, char *argv[])
 							gen_null();
 						}
 						gen_tail();
+						filtered = 1;
+						if (gen_head()) {
+							gen_start();
+							gen_init();
+							gen_pix();
+							gen_end();
+						} else {
+							gen_null();
+						}
+						gen_tail();
+						filtered = 0;
 					}
 				}
 			}
@@ -1434,6 +1616,17 @@ int main (int argc, char *argv[])
 								gen_null();
 							}
 							gen_tail();
+							filtered = 1;
+							if (gen_head()) {
+								gen_start();
+								gen_init();
+								gen_pix();
+								gen_end();
+							} else {
+								gen_null();
+							}
+							gen_tail();
+							filtered = 0;
 						}
 					}
 				}
@@ -1468,6 +1661,17 @@ int main (int argc, char *argv[])
 							gen_null();
 						}
 						gen_tail();
+						filtered = 1;
+						if (gen_head()) {
+							gen_start();
+							gen_init();
+							gen_pix();
+							gen_end();
+						} else {
+							gen_null();
+						}
+						gen_tail();
+						filtered = 0;
 					}
 				}
 			}
@@ -1584,6 +1788,14 @@ int main (int argc, char *argv[])
 						gen_null();
 					}
 					gen_tail();
+					filtered = 1;
+					if (gen_fasthead()) {
+						gen_fastdraw();
+					} else {
+						gen_null();
+					}
+					gen_tail();
+					filtered = 0;
 				}
 			}
 		}
@@ -1602,6 +1814,14 @@ int main (int argc, char *argv[])
 						gen_null();
 					}
 					gen_tail();
+					filtered = 1;
+					if (gen_fasthead()) {
+						gen_fastdraw();
+					} else {
+						gen_null();
+					}
+					gen_tail();
+					filtered = 0;
 				}
 			}
 		}
@@ -1624,6 +1844,14 @@ int main (int argc, char *argv[])
 						gen_null();
 					}
 					gen_tail();
+					filtered = 1;
+					if (gen_fasthead()) {
+						gen_fastdraw();
+					} else {
+						gen_null();
+					}
+					gen_tail();
+					filtered = 0;
 				}
 			}
 		}
@@ -1642,6 +1870,14 @@ int main (int argc, char *argv[])
 						gen_null();
 					}
 					gen_tail();
+					filtered = 1;
+					if (gen_fasthead()) {
+						gen_fastdraw();
+					} else {
+						gen_null();
+					}
+					gen_tail();
+					filtered = 0;
 				}
 			}
 		}
