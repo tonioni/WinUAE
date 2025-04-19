@@ -1472,6 +1472,8 @@ void getrtgfilterdata(int monid, struct displayscale *ds)
 	picasso_offset_my = 1.0;
 
 	ds->mode = 0;
+	ds->outwidth = mon->currentmode.native_width;
+	ds->outheight = mon->currentmode.native_height;
 
 	if (!ad->picasso_on)
 		return;
