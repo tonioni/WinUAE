@@ -305,7 +305,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 			if (scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_MAX) {
 				// do not default/TV scale programmed modes
 				if (programmedmode) {
-					goto cont;
+					goto skipcont;
 				}
 			}
 
@@ -618,7 +618,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 		}
 
 	} else {
-	cont:
+skipcont:
 
 		ds->outwidth = ds->dstwidth;
 		ds->outheight = ds->dstheight;
@@ -626,7 +626,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 		ds->yoffset = (ds->srcheight - ds->dstheight) / 2;
 
 	}
-
+cont:
 	if (!filter_horiz_zoom_mult && !filter_vert_zoom_mult) {
 
 		sizeoffset(ds, extraw, extrah);
