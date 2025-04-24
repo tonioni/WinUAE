@@ -67,6 +67,7 @@ int avioutput_audio, avioutput_video, avioutput_enabled, avioutput_requested;
 static int videoallocated;
 
 static int aviout_width_out, aviout_height_out;
+static int aviout_width_in, aviout_height_in;
 static int aviout_xoffset_out, aviout_yoffset_out;
 int avioutput_width, avioutput_height, avioutput_bits;
 static int avioutput_bitmode = 24;
@@ -562,6 +563,8 @@ static int AVIOutput_AllocateVideo(void)
 		}
 	}
 
+	aviout_width_in = avioutput_width;
+	aviout_height_in = avioutput_height;
 	aviout_width_out = avioutput_width + 15;
 	aviout_width_out &= ~15;
 	aviout_height_out = avioutput_height + 1;
@@ -1014,10 +1017,10 @@ static int getFromRenderTarget(struct avientry *avie, bool renderTarget)
 		if (SUCCEEDED(hr)) {
 			int dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
 			if (bits == 32) {
-				for (int y = 0; y < h && y < aviout_height_out; y++) {
+				for (int y = 0; y < h && y < aviout_height_out && y < aviout_height_in; y++) {
 					uae_u8 *d = (uae_u8*)avie->lpVideo + (aviout_height_out - y - 1) * dpitch;
 					uae_u32 *s = (uae_u32*)((uae_u8*)l.pBits + y * l.Pitch);
-					for (int x = 0; x < w && x < aviout_width_out; x++) {
+					for (int x = 0; x < w && x < aviout_width_out && x < aviout_width_in; x++) {
 						uae_u32 v = *s++;
 						d[0] = v >> 0;
 						d[1] = v >> 8;
@@ -1031,10 +1034,10 @@ static int getFromRenderTarget(struct avientry *avie, bool renderTarget)
 					}
 				}
 			} else if (bits == 16 || bits == 15) {
-				for (int y = 0; y < h && y < aviout_height_out; y++) {
+				for (int y = 0; y < h && y < aviout_height_out && y < aviout_height_in; y++) {
 					uae_u8 *d = (uae_u8*)avie->lpVideo + (aviout_height_out - y - 1) * dpitch;
 					uae_u16 *s = (uae_u16*)((uae_u8*)l.pBits + y * l.Pitch);
-					for (int x = 0; x < w && x < aviout_width_out; x++) {
+					for (int x = 0; x < w && x < aviout_width_out && x < aviout_width_in; x++) {
 						uae_u16 v = s[x];
 						uae_u16 v2 = v;
 						if (bits == 16) {
@@ -1110,31 +1113,39 @@ static int getFromBuffer(struct avientry *ae, int original)
 	struct vidbuf_description *vidinfo = &adisplays[aviout_monid].gfxvidinfo;
 	int x, y, w, h, d;
 	bool locked = false;
-	uae_u8 *src = NULL, *mem;
+	uae_u8 *src = NULL, *mem = NULL;
 	uae_u8 *dst = ae->lpVideo;
 	int spitch, dpitch;
 	int maxw, maxh;
+	int freed = 0;
 
-	mem = NULL;
 	dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
+	maxw = aviout_width_out;
+	maxh = aviout_height_out;
 	if (original || WIN32GFX_IsPicassoScreen(mon)) {
 		if (!gfxboard_isgfxboardscreen(aviout_monid)) {
-			src = getfilterbuffer(aviout_monid, &w, &h, &spitch, &d, &locked);
-			maxw = vidinfo->outbuffer->outwidth;
-			maxh = vidinfo->outbuffer->outheight;
+			src = mem = getfilterbuffer(aviout_monid, &w, &h, &spitch, &d, &locked);
+			maxw = w;
+			maxh = h;
+			freed = 1;
 		} else {
 			src = mem = gfxboard_getrtgbuffer(aviout_monid, &w, &h, &spitch, &d, NULL);
 			maxw = w;
 			maxh = h;
+			freed = 2;
 		}
 	}
-	if (!src)
+	if (!src) {
 		return 0;
+	}
 
 	int xoffset = currprefs.aviout_xoffset < 0 ? (aviout_width_out - avioutput_width) / 2 : -currprefs.aviout_xoffset;
 	int yoffset = currprefs.aviout_yoffset < 0 ? (aviout_height_out - avioutput_height) / 2 : -currprefs.aviout_yoffset;
 
 	dst += dpitch * aviout_height_out;
+	dst += (aviout_width_out - maxw) / 2;
+	dst -= (aviout_height_out - maxh) / 2;
+
 	if (yoffset > 0) {
 		if (yoffset >= aviout_height_out - avioutput_height)
 			yoffset = aviout_height_out - avioutput_height;
@@ -1155,7 +1166,7 @@ static int getFromBuffer(struct avientry *ae, int original)
 	if (sbpx == 3)
 		sbpx = 4;
 
-	for (y = 0; y < avioutput_height && y < maxh && y < aviout_height_out; y++) {
+	for (y = 0; y < avioutput_height && y < maxh && y < aviout_height_out && y < aviout_height_in; y++) {
 		uae_u8 *s, *d;
 		dst -= dpitch;
 		d = dst;
@@ -1165,7 +1176,7 @@ static int getFromBuffer(struct avientry *ae, int original)
 		} else if (xoffset2 > 0) {
 			s += xoffset2 * sbpx;
 		}
-		for (x = 0; x < avioutput_width && x < maxw && x < aviout_width_out; x++) {
+		for (x = 0; x < avioutput_width && x < maxw && x < aviout_width_out && x < aviout_width_in; x++) {
 			if (avioutput_bits == 8) {
 				*d++ = s[x];
 			} else if (avioutput_bits == 16) {
@@ -1195,8 +1206,13 @@ static int getFromBuffer(struct avientry *ae, int original)
 		}
 		src += spitch;
 	}
-	if (mem)
-		gfxboard_freertgbuffer(aviout_monid, mem);
+	if (mem) {
+		if (freed == 2) {
+			gfxboard_freertgbuffer(aviout_monid, mem);
+		} else if (freed == 1) {
+			freefilterbuffer(aviout_monid, mem, locked);
+		}
+	}
 	return 1;
 }
 #endif
