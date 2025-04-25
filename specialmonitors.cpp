@@ -77,7 +77,6 @@ static int monitor;
 
 extern uae_u16 bplcon0;
 extern uae_u8 **row_map_genlock;
-static int spm_left_border;
 
 static uae_u8 graffiti_palette[256 * 4];
 
@@ -2055,24 +2054,29 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 	for (idline = 21; idline <= 29; idline += 8) {
 		if (src->yoffset > (idline << VRES_MAX))
 			continue;
-		int x = 160 + dxoff / 2 - src->xoffset - spm_left_border * 2;
-		dataline = src->bufmem + (((idline << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes + ((x << RES_MAX) / avidinfo->xchange) * src->pixbytes;
+		int x = (210 << RES_MAX) - src->xoffset;
+		int sy = (((idline << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes;
+		int sx = (x / avidinfo->xchange) * src->pixbytes;
+		dataline = src->bufmem + sy + sx;
 
 #if 0
-		write_log (_T("%02x%02x%02x %02x%02x%02x %02x%02x%02x %02x%02x%02x\n"),
+		write_log(_T("%02x%02x%02x %02x%02x%02x %02x%02x%02x %02x%02x%02x\n"),
 			dataline[0 * doff + 0], dataline[0 * doff + 1], dataline[0 * doff + 2],
 			dataline[1 * doff + 0], dataline[1 * doff + 1], dataline[1 * doff + 2],
 			dataline[2 * doff + 0], dataline[2 * doff + 1], dataline[2 * doff + 2],
 			dataline[3 * doff + 0], dataline[3 * doff + 1], dataline[3 * doff + 2]);
 #endif
 #if 0
-		uae_u8 *p = dataline;
+		int dy = (((idline << VRES_MAX) - dst->yoffset) / avidinfo->ychange) * dst->rowbytes;
+		int dx = ((x << RES_MAX) / avidinfo->xchange) * dst->pixbytes;
+		uae_u8 *p = dst->bufmem + dy + dx;
+		memcpy(dst->bufmem + dy, src->bufmem + sy, dst->outwidth * dst->pixbytes);
 		for(int i = 0; i < 6; i++) {
 			*((uae_u32*)&p[0 * doff + 4]) = 0xff00ff;
 			*((uae_u32*)&p[1 * doff + 4]) = 0xff00ff;
 			*((uae_u32*)&p[2 * doff + 4]) = 0xff00ff;
 			*((uae_u32*)&p[3 * doff + 4]) = 0xff00ff;
-			p += src->rowbytes;
+			p += dst->rowbytes;
 		}
 #endif
 
@@ -2118,7 +2122,7 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		panel_width_draw = px == 2 ? 352 : 336;
 		pxcnt = 3;
 		hires = false;
-		srcxoffset = 85 - spm_left_border * 2;
+		srcxoffset = (112 << RES_MAX) - 360;
 		if (px > 2)
 			return false;
 		total_width = 336 + 336 + 352;
@@ -2127,7 +2131,7 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		panel_width_draw = 512;
 		pxcnt = 2;
 		hires = true;
-		srcxoffset = 100 - spm_left_border * 2;
+		srcxoffset = (128 << RES_MAX) - 360;
 		if (px > 1)
 			return false;
 		total_width = 512 + 512;
@@ -2164,7 +2168,7 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		return false;
 	}
 
-	srcbuf = src->bufmem + (((44 << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes + (((srcxoffset << RES_MAX) - src->xoffset) / avidinfo->xchange) * src->pixbytes;
+	srcbuf = src->bufmem + (((44 << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes + (srcxoffset / avidinfo->xchange) * src->pixbytes;
 	dstbuf = dst->bufmem + py * (panel_height / avidinfo->ychange) * dst->rowbytes + px * ((panel_width * 2) / avidinfo->xchange) * dst->pixbytes;
 
 	for (y = 0; y < (panel_height / (dbl == 1 ? 1 : 2)) / avidinfo->ychange; y++) {
@@ -3642,8 +3646,7 @@ bool emulate_specialmonitors(struct vidbuffer *src, struct vidbuffer *dst)
 	// compatibility fix for new chipset emulation
 	uae_u8 *bf = src->bufmem;
 	src->bufmem -= src->rowbytes;
-	spm_left_border = hdisplay_left_border - 15;
-
+	
 	bool ret = true;
 	if (!emulate_specialmonitors2(src, dst, -1)) {
 		if (monitor) {
