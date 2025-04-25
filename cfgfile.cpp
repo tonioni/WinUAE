@@ -2993,6 +2993,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 	cfgfile_write_bool (f, _T("rtg_nocustom"), p->picasso96_nocustom);
 	cfgfile_write (f, _T("rtg_modes"), _T("0x%x"), p->picasso96_modeflags);
+	cfgfile_write_bool(f, _T("rtg_noautomodes"), p->picasso96_noautomodes);
 
 	cfgfile_write_bool(f, _T("debug_mem"), p->debug_mem);
 	cfgfile_write_bool(f, _T("log_illegal_mem"), p->illegal_mem);
@@ -5994,6 +5995,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 #endif
 		|| cfgfile_yesno(option, value, _T("jit_inhibit"), &p->cachesize_inhibit)
 		|| cfgfile_yesno(option, value, _T("rtg_nocustom"), &p->picasso96_nocustom)
+		|| cfgfile_yesno(option, value, _T("rtg_noautomodes"), &p->picasso96_noautomodes)
 		|| cfgfile_yesno(option, value, _T("floppy_write_protect"), &p->floppy_read_only)
 		|| cfgfile_yesno(option, value, _T("harddrive_write_protect"), &p->harddrive_read_only)
 		|| cfgfile_yesno(option, value, _T("uae_hide_autoconfig"), &p->uae_hide_autoconfig)

@@ -807,6 +807,7 @@ struct uae_prefs {
 	bool cpu_data_cache;
 	bool picasso96_nocustom;
 	int picasso96_modeflags;
+	bool picasso96_noautomodes;
 	int cpu_model_fallback;
 
 	uae_u32 z3autoconfig_start;

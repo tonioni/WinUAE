@@ -2227,34 +2227,34 @@ struct modeids {
 	int width, height;
 	int id;
 };
-static struct modeids mi[] =
+static const struct modeids mi[] =
 {
 	/* "original" modes */
 
-	320, 200, 0,
-	320, 240, 1,
-	640, 400, 2,
-	640, 480, 3,
-	800, 600, 4,
-	1024, 768, 5,
-	1152, 864, 6,
-	1280,1024, 7,
-	1600,1280, 8,
-	320, 256, 9,
-	640, 512,10,
+	 320, 200,   0,
+	 320, 240,   1,
+	 640, 400,   2,
+	 640, 480,   3,
+	 800, 600,   4,
+	1024, 768,   5,
+	1152, 864,   6,
+	1280,1024,   7,
+	1600,1280,   8,
+	 320, 256,   9,
+	 640, 512,  10,
 
 	/* new modes */
 
-	704, 480, 129,
-	704, 576, 130,
-	720, 480, 131,
-	720, 576, 132,
-	768, 483, 133,
-	768, 576, 134,
-	800, 480, 135,
-	848, 480, 136,
-	854, 480, 137,
-	948, 576, 138,
+	 704, 480, 129,
+	 704, 576, 130,
+	 720, 480, 131,
+	 720, 576, 132,
+	 768, 483, 133,
+	 768, 576, 134,
+	 800, 480, 135,
+	 848, 480, 136,
+	 854, 480, 137,
+	 948, 576, 138,
 	1024, 576, 139,
 	1152, 768, 140,
 	1152, 864, 141,
@@ -2274,9 +2274,9 @@ static struct modeids mi[] =
 	2048,1536, 155,
 	2560,1600, 156,
 	2560,2048, 157,
-	400, 300, 158,
-	512, 384, 159,
-	640, 432, 160,
+	 400, 300, 158,
+	 512, 384, 159,
+	 640, 432, 160,
 	1360, 768, 161,
 	1360,1024, 162,
 	1400,1050, 163,
@@ -2284,10 +2284,10 @@ static struct modeids mi[] =
 	1800,1440, 165,
 	1856,1392, 166,
 	1920,1440, 167,
-	480, 360, 168,
-	640, 350, 169,
+	 480, 360, 168,
+	 640, 350, 169,
 	1600, 900, 170,
-	960, 600, 171,
+	 960, 600, 171,
 	1088, 612, 172,
 	1152, 648, 173,
 	1776,1000, 174,
@@ -2299,6 +2299,7 @@ static struct modeids mi[] =
 	5120,1440, 180,
 	5120,2160, 181,
 	1280, 600, 182,
+	3840,1080, 183,
 	-1,-1,0
 };
 
@@ -2456,39 +2457,31 @@ static int _cdecl resolution_compare (const void *a, const void *b)
 
 static int missmodes[] = { 320, 200, 320, 240, 320, 256, 640, 400, 640, 480, 640, 512, 800, 600, 1024, 768, 1280, 1024, -1 };
 
-static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 size);
-
-static void picasso96_alloc2 (TrapContext *ctx)
+static int addresolutions(void)
 {
-	int i, j, size, cnt;
-	int misscnt, depths;
+	int misscnt = 0;
+	int size = 0;
+	int	depths = 0;
 
-	xfree (newmodes);
-	newmodes = NULL;
-	picasso96_amem = picasso96_amemend = 0;
-	if (gfxmem_bank.allocated_size == 0)
-		return;
-	misscnt = 0;
-	newmodes = xmalloc (struct PicassoResolution, MAX_PICASSO_MODES);
-	size = 0;
 
-	depths = 0;
-	if (p96depth (8))
+	newmodes = xmalloc(struct PicassoResolution, MAX_PICASSO_MODES);
+
+	if (p96depth(8))
 		depths++;
-	if (p96depth (15))
+	if (p96depth(15))
 		depths++;
-	if (p96depth (16))
+	if (p96depth(16))
 		depths++;
-	if (p96depth (24))
+	if (p96depth(24))
 		depths++;
-	if (p96depth (32))
+	if (p96depth(32))
 		depths++;
 
 	for (int mon = 0; Displays[mon].monitorname; mon++) {
 		struct PicassoResolution *DisplayModes = Displays[mon].DisplayModes;
-		i = 0;
+		int i = 0;
 		while (DisplayModes[i].inuse) {
-			for (j = 0; missmodes[j * 2] >= 0; j++) {
+			for (int j = 0; missmodes[j * 2] >= 0; j++) {
 				if (DisplayModes[i].res.width == missmodes[j * 2 + 0] && DisplayModes[i].res.height == missmodes[j * 2 + 1]) {
 					missmodes[j * 2 + 0] = 0;
 					missmodes[j * 2 + 1] = 0;
@@ -2498,10 +2491,10 @@ static void picasso96_alloc2 (TrapContext *ctx)
 		}
 	}
 
-	cnt = 0;
+	int cnt = 0;
 	for (int mon = 0; Displays[mon].monitorname; mon++) {
 		struct PicassoResolution *DisplayModes = Displays[mon].DisplayModes;
-		i = 0;
+		int i = 0;
 		while (DisplayModes[i].inuse) {
 			if (DisplayModes[i].rawmode) {
 				i++;
@@ -2512,19 +2505,19 @@ static void picasso96_alloc2 (TrapContext *ctx)
 				i++;
 				continue;
 			}
-			j = i;
+			int j = i;
 			size += PSSO_LibResolution_sizeof;
 			while (missmodes[misscnt * 2] == 0)
 				misscnt++;
 			if (missmodes[misscnt * 2] >= 0) {
 				int w = DisplayModes[i].res.width;
 				int h = DisplayModes[i].res.height;
-				if (w > missmodes[misscnt * 2 + 0] || (w == missmodes[misscnt * 2 + 0] && h > missmodes[misscnt * 2 + 1])) {	
+				if (w > missmodes[misscnt * 2 + 0] || (w == missmodes[misscnt * 2 + 0] && h > missmodes[misscnt * 2 + 1])) {
 					struct PicassoResolution *pr = &newmodes[cnt];
-					memcpy (pr, &DisplayModes[i], sizeof (struct PicassoResolution));
+					memcpy(pr, &DisplayModes[i], sizeof(struct PicassoResolution));
 					pr->res.width = missmodes[misscnt * 2 + 0];
 					pr->res.height = missmodes[misscnt * 2 + 1];
-					_stprintf (pr->name, _T("%dx%d FAKE"), pr->res.width, pr->res.height);
+					_stprintf(pr->name, _T("%dx%d FAKE"), pr->res.width, pr->res.height);
 					size += PSSO_ModeInfo_sizeof * depths;
 					cnt++;
 					misscnt++;
@@ -2538,14 +2531,14 @@ static void picasso96_alloc2 (TrapContext *ctx)
 					break;
 			}
 			if (k >= cnt) {
-				memcpy (&newmodes[cnt], &DisplayModes[i], sizeof (struct PicassoResolution));
+				memcpy(&newmodes[cnt], &DisplayModes[i], sizeof(struct PicassoResolution));
 				size += PSSO_ModeInfo_sizeof * depths;
 				cnt++;
 			}
 			i++;
 		}
 	}
-	qsort (newmodes, cnt, sizeof (struct PicassoResolution), resolution_compare);
+	qsort(newmodes, cnt, sizeof(struct PicassoResolution), resolution_compare);
 
 
 #if MULTIDISPLAY
@@ -2556,40 +2549,59 @@ static void picasso96_alloc2 (TrapContext *ctx)
 #endif
 	newmodes[cnt].inuse = false;
 
-	for (i = 0; i < cnt; i++) {
-		int depth;
-		for (depth = 1; depth <= 4; depth++) {
+	for (int i = 0; i < cnt; i++) {
+		for (int depth = 1; depth <= 4; depth++) {
 			switch (depth) {
-			case 1:
-				if (newmodes[i].res.width > chunky.width)
-					chunky.width = newmodes[i].res.width;
-				if (newmodes[i].res.height > chunky.height)
-					chunky.height = newmodes[i].res.height;
-				break;
-			case 2:
-				if (newmodes[i].res.width > hicolour.width)
-					hicolour.width = newmodes[i].res.width;
-				if (newmodes[i].res.height > hicolour.height)
-					hicolour.height = newmodes[i].res.height;
-				break;
-			case 3:
-				if (newmodes[i].res.width > truecolour.width)
-					truecolour.width = newmodes[i].res.width;
-				if (newmodes[i].res.height > truecolour.height)
-					truecolour.height = newmodes[i].res.height;
-				break;
-			case 4:
-				if (newmodes[i].res.width > alphacolour.width)
-					alphacolour.width = newmodes[i].res.width;
-				if (newmodes[i].res.height > alphacolour.height)
-					alphacolour.height = newmodes[i].res.height;
-				break;
+				case 1:
+					if (newmodes[i].res.width > chunky.width)
+						chunky.width = newmodes[i].res.width;
+					if (newmodes[i].res.height > chunky.height)
+						chunky.height = newmodes[i].res.height;
+					break;
+				case 2:
+					if (newmodes[i].res.width > hicolour.width)
+						hicolour.width = newmodes[i].res.width;
+					if (newmodes[i].res.height > hicolour.height)
+						hicolour.height = newmodes[i].res.height;
+					break;
+				case 3:
+					if (newmodes[i].res.width > truecolour.width)
+						truecolour.width = newmodes[i].res.width;
+					if (newmodes[i].res.height > truecolour.height)
+						truecolour.height = newmodes[i].res.height;
+					break;
+				case 4:
+					if (newmodes[i].res.width > alphacolour.width)
+						alphacolour.width = newmodes[i].res.width;
+					if (newmodes[i].res.height > alphacolour.height)
+						alphacolour.height = newmodes[i].res.height;
+					break;
 			}
 		}
 	}
 #if 0
-	ShowSupportedResolutions ();
+	ShowSupportedResolutions();
 #endif
+
+	return size;
+}
+
+static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 size);
+
+static void picasso96_alloc2 (TrapContext *ctx)
+{
+	xfree (newmodes);
+	newmodes = NULL;
+
+	picasso96_amem = picasso96_amemend = 0;
+	if (gfxmem_bank.allocated_size == 0)
+		return;
+
+	int size = 0;
+	if (!currprefs.picasso96_noautomodes) {
+		size = addresolutions();
+	}
+
 	uaegfx_card_install (ctx, size);
 	init_alloc (ctx, size);
 }
@@ -2762,7 +2774,7 @@ static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 
 	i = 0;
 	unkcnt = cnt = 0;
-	while (newmodes[i].inuse) {
+	while (newmodes && newmodes[i].inuse) {
 		struct LibResolution res = { 0 };
 		int j = i;
 		if (addmode(ctx, AmigaBoardInfo, &amem, &res, newmodes[i].res.width, newmodes[i].res.height, NULL, 0, &unkcnt)) {
