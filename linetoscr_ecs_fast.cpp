@@ -1380,6 +1380,7 @@ static void lts_ecs_n_ishres_dhires_b1(int draw_start, int draw_end, int draw_st
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1423,6 +1424,7 @@ static void lts_ecs_n_ishres_dhires_b1_filtered(int draw_start, int draw_end, in
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1466,6 +1468,7 @@ static void lts_ecs_dpf_ishres_dhires_b1(int draw_start, int draw_end, int draw_
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1509,6 +1512,7 @@ static void lts_ecs_dpf_ishres_dhires_b1_filtered(int draw_start, int draw_end, 
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1552,6 +1556,7 @@ static void lts_ecs_ehb_ishres_dhires_b1(int draw_start, int draw_end, int draw_
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1595,6 +1600,7 @@ static void lts_ecs_ehb_ishres_dhires_b1_filtered(int draw_start, int draw_end, 
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1638,6 +1644,7 @@ static void lts_ecs_ham_ishres_dhires_b1(int draw_start, int draw_end, int draw_
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1681,6 +1688,7 @@ static void lts_ecs_ham_ishres_dhires_b1_filtered(int draw_start, int draw_end, 
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1724,6 +1732,7 @@ static void lts_ecs_kehb_ishres_dhires_b1(int draw_start, int draw_end, int draw
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1767,6 +1776,7 @@ static void lts_ecs_kehb_ishres_dhires_b1_filtered(int draw_start, int draw_end,
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -4121,6 +4131,7 @@ static void lts_ecs_n_ishres_dhires_b2(int draw_start, int draw_end, int draw_st
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 			*buf2++ = dpix_val0;
 		}
@@ -4167,6 +4178,7 @@ static void lts_ecs_n_ishres_dhires_b2_filtered(int draw_start, int draw_end, in
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 			*buf2++ = dpix_val0;
 		}
@@ -4213,6 +4225,7 @@ static void lts_ecs_dpf_ishres_dhires_b2(int draw_start, int draw_end, int draw_
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 			*buf2++ = dpix_val0;
 		}
@@ -4259,6 +4272,7 @@ static void lts_ecs_dpf_ishres_dhires_b2_filtered(int draw_start, int draw_end, 
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 			*buf2++ = dpix_val0;
 		}
@@ -4305,6 +4319,7 @@ static void lts_ecs_ehb_ishres_dhires_b2(int draw_start, int draw_end, int draw_
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 			*buf2++ = dpix_val0;
 		}
@@ -4351,6 +4366,7 @@ static void lts_ecs_ehb_ishres_dhires_b2_filtered(int draw_start, int draw_end, 
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 			*buf2++ = dpix_val0;
 		}
@@ -4397,6 +4413,7 @@ static void lts_ecs_ham_ishres_dhires_b2(int draw_start, int draw_end, int draw_
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 			*buf2++ = dpix_val0;
 		}
@@ -4443,6 +4460,7 @@ static void lts_ecs_ham_ishres_dhires_b2_filtered(int draw_start, int draw_end, 
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 			*buf2++ = dpix_val0;
 		}
@@ -4489,6 +4507,7 @@ static void lts_ecs_kehb_ishres_dhires_b2(int draw_start, int draw_end, int draw
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 			*buf2++ = dpix_val0;
 		}
@@ -4535,6 +4554,7 @@ static void lts_ecs_kehb_ishres_dhires_b2_filtered(int draw_start, int draw_end,
 			uae_u8 c1 = *cp++;
 			uae_u32 dpix_val0, dpix_val1;
 			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			*buf1++ = dpix_val0;
 			*buf2++ = dpix_val0;
 		}

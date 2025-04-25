@@ -1432,6 +1432,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_ntsc_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = 0;
@@ -1594,6 +1595,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_ntsc_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = 0;
@@ -1760,6 +1762,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_ntsc_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = 0;
@@ -1926,6 +1929,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_ntsc_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = 0;
@@ -2146,6 +2150,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_spr_ntsc_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2343,6 +2348,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_spr_ntsc_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2544,6 +2550,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_spr_ntsc_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2745,6 +2752,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_spr_ntsc_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {

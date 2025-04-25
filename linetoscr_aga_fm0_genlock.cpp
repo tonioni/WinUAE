@@ -1863,6 +1863,7 @@ static void lts_aga_fm0_n0_p4_ihires_dlores_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -2020,6 +2021,7 @@ static void lts_aga_fm0_n1_p4_ihires_dlores_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -2183,6 +2185,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dlores_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -2355,6 +2358,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dlores_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -2666,6 +2670,7 @@ static void lts_aga_fm0_n0_p4_ihires_dlores_spr_filtered_genlock(void)
 					}
 				}
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -2858,6 +2863,7 @@ static void lts_aga_fm0_n1_p4_ihires_dlores_spr_filtered_genlock(void)
 					}
 				}
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -3056,6 +3062,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dlores_spr_filtered_genlock(void)
 					}
 				}
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -3263,6 +3270,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dlores_spr_filtered_genlock(void)
 					}
 				}
 				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 

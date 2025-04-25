@@ -6669,6 +6669,7 @@ void m68k_go (int may_quit)
 				m68k_setpc_normal(pc);
 				fill_prefetch();
 				update_68k_cycles();
+				init_custom();
 			}
 			if (cpu_prefs_changed_flag & 2) {
 				fixup_cpu(&changed_prefs);

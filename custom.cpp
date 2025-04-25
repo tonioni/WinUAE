@@ -120,7 +120,8 @@ static int rga_denise_cycle, rga_denise_cycle_start, rga_denise_cycle_count;
 static int rga_denise_cycle_line = 1;
 static struct pipeline_reg preg;
 static struct pipeline_func pfunc[MAX_PIPELINE_REG];
-static uae_u16 prev_strobe, strobe_fast;
+static uae_u16 prev_strobe;
+static bool vb_fast, vb_fast_prev;
 static uae_u32 custom_state_flags;
 static int not_safe_mode;
 static bool dmal_next;
@@ -561,6 +562,7 @@ static bool agnus_equdis;
 int maxhpos = MAXHPOS_PAL;
 static int maxhpos_long;
 int maxhpos_short = MAXHPOS_PAL;
+static bool maxhpos_lol;
 int maxvpos = MAXVPOS_PAL;
 int maxvpos_nom = MAXVPOS_PAL; // nominal value (same as maxvpos but "faked" maxvpos in fake 60hz modes)
 static int maxvpos_long;
@@ -1136,28 +1138,28 @@ static void set_chipset_mode(bool imm)
 		}
 	}
 	if (imm || bplcon0 != bplcon0_saved) {
-		denise_update_reg(0x100, bplcon0);
+		denise_update_reg_queue(0x100, bplcon0, rga_denise_cycle_line);
 	}
 	if (imm || bplcon1 != bplcon1_saved) {
-		denise_update_reg(0x102, bplcon1);
+		denise_update_reg_queue(0x102, bplcon1, rga_denise_cycle_line);
 	}
 	if (imm || bplcon2 != bplcon2_saved) {
-		denise_update_reg(0x104, bplcon2);
+		denise_update_reg_queue(0x104, bplcon2, rga_denise_cycle_line);
 	}
 	if (imm || bplcon3 != bplcon3_saved) {
-		denise_update_reg(0x106, bplcon3);
+		denise_update_reg_queue(0x106, bplcon3, rga_denise_cycle_line);
 	}
 	if (imm || bplcon4 != bplcon4_saved) {
-		denise_update_reg(0x10c, bplcon4);
+		denise_update_reg_queue(0x10c, bplcon4, rga_denise_cycle_line);
 	}
 	if (imm) {
-		denise_update_reg(0x8e, diwstrt);
+		denise_update_reg_queue(0x8e, diwstrt, rga_denise_cycle_line);
 		if (diwhigh_written) {
-			denise_update_reg(0x1e4, diwhigh);
+			denise_update_reg_queue(0x1e4, diwhigh, rga_denise_cycle_line);
 		}
 	}
 	if (imm || fmode != fmode_saved) {
-		denise_update_reg(0x1fc, fmode);
+		denise_update_reg_queue(0x1fc, fmode, rga_denise_cycle_line);
 		setup_fmodes(bplcon0);
 	}
 }
@@ -1630,9 +1632,9 @@ void compute_framesync(void)
 	}
 
 	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
-		vb->inwidth = current_linear_hpos << (res2 + 1);
+		vb->inwidth = current_linear_hpos_short << (res2 + 1);
 	} else {
-		vb->inwidth = (current_linear_hpos - (display_hstart_cyclewait_skip + display_hstart_cyclewait_skip2)) << (res2 + 1);
+		vb->inwidth = (current_linear_hpos_short - (display_hstart_cyclewait_skip + display_hstart_cyclewait_skip2)) << (res2 + 1);
 	}
 	vb->inwidth2 = vb->inwidth;
 	vb->extrawidth = -2;
@@ -1646,8 +1648,11 @@ void compute_framesync(void)
 	if (currprefs.gfx_overscanmode >= OVERSCANMODE_EXTREME) {
 		vb->extrawidth = -1;
 	}
-	int mfl = minfirstline + 1;
-	int maxv = current_linear_vpos - (mfl > vsync_startline ? mfl - vsync_startline : 0);
+	int mfl = minfirstline_linear;
+	if (currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
+		mfl += 2;
+	}
+	int maxv = current_linear_vpos - mfl;
 	vb->inheight = maxv << vres2;
 	vb->inheight2 = vb->inheight;
 	vb->inxoffset = 0;
@@ -2362,6 +2367,7 @@ static int GETHPOS(void)
 static void setmaxhpos(void)
 {
 	maxhpos = maxhpos_short + lol;
+	maxhpos_lol = lol;
 	maxhpos_long = linetoggle ? maxhpos_short + 1 : -1;
 	maxhposm0 = maxhpos;
 	maxhposm1 = maxhpos - 1;
@@ -5037,7 +5043,7 @@ static void vsync_check_vsyncmode(void)
 				current_linear_vpos != current_linear_vpos_temp) {
 				current_linear_hpos = current_linear_hpos_temp;
 				current_linear_vpos = current_linear_vpos_temp;
-				current_linear_hpos_short = current_linear_hpos - lol;
+				current_linear_hpos_short = current_linear_hpos - maxhpos_lol;
 				current_linear_vpos_nom = current_linear_vpos - lof_store;
 				init_beamcon0();
 				compute_framesync();
@@ -6645,6 +6651,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		maxvpos = ntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
 		maxvpos_nom = ntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
 		maxvpos_display = ntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+		maxhpos_lol = false;
 	}
 
 	if (!savestate_state) {
@@ -6758,6 +6765,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 
 		maxhpos = ntsc ? MAXHPOS_NTSC : MAXHPOS_PAL;
 		maxhpos_short = maxhpos;
+		maxhpos_lol = lol;
 		updateextblk();
 
 		bplcon0_saved = bplcon0;
@@ -7551,7 +7559,7 @@ static int REGPARAM2 custom_wput_1(uaecptr addr, uae_u32 value, int noget)
 			// fast CPU RGA pipeline, allow multiple register writes per CCK
 			if (!denise_update_reg_queued(addr, v, rga_denise_cycle_line)) {
 				// if full: direct write
-				denise_update_reg(addr, value);
+				denise_update_reg_queue(addr, value, rga_denise_cycle_line);
 			}
 		} else {
 			write_drga(addr, NULL, v);
@@ -7824,22 +7832,23 @@ uae_u8 *restore_custom(uae_u8 *src)
 
 	bitplane_dma_change(dmacon);
 	calcvdiw();
-	denise_update_reg(0x100, bplcon0);
-	denise_update_reg(0x102, bplcon1);
-	denise_update_reg(0x104, bplcon2);
-	denise_update_reg(0x106, bplcon3);
-	denise_update_reg(0x10c, bplcon4);
-	denise_update_reg(0x1e4, diwhigh);
-	denise_update_reg(0x08e, diwstrt);
-	denise_update_reg(0x090, diwstop);
+	denise_update_reg_queue(0x100, bplcon0, rga_denise_cycle_line);
+	denise_update_reg_queue(0x102, bplcon1, rga_denise_cycle_line);
+	denise_update_reg_queue(0x104, bplcon2, rga_denise_cycle_line);
+	denise_update_reg_queue(0x106, bplcon3, rga_denise_cycle_line);
+	denise_update_reg_queue(0x10c, bplcon4, rga_denise_cycle_line);
+	denise_update_reg_queue(0x1e4, diwhigh, rga_denise_cycle_line);
+	denise_update_reg_queue(0x08e, diwstrt, rga_denise_cycle_line);
+	denise_update_reg_queue(0x090, diwstop, rga_denise_cycle_line);
 	if (diwhigh_written) {
-		denise_update_reg(0x1e4, diwhigh);
+		denise_update_reg_queue(0x1e4, diwhigh, rga_denise_cycle_line);
 	}
-	denise_update_reg(0x1fc, fmode);
-	denise_update_reg(0x098, clxcon);
-	denise_update_reg(0x10e, clxcon2);
-	denise_update_reg(0x1c4, hbstrt);
-	denise_update_reg(0x1c6, hbstop);
+	denise_update_reg_queue(0x1fc, fmode, rga_denise_cycle_line);
+	denise_update_reg_queue(0x098, clxcon, rga_denise_cycle_line);
+	denise_update_reg_queue(0x10e, clxcon2, rga_denise_cycle_line);
+	denise_update_reg_queue(0x1c4, hbstrt, rga_denise_cycle_line);
+	denise_update_reg_queue(0x1c6, hbstop, rga_denise_cycle_line);
+	draw_denise_line_queue_flush();
 	docols(&denise_colors);
 	docols(&agnus_colors);
 
@@ -10462,7 +10471,7 @@ static int getlinetype(void)
 {
 	int type = 0;
 	
-	if (strobe_fast != 0x3c) {
+	if (vb_fast) {
 		type = LINETYPE_BLANK;
 	} else if (vdiwstate == diw_states::DIW_waiting_start || GET_PLANES(bplcon0) == 0 || !dmaen(DMA_BITPLANE)) {
 		type = LINETYPE_BORDER;
@@ -10699,11 +10708,11 @@ static bool checkprevfieldlinestateequal(void)
 
 	int type = getlinetype();
 	if (type && type == l->type && displayresetcnt == l->cnt) {
-		if (type == LINETYPE_BLANK && strobe_fast != 0x3c) {
+		if (type == LINETYPE_BLANK && vb_fast) {
 			if (1) {
 				ret = true;
 			}
-		} else if (type == LINETYPE_BORDER && strobe_fast == 0x3c && !l->blankedline) {
+		} else if (type == LINETYPE_BORDER && !vb_fast && !l->blankedline) {
 			if (1) {
 				uae_u32 c = ((bplcon0 & 1) && (bplcon3 & 0x20)) ? 0 : (aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0]);
 				if (!always && c == l->color0) {
@@ -10713,7 +10722,7 @@ static bool checkprevfieldlinestateequal(void)
 					ret = draw_border_fast(l, linear_display_vpos + 1);
 				}
 			}
-		} else if (type == LINETYPE_BPL && strobe_fast == 0x3c && !l->blankedline) {
+		} else if (type == LINETYPE_BPL && !vb_fast && !l->blankedline) {
 			if (1) {
 				int r = checkprevfieldlinestateequalbpl(l);
 				if ((r && always) || (r && currprefs.cs_optimizations == DISPLAY_OPTIMIZATIONS_FULL)) {
@@ -11186,7 +11195,11 @@ static void custom_trigger_start(void)
 			}
 		}
 #endif
-		strobe_fast = get_strobe_reg(0);
+		if (new_beamcon0 & BEAMCON0_VARVBEN) {
+			vb_fast = get_strobe_reg(0) != 0x3c || vpos == vbstrt;
+		} else {
+			vb_fast = get_strobe_reg(0) != 0x3c;
+		}
 		int canline = can_fast_custom();
 		if (canline) {
 			calculate_linetype(linear_display_vpos + 1);
@@ -12198,6 +12211,7 @@ static void sync_imm_evhandler(void)
 	if (!custom_disabled) {
 		eventtab[ev_sync].active = 0;
 		write_log("Chipset emulation active\n");
+		rga_denise_cycle_line++;
 		return;
 	}
 

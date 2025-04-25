@@ -615,6 +615,9 @@ static void gen_pix_aga(void)
 		}
 		if (filtered) {
 			outf("dpix_val%d = filter_pixel(dpix_val%d, dpix_val%d);", off, off, off + 1);
+			if (genlock) {
+				outf("gpix%d = filter_pixel_genlock(gpix%d, gpix%d);", off, off, off + 1);
+			}
 		}
 		if (ntsc) {
 			outf("dtbuf[h][%d] = dpix_val%d;", off, off);
@@ -762,6 +765,9 @@ static void gen_pix(void)
 
 		if (filtered) {
 			outf("dpix_val%d = filter_pixel(dpix_val%d, dpix_val%d);", off, off, off + 1);
+			if (genlock) {
+				outf("gpix%d = filter_pixel_genlock(gpix%d, gpix%d);", off, off, off + 1);
+			}
 		}
 
 		if (sprt[i]) {
@@ -1051,6 +1057,12 @@ static void gen_fastdraw_mode(int off, int total)
 		} else {
 			outf("get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);");
 		}
+		if (doubling < 0) {
+			outf("dpix_val0 = filter_pixel(dpix_val0, dpix_val1);");
+			if (genlock) {
+				outf("gpix0 = filter_pixel_genlock(gpix0, gpix1);");
+			}
+		}
 		outf("*buf1++ = dpix_val0;");
 		if (doubling == 0) {
 			outf("*buf1++ = dpix_val1;");
@@ -1208,7 +1220,7 @@ static void gen_fastdraw(void)
 		outf("uae_u8 c;");
 		outf("uae_u32 col;");
 	}
-	if (doubling <= 0 || (res == 2 && !aga)) {
+	if (doubling <= 0) {
 		gen_fastdraw_mode(0, 1);
 	} else if (doubling == 1) {
 		gen_fastdraw_mode(0, 2);
@@ -1692,86 +1704,103 @@ int main (int argc, char *argv[])
 
 	for (genlock = 0; genlock < 2; genlock++) {
 		for (outres = 1; outres < 3; outres++) {
-			char funcname[200];
-			sprintf(funcname, "lts_ecs_shres_d%s%s", 
-				outres == 0 ? "lores" : (outres == 1 ? "hires" : "shres"),
-				genlock ? "_genlock" : "");
-			strcpy(funcnamep, funcname);
-			funcnamep += strlen(funcnamep) + 1;
-			*funcnamep = 0;
-			outf("static void %s(void)", funcname);
-			outf("{");
-			gen_start();
-			gen_init();
-			gen_prepix(0);
-			gen_prepix(1);
-			gen_prepix(2);
-			gen_prepix(3);
-			outf("bool shifted = false;");
-			outf("checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h);");
-			outf("if (!denise_blank_active) {");
-			outf("	dpix_val0 = bordercolor_ecs_shres;");
-			outf("	dpix_val1 = bordercolor_ecs_shres;");
-			outf("	dpix_val2 = bordercolor_ecs_shres;");
-			outf("	dpix_val3 = bordercolor_ecs_shres;");
-			outf("	if (denise_hdiw && bpl1dat_trigger) {");
-			outf("  shifted = true;");
-			outf("pix0 = getbpl2();");
-			outf("shiftbpl2();");
-			outf("pix1 = getbpl2();");
-			outf("shiftbpl2();");
-			outf("pix2 = getbpl2();");
-			outf("shiftbpl2();");
-			outf("pix3 = getbpl2();");
-			outf("shiftbpl2();");
-			if (genlock) {
-				outf("get_shres_pix_genlock(pix0, pix1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);");
-				outf("get_shres_pix_genlock(pix2, pix3, &dpix_val2, &dpix_val3, &gpix2, &gpix3);");
-			} else {
-				outf("get_shres_pix(pix0, pix1, &dpix_val0, &dpix_val1);");
-				outf("get_shres_pix(pix2, pix3, &dpix_val2, &dpix_val3);");
-			}
-			outf("}");
-			outf("}");
-			if (outres == 1) {
-				gen_sprpix(0);
-				gen_matchspr(0);
-				gen_sprpix(1);
-				gen_matchspr(2);
-				gen_ecsshresspr();
-				outf("if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {");
-				gen_storepix(0, 0);
-				gen_storepix(2, 2);
+			for(filtered = 0; filtered < 2;filtered++) {
+				if (filtered && outres != 1) {
+					continue;
+				}
+				char funcname[200];
+				sprintf(funcname, "lts_ecs_shres_d%s%s", 
+					outres == 0 ? "lores" : (outres == 1 ? "hires" : "shres"),
+					genlock ? "_genlock" : "");
+				strcpy(funcnamep, funcname);
+				funcnamep += strlen(funcnamep) + 1;
+				*funcnamep = 0;
+				if (filtered) {
+					strcat(funcname, "_filtered");
+				}
+				outf("static void %s(void)", funcname);
+				outf("{");
+				gen_start();
+				gen_init();
+				gen_prepix(0);
+				gen_prepix(1);
+				gen_prepix(2);
+				gen_prepix(3);
+				outf("bool shifted = false;");
+				outf("checkhorizontal1_ecs(denise_hcounter, denise_hcounter_next, h);");
+				outf("if (!denise_blank_active) {");
+				outf("	dpix_val0 = bordercolor_ecs_shres;");
+				outf("	dpix_val1 = bordercolor_ecs_shres;");
+				outf("	dpix_val2 = bordercolor_ecs_shres;");
+				outf("	dpix_val3 = bordercolor_ecs_shres;");
+				outf("	if (denise_hdiw && bpl1dat_trigger) {");
+				outf("  shifted = true;");
+				outf("pix0 = getbpl2();");
+				outf("shiftbpl2();");
+				outf("pix1 = getbpl2();");
+				outf("shiftbpl2();");
+				outf("pix2 = getbpl2();");
+				outf("shiftbpl2();");
+				outf("pix3 = getbpl2();");
+				outf("shiftbpl2();");
+				if (genlock) {
+					outf("get_shres_pix_genlock(pix0, pix1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);");
+					outf("get_shres_pix_genlock(pix2, pix3, &dpix_val2, &dpix_val3, &gpix2, &gpix3);");
+				} else {
+					outf("get_shres_pix(pix0, pix1, &dpix_val0, &dpix_val1);");
+					outf("get_shres_pix(pix2, pix3, &dpix_val2, &dpix_val3);");
+				}
 				outf("}");
-			} else if (outres == 2) {
-				gen_sprpix(0);
-				gen_matchspr(0);
-				gen_sprpix(1);
-				gen_matchspr(2);
-				gen_ecsshresspr();
-				outf("if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {");
-				gen_storepix(0, 0);
-				gen_storepix(1, 1);
-				gen_storepix(2, 2);
-				gen_storepix(3, 3);
 				outf("}");
+				if (outres == 1) {
+					gen_sprpix(0);
+					gen_matchspr(0);
+					gen_sprpix(1);
+					gen_matchspr(2);
+					gen_ecsshresspr();
+					outf("if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {");
+					if (filtered) {
+						outf("dpix_val0 = filter_pixel(dpix_val0, dpix_val1);");
+						outf("dpix_val2 = filter_pixel(dpix_val2, dpix_val3);");
+						if (genlock) {
+							outf("gpix0 = filter_pixel_genlock(gpix0, gpix1);");
+							outf("gpix2 = filter_pixel_genlock(gpix2, gpix3);");
+						}
+					}
+					gen_storepix(0, 0);
+					gen_storepix(2, 2);
+					outf("}");
+				} else if (outres == 2) {
+					gen_sprpix(0);
+					gen_matchspr(0);
+					gen_sprpix(1);
+					gen_matchspr(2);
+					gen_ecsshresspr();
+					outf("if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {");
+					gen_storepix(0, 0);
+					gen_storepix(1, 1);
+					gen_storepix(2, 2);
+					gen_storepix(3, 3);
+					outf("}");
+				}
+				outf("if (!shifted) {");
+				outf("shiftbpl2();");
+				outf("shiftbpl2();");
+				outf("shiftbpl2();");
+				outf("shiftbpl2();");
+				outf("}");
+				gen_copybpl();
+				outf("internal_pixel_cnt += 4;");
+				gen_end();
+				gen_tail();
 			}
-			outf("if (!shifted) {");
-			outf("shiftbpl2();");
-			outf("shiftbpl2();");
-			outf("shiftbpl2();");
-			outf("shiftbpl2();");
-			outf("}");
-			gen_copybpl();
-			outf("internal_pixel_cnt += 4;");
-			gen_end();
-			gen_tail();
 		}
 
 		write_funcs(genlock ? "linetoscr_ecs_shres_genlock_funcs" : "linetoscr_ecs_shres_funcs");
 	}
 
 	// fast drawing
+	filtered = 0;
 	genlock = 0;
 
 	set_outfile("../../linetoscr_ecs_fast.cpp");
