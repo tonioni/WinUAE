@@ -48,8 +48,6 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	cy = *cyp;
 	v = currprefs.gfx_xcenter_pos;
 	if (v >= 0) {
-		// v6 adjustment
-		v -= 1 << RES_MAX;
 		if (v < 0) {
 			v = 0;
 		}
@@ -815,7 +813,7 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	*widthp = w;
 	*heightp = h;
 	*depth = vb->pixbytes * 8;
-	return vb->bufmem + extra * sizeof(uae_u32);
+	return vb->bufmem ? vb->bufmem + extra * sizeof(uae_u32) : NULL;
 }
 
 #endif

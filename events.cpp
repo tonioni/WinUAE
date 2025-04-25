@@ -432,7 +432,7 @@ void event2_newevent_xx(int no, evt_t t, uae_u32 data, evfunc2 func)
 	e->evtime = et;
 	e->handler = func;
 	e->data = data;
-	event2idx = (e - eventtab2) + 1;
+	event2idx = addrdiff(e, eventtab2) + 1;
 	MISC_handler();
 }
 

@@ -915,10 +915,6 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	int width, height;
 	bool half;
 
-//	Sleep(10000);
-//	smm = RP_SCREENMODE_SCALE_4X + 0;
-//	smm_m = smm;
-
 	storeflags = sm->dwScreenMode;
 	minimized = 0;
 	if (display) {

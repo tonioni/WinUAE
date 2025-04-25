@@ -1511,7 +1511,7 @@ static void audio_low_period_hack(struct audio_channel_data *cdp)
 {
 	// if very low period sample repeats, set higher period value to not cause huge performance drop
 	// For example: Spaceport, R-Type II, Rambo III
-	int nr = cdp - audio_channel;
+	int nr = addrdiff(cdp, audio_channel);
 	if ((cdp->state == 2 || cdp->state == 3) && cdp->per < PERIOD_MIN_LOOP * CYCLE_UNIT && !(intena & (1 << (nr + 7))) && !(currprefs.cs_hacks & 32)) {
 		int add = 1;
 		if (cdp->len == 0 || cdp->len > 1000) {

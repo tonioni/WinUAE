@@ -20669,12 +20669,12 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 	
 	if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL) {
 		xrange1 = -1;
-		xrange2 = 1800;
+		xrange2 = 1900;
 		yrange1 = xrange1;
 		yrange2 = xrange2;
 	} else if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_OVERSCAN_BLANK) {
 		xrange1 = 0;
-		xrange2 = 1800;
+		xrange2 = 1900;
 		yrange1 = 0;
 		yrange2 = 700;
 	} else if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER ||
@@ -21423,9 +21423,6 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				SetDlgItemInt (hDlg, IDC_FILTERVZV, fdwp->gfx_filter_right_border, TRUE);
 				SetDlgItemInt (hDlg, IDC_FILTERHOV, fdwp->gfx_filter_top_border, TRUE);
 				SetDlgItemInt (hDlg, IDC_FILTERVOV, fdwp->gfx_filter_bottom_border, TRUE);
-				if (!full_property_sheet) {
-					reset_drawing();
-				}
 			} else {
 				if (h == hz) {
 					fd->gfx_filter_horiz_zoom = (float)SendMessage (hz, TBM_GETPOS, 0, 0);
