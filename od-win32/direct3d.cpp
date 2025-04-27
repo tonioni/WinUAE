@@ -3816,11 +3816,24 @@ static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *width, int *height,
 		return d3d->fakebitmap;
 	}
 
+	if (!isd3d(d3d)) {
+		return NULL;
+	}
+
+	if (D3D_needreset(d3d) > 0) {
+		return NULL;
+	}
+
+	if (d3d->locked) {
+		write_log (_T("%s: texture already locked!\n"), D3DHEAD);
+		return NULL;
+	}
+
 	if (fullupdate < 0) {
-		if (d3d->usetexture == d3d->texture1) {
+		if (d3d->texture1 && d3d->texture2 && d3d->usetexture == d3d->texture1) {
 			LPDIRECT3DTEXTURE9 tex1 = d3d->texture1;
 			LPDIRECT3DTEXTURE9 tex2 = d3d->texture2;
-			IDirect3DSurface9* s1, * s2;
+			IDirect3DSurface9 *s1, *s2;
 			if (SUCCEEDED(tex1->GetSurfaceLevel(0, &s1))) {
 				if (SUCCEEDED(tex2->GetSurfaceLevel(0, &s2))) {
 					HRESULT hr = d3d->d3ddev->StretchRect(s1, NULL, s2, NULL, D3DTEXF_NONE);
@@ -3832,17 +3845,6 @@ static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *width, int *height,
 		}
 	} else {
 		d3d->usetexture = d3d->texture1;
-	}
-
-	if (D3D_needreset (d3d) > 0) {
-		return NULL;
-	}
-	if (!isd3d (d3d))
-		return NULL;
-
-	if (d3d->locked) {
-		write_log (_T("%s: texture already locked!\n"), D3DHEAD);
-		return NULL;
 	}
 
 	if (!d3d->texture1) {
