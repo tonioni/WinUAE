@@ -1754,7 +1754,7 @@ static int read_kickstart(struct zfile *f, uae_u8 *mem, int size, int dochecksum
 	if (size <= 256)
 		return size;
 
-	if (currprefs.cs_a1000ram) {
+	if (currprefs.cs_a1000ram && i < ROM_SIZE_256) {
 		if (!a1000_bootrom) {
 			a1000_kickstart_size = ROM_SIZE_256;
 			if (is_board_enabled(&currprefs, ROMTYPE_512KWOM, 0)) {
