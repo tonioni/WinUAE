@@ -24009,7 +24009,11 @@ void gui_led (int led, int on, int brightness)
 	} else if (led == LED_LINES) {
 		pos = 3;
 		ptr = drive_text + pos * LED_STRING_WIDTH;
-		_stprintf(ptr, _T("%d%c"), gui_data.lines, gui_data.lace ? 'i' : 'p');
+		if (gui_data.fps_color < 2) {
+			_stprintf(ptr, _T("%3d%c"), gui_data.lines, gui_data.lace ? 'i' : 'p');
+		} else {
+			_tcscpy(ptr, _T("----"));
+		}
 		on = 1;
 	} else if (led == LED_FPS) {
 		float fps = gui_data.fps / 10.0f;

@@ -48,9 +48,6 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	cy = *cyp;
 	v = currprefs.gfx_xcenter_pos;
 	if (v >= 0) {
-		if (v < 0) {
-			v = 0;
-		}
 		cx = (v >> (RES_MAX - currprefs.gfx_resolution)) - cx;
 	}
 
@@ -137,10 +134,9 @@ static bool get_aspect(int monid, float *dstratiop, float *srcratiop, float *xmu
 			} else {
 				bool isp = ispal(NULL);
 				if (currprefs.ntscmode) {
-					dstratio = dstratio * 1.21f;
-					if (keep_aspect == 2 && isp)
+					if (keep_aspect == 2 && !isp)
 						dstratio = dstratio * 0.93f;
-					else if (keep_aspect == 1 && !isp)
+					else if (keep_aspect == 1 && isp)
 						dstratio = dstratio * 0.98f;
 				} else {
 					if (keep_aspect == 2 && isp)

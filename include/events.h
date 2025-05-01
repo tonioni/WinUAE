@@ -75,7 +75,7 @@ enum {
 
 enum {
 	ev2_blitter, ev2_misc,
-	ev2_max = 8
+	ev2_max = 16
 };
 
 extern int pissoff_value;
@@ -151,6 +151,7 @@ extern void MISC_handler(void);
 extern void event2_newevent_xx(int no, evt_t t, uae_u32 data, evfunc2 func);
 extern void event2_newevent_x_replace(evt_t t, uae_u32 data, evfunc2 func);
 extern void event2_newevent_x_replace_exists(evt_t t, uae_u32 data, evfunc2 func);
+extern void event2_newevent_x_add_not_exists(evt_t t, uae_u32 data, evfunc2 func);
 extern void event2_newevent_x_remove(evfunc2 func);
 extern void event2_newevent_xx_ce(evt_t t, uae_u32 data, evfunc2 func);
 bool event2_newevent_x_exists(evfunc2 func);

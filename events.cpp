@@ -386,6 +386,8 @@ void event2_newevent_xx_ce(evt_t t, uae_u32 data, evfunc2 func)
 	event2_newevent_xx(-1, t, data, func);
 }
 
+void event_doint_delay_do_ext(uae_u32 v);
+
 void event2_newevent_xx(int no, evt_t t, uae_u32 data, evfunc2 func)
 {
 	evt_t et;
@@ -401,10 +403,19 @@ void event2_newevent_xx(int no, evt_t t, uae_u32 data, evfunc2 func)
 			if (eventtab2[no].evtime == et && eventtab2[no].handler == func && eventtab2[no].data == data)
 				break;
 			no++;
-			if (no == ev2_max)
+			if (no == ev2_max) {
 				no = ev2_misc;
+			}
 			if (no == next) {
-				write_log (_T("out of event2's!\n"));
+				// we may have multiple interrupts queued, merge if possible
+				for (int i = 0; i < ev2_max; i++) {
+					auto ev2 = &eventtab2[i];
+					if (ev2->active && ev2->handler == func && ev2->evtime == et && func == event_doint_delay_do_ext) {
+						ev2->data |= data;
+						return;
+					}
+				}
+				write_log(_T("out of event2's!\n"));
 				// execute most recent event immediately
 				evt_t mintime = EVT_MAX;
 				int minevent = -1;
@@ -473,6 +484,18 @@ bool event2_newevent_x_exists(evfunc2 func)
 void event2_newevent_x_replace(evt_t t, uae_u32 data, evfunc2 func)
 {
 	event2_newevent_x_remove(func);
+	if (t <= 0) {
+		func(data);
+		return;
+	}
+	event2_newevent_xx(-1, t * CYCLE_UNIT, data, func);
+}
+
+void event2_newevent_x_add_not_exists(evt_t t, uae_u32 data, evfunc2 func)
+{
+	if (event2_newevent_x_exists(func)) {
+		return;
+	}
 	if (t <= 0) {
 		func(data);
 		return;

@@ -325,6 +325,7 @@ struct rgabuf *write_rga(int slot, int type, uae_u16 v, uae_u32 *p);
 extern uae_u16 clxdat;
 
 void custom_end_drawing(void);
+void resetfulllinestate(void);
 
 extern int current_linear_vpos, current_linear_hpos;
 extern uae_u8 agnus_hpos;

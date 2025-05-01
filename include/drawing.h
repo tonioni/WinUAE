@@ -24,7 +24,6 @@ extern int visible_left_border, visible_right_border;
 extern int detected_screen_resolution;
 extern int hsync_end_left_border, hdisplay_left_border, denisehtotal;
 extern int vsync_startline;
-
 extern bool exthblanken;
 
 #define AMIGA_WIDTH_MAX (754 / 2)
@@ -33,9 +32,6 @@ extern bool exthblanken;
 #define AMIGA_HEIGHT_MAX (AMIGA_HEIGHT_MAX_PAL)
 
 #define CCK_SHRES_SHIFT 3
-
-#define MAX_STORED_BPL_DATA 204
-#define MAX_STORED_BPL_DATA_BYTES (MAX_STORED_BPL_DATA * sizeof(uae_u64))
 
 /* color values in two formats: 12 (OCS/ECS) or 24 (AGA) bit Amiga RGB (color_regs),
 * and the native color value; both for each Amiga hardware color register.
@@ -138,8 +134,6 @@ extern void get_mode_blanking_limits(int *phbstop, int *phbstrt, int *pvbstop, i
 
 /* Finally, stuff that shouldn't really be shared.  */
 
-extern int thisframe_first_drawn_line, thisframe_last_drawn_line;
-
 #define IHF_SCROLLLOCK 0
 #define IHF_QUIT_PROGRAM 1
 #define IHF_PICASSO 2
@@ -161,6 +155,7 @@ struct linestate
 	uae_u16 bplcon0, bplcon1, bplcon2, bplcon3, bplcon4;
 	uae_u16 fmode;
 	uae_u32 color0;
+	bool brdblank;
 	uae_u8 *linecolorstate;
 	int bpllen;
 	int colors;
@@ -172,6 +167,7 @@ struct linestate
 	int internal_pixel_start_cnt;
 	bool lol;
 	bool blankedline;
+	bool vb;
 	bool strlong_seen;
 	int fetchmode_size, fetchstart_mask;
 	uae_u16 strobe;
@@ -179,7 +175,7 @@ struct linestate
 };
 
 extern struct color_entry denise_colors;
-void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int endpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lof, bool lol, int hdelay, struct linestate *ls);
+void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int endpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lof, bool lol, int hdelay, bool blanked, struct linestate *ls);
 void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
 void draw_denise_bitplane_line_fast_queue(int gfx_ypos, enum nln_how how, struct linestate *ls);
 void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
