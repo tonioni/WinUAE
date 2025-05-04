@@ -4594,8 +4594,8 @@ static void maybe_process_pull_audio(void)
 static bool crender_screen(int monid, int mode, bool immediate)
 {
 	if (currprefs.gfx_vresolution && interlace_seen > 0 && currprefs.gfx_iscanlines == 0) {
-		// if non-fields interlace mode: render only every other frame
-		if (vsync_counter & 1) {
+		// if non-fields interlace mode: render only complete frames
+		if (!lof_display) {
 			return true;
 		}
 	}
@@ -5524,6 +5524,9 @@ static void hsync_handler_pre(bool onvsync)
 			}
 		}
 
+		if (GET_PLANES(bplcon0)) {
+			notice_resolution_seen(GET_RES_AGNUS(bplcon0), interlace_seen != 0);
+		}
 	}
 
 	devices_hsync();

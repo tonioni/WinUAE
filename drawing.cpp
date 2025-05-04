@@ -851,6 +851,8 @@ void store_custom_limits(int w, int h, int x, int y)
 
 int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hres, int *vres)
 {
+	static int interlace_count;
+	static int interlace_lof[2];
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	int w, h, dx, dy, y1, y2, dbl1, dbl2;
 	int ret = 0;
@@ -882,17 +884,27 @@ int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hr
 		ret = -1;
 
 	if (interlace_seen) {
-		static int interlace_count;
-		// interlace = only use long frames
-		if (lof_display && (interlace_count & 1) == 0)
+		for (;;) {
+			// if more than 1 long or short frames only: accept it, we may have double (non field) mode.
+			if (interlace_lof[0] >= 2 || interlace_lof[1] >= 2) {
+				break;
+			}
+			// wait for long frame
+			if (interlace_lof[0] && interlace_lof[1]) {
+				if (!lof_display) {
+					return ret;
+				}
+			}
 			interlace_count++;
-		if (!lof_display && (interlace_count & 1) != 0)
-			interlace_count++;
-		if (interlace_count < 3)
-			return ret;
-		if (!lof_display)
-			return ret;
+			interlace_lof[lof_display]++;
+			if (interlace_count < 3) {
+				return ret;
+			}
+		}
+	} else {
 		interlace_count = 0;
+		interlace_lof[0] = 0;
+		interlace_lof[1] = 0;
 	}
 
 	int skip = denise_hdelay << (RES_MAX + 1);
@@ -1460,6 +1472,20 @@ static void center_image (void)
 
 static int frame_res_cnt;
 static int autoswitch_old_resolution;
+
+void notice_resolution_seen(int res, bool lace)
+{
+	if (res > frame_res) {
+		frame_res = res;
+	}
+	if (res > 0) {
+		can_use_lores = 0;
+	}
+	if (!frame_res_lace && lace) {
+		frame_res_lace = lace;
+	}
+}
+
 static void init_drawing_frame(void)
 {
 	struct amigadisplay *ad = &adisplays[0];
@@ -1470,8 +1496,9 @@ static void init_drawing_frame(void)
 	int largest_count = 0;
 	int largest_count_res = 0;
 	for (int i = 0; i <= RES_MAX; i++) {
-		if (resolution_count[i])
+		if (resolution_count[i]) {
 			largest_res = i;
+		}
 		if (resolution_count[i] >= largest_count) {
 			largest_count = resolution_count[i];
 			largest_count_res = i;
@@ -5703,7 +5730,9 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		ls->lol = lol;
 	}
 
-	resolution_count[denise_res]++;
+	if (!line_is_blanked && denise_planes > 0) {
+		resolution_count[denise_res]++;
+	}
 	lines_count++;
 }
 
@@ -6557,6 +6586,11 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 
 	get_line(gfx_ypos, how);
 
+	if (!buf1 && !ls->blankedline && denise_planes > 0) {
+		resolution_count[denise_res]++;
+	}
+	lines_count++;
+
 	if (!buf1) {
 		return;
 	}
@@ -6630,6 +6664,12 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	}
 
 	get_line(gfx_ypos, how);
+
+	if (!buf1 && !ls->blankedline && denise_planes > 0) {
+		resolution_count[denise_res]++;
+	}
+	lines_count++;
+
 
 	if (!buf1) {
 		return;
