@@ -3768,6 +3768,9 @@ static BOOL doInit(struct AmigaMonitor *mon)
 retry:
 	struct vidbuf_description *avidinfo = &adisplays[mon->monitor_id].gfxvidinfo;
 	struct amigadisplay *ad = &adisplays[mon->monitor_id];
+	// v6: max is always available
+	avidinfo->gfx_resolution_reserved = RES_MAX;
+	avidinfo->gfx_vresolution_reserved = VRES_MAX;
 
 	modechanged = true;
 	if (wasfs[0] == 0)
