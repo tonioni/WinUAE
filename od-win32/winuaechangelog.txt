@@ -1,4 +1,14 @@
 
+Beta 25:
+
+- Fixed possible drawing buffer overflow when drawing blanked lines.
+- HAM state was reset when HDIW start matched even if HDIW was already open.
+- Switching BPLCON3 BRDSPRT off mid-screen didn't immediately recalculate sprite visibility.
+- Fast mode stopped drawing bitplane early if display needed horizontal scrolling ("misaligned" DDFSTRT and/or BPLCON1). Should fix remaining fast mode missing graphics problems near right border. (Usually only visible if HDIW ended after bitplane)
+- Display panel "Resolution autoswitch" works again. (Was gone in v6 rewrite)
+- Cirrus Logic SVGA chip emulation now only supports planar VGA when using text mode, 4 color or 16 color graphics modes. Can increase performance in normal SVGA modes.
+- Double (not fields or fields+) interlace mode in automatic scaling/resize/etc mode never recalculated size/position when switching to interlace mode. (It kept waiting for both odd and even field but now only full frames are drawn in doubled interlace mode)
+
 Beta 24:
 
 - If bitplane DMA was active behind vertical blanking, it was incorrectly used for automatic scaling horizontal start/end detection.

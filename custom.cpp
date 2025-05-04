@@ -5036,14 +5036,14 @@ static void vsync_display_render(void)
 	if (!vsync_display_rendered) {
 		vsyncmintimepre = read_processor_time();
 
-		if (!has_draw_denise()) {
-			start_draw_denise();
-		}
-
 		if (!custom_disabled) {
+			if (!has_draw_denise()) {
+				start_draw_denise();
+			}
 			draw_denise_vsync_queue(display_redraw);
 			display_redraw = false;
 		}
+
 		draw_denise_line_queue_flush();
 
 		if (has_draw_denise()) {
