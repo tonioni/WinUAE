@@ -66,6 +66,7 @@ static bool safe_receive;
 static uae_u16 *receive_buf;
 static bool sticky_receive_interrupt;
 static int receive_buf_size, receive_buf_count;
+static void flushqueue(void);
 
 #define SER_MEMORY_MAPPING _T("WinUAE_Serial")
 
@@ -74,8 +75,9 @@ static void shmem_serial_send(uae_u32 data)
 	uae_u32 v;
 
 	sermap1->active_write = true;
-	if (!sermap1->active_read)
+	if (!sermap1->active_read) {
 		return;
+	}
 	v = sermap1->write_offset;
 	if (((v + 1) & (SERMAP_SIZE - 1)) == sermap1->read_offset) {
 		write_log(_T("Shared serial port memory overflow!\n"));
@@ -91,11 +93,13 @@ static uae_u32 shmem_serial_receive(void)
 	uae_u32 v;
 	uae_u32 data;
 	sermap2->active_read = true;
-	if (!sermap2->active_write)
+	if (!sermap2->active_write) {
 		return 0xffffffff;
+	}
 	v = sermap2->read_offset;
-	if (v == sermap2->write_offset)
+	if (v == sermap2->write_offset) {
 		return 0xffffffff;
+	}
 	data = sermap2->data[v];
 	v++;
 	v &= (SERMAP_SIZE - 1);
@@ -242,7 +246,7 @@ void SERPER (uae_u16 w)
 	per = w;
 	if (per == 0)
 		per = 1;
-	per = 3546895 / (per + 1);
+	per = (currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL) / (per + 1);
 	if (per <= 0)
 		per = 1;
 	i = 0;
@@ -256,9 +260,6 @@ void SERPER (uae_u16 w)
 
 	serial_period_transmit_ccks = ((serper & 0x7fff) + 1) * (1 + 8 + ninebit + 1 - 1);
 	serial_period_receive_ccks = serial_period_transmit_ccks / 4;
-	if (serial_period_receive_ccks <= maxhpos) {
-		serial_period_receive_ccks = maxhpos;
-	}
 
 #if SERIALLOGGING > 0
 	seriallog = 1;
@@ -295,6 +296,8 @@ void SERPER (uae_u16 w)
 #ifdef SERIAL_PORT
 	setbaud(baud, mbaud);
 #endif
+
+	flushqueue();
 
 	// mid transmit period change
 	if ((serloop_enabled || serempty_enabled) && ser_accurate) {
@@ -916,14 +919,18 @@ void serial_hsynchandler (void)
 	}
 	if (!ser_accurate) {
 		serial_period_transmit_cck_counter += maxhpos;
-		if (serial_period_transmit_cck_counter >= serial_period_transmit_ccks) {
-			serial_period_transmit_cck_counter -= serial_period_transmit_ccks;
+		if (serial_period_transmit_cck_counter >= serial_period_transmit_ccks && serial_period_transmit_ccks) {
+			serial_period_transmit_cck_counter %= serial_period_transmit_ccks;
+			serial_period_transmit_cck_counter += maxhpos - 1;
 			checkshiftempty();
 		}
+	} else {
+		serial_period_transmit_cck_counter = 0;
 	}
 	serial_period_receive_cck_counter += maxhpos;
-	if (serial_period_receive_cck_counter >= serial_period_receive_ccks) {
-		serial_period_receive_cck_counter -= serial_period_receive_ccks;
+	if (serial_period_receive_cck_counter >= serial_period_receive_ccks && serial_period_receive_ccks) {
+		serial_period_receive_cck_counter %= serial_period_receive_ccks;
+		serial_period_receive_cck_counter += maxhpos - 1;
 		receive_next_buffered();
 		checkreceive_serial();
 		checkreceive_enet();
@@ -937,6 +944,21 @@ void serial_hsynchandler (void)
 			write_log(_T("SERIAL: BREAK TIMEOUT\n"));
 #endif
 			flushser();
+		}
+	}
+}
+
+static void flushqueue(void)
+{
+#ifdef SERIAL_MAP
+	if (sermap2 && sermap_enabled) {
+		while (shmem_serial_receive() != 0xffffffff);
+	}
+#endif
+	for (;;) {
+		bool breakcond;
+		if (!readseravail(&breakcond)) {
+			break;
 		}
 	}
 }
