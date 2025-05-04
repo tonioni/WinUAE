@@ -3519,6 +3519,8 @@ static void hstart_new(void)
 		}
 		sprites_hidden = sprites_hidden2;
 		bplshiftcnt[0] = bplshiftcnt[1] = 0;
+		last_bpl_pix = 0;
+		setlasthamcolor();
 #ifdef DEBUGGER
 		if (debug_dma) {
 			record_dma_event_denise(debug_dma_ptr, denise_cycle_half, DENISE_EVENT_BPL1DAT_HDIW, false);
@@ -4571,12 +4573,14 @@ static void do_phbstop_ecs(int cnt)
 
 static void do_hstrt_aga(int cnt)
 {
+	if (!denise_hdiw) {
+		sprites_hidden2 &= ~1;
+		sprites_hidden = sprites_hidden2;
+		last_bpl_pix = 0;
+		setlasthamcolor();
+	}
 	denise_hdiw = true;
 	hstrt_offset = internal_pixel_cnt;
-	sprites_hidden2 &= ~1;
-	sprites_hidden = sprites_hidden2;
-	last_bpl_pix = 0;
-	setlasthamcolor();
 	if (internal_pixel_cnt < diwfirstword_total && bpl1dat_trigger_offset >= 0) {
 		diwfirstword_total = internal_pixel_cnt;
 	}
@@ -4603,12 +4607,14 @@ static void do_hstop_aga(int cnt)
 }
 static void do_hstrt_ecs(int cnt)
 {
+	if (!denise_hdiw) {
+		sprites_hidden2 &= ~1;
+		sprites_hidden = sprites_hidden2;
+		last_bpl_pix = 0;
+		setlasthamcolor();
+	}
 	hstrt_offset = internal_pixel_cnt;
 	denise_hdiw = true;
-	sprites_hidden2 &= ~1;
-	sprites_hidden = sprites_hidden2;
-	last_bpl_pix = 0;
-	setlasthamcolor();
 	if (internal_pixel_cnt < diwfirstword_total && bpl1dat_trigger_offset >= 0) {
 		diwfirstword_total = internal_pixel_cnt;
 	}
