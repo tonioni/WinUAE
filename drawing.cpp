@@ -6794,15 +6794,15 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	delay1 += delayoffset;
 	delay1 &= delaymask;
 	delay1 <<= 2;
-	int s = r_shift(delay1, RES_MAX - res);
-	cp -= s;
+	int byteshift = r_shift(delay1, RES_MAX - res);
+	cp -= byteshift;
 	if (dpf) {
 		int delay2 = ((ls->bplcon1 & 0xf0) >> 4) | ((ls->bplcon1 & 0xc000) >> 10);
 		delay2 += delayoffset;
 		delay2 &= delaymask;
 		delay2 <<= 2;
-		s = r_shift(delay2, RES_MAX - res);
-		cp2 -= s;
+		byteshift = r_shift(delay2, RES_MAX - res);
+		cp2 -= byteshift;
 		// different bitplane delay in DPF? Merge them.
 		if (cp != cp2) {
 			uae_u8 *dpout = (uae_u8*)(dpf_chunky_out + 1024);
@@ -6825,7 +6825,7 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	// negative checks are needed to handle always-on HDIW
 	int hstop_offset_adjusted = ls->hstop_offset;
 	if (ls->bpl1dat_trigger_offset >= 0) {
-		int bpl_end = ls->bpl1dat_trigger_offset + (1 << RES_MAX) + ((ls->bpllen * 32) >> denise_res);
+		int bpl_end = ls->bpl1dat_trigger_offset + (1 << RES_MAX) + ((ls->bpllen * 32 + byteshift * 4) >> denise_res);
 		if (hstop_offset_adjusted < 0 || hstop_offset_adjusted > bpl_end) {
 			hstop_offset_adjusted = bpl_end;
 		}
