@@ -342,6 +342,10 @@ void svga_recalctimings(svga_t *svga)
         double _dispontime, _dispofftime, disptime;
         int text = 0;
 
+        if (svga->fb_auto == 1) {
+            svga->fb_only = -1;
+        }
+
         svga->vtotal = svga->crtc[6];
         svga->dispend = svga->crtc[0x12];
         svga->vsyncstart = svga->crtc[0x10];
@@ -416,6 +420,9 @@ void svga_recalctimings(svga_t *svga)
             }
             svga->hdisp_old = svga->hdisp;
             text = 1;
+            if (svga->fb_auto) {
+                svga->fb_only = 0;
+            }
         }
         else
         {
@@ -429,12 +436,18 @@ void svga_recalctimings(svga_t *svga)
                     svga->render = svga_render_4bpp_lowres;
                 else
                     svga->render = svga_render_4bpp_highres;
+                if (svga->fb_auto) {
+                    svga->fb_only = 0;
+                }
                 break;
             case 0x20: /*4 colours*/
                 if (svga->seqregs[1] & 8) /*Low res (320)*/
                     svga->render = svga_render_2bpp_lowres;
                 else
                     svga->render = svga_render_2bpp_highres;
+                if (svga->fb_auto) {
+                    svga->fb_only = 0;
+                }
                 break;
             case 0x40: case 0x60: /*256+ colours*/
                 switch (svga->bpp)
