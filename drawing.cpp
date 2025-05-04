@@ -2979,6 +2979,13 @@ static void update_ecs_features(void)
 		sprites_hidden2 = 0;
 		sprites_hidden = 0;
 		sprite_hidden_mask = 0;
+	} else {
+		if (!bpl1dat_trigger) {
+			sprites_hidden2 |= 2;
+		}
+		if (!denise_hdiw) {
+			sprites_hidden2 |= 1;
+		}
 	}
 	update_hblank();
 	update_bordercolor();
