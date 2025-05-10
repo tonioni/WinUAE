@@ -537,8 +537,8 @@ void getfilterdata(int monid, struct displayscale *ds)
 				float scalex = currprefs.gf[idx].gfx_filter_horiz_zoom_mult > 0 ? currprefs.gf[idx].gfx_filter_horiz_zoom_mult : 1.0f;
 				float scaley = currprefs.gf[idx].gfx_filter_vert_zoom_mult > 0 ? currprefs.gf[idx].gfx_filter_vert_zoom_mult : 1.0f;
 
-				ds->outwidth = (int)(cw * ds->scale * scalex);
-				ds->outheight = (int)(ch * ds->scale * scaley);
+				ds->outwidth = (int)(cw * ds->scale);
+				ds->outheight = (int)(ch * ds->scale);
 				ds->xoffset += cx * ds->scale;
 				ds->yoffset += cy * ds->scale;
 
