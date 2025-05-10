@@ -6,7 +6,7 @@
 
 static void lts_ecs_fm0_n0_p6_ilores_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -74,7 +74,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p6_ilores_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -145,7 +145,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p6_ilores_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -214,7 +214,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p6_ilores_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -286,7 +286,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb0_p6_ilores_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -359,7 +359,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb1_p6_ilores_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -435,7 +435,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham0_p6_ilores_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -503,7 +503,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham1_p6_ilores_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -574,7 +574,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n0_p6_ilores_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -659,7 +659,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p6_ilores_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -747,7 +747,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p6_ilores_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -833,7 +833,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p6_ilores_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -922,7 +922,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb0_p6_ilores_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1012,7 +1012,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb1_p6_ilores_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1105,7 +1105,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham0_p6_ilores_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1190,7 +1190,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham1_p6_ilores_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1278,7 +1278,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n0_p4_ihires_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1355,7 +1355,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_genlock(void)
 }
 static void lts_ecs_fm0_n0_p4_ihires_dlores_filtered_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1434,7 +1434,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p4_ihires_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1514,7 +1514,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_genlock(void)
 }
 static void lts_ecs_fm0_n1_p4_ihires_dlores_filtered_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1596,7 +1596,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p4_ihires_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1675,7 +1675,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p4_ihires_dlores_filtered_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1756,7 +1756,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p4_ihires_dlores_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1838,7 +1838,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p4_ihires_dlores_filtered_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -1954,7 +1954,7 @@ static void lts_ecs_fm0_ham1_p4_ihires_dlores_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n0_p4_ihires_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -2048,7 +2048,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_spr_genlock(void)
 }
 static void lts_ecs_fm0_n0_p4_ihires_dlores_spr_filtered_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -2145,7 +2145,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p4_ihires_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -2242,7 +2242,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_spr_genlock(void)
 }
 static void lts_ecs_fm0_n1_p4_ihires_dlores_spr_filtered_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -2342,7 +2342,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p4_ihires_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -2438,7 +2438,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_spr_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p4_ihires_dlores_spr_filtered_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -2537,7 +2537,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p4_ihires_dlores_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -2636,7 +2636,7 @@ static void lts_ecs_fm0_dpf1_p4_ihires_dlores_spr_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p4_ihires_dlores_spr_filtered_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -2770,7 +2770,7 @@ static void lts_ecs_fm0_ham1_p4_ihires_dlores_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n0_p6_ilores_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -2854,7 +2854,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p6_ilores_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -2941,7 +2941,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p6_ilores_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -3026,7 +3026,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p6_ilores_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -3114,7 +3114,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb0_p6_ilores_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -3203,7 +3203,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb1_p6_ilores_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -3295,7 +3295,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham0_p6_ilores_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -3379,7 +3379,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham1_p6_ilores_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -3466,7 +3466,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n0_p6_ilores_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -3568,7 +3568,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p6_ilores_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -3673,7 +3673,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p6_ilores_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -3776,7 +3776,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p6_ilores_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -3882,7 +3882,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb0_p6_ilores_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -3989,7 +3989,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb1_p6_ilores_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -4099,7 +4099,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham0_p6_ilores_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -4201,7 +4201,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham1_p6_ilores_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -4306,7 +4306,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n0_p4_ihires_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -4399,7 +4399,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p4_ihires_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -4495,7 +4495,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p4_ihires_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -4590,7 +4590,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p4_ihires_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -4720,7 +4720,7 @@ static void lts_ecs_fm0_ham1_p4_ihires_dhires_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n0_p4_ihires_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -4839,7 +4839,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p4_ihires_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -4961,7 +4961,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p4_ihires_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -5082,7 +5082,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p4_ihires_dhires_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -5238,7 +5238,7 @@ static void lts_ecs_fm0_ham1_p4_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n0_p6_ilores_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -5354,7 +5354,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p6_ilores_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -5473,7 +5473,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p6_ilores_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -5590,7 +5590,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p6_ilores_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -5710,7 +5710,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb0_p6_ilores_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -5831,7 +5831,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb1_p6_ilores_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -5955,7 +5955,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham0_p6_ilores_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -6071,7 +6071,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham1_p6_ilores_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -6190,7 +6190,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n0_p6_ilores_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -6326,7 +6326,7 @@ static void lts_ecs_fm0_n0_p6_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p6_ilores_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -6465,7 +6465,7 @@ static void lts_ecs_fm0_n1_p6_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p6_ilores_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -6602,7 +6602,7 @@ static void lts_ecs_fm0_dpf0_p6_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p6_ilores_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -6742,7 +6742,7 @@ static void lts_ecs_fm0_dpf1_p6_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb0_p6_ilores_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -6883,7 +6883,7 @@ static void lts_ecs_fm0_ehb0_p6_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ehb1_p6_ilores_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -7027,7 +7027,7 @@ static void lts_ecs_fm0_ehb1_p6_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham0_p6_ilores_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -7163,7 +7163,7 @@ static void lts_ecs_fm0_ham0_p6_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_ham1_p6_ilores_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -7302,7 +7302,7 @@ static void lts_ecs_fm0_ham1_p6_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n0_p4_ihires_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -7427,7 +7427,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p4_ihires_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -7555,7 +7555,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p4_ihires_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -7682,7 +7682,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p4_ihires_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -7844,7 +7844,7 @@ static void lts_ecs_fm0_ham1_p4_ihires_dshres_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n0_p4_ihires_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -8013,7 +8013,7 @@ static void lts_ecs_fm0_n0_p4_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_n1_p4_ihires_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -8185,7 +8185,7 @@ static void lts_ecs_fm0_n1_p4_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf0_p4_ihires_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -8356,7 +8356,7 @@ static void lts_ecs_fm0_dpf0_p4_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_ecs_fm0_dpf1_p4_ihires_dshres_spr_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {

@@ -22,7 +22,7 @@
 
 extern frame_time_t vsyncmintime, vsyncmintimepre;
 extern frame_time_t vsyncmaxtime, vsyncwaittime;
-extern frame_time_t vsynctimebase, syncbase;
+extern frame_time_t vsynctimebase, cputimebase, syncbase;
 extern void reset_frame_rate_hack(void);
 extern evt_t vsync_cycles;
 extern evt_t start_cycles;

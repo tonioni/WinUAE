@@ -1246,7 +1246,7 @@ static void gen_null(void)
 
 static void gen_start(void)
 {
-	outf("	while (denise_cck < denise_total) {");
+	outf("	while (denise_cck < denise_endcycle) {");
 	outf("		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);");
 	outf("      if (lts_changed) return;");
 	outf("		for (int h = 0; h < 2; h++) {");

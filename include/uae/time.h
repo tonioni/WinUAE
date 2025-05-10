@@ -23,6 +23,6 @@ static inline frame_time_t read_processor_time(void)
 	return uae_time();
 }
 
-extern frame_time_t syncbase;
+extern frame_time_t syncbase, cputimebase;
 
 #endif /* UAE_TIME_H */

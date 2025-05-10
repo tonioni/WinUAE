@@ -45,7 +45,7 @@ bool event_wait;
 
 frame_time_t vsyncmintime, vsyncmintimepre;
 frame_time_t vsyncmaxtime, vsyncwaittime;
-frame_time_t vsynctimebase;
+frame_time_t vsynctimebase, cputimebase;
 
 static void events_fast(void)
 {

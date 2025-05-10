@@ -6,7 +6,7 @@
 
 static void lts_ecs_shres_dhires(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -115,7 +115,7 @@ static void lts_ecs_shres_dhires(void)
 }
 static void lts_ecs_shres_dhires_filtered(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -226,7 +226,7 @@ static void lts_ecs_shres_dhires_filtered(void)
 }
 static void lts_ecs_shres_dshres(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -358,7 +358,7 @@ static LINETOSRC_FUNC linetoscr_ecs_shres_funcs_filtered[] = {
 };
 static void lts_ecs_shres_dhires_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -473,7 +473,7 @@ static void lts_ecs_shres_dhires_genlock(void)
 }
 static void lts_ecs_shres_dhires_genlock_filtered(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
@@ -592,7 +592,7 @@ static void lts_ecs_shres_dhires_genlock_filtered(void)
 }
 static void lts_ecs_shres_dshres_genlock(void)
 {
-	while (denise_cck < denise_total) {
+	while (denise_cck < denise_endcycle) {
 		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
 		if (lts_changed) return;
 		for (int h = 0; h < 2; h++) {
