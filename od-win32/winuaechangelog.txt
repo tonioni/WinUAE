@@ -1,4 +1,13 @@
 
+Beta 26:
+
+- Automatic resize filter added size multiplier twice in some situations.
+- Collision CLXDAT register reads are now also horizontally cycle based (but not yet pixel perfect). CLXDAT reads are still line based if configuration does not have at least memory cycle-exact or CPU is in fastest possible mode. No real world program cares and also collisions are used really rarely.
+- Programmed mode that enabled programmed HBLANK and programmed HSYNC (BEAMCON0 VARHSYEN and/or VARCSYEN) without VARBEAMEN used default PAL/NTSC positioning instead of using programmed HBLANK values for more accurate positioning.
+- 68HC05 keyboard controller emulation keyboard matrix last row was not working.
+- Fixed fast drawing mode last line having wrong color, mostly in programmed modes. (Last line color changing to black when mouse is near the bottom of screen and back to border color when moving mouse upwards).
+- FPU FMOVEM to/from extended uses "original" code when JIT is enabled. This is test fix for reported "random" FPU value changes in JIT FPU mode.
+
 Beta 25:
 
 - Fixed possible drawing buffer overflow when drawing blanked lines.
