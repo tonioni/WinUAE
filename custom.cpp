@@ -1780,10 +1780,50 @@ static void init_beamcon0(void)
 	vblank_hz_lace = clk / ((display_maxvpos + 0.5f) * (display_maxhpos + halfhpos));
 
 	display_hstart_cyclewait_end = 4;
-	if (beamcon0 & bemcon0_hsync_mask) {
+	if (beamcon0_has_hsync) {
 		display_hstart_cyclewait = 4;
 		if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
 			display_hstart_cyclewait_end = 0;
+		} else {
+			if (exthblanken && !(beamcon0 & BEAMCON0_VARBEAMEN)) {
+				int hp2 = maxhpos * 2;
+				int hbstrtx, hbstopx;
+				int hb = 1;
+				hbstrtx = (hbstrt & 0xff) * 2;
+				hbstopx = (hbstop & 0xff) * 2;
+				if (aga_mode) {
+					hbstrtx |= (hbstrt & 0x400) ? 1 : 0;
+					hbstopx |= (hbstop & 0x400) ? 1 : 0;
+				}
+				if (hbstrtx > hp2) {
+					hbstrtx = hp2;
+				}
+				if (hbstopx > hp2) {
+					hbstopx = hp2;
+				}
+				if (hbstrtx > hp2 / 2 && hbstopx < hp2 / 2) {
+					hb = (hp2 - hbstrtx) + hbstopx;
+				} else if (hbstopx < hp2 / 2 && hbstrtx < hbstopx) {
+					hb = hbstopx - hbstrtx;
+				}
+				if (hbstopx > hp2 / 2) {
+					hbstopx = 0;
+				}
+				if (hb < 1) {
+					hb = 1;
+				}
+
+				display_hstart_cyclewait = 4;
+				if (hbstopx / 2 > hsstrt && (hbstopx / 2 - hsstrt < maxhpos / 2)) {
+					display_hstart_cyclewait = hbstopx / 2 - hsstrt;
+				} else if (hsstrt - hbstopx / 2 < maxhpos / 2) {
+					display_hstart_cyclewait = hsstrt - hbstopx / 2;
+				}
+				if (hb) {
+					display_hstart_cyclewait_end = hb / 2 - display_hstart_cyclewait;
+					display_hstart_cyclewait += 1;
+				}
+			}
 		}
 	} else {
 		display_hstart_cyclewait = 0;
