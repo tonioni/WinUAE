@@ -11350,8 +11350,6 @@ static void custom_trigger_start(void)
 		fast_lines_cnt = 0;
 	}
 
-	check_vsyncs_fast();
-
 	if (!custom_disabled && !currprefs.cpu_memory_cycle_exact && currprefs.cs_optimizations < DISPLAY_OPTIMIZATIONS_NONE) {
 #if 0
 		if (bpl_active_this_line) {
@@ -11365,6 +11363,7 @@ static void custom_trigger_start(void)
 			}
 		}
 #endif
+		update_fast_vb();
 		int canline = can_fast_custom();
 		if (canline) {
 			calculate_linetype(linear_display_vpos + 1);
