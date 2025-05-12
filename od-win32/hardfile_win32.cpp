@@ -3215,6 +3215,9 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			int safepart = 0;
 			udi->dangerous = -6;
 			udi->readonly = readonly ? 2 : 0;
+			if (dli->PartitionCount == 1 && dli->PartitionEntry[0].Mbr.PartitionType != 0x76 && dli->PartitionEntry[0].Mbr.PartitionType != 0x30) {
+				goto checkrdb;
+			}
 			write_log (_T("%d MBR partitions found\n"), dli->PartitionCount);
 			for (i = 0; i < dli->PartitionCount && (*index2) < MAX_FILESYSTEM_UNITS; i++) {
 				PARTITION_INFORMATION_EX *pi = &dli->PartitionEntry[i];
@@ -3298,6 +3301,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			write_log (_T("no MBR partition table detected, checking for RDB\n"));
 		}
 	}
+checkrdb:
 	if (udi->offset == 0 && udi->size) {
 		udi->dangerous = safetycheck (hDevice, udi->device_path, 0, buffer, dg.BytesPerSector, udi->identity, udi->chsdetected);
 		if (udi->dangerous > 0)
