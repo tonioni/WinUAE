@@ -4191,7 +4191,7 @@ static void draw_line(int, bool);
 static uae_u16 CLXDAT(void)
 {
 	// draw line up to current horizontal position to get accurate collision state
-	if (currprefs.cpu_memory_cycle_exact && currprefs.m68k_speed >= 0) {
+	if (currprefs.cpu_memory_cycle_exact && currprefs.m68k_speed >= 0 && !doflickerfix_active()) {
 		int ldvpos = linear_display_vpos + draw_line_next_line;
 		draw_line(ldvpos, false);
 	}
@@ -10974,6 +10974,7 @@ static void do_draw_line(void)
 				denise_restore_registers();
 				lof_display ^= 1;
 				scandoubled_line = 1;
+				rga_denise_cycle_count_start = 0;
 				draw_line(linear_display_vpos, true);
 				scandoubled_line = 0;
 				lof_display ^= 1;
