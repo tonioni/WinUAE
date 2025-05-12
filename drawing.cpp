@@ -6871,7 +6871,10 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	// subpixel handling
 	int subpix = (ls->bplcon1 & 0x0300) >> 8;
 	int cpadds[4] = { 0, 0, 0, 0 };
-	if (doubling <= 0) {
+	if (doubling < 0) {
+		cpadds[0] = 1 << cpadd;
+		subpix = 0;
+	} else if (doubling == 0) {
 		cpadds[0] = 1 << cpadd;
 		subpix >>= RES_MAX - hresolution;
 		cp -= subpix;
