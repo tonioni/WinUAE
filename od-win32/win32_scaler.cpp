@@ -316,10 +316,23 @@ void getfilterdata(int monid, struct displayscale *ds)
 				ch = avidinfo->drawbuffer.inheight;
 				cv = 1;
 				if (scalemode == AUTOSCALE_STATIC_NOMINAL) { // || scalemode == AUTOSCALE_INTEGER)) {
-					cx = 28 << currprefs.gfx_resolution;
-					cy = 10 << currprefs.gfx_vresolution;
-					cw -= 40 << currprefs.gfx_resolution;
-					ch -= 20 << currprefs.gfx_vresolution;
+					if (currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
+						cx = 28 << currprefs.gfx_resolution;
+						cy = 10 << currprefs.gfx_vresolution;
+						cw -= 40 << currprefs.gfx_resolution;
+						ch -= 20 << currprefs.gfx_vresolution;
+						if (currprefs.gfx_overscanmode == OVERSCANMODE_BROADCAST) {
+							cx -= 4 << currprefs.gfx_resolution;
+							cy -= 2 << currprefs.gfx_vresolution;
+							cw += 8 << currprefs.gfx_resolution;
+							ch += 4 << currprefs.gfx_vresolution;
+						} else if (currprefs.gfx_overscanmode == OVERSCANMODE_EXTREME) {
+							cx -= 7 << currprefs.gfx_resolution;
+							cy -= 10 << currprefs.gfx_vresolution;
+							cw += 14 << currprefs.gfx_resolution;
+							ch += 20 << currprefs.gfx_vresolution;
+						}
+					}
 				}
 				if (scalemode != AUTOSCALE_INTEGER && scalemode != AUTOSCALE_INTEGER_AUTOSCALE) {
 					set_custom_limits (cw, ch, cx, cy, true);
