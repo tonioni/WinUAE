@@ -1,4 +1,13 @@
 
+Beta 27:
+
+- Interlace timing was broken, fast drawing mode calculations affected non-fast modes. (b26)
+- Remove interlace artifacts works again (b26)
+- "Default" filter mode now adjusts to Display panel overscan selection.
+- Fast mode superhires + Display panel resolution set to hires had horizontal scrolling glitches.
+- Add Harddrive listed some CF cards (maybe others too) as unaccessible MBR partitioned with single partition even if they had RDB (or nothing). Broken in some earlier beta.
+- 65HC05 and 8039 keyboard MCUs was not fully reset when reconnecting keyboard on the fly.
+
 Beta 26:
 
 - Automatic resize filter added size multiplier twice in some situations.
