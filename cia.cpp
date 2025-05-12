@@ -1165,6 +1165,8 @@ void keyboard_connected(bool connect)
 		write_log(_T("Keyboard connected\n"));
 		if (currprefs.keyboard_mode > 0) {
 			keymcu_reset();
+			keymcu2_reset();
+			keymcu3_reset();
 		}
 	} else {
 		write_log(_T("Keyboard disconnected\n"));
