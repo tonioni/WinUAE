@@ -626,6 +626,9 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 	} else {
 skipcont:
+		int cw = avidinfo->drawbuffer.inwidth;
+		int ch = avidinfo->drawbuffer.inheight;
+		set_custom_limits(cw, ch, 0, 0, true);
 
 		ds->outwidth = ds->dstwidth;
 		ds->outheight = ds->dstheight;
