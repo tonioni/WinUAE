@@ -176,6 +176,12 @@ static void read_denise_line_queue(void)
 	} else if (q->type == 6) {
 		denise_update_reg(q->reg, q->val, q->linecnt);
 		nolock = true;
+	} else if (q->type == 7) {
+		if (q->val) {
+			denise_store_registers();
+		} else {
+			denise_restore_registers();
+		}
 	}
 
 	if (!nolock) {
@@ -7327,6 +7333,33 @@ void denise_update_reg_queue(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
 		updatelinedata();
 		denise_update_reg(reg, v, linecnt);
 
+	}
+}
+
+void denise_store_restore_registers_queue(bool store, uae_u32 linecnt)
+{
+	if (MULTITHREADED_DENISE) {
+
+		if (!waitqueue()) {
+			return;
+		}
+		struct denise_rga_queue *q = &rga_queue[rga_queue_write & DENISE_RGA_SLOT_CHUNKS_MASK];
+		q->type = 7;
+		q->vpos = vpos;
+		q->linear_vpos = linear_vpos;
+		q->val = store ? 1 : 0;
+		q->linecnt = linecnt;
+
+		addtowritequeue();
+
+	} else {
+
+		updatelinedata();
+		if (store) {
+			denise_store_registers();
+		} else {
+			denise_restore_registers();
+		}
 	}
 }
 
