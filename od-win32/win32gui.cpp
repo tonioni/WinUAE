@@ -9258,7 +9258,6 @@ static void values_to_chipsetdlg (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_BLITWAIT, workprefs.waiting_blits);
 	CheckDlgButton(hDlg, IDC_KEYBOARDNKRO, workprefs.keyboard_nkro);
 	xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_SETCURSEL, workprefs.keyboard_mode + 1, 0);
-	CheckDlgButton(hDlg, IDC_SUBPIXEL, workprefs.chipset_hr);
 	xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_SETCURSEL, workprefs.cs_hvcsync, 0);
 
 	CheckRadioButton(hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
@@ -9289,7 +9288,6 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	workprefs.immediate_blits = ischecked (hDlg, IDC_BLITIMM);
 	workprefs.waiting_blits = ischecked (hDlg, IDC_BLITWAIT) ? 1 : 0;
-	workprefs.chipset_hr = ischecked(hDlg, IDC_SUBPIXEL);
 	workprefs.keyboard_nkro = ischecked(hDlg, IDC_KEYBOARDNKRO);
 	nn = xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_GETCURSEL, 0, 0);
 	if (nn != CB_ERR) {

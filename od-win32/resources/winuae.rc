@@ -771,11 +771,10 @@ BEGIN
     RTEXT           "Chipset Extra:",IDC_STATIC,226,75,61,15,SS_CENTERIMAGE
     COMBOBOX        IDC_CS_EXT,295,75,88,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Options",IDC_STATIC,221,4,173,175
-    CONTROL         "Subpixel display emulation",IDC_SUBPIXEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,16,150,10
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,28,150,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,23,150,10
     CONTROL         "Wait for Blitter [] Compatibility hack for programs that don't wait for the blitter correctly, causing graphics corruption if CPU is too fast.",IDC_BLITWAIT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,40,150,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,35,150,10
     LTEXT           "Monitor sync source:",IDC_STATIC,242,96,101,9
     COMBOBOX        IDC_CS_HVCSYNC,237,108,147,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Video port display hardware:",IDC_STATIC,241,123,117,15,SS_CENTERIMAGE

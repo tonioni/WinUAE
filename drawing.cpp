@@ -5464,7 +5464,7 @@ static uae_u8 *bufg;
 
 static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls)
 {
-	bool fullline = false; // currprefs.chipset_hr;
+	bool fullline = false;
 
 	if (startcycle == 0) {
 		denise_pixtotalv = dtotal;
