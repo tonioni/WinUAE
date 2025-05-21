@@ -383,7 +383,7 @@ static void fp_from_exten(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wr
 #else // if !USE_LONG_DOUBLE
 static void fp_to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 {
-	if (!currprefs.cachesize) {
+	if (!currprefs.cachesize || !currprefs.compfpu) {
 		floatx80 fx80;
 		fx80.high = wrd1 >> 16;
 		fx80.low = (((uae_u64)wrd2) << 32) | wrd3;
@@ -409,7 +409,7 @@ static void fp_to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 }
 static void fp_from_exten(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wrd3)
 {
-	if (!currprefs.cachesize) {
+	if (!currprefs.cachesize || !currprefs.compfpu) {
 		uae_u32 w1, w2;
 		fp_from_double(fpd, &w1, &w2);
 		floatx80 f = float64_to_floatx80(((uae_u64)w1 << 32) | w2, &fs);
