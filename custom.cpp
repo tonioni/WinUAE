@@ -11618,7 +11618,7 @@ static void check_hsyncs_hardwired(void)
 
 	if (realpal) {
 
-		// Vertival SYNC
+		// Vertical SYNC
 		if (is_shs) { // SHS
 			if (vpos == 3 && lof_store) {
 				agnus_vsync = true;
@@ -11664,7 +11664,7 @@ static void check_hsyncs_hardwired(void)
 
 	} else {
 
-		// Vertival SYNC
+		// Vertical SYNC
 		if (is_shs) { // SHS
 			if (vpos == 3 && lof_store) {
 				agnus_vsync = true;
@@ -12292,37 +12292,6 @@ static void sync_equalline_handler(void)
 		int rdc = rga_denise_cycle;
 		do_draw_line();
 		rga_denise_cycle = rdc;
-
-#if 0
-
-		if (doflickerfix_active()) {
-			int lvpos = linear_vpos - 1;
-			struct linestate *l = &lines[lvpos][lof_display];
-			if (scandoubled_bpl_ena[lvpos]) {
-				int planes = GET_PLANES(l->bplcon0);
-				lof_display ^= 1;
-				struct linestate *l2 = &lines[lvpos][lof_display];
-				scandoubled_line = 1;
-				uaecptr bplptx[MAX_PLANES];
-				bool skip = false;
-				for (int i = 0; i < planes; i++) {
-					uaecptr li1 = scandoubled_bpl_ptr[lvpos][lof_store][i];
-					uaecptr li2 = scandoubled_bpl_ptr[lvpos][lof_store ^ 1][i];
-					skip = !li1 || !li2 || li1 == 0xffffffff || li2 == 0xffffffff;
-					bplptx[i] = bplpt[i] - li1 + li2;
-				}
-				if (skip) {
-					draw_border_fast(l, linear_display_vpos + 1);
-				} else {
-					draw_line_fast(l2, linear_display_vpos + 1, bplptx, false);
-				}
-				scandoubled_line = 0;
-				lof_display ^= 1;
-			}
-		}
-
-#endif
-
 	} else {
 		denise_handle_quick_strobe_queue(str, display_hstart_fastmode, rga_denise_cycle);
 		next_denise_rga();

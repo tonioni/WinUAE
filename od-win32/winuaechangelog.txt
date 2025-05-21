@@ -1,4 +1,11 @@
 
+Beta 28:
+
+- Display panel Overscan TV modes didn't do anything if "No scaling" filtering mode was selected.
+- Fixed Remove interlace artifacts last line flicker in some overscan modes and "out of sync" line when drawing mode changed from accurate to fast mode.
+- Removed Chipset panel Subpixel emulation checbox. v6 emulation is always subpixel perfect in accurate modes. Config file support is not removed. (backwards compatibility)
+- Only known Apollo 500/2000 boot ROM seems to only support AT500/AT2000 variant, driver does not initialize if hardware SCSI config bit is set. Now SCSI is disabled by default (making it AT500/AT2000), option added to Expansions panel. Possibly got broken when Apollo accelerators got supported or updated which use exact same SCSI hardware.
+
 Beta 27:
 
 - Interlace timing was broken, fast drawing mode calculations affected non-fast modes. (b26)
