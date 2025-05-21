@@ -131,7 +131,7 @@ static int fast_lines_cnt;
 static bool lineoptimizations_draw_always;
 
 static uae_u32 scandoubled_bpl_ptr[MAX_SCANDOUBLED_LINES + 1][2][MAX_PLANES];
-static bool scandoubled_bpl_ena[MAX_SCANDOUBLED_LINES + 1];
+static uae_u8 scandoubled_bpl_ena[MAX_SCANDOUBLED_LINES + 1][2];
 
 static evt_t blitter_dma_change_cycle, copper_dma_change_cycle, sprite_dma_change_cycle_on, sprite_dma_change_cycle_off;
 
@@ -4187,13 +4187,13 @@ static void CLXCON2(uae_u16 v)
 	clxcon2 = v;
 }
 
-static void draw_line(int, bool, bool);
+static void draw_line(int, bool);
 static uae_u16 CLXDAT(void)
 {
 	// draw line up to current horizontal position to get accurate collision state
 	if (currprefs.cpu_memory_cycle_exact && currprefs.m68k_speed >= 0 && !doflickerfix_active()) {
 		int ldvpos = linear_display_vpos + draw_line_next_line;
-		draw_line(ldvpos, false, false);
+		draw_line(ldvpos, false);
 	}
 	draw_denise_line_queue_flush();
 	uae_u16 v = clxdat | 0x8000;
@@ -9744,6 +9744,22 @@ STATIC_INLINE bool islastbplseq(void)
 	return last;
 }
 
+static void update_bpl_scandoubler(void)
+{
+	if (linear_vpos < MAX_SCANDOUBLED_LINES) {
+		for (int i = 0; i < MAX_PLANES; i++) {
+			scandoubled_bpl_ptr[linear_vpos][lof_store][i] = bplpt[i];
+		}
+		scandoubled_bpl_ena[linear_vpos][lof_store] = 3;
+		if (get_strobe_reg(0) != 0x3c) {
+			scandoubled_bpl_ena[linear_vpos][lof_store] &= ~1;
+		}
+		if (vdiwstate == diw_states::DIW_waiting_start) {
+			scandoubled_bpl_ena[linear_vpos][lof_store] &= ~2;
+		}
+	}
+}
+
 static void generate_bpl(bool clock)
 {
 	if (bprun > 0) {
@@ -9834,9 +9850,7 @@ static void decide_bpl(int hpos)
 		if (hpos == ddfstrt) {
 			ddf_enable_on = 1;
 			if (currprefs.gfx_scandoubler && linear_vpos < MAX_SCANDOUBLED_LINES) {
-				for (int i = 0; i < MAX_PLANES; i++) {
-					scandoubled_bpl_ptr[linear_vpos][lof_store][i] = bplpt[i];
-				}
+				update_bpl_scandoubler();
 			}
 		}
 
@@ -9992,9 +10006,7 @@ static void decide_bpl(int hpos)
 		if (hpos == ddfstrt) {
 			ddfstrt_match = true;
 			if (currprefs.gfx_scandoubler && linear_vpos < MAX_SCANDOUBLED_LINES) {
-				for (int i = 0; i < MAX_PLANES; i++) {
-					scandoubled_bpl_ptr[linear_vpos][lof_store][i] = bplpt[i];
-				}
+				update_bpl_scandoubler();
 			}
 		} else {
 			ddfstrt_match = false;
@@ -10067,9 +10079,6 @@ static void check_bpl_vdiw(void)
 			record_dma_event_agnus(AGNUS_EVENT_VDIW, false);
 		}
 #endif
-	}
-	if (linear_vpos < MAX_SCANDOUBLED_LINES) {
-		scandoubled_bpl_ena[linear_vpos] = vdiwstate != diw_states::DIW_waiting_start;
 	}
 }
 
@@ -10592,10 +10601,13 @@ static int getlinetype(void)
 {
 	int type = 0;
 	
-	if (vpos == maxvpos) {
-		// always draw wrap around line normally
-		return 0;
+	// last 2 lines must drawn normally in remove interlace artifacts mode
+	if (doflickerfix_active()) {
+		if (vpos >= maxvpos_nom - 1) {
+			return 0;
+		}
 	}
+
 	if (vb_fast || nosignal_status) {
 		type = LINETYPE_BLANK;
 	} else if (vdiwstate == diw_states::DIW_waiting_start || GET_PLANES(bplcon0) == 0 || !dmaen(DMA_BITPLANE)) {
@@ -10863,7 +10875,8 @@ static bool checkprevfieldlinestateequal(void)
 					int planes = GET_PLANES(l->bplcon0);
 
 					// first line after accurate -> fast switch
-					if (doflickerfix_active() && custom_fastmode == 1 && lvpos >= 2) {
+					if (doflickerfix_active() && custom_fastmode == 1 && lvpos >= 2 &&
+						scandoubled_bpl_ena[lvpos][lof_store] == 3 && scandoubled_bpl_ena[lvpos][lof_store ^ 1] == 3) {
 						scandoubled_line = 1;
 						lof_display ^= 1;
 						int lvpos2 = lvpos - 1;
@@ -10888,12 +10901,12 @@ static bool checkprevfieldlinestateequal(void)
 					r = draw_line_fast(l, linear_display_vpos + 1, bplpt, true);
 
 					if (doflickerfix_active()) {
-						if (scandoubled_bpl_ena[lvpos]) {
-							scandoubled_line = 1;
-							lof_display ^= 1;
-							struct linestate *l2 = &lines[lvpos][lof_display];
+						scandoubled_line = 1;
+						lof_display ^= 1;
+						struct linestate *l2 = &lines[lvpos][lof_display];
+						if (scandoubled_bpl_ena[lvpos][lof_store] == 3 && scandoubled_bpl_ena[lvpos][lof_store ^ 1] == 3) {
 							uaecptr bplptx[MAX_PLANES];
-							bool skip = false;
+							bool skip = true;
 							for (int i = 0; i < planes; i++) {
 								uaecptr li1 = scandoubled_bpl_ptr[lvpos][lof_store][i];
 								uaecptr li2 = scandoubled_bpl_ptr[lvpos][lof_store ^ 1][i];
@@ -10905,9 +10918,11 @@ static bool checkprevfieldlinestateequal(void)
 							} else {
 								draw_line_fast(l2, linear_display_vpos + 2, bplptx, false);
 							}
-							lof_display ^= 1;
-							scandoubled_line = 0;
+						} else {
+							draw_border_fast(l2, linear_display_vpos + 2);
 						}
+						lof_display ^= 1;
+						scandoubled_line = 0;
 					}
 
 				}
@@ -10918,15 +10933,12 @@ static bool checkprevfieldlinestateequal(void)
 	return ret;
 }
 
-static void draw_line(int ldvpos, bool finalseg, bool blank)
+static void draw_line(int ldvpos, bool finalseg)
 {
 	int dvp = calculate_linetype(ldvpos);
 	int wclks = draw_line_wclks;
 	int maxv = maxvpos_display + maxvpos_display_vsync - vsync_startline + lof_store;
 	if (ldvpos >= maxv || ldvpos + 1 < minfirstline - vsync_startline) {
-		wclks = -1;
-	}
-	if (blank) {
 		wclks = -1;
 	}
 
@@ -10990,24 +11002,24 @@ static void do_draw_line(void)
 	if (!custom_disabled) {
 		draw_line_wclks = linear_hpos - (display_hstart_cyclewait_skip - display_hstart_cyclewait_skip2);
 		if (custom_fastmode >= 0) {
-			if (doflickerfix_active() && scandoubled_bpl_ena[linear_vpos]) {
-				// if odd or even line is blanked, make both lines blanked to prevent flickering last line
-				int dvp = calculate_linetype(linear_display_vpos);
-				int maxv = maxvpos_display - vsync_startline;
-				bool blank = linear_display_vpos >= maxv;
-				denise_store_restore_registers_queue(true, rga_denise_cycle_line);
-				draw_line(linear_display_vpos, true, blank);
-				draw_denise_line_queue_flush();
-				do_scandouble();
-				denise_store_restore_registers_queue(false, rga_denise_cycle_line);
-				lof_display ^= 1;
-				scandoubled_line = 1;
-				rga_denise_cycle_count_start = 0;
-				draw_line(linear_display_vpos, true, blank);
-				scandoubled_line = 0;
-				lof_display ^= 1;
+			if (doflickerfix_active()) {
+				if (scandoubled_bpl_ena[linear_display_vpos][lof_display] && scandoubled_bpl_ena[linear_display_vpos][lof_display ^ 1]) {
+					denise_store_restore_registers_queue(true, rga_denise_cycle_line);
+					draw_line(linear_display_vpos, true);
+					draw_denise_line_queue_flush();
+					do_scandouble();
+					denise_store_restore_registers_queue(false, rga_denise_cycle_line);
+					lof_display ^= 1;
+					scandoubled_line = 1;
+					rga_denise_cycle_count_start = 0;
+					draw_line(linear_display_vpos, true);
+					scandoubled_line = 0;
+					lof_display ^= 1;
+				} else {
+					draw_line(linear_display_vpos, true);
+				}
 			} else {
-				draw_line(linear_display_vpos, true, false);
+				draw_line(linear_display_vpos, true);
 			}
 		}
 
