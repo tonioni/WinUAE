@@ -2436,6 +2436,10 @@ static bool apollo_init(struct autoconfig_info *aci, int cpuboard_model)
 		ide->userdata = currprefs.cpuboard_settings & 1;
 	} else {
 		ide->userdata = aci->rc->autoboot_disabled ? 2 : 0;
+		ide->userdata |= 1;
+		if (aci->rc->device_settings & 1) {
+			ide->userdata &= ~1;
+		}
 	}
 
 	ide->configured = 0;

@@ -5320,6 +5320,16 @@ static const struct expansionboardsettings cdtvsram_settings[] = {
 	}
 };
 
+static const struct expansionboardsettings apollo500_settings[] = {
+	{
+		_T("SCSI module installed"),
+		_T("scsi")
+	},
+	{
+		NULL
+	}
+};
+
 
 const struct expansionromtype expansionroms[] = {
 	{
@@ -5452,8 +5462,8 @@ const struct expansionromtype expansionroms[] = {
 		NULL, apollo_init_hd, NULL, apollo_add_scsi_unit, ROMTYPE_APOLLOHD, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
-		8738, 0, 0
-	},
+		8738, 0, 0, false, NULL,
+		false, 0, apollo500_settings },
 	{
 		_T("add500"), _T("ADD-500"), _T("Archos"),
 		NULL, add500_init, NULL, add500_add_scsi_unit, ROMTYPE_ADD500, 0, 0, BOARD_AUTOCONFIG_Z2, false,
