@@ -410,14 +410,14 @@ static void gen_copybpl(void)
 {
 	if (oddeven) {
 		// bitplane shifter shifting
-		outf("if (bpldat_copy[0] && (denise_hcounter & %d) == bplcon1_shift[0]) { ", ((16 << bplfmode) >> res) - 1);
+		outf("if (bpldat_copy[0] && (denise_hcounter_cmp & %d) == bplcon1_shift[0]) { ", ((16 << bplfmode) >> res) - 1);
 		if (bplfmode == 2) {
 			outf("copybpl%de_64();", planes);
 		} else {
 			outf("copybpl%de();", planes);
 		}
 		outf("}");
-		outf("if (bpldat_copy[1] && (denise_hcounter & %d) == bplcon1_shift[1]) {", ((16 << bplfmode) >> res) - 1);
+		outf("if (bpldat_copy[1] && (denise_hcounter_cmp & %d) == bplcon1_shift[1]) {", ((16 << bplfmode) >> res) - 1);
 		if (bplfmode == 2) {
 			outf("copybpl%do_64();", planes);
 		} else {
@@ -426,7 +426,7 @@ static void gen_copybpl(void)
 		outf("}");
 	} else {
 		// bitplane shifter shifting
-		outf("if (bpldat_copy[0] && (denise_hcounter & %d) == bplcon1_shift[0]) { ", ((16 << bplfmode) >> res) - 1);
+		outf("if (bpldat_copy[0] && (denise_hcounter_cmp & %d) == bplcon1_shift[0]) { ", ((16 << bplfmode) >> res) - 1);
 		if (bplfmode == 2) {
 			outf("copybpl%d_64();", planes);
 		} else {
@@ -446,7 +446,7 @@ static void gen_copybpl_hr(int add)
 	}
 	if (oddeven) {
 		// bitplane shifter shifting
-		outf("if (bpldat_copy[0] && ((cnt | %d) & %d) == bplcon1_shift_full_masked[0]) { ", add, (((16 << bplfmode) >> res) << 2) - 1);
+		outf("if (bpldat_copy[0] && ((cmp | %d) & %d) == bplcon1_shift_full_masked[0]) { ", add, (((16 << bplfmode) >> res) << 2) - 1);
 		if (bplfmode == 2) {
 			outf("copybpl%de_64();", planes);
 		} else {
@@ -457,7 +457,7 @@ static void gen_copybpl_hr(int add)
 			gen_getbpl(0, maxplanes);
 		}
 		outf("}");
-		outf("if (bpldat_copy[1] && ((cnt | %d) & %d) == bplcon1_shift_full_masked[1]) {", add, (((16 << bplfmode) >> res) << 2) - 1);
+		outf("if (bpldat_copy[1] && ((cmp | %d) & %d) == bplcon1_shift_full_masked[1]) {", add, (((16 << bplfmode) >> res) << 2) - 1);
 		if (bplfmode == 2) {
 			outf("copybpl%do_64();", planes);
 		} else {
@@ -470,7 +470,7 @@ static void gen_copybpl_hr(int add)
 		outf("}");
 	} else {
 		// bitplane shifter shifting
-		outf("if (bpldat_copy[0] && ((cnt | %d) & %d) == bplcon1_shift_full_masked[0]) { ", add, (((16 << bplfmode) >> res) << 2) - 1);
+		outf("if (bpldat_copy[0] && ((cmp | %d) & %d) == bplcon1_shift_full_masked[0]) { ", add, (((16 << bplfmode) >> res) << 2) - 1);
 		if (bplfmode == 2) {
 			outf("copybpl%d_64();", planes);
 		} else {
@@ -835,6 +835,7 @@ static void gen_init(void)
 	if (aga) {
 		outf("int cnt = denise_hcounter << 2;");
 		outf("int cnt_next = denise_hcounter_next << 2;");
+		outf("int cmp = denise_hcounter_cmp << 2;");
 	} else {
 		outf("int cnt = denise_hcounter << 2;");
 	}
@@ -1261,6 +1262,8 @@ static void gen_end(void)
 	outf("#ifdef DEBUGGER");
 	outf("			*debug_dma_dhpos_odd = denise_hcounter;");
 	outf("#endif");
+	outf("			denise_hcounter_cmp++;");
+	outf("			denise_hcounter_cmp &= 511;");
 	outf("			denise_hcounter++;");
 	outf("			denise_hcounter &= 511;");
 	outf("			denise_hcounter_next++;");
@@ -1271,6 +1274,9 @@ static void gen_end(void)
 	outf("			internal_pixel_start_cnt = internal_pixel_cnt;");
 	outf("		}");
 	outf("		denise_hcounter = denise_hcounter_new;");
+	outf("      if (denise_accurate_mode) {");
+	outf("			denise_hcounter_cmp = denise_hcounter_new;");
+	outf("		}");
 	outf("		denise_cck++;");
 	outf("	}");
 }

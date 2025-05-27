@@ -15,6 +15,7 @@ static void lts_aga_fm1_n0_p4_ilores_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -31,7 +32,7 @@ static void lts_aga_fm1_n0_p4_ilores_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -54,6 +55,8 @@ static void lts_aga_fm1_n0_p4_ilores_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -64,6 +67,9 @@ static void lts_aga_fm1_n0_p4_ilores_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -82,6 +88,7 @@ static void lts_aga_fm1_n1_p4_ilores_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -98,10 +105,10 @@ static void lts_aga_fm1_n1_p4_ilores_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -124,6 +131,8 @@ static void lts_aga_fm1_n1_p4_ilores_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -134,6 +143,9 @@ static void lts_aga_fm1_n1_p4_ilores_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -152,6 +164,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -173,7 +186,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -196,6 +209,8 @@ static void lts_aga_fm1_dpf0_p4_ilores_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -206,6 +221,9 @@ static void lts_aga_fm1_dpf0_p4_ilores_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -224,6 +242,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -245,10 +264,10 @@ static void lts_aga_fm1_dpf1_p4_ilores_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -271,6 +290,8 @@ static void lts_aga_fm1_dpf1_p4_ilores_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -281,6 +302,9 @@ static void lts_aga_fm1_dpf1_p4_ilores_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -347,6 +371,7 @@ static void lts_aga_fm1_n0_p8_ilores_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -363,7 +388,7 @@ static void lts_aga_fm1_n0_p8_ilores_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -386,6 +411,8 @@ static void lts_aga_fm1_n0_p8_ilores_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -396,6 +423,9 @@ static void lts_aga_fm1_n0_p8_ilores_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -414,6 +444,7 @@ static void lts_aga_fm1_n1_p8_ilores_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -430,10 +461,10 @@ static void lts_aga_fm1_n1_p8_ilores_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -456,6 +487,8 @@ static void lts_aga_fm1_n1_p8_ilores_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -466,6 +499,9 @@ static void lts_aga_fm1_n1_p8_ilores_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -484,6 +520,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -505,7 +542,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -528,6 +565,8 @@ static void lts_aga_fm1_dpf0_p8_ilores_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -538,6 +577,9 @@ static void lts_aga_fm1_dpf0_p8_ilores_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -556,6 +598,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -577,10 +620,10 @@ static void lts_aga_fm1_dpf1_p8_ilores_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -603,6 +646,8 @@ static void lts_aga_fm1_dpf1_p8_ilores_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -613,6 +658,9 @@ static void lts_aga_fm1_dpf1_p8_ilores_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -647,6 +695,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -663,7 +712,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -686,6 +735,8 @@ static void lts_aga_fm1_ham0_p8_ilores_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -696,6 +747,9 @@ static void lts_aga_fm1_ham0_p8_ilores_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -714,6 +768,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -730,10 +785,10 @@ static void lts_aga_fm1_ham1_p8_ilores_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -756,6 +811,8 @@ static void lts_aga_fm1_ham1_p8_ilores_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -766,6 +823,9 @@ static void lts_aga_fm1_ham1_p8_ilores_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -800,6 +860,7 @@ static void lts_aga_fm1_n0_p4_ilores_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -817,7 +878,7 @@ static void lts_aga_fm1_n0_p4_ilores_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -856,6 +917,8 @@ static void lts_aga_fm1_n0_p4_ilores_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -866,6 +929,9 @@ static void lts_aga_fm1_n0_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -884,6 +950,7 @@ static void lts_aga_fm1_n1_p4_ilores_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -901,10 +968,10 @@ static void lts_aga_fm1_n1_p4_ilores_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -943,6 +1010,8 @@ static void lts_aga_fm1_n1_p4_ilores_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -953,6 +1022,9 @@ static void lts_aga_fm1_n1_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -971,6 +1043,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -993,7 +1066,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -1032,6 +1105,8 @@ static void lts_aga_fm1_dpf0_p4_ilores_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -1042,6 +1117,9 @@ static void lts_aga_fm1_dpf0_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -1060,6 +1138,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -1082,10 +1161,10 @@ static void lts_aga_fm1_dpf1_p4_ilores_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -1124,6 +1203,8 @@ static void lts_aga_fm1_dpf1_p4_ilores_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -1134,6 +1215,9 @@ static void lts_aga_fm1_dpf1_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -1200,6 +1284,7 @@ static void lts_aga_fm1_n0_p8_ilores_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -1217,7 +1302,7 @@ static void lts_aga_fm1_n0_p8_ilores_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -1256,6 +1341,8 @@ static void lts_aga_fm1_n0_p8_ilores_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -1266,6 +1353,9 @@ static void lts_aga_fm1_n0_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -1284,6 +1374,7 @@ static void lts_aga_fm1_n1_p8_ilores_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -1301,10 +1392,10 @@ static void lts_aga_fm1_n1_p8_ilores_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -1343,6 +1434,8 @@ static void lts_aga_fm1_n1_p8_ilores_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -1353,6 +1446,9 @@ static void lts_aga_fm1_n1_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -1371,6 +1467,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -1393,7 +1490,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -1432,6 +1529,8 @@ static void lts_aga_fm1_dpf0_p8_ilores_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -1442,6 +1541,9 @@ static void lts_aga_fm1_dpf0_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -1460,6 +1562,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -1482,10 +1585,10 @@ static void lts_aga_fm1_dpf1_p8_ilores_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -1524,6 +1627,8 @@ static void lts_aga_fm1_dpf1_p8_ilores_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -1534,6 +1639,9 @@ static void lts_aga_fm1_dpf1_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -1568,6 +1676,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -1585,7 +1694,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -1624,6 +1733,8 @@ static void lts_aga_fm1_ham0_p8_ilores_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -1634,6 +1745,9 @@ static void lts_aga_fm1_ham0_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -1652,6 +1766,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -1669,10 +1784,10 @@ static void lts_aga_fm1_ham1_p8_ilores_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -1711,6 +1826,8 @@ static void lts_aga_fm1_ham1_p8_ilores_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -1721,6 +1838,9 @@ static void lts_aga_fm1_ham1_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -1755,6 +1875,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -1771,7 +1892,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -1795,6 +1916,8 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -1805,6 +1928,9 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -1819,6 +1945,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -1835,7 +1962,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -1855,7 +1982,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -1880,6 +2007,8 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -1890,6 +2019,9 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -1904,6 +2036,7 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -1920,10 +2053,10 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -1947,6 +2080,8 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -1957,6 +2092,9 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -1971,6 +2109,7 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -1987,10 +2126,10 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -2010,10 +2149,10 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -2038,6 +2177,8 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2048,6 +2189,9 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2062,6 +2206,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -2083,7 +2228,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -2107,6 +2252,8 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2117,6 +2264,9 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2131,6 +2281,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -2152,7 +2303,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -2177,7 +2328,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -2202,6 +2353,8 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2212,6 +2365,9 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2226,6 +2382,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -2247,10 +2404,10 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -2274,6 +2431,8 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2284,6 +2443,9 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2298,6 +2460,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -2319,10 +2482,10 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -2347,10 +2510,10 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -2375,6 +2538,8 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2385,6 +2550,9 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2447,6 +2615,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -2463,7 +2632,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -2487,6 +2656,8 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2497,6 +2668,9 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2511,6 +2685,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -2527,7 +2702,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -2547,7 +2722,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -2572,6 +2747,8 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2582,6 +2759,9 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2596,6 +2776,7 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -2612,10 +2793,10 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -2639,6 +2820,8 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2649,6 +2832,9 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2663,6 +2849,7 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -2679,10 +2866,10 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -2702,10 +2889,10 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -2730,6 +2917,8 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2740,6 +2929,9 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2754,6 +2946,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -2775,7 +2968,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -2799,6 +2992,8 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2809,6 +3004,9 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2823,6 +3021,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -2844,7 +3043,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -2869,7 +3068,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -2894,6 +3093,8 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2904,6 +3105,9 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2918,6 +3122,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -2939,10 +3144,10 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -2966,6 +3171,8 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -2976,6 +3183,9 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -2990,6 +3200,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -3011,10 +3222,10 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -3039,10 +3250,10 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -3067,6 +3278,8 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -3077,6 +3290,9 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -3107,6 +3323,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -3123,7 +3340,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -3140,7 +3357,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -3163,6 +3380,8 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -3173,6 +3392,9 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -3187,6 +3409,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -3203,7 +3426,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -3223,7 +3446,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -3248,6 +3471,8 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -3258,6 +3483,9 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -3272,6 +3500,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -3288,10 +3517,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -3308,10 +3537,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -3334,6 +3563,8 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -3344,6 +3575,9 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -3358,6 +3592,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -3374,10 +3609,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -3397,10 +3632,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -3425,6 +3660,8 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -3435,6 +3672,9 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -3465,6 +3705,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -3482,7 +3723,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -3522,6 +3763,8 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -3532,6 +3775,9 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -3546,6 +3792,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -3563,7 +3810,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -3591,7 +3838,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -3625,6 +3872,8 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -3635,6 +3884,9 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -3649,6 +3901,7 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -3666,10 +3919,10 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -3709,6 +3962,8 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -3719,6 +3974,9 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -3733,6 +3991,7 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -3750,10 +4009,10 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -3781,10 +4040,10 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -3818,6 +4077,8 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -3828,6 +4089,9 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -3842,6 +4106,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -3864,7 +4129,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -3904,6 +4169,8 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -3914,6 +4181,9 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -3928,6 +4198,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -3950,7 +4221,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -3983,7 +4254,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -4017,6 +4288,8 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -4027,6 +4300,9 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -4041,6 +4317,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -4063,10 +4340,10 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -4106,6 +4383,8 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -4116,6 +4395,9 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -4130,6 +4412,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -4152,10 +4435,10 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -4188,10 +4471,10 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -4225,6 +4508,8 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -4235,6 +4520,9 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -4297,6 +4585,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -4314,7 +4603,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -4354,6 +4643,8 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -4364,6 +4655,9 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -4378,6 +4672,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -4395,7 +4690,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -4423,7 +4718,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -4457,6 +4752,8 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -4467,6 +4764,9 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -4481,6 +4781,7 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -4498,10 +4799,10 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -4541,6 +4842,8 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -4551,6 +4854,9 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -4565,6 +4871,7 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -4582,10 +4889,10 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -4613,10 +4920,10 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -4650,6 +4957,8 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -4660,6 +4969,9 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -4674,6 +4986,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -4696,7 +5009,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -4736,6 +5049,8 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -4746,6 +5061,9 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -4760,6 +5078,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -4782,7 +5101,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -4815,7 +5134,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -4849,6 +5168,8 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -4859,6 +5180,9 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -4873,6 +5197,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -4895,10 +5220,10 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -4938,6 +5263,8 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -4948,6 +5275,9 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -4962,6 +5292,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -4984,10 +5315,10 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -5020,10 +5351,10 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -5057,6 +5388,8 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -5067,6 +5400,9 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -5097,6 +5433,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -5114,7 +5451,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -5139,7 +5476,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -5170,6 +5507,8 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -5180,6 +5519,9 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -5194,6 +5536,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -5211,7 +5554,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -5239,7 +5582,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -5273,6 +5616,8 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -5283,6 +5628,9 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -5297,6 +5645,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -5314,10 +5663,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -5342,10 +5691,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -5376,6 +5725,8 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -5386,6 +5737,9 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -5400,6 +5754,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -5417,10 +5772,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -5448,10 +5803,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -5485,6 +5840,8 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -5495,6 +5852,9 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -5845,6 +6205,7 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -5866,7 +6227,7 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -5893,7 +6254,7 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -5928,6 +6289,8 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -5938,6 +6301,9 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -5956,6 +6322,7 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -5983,12 +6350,12 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -6021,12 +6388,12 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -6061,6 +6428,8 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -6071,6 +6440,9 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -6089,6 +6461,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -6115,7 +6488,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -6147,7 +6520,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -6182,6 +6555,8 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -6192,6 +6567,9 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -6210,6 +6588,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -6242,12 +6621,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -6285,12 +6664,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -6325,6 +6704,8 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -6335,6 +6716,9 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -6401,6 +6785,7 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -6422,7 +6807,7 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -6449,7 +6834,7 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -6484,6 +6869,8 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -6494,6 +6881,9 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -6512,6 +6902,7 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -6539,12 +6930,12 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -6577,12 +6968,12 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -6617,6 +7008,8 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -6627,6 +7020,9 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -6645,6 +7041,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -6671,7 +7068,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -6703,7 +7100,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -6738,6 +7135,8 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -6748,6 +7147,9 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -6766,6 +7168,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -6798,12 +7201,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -6841,12 +7244,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -6881,6 +7284,8 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -6891,6 +7296,9 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -6925,6 +7333,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -6946,7 +7355,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -6973,7 +7382,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -7008,6 +7417,8 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -7018,6 +7429,9 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -7036,6 +7450,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -7063,12 +7478,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -7101,12 +7516,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -7141,6 +7556,8 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -7151,6 +7568,9 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -7185,6 +7605,7 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -7207,7 +7628,7 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -7243,7 +7664,7 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -7302,6 +7723,8 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -7312,6 +7735,9 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -7330,6 +7756,7 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -7358,12 +7785,12 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -7405,12 +7832,12 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -7469,6 +7896,8 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -7479,6 +7908,9 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -7497,6 +7929,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -7524,7 +7957,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -7565,7 +7998,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -7624,6 +8057,8 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -7634,6 +8069,9 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -7652,6 +8090,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -7685,12 +8124,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -7737,12 +8176,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -7801,6 +8240,8 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -7811,6 +8252,9 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -7877,6 +8321,7 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -7899,7 +8344,7 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -7935,7 +8380,7 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -7994,6 +8439,8 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -8004,6 +8451,9 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -8022,6 +8472,7 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -8050,12 +8501,12 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -8097,12 +8548,12 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -8161,6 +8612,8 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -8171,6 +8624,9 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -8189,6 +8645,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -8216,7 +8673,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -8257,7 +8714,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -8316,6 +8773,8 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -8326,6 +8785,9 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -8344,6 +8806,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -8377,12 +8840,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -8429,12 +8892,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -8493,6 +8956,8 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -8503,6 +8968,9 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -8537,6 +9005,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -8559,7 +9028,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -8595,7 +9064,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -8654,6 +9123,8 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -8664,6 +9135,9 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -8682,6 +9156,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -8710,12 +9185,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -8757,12 +9232,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -8821,6 +9296,8 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -8831,6 +9308,9 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -8865,6 +9345,7 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -8881,7 +9362,7 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -8902,7 +9383,7 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -8936,6 +9417,8 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -8946,6 +9429,9 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -8964,6 +9450,7 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -8980,10 +9467,10 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -9004,10 +9491,10 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -9041,6 +9528,8 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -9051,6 +9540,9 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -9069,6 +9561,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -9090,7 +9583,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -9116,7 +9609,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -9150,6 +9643,8 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -9160,6 +9655,9 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -9178,6 +9676,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -9199,10 +9698,10 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -9228,10 +9727,10 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -9265,6 +9764,8 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -9275,6 +9776,9 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -9341,6 +9845,7 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -9357,7 +9862,7 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9378,7 +9883,7 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9412,6 +9917,8 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -9422,6 +9929,9 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -9440,6 +9950,7 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -9456,10 +9967,10 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9480,10 +9991,10 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9517,6 +10028,8 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -9527,6 +10040,9 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -9545,6 +10061,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -9566,7 +10083,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9592,7 +10109,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9626,6 +10143,8 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -9636,6 +10155,9 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -9654,6 +10176,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -9675,10 +10198,10 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9704,10 +10227,10 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9741,6 +10264,8 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -9751,6 +10276,9 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -9785,6 +10313,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -9801,7 +10330,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9822,7 +10351,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9856,6 +10385,8 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -9866,6 +10397,9 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -9884,6 +10418,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -9900,10 +10435,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9924,10 +10459,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -9961,6 +10496,8 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -9971,6 +10508,9 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -10005,6 +10545,7 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -10022,7 +10563,7 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -10052,7 +10593,7 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -10110,6 +10651,8 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -10120,6 +10663,9 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -10138,6 +10684,7 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -10155,10 +10702,10 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -10188,10 +10735,10 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -10249,6 +10796,8 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -10259,6 +10808,9 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -10277,6 +10829,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -10299,7 +10852,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -10334,7 +10887,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -10392,6 +10945,8 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -10402,6 +10957,9 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -10420,6 +10978,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -10442,10 +11001,10 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -10480,10 +11039,10 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -10541,6 +11100,8 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -10551,6 +11112,9 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -10617,6 +11181,7 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -10634,7 +11199,7 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -10664,7 +11229,7 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -10722,6 +11287,8 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -10732,6 +11299,9 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -10750,6 +11320,7 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -10767,10 +11338,10 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -10800,10 +11371,10 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -10861,6 +11432,8 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -10871,6 +11444,9 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -10889,6 +11465,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -10911,7 +11488,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -10946,7 +11523,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -11004,6 +11581,8 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -11014,6 +11593,9 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -11032,6 +11614,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -11054,10 +11637,10 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -11092,10 +11675,10 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -11153,6 +11736,8 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -11163,6 +11748,9 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -11197,6 +11785,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -11214,7 +11803,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -11244,7 +11833,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -11302,6 +11891,8 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -11312,6 +11903,9 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -11330,6 +11924,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -11347,10 +11942,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -11380,10 +11975,10 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl8();
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 			}
 			loaded_pix = getbpl8_32(); 
@@ -11441,6 +12036,8 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -11451,6 +12048,9 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -11485,6 +12085,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -11501,7 +12102,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11523,7 +12124,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11558,6 +12159,8 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -11568,6 +12171,9 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -11582,6 +12188,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -11598,7 +12205,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11618,7 +12225,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11639,7 +12246,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11659,7 +12266,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11697,6 +12304,8 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -11707,6 +12316,9 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -11721,6 +12333,7 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -11737,10 +12350,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11762,10 +12375,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11800,6 +12413,8 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -11810,6 +12425,9 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -11824,6 +12442,7 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -11840,10 +12459,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11863,10 +12482,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11887,10 +12506,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11910,10 +12529,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -11951,6 +12570,8 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -11961,6 +12582,9 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -11975,6 +12599,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -11996,7 +12621,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12023,7 +12648,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12058,6 +12683,8 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -12068,6 +12695,9 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -12082,6 +12712,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -12103,7 +12734,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12128,7 +12759,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12154,7 +12785,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12179,7 +12810,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12217,6 +12848,8 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -12227,6 +12860,9 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -12241,6 +12877,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -12262,10 +12899,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12292,10 +12929,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12330,6 +12967,8 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -12340,6 +12979,9 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -12354,6 +12996,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -12375,10 +13018,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12403,10 +13046,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12432,10 +13075,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12460,10 +13103,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_filtered_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12501,6 +13144,8 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -12511,6 +13156,9 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -12653,6 +13301,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -12670,7 +13319,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12701,7 +13350,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12760,6 +13409,8 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -12770,6 +13421,9 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -12784,6 +13438,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -12801,7 +13456,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12829,7 +13484,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12851,7 +13506,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12879,7 +13534,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -12935,6 +13590,8 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -12945,6 +13602,9 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -12959,6 +13619,7 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -12976,10 +13637,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13010,10 +13671,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13072,6 +13733,8 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -13082,6 +13745,9 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -13096,6 +13762,7 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -13113,10 +13780,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13144,10 +13811,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13169,10 +13836,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13200,10 +13867,10 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13259,6 +13926,8 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -13269,6 +13938,9 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -13283,6 +13955,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -13305,7 +13978,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13341,7 +14014,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13400,6 +14073,8 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -13410,6 +14085,9 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -13424,6 +14102,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -13446,7 +14125,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13479,7 +14158,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13506,7 +14185,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13539,7 +14218,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13595,6 +14274,8 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -13605,6 +14286,9 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -13619,6 +14303,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -13641,10 +14326,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13680,10 +14365,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13742,6 +14427,8 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -13752,6 +14439,9 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -13766,6 +14456,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_filtered_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -13788,10 +14479,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13824,10 +14515,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13854,10 +14545,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13890,10 +14581,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_filtered_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -13949,6 +14640,8 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_filtered_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -13959,6 +14652,9 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -14101,6 +14797,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -14122,7 +14819,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14149,7 +14846,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14176,7 +14873,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14203,7 +14900,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14260,6 +14957,8 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -14270,6 +14969,9 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -14288,6 +14990,7 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -14315,12 +15018,12 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14353,12 +15056,12 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14391,12 +15094,12 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14429,12 +15132,12 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14491,6 +15194,8 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -14501,6 +15206,9 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -14519,6 +15227,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -14545,7 +15254,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14577,7 +15286,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14609,7 +15318,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14641,7 +15350,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14698,6 +15407,8 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -14708,6 +15419,9 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -14726,6 +15440,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -14758,12 +15473,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14801,12 +15516,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14844,12 +15559,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14887,12 +15602,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -14949,6 +15664,8 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -14959,6 +15676,9 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -15025,6 +15745,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -15046,7 +15767,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15073,7 +15794,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15100,7 +15821,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15127,7 +15848,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15184,6 +15905,8 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -15194,6 +15917,9 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -15212,6 +15938,7 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -15239,12 +15966,12 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15277,12 +16004,12 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15315,12 +16042,12 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15353,12 +16080,12 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15415,6 +16142,8 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -15425,6 +16154,9 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -15443,6 +16175,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -15469,7 +16202,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15501,7 +16234,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15533,7 +16266,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15565,7 +16298,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15622,6 +16355,8 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -15632,6 +16367,9 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -15650,6 +16388,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -15682,12 +16421,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15725,12 +16464,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15768,12 +16507,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15811,12 +16550,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15873,6 +16612,8 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -15883,6 +16624,9 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -15917,6 +16661,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -15938,7 +16683,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15965,7 +16710,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -15992,7 +16737,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -16019,7 +16764,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -16076,6 +16821,8 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -16086,6 +16833,9 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -16104,6 +16854,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -16131,12 +16882,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -16169,12 +16920,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -16207,12 +16958,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -16245,12 +16996,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -16307,6 +17058,8 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -16317,6 +17070,9 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -16351,6 +17107,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -16373,7 +17130,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -16409,7 +17166,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -16445,7 +17202,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -16481,7 +17238,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -16578,6 +17335,8 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -16588,6 +17347,9 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -16606,6 +17368,7 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -16634,12 +17397,12 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -16681,12 +17444,12 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -16728,12 +17491,12 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -16775,12 +17538,12 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -16877,6 +17640,8 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -16887,6 +17652,9 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -16905,6 +17673,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -16932,7 +17701,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -16973,7 +17742,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -17014,7 +17783,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -17055,7 +17824,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -17152,6 +17921,8 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -17162,6 +17933,9 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -17180,6 +17954,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -17213,12 +17988,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -17265,12 +18040,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -17317,12 +18092,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -17369,12 +18144,12 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -17471,6 +18246,8 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -17481,6 +18258,9 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -17547,6 +18327,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -17569,7 +18350,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -17605,7 +18386,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -17641,7 +18422,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -17677,7 +18458,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -17774,6 +18555,8 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -17784,6 +18567,9 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -17802,6 +18588,7 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -17830,12 +18617,12 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -17877,12 +18664,12 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -17924,12 +18711,12 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -17971,12 +18758,12 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18073,6 +18860,8 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -18083,6 +18872,9 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -18101,6 +18893,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -18128,7 +18921,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18169,7 +18962,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18210,7 +19003,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18251,7 +19044,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18348,6 +19141,8 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -18358,6 +19153,9 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -18376,6 +19174,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -18409,12 +19208,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18461,12 +19260,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18513,12 +19312,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18565,12 +19364,12 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18667,6 +19466,8 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -18677,6 +19478,9 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -18711,6 +19515,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -18733,7 +19538,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18769,7 +19574,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18805,7 +19610,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18841,7 +19646,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -18938,6 +19743,8 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -18948,6 +19755,9 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -18966,6 +19776,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -18994,12 +19805,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -19041,12 +19852,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -19088,12 +19899,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -19135,12 +19946,12 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 127) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 127) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -19237,6 +20048,8 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -19247,6 +20060,9 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -19281,6 +20097,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -19302,7 +20119,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19329,7 +20146,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19356,7 +20173,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19383,7 +20200,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19440,6 +20257,8 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -19450,6 +20269,9 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -19468,6 +20290,7 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -19495,12 +20318,12 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19533,12 +20356,12 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19571,12 +20394,12 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19609,12 +20432,12 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19671,6 +20494,8 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -19681,6 +20506,9 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -19699,6 +20527,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -19725,7 +20554,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19757,7 +20586,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19789,7 +20618,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19821,7 +20650,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19878,6 +20707,8 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -19888,6 +20719,9 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -19906,6 +20740,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -19938,12 +20773,12 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -19981,12 +20816,12 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -20024,12 +20859,12 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -20067,12 +20902,12 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -20129,6 +20964,8 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -20139,6 +20976,9 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -20205,6 +21045,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -20226,7 +21067,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20253,7 +21094,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20280,7 +21121,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20307,7 +21148,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20364,6 +21205,8 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -20374,6 +21217,9 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -20392,6 +21238,7 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -20419,12 +21266,12 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20457,12 +21304,12 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20495,12 +21342,12 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20533,12 +21380,12 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20595,6 +21442,8 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -20605,6 +21454,9 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -20623,6 +21475,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -20649,7 +21502,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20681,7 +21534,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20713,7 +21566,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20745,7 +21598,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20802,6 +21655,8 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -20812,6 +21667,9 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -20830,6 +21688,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -20862,12 +21721,12 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20905,12 +21764,12 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20948,12 +21807,12 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -20991,12 +21850,12 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -21053,6 +21912,8 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -21063,6 +21924,9 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -21097,6 +21961,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -21118,7 +21983,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -21145,7 +22010,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -21172,7 +22037,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -21199,7 +22064,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -21256,6 +22121,8 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -21266,6 +22133,9 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -21284,6 +22154,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -21311,12 +22182,12 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -21349,12 +22220,12 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -21387,12 +22258,12 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -21425,12 +22296,12 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -21487,6 +22358,8 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -21497,6 +22370,9 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -21531,6 +22407,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -21553,7 +22430,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -21589,7 +22466,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -21625,7 +22502,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -21661,7 +22538,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -21758,6 +22635,8 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -21768,6 +22647,9 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -21786,6 +22668,7 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -21814,12 +22697,12 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -21861,12 +22744,12 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -21908,12 +22791,12 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -21955,12 +22838,12 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -22057,6 +22940,8 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -22067,6 +22952,9 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -22085,6 +22973,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -22112,7 +23001,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -22153,7 +23042,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -22194,7 +23083,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -22235,7 +23124,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -22332,6 +23221,8 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -22342,6 +23233,9 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -22360,6 +23254,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -22393,12 +23288,12 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -22445,12 +23340,12 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -22497,12 +23392,12 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -22549,12 +23444,12 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_spr_genlock(void)
 				shiftbpl4o();
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl4_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl4_32(); 
@@ -22651,6 +23546,8 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -22661,6 +23558,9 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -22727,6 +23627,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -22749,7 +23650,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -22785,7 +23686,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -22821,7 +23722,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -22857,7 +23758,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -22954,6 +23855,8 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -22964,6 +23867,9 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -22982,6 +23888,7 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -23010,12 +23917,12 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23057,12 +23964,12 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23104,12 +24011,12 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23151,12 +24058,12 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23253,6 +24160,8 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -23263,6 +24172,9 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -23281,6 +24193,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -23308,7 +24221,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23349,7 +24262,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23390,7 +24303,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23431,7 +24344,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23528,6 +24441,8 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -23538,6 +24453,9 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -23556,6 +24474,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -23589,12 +24508,12 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23641,12 +24560,12 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23693,12 +24612,12 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23745,12 +24664,12 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23847,6 +24766,8 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -23857,6 +24778,9 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -23891,6 +24815,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -23913,7 +24838,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23949,7 +24874,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -23985,7 +24910,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -24021,7 +24946,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -24118,6 +25043,8 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -24128,6 +25055,9 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -24146,6 +25076,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -24174,12 +25105,12 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -24221,12 +25152,12 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -24268,12 +25199,12 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -24315,12 +25246,12 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_spr_genlock(void)
 				shiftbpl8o();
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[0] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[0]) { 
 				copybpl8e();
 				bplshiftcnt[0] = 0;
 				loaded_pix = getbpl8_32(); 
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 63) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 63) == bplcon1_shift_full_masked[1]) {
 				copybpl8o();
 				bplshiftcnt[1] = 0;
 				loaded_pix = getbpl8_32(); 
@@ -24417,6 +25348,8 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -24427,6 +25360,9 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -24461,6 +25397,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -24477,7 +25414,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24498,7 +25435,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24519,7 +25456,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24540,7 +25477,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24596,6 +25533,8 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -24606,6 +25545,9 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -24624,6 +25566,7 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -24640,10 +25583,10 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24664,10 +25607,10 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24688,10 +25631,10 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24712,10 +25655,10 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24771,6 +25714,8 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -24781,6 +25726,9 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -24799,6 +25747,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -24820,7 +25769,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24846,7 +25795,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24872,7 +25821,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24898,7 +25847,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -24954,6 +25903,8 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -24964,6 +25915,9 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -24982,6 +25936,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			uae_u8 pix0 = 0;
 			uae_u8 gpix0 = 0xff;
@@ -25003,10 +25958,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25032,10 +25987,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25061,10 +26016,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25090,10 +26045,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25149,6 +26104,8 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -25159,6 +26116,9 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -25305,6 +26265,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -25322,7 +26283,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25352,7 +26313,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25382,7 +26343,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25412,7 +26373,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25508,6 +26469,8 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -25518,6 +26481,9 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -25536,6 +26502,7 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -25553,10 +26520,10 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25586,10 +26553,10 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25619,10 +26586,10 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25652,10 +26619,10 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25751,6 +26718,8 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -25761,6 +26730,9 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -25779,6 +26751,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -25801,7 +26774,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25836,7 +26809,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25871,7 +26844,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -25906,7 +26879,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -26002,6 +26975,8 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -26012,6 +26987,9 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
@@ -26030,6 +27008,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_spr_genlock(void)
 			}
 			int cnt = denise_hcounter << 2;
 			int cnt_next = denise_hcounter_next << 2;
+			int cmp = denise_hcounter_cmp << 2;
 			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
 			matchsprites_aga(cnt + 0);
 			uae_u8 pix0 = 0;
@@ -26052,10 +27031,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix0;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 0) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 0) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -26090,10 +27069,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix1;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 1) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 1) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -26128,10 +27107,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix2;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 2) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 2) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -26166,10 +27145,10 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_spr_genlock(void)
 				last_bpl_pix = pix3;
 			}
 			shiftbpl4();
-			if (bpldat_copy[0] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[0]) { 
+			if (bpldat_copy[0] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[0]) { 
 				copybpl4e();
 			}
-			if (bpldat_copy[1] && ((cnt | 3) & 31) == bplcon1_shift_full_masked[1]) {
+			if (bpldat_copy[1] && ((cmp | 3) & 31) == bplcon1_shift_full_masked[1]) {
 				copybpl4o();
 			}
 			loaded_pix = getbpl4_32(); 
@@ -26265,6 +27244,8 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_spr_genlock(void)
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
 			denise_hcounter++;
 			denise_hcounter &= 511;
 			denise_hcounter_next++;
@@ -26275,6 +27256,9 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_start_cnt = internal_pixel_cnt;
 		}
 		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
 		denise_cck++;
 	}
 }
