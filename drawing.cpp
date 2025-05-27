@@ -2251,6 +2251,7 @@ void vsync_handle_redraw(int long_field, uae_u16 bplcon0p, uae_u16 bplcon3p, boo
 	}
 
 	gui_flicker_led(-1, 0, 0);
+	denise_accurate_mode = currprefs.cpu_memory_cycle_exact || currprefs.cs_optimizations >= DISPLAY_OPTIMIZATIONS_PARTIAL || (currprefs.cpu_model <= 68020 && currprefs.m68k_speed >= 0 && currprefs.cpu_compatible);
 }
 
 static int  dummy_lock(struct vidbuf_description *gfxinfo, struct vidbuffer *vb)
@@ -2338,7 +2339,6 @@ void reset_drawing(void)
 	select_lts();
 
 	no_denise_lol = !currprefs.cpu_memory_cycle_exact;
-	denise_accurate_mode = currprefs.cpu_memory_cycle_exact || currprefs.cs_optimizations >= DISPLAY_OPTIMIZATIONS_PARTIAL || (currprefs.cpu_model <= 68020 && currprefs.m68k_speed >= 0 && currprefs.cpu_compatible);
 }
 
 static void gen_direct_drawing_table(void)
