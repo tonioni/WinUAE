@@ -25,8 +25,6 @@
 #include "audio.h"
 #include "cia.h"
 
-static const int pissoff_nojit_value = 256 * CYCLE_UNIT;
-
 extern uae_u8 agnus_hpos;
 int custom_fastmode;
 extern int linear_hpos;

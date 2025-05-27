@@ -132,6 +132,7 @@ int log_vsync, debug_vsync_min_delay, debug_vsync_forced_delay;
 static int log_winmouse;
 int uaelib_debug;
 int pissoff_value = 15000 * CYCLE_UNIT;
+int pissoff_nojit_value = 160 * CYCLE_UNIT;
 unsigned int fpucontrol;
 int extraframewait, extraframewait2;
 int busywait;
@@ -7137,8 +7138,12 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		minidumpmode = (MINIDUMP_TYPE)getval (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, _T("jitevent"))) {
-		pissoff_value = getval (np) * CYCLE_UNIT;
+	if (!_tcscmp(arg, _T("jitevent"))) {
+		pissoff_value = getval(np) * CYCLE_UNIT;
+		return 2;
+	}
+	if (!_tcscmp(arg, _T("cpuevent"))) {
+		pissoff_nojit_value = getval(np) * CYCLE_UNIT;
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("inputrecorddebug"))) {
