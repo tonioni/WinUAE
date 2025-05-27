@@ -6587,10 +6587,12 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 					{
 						LPNMTREEVIEW tv = (LPNMTREEVIEW)lParam;
 						struct ConfigStruct *c = (struct ConfigStruct*)tv->itemNew.lParam;
-						if (tv->action == TVE_EXPAND) {
-							c->expanded = true;
-						} else if (tv->action == TVE_COLLAPSE) {
-							c->expanded = false;
+						if (c) {
+							if (tv->action == TVE_EXPAND) {
+								c->expanded = true;
+							} else if (tv->action == TVE_COLLAPSE) {
+								c->expanded = false;
+							}
 						}
 						break;
 					}
