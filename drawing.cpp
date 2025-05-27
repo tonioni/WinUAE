@@ -2846,8 +2846,8 @@ static void update_bplcon1(void)
 	int bplcon1_hr[2];
 	int delay1 = (bplcon1_denise & 0x0f) | ((bplcon1_denise & 0x0c00) >> 6);
 	int delay2 = ((bplcon1_denise >> 4) & 0x0f) | (((bplcon1_denise >> 4) & 0x0c00) >> 6);
-	bool wasoddeven = bplcon1_shift[0] != bplcon1_shift[1];
 	int mask = 3 >> hresolution;
+	bool wasoddeven = bplcon1_shift_full[0] != bplcon1_shift_full[1];
 
 	bplcon1_shift_mask = fetchmode_mask_denise >> denise_res;
 
@@ -2873,7 +2873,7 @@ static void update_bplcon1(void)
 	bplcon1_shift_full_masked[0] = bplcon1_shift_full[0] & ~bplcon1_hr_mask;
 	bplcon1_shift_full_masked[1] = bplcon1_shift_full[1] & ~bplcon1_hr_mask;
 
-	if (wasoddeven != (bplcon1_shift[0] != bplcon1_shift[1])) {
+	if (wasoddeven != (bplcon1_shift_full[0] != bplcon1_shift_full[1])) {
 		lts_request = true;
 	}
 }
@@ -5835,7 +5835,7 @@ static void select_lts(void)
 	if (denise_max_planes == 7 && bm == CMODE_HAM) {
 		denise_max_planes = 6;
 	}
-	denise_odd_even = bplcon1_shift[0] != bplcon1_shift[1];
+	denise_odd_even = bplcon1_shift_full[0] != bplcon1_shift_full[1];
 	if (denise_odd_even) {
 		denise_max_odd_even = denise_odd_even;
 	}
