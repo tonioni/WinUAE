@@ -397,6 +397,7 @@ static bool lts_changed, lts_request;
 typedef void (*LINETOSRC_FUNCF)(int,int,int,int,int,int,int,int,int,uae_u32,uae_u8*,uae_u8*,int,int*,int,struct linestate*);
 
 static int denise_hcounter, denise_hcounter_next, denise_hcounter_new, denise_hcounter_prev, denise_hcounter_cmp;
+static bool denise_accurate_mode;
 static uae_u32 bplxdat[MAX_PLANES], bplxdat2[MAX_PLANES], bplxdat3[MAX_PLANES];
 static uae_u64 bplxdat_64[MAX_PLANES], bplxdat2_64[MAX_PLANES], bplxdat3_64[MAX_PLANES];
 static uae_u16 bplcon0_denise, bplcon1_denise, bplcon2_denise, bplcon3_denise, bplcon4_denise;
@@ -2337,6 +2338,7 @@ void reset_drawing(void)
 	select_lts();
 
 	no_denise_lol = !currprefs.cpu_memory_cycle_exact;
+	denise_accurate_mode = currprefs.cpu_memory_cycle_exact || currprefs.cs_optimizations >= DISPLAY_OPTIMIZATIONS_PARTIAL || (currprefs.cpu_model <= 68020 && currprefs.m68k_speed >= 0 && currprefs.cpu_compatible);
 }
 
 static void gen_direct_drawing_table(void)
@@ -2436,7 +2438,7 @@ static void setup_brdblank(void)
 {
 	denise_brdstrt_unalign = false;
 	denise_brdstop_unalign = false;
-	if (aga_mode && currprefs.gfx_resolution == RES_SUPERHIRES && borderblank) {
+	if (aga_mode && currprefs.gfx_resolution == RES_SUPERHIRES && borderblank && denise_accurate_mode) {
 		denise_brdstrt = denise_hstop - 1;
 		denise_brdstop = denise_hstrt - 1;
 		denise_brdstrt_lores = denise_brdstrt >> 2;
