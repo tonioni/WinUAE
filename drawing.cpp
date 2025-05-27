@@ -894,21 +894,21 @@ int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hr
 
 	if (interlace_seen) {
 		for (;;) {
-			// if more than 1 long or short frames only: accept it, we may have double (non field) mode.
-			if (interlace_lof[0] >= 2 || interlace_lof[1] >= 2) {
-				break;
+			if (!currprefs.gfx_iscanlines) {
+				// if more than 1 long or short frames only: accept it, we may have double (non field) mode.
+				if (interlace_lof[0] >= 2 || interlace_lof[1] >= 2) {
+					break;
+				}
 			}
 			// wait for long frame
 			if (interlace_lof[0] && interlace_lof[1]) {
 				if (!lof_display) {
 					return ret;
 				}
+				break;
 			}
-			interlace_count++;
 			interlace_lof[lof_display]++;
-			if (interlace_count < 3) {
-				return ret;
-			}
+			return ret;
 		}
 	} else {
 		interlace_count = 0;
