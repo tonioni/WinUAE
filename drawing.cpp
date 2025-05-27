@@ -6056,7 +6056,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 		uae_u8 gpix = 0xff;
 		if (!denise_blank_active) {
 			// borderblank ends 1 shres pixel early
-			dpix_val = cnt == denise_brdstop && denise_hdiw && bpl1dat_trigger && !denise_vblank_active ? denise_colors.acolors[0] : bordercolor;
+			dpix_val = cnt == denise_brdstop && (denise_hdiw || cnt + 1 == denise_hstrt) ? denise_colors.acolors[0] : bordercolor;
 			gpix = 0;
 			if (denise_hdiw && bpl1dat_trigger) {
 				pix = loaded_pixs[ipix];
@@ -6278,7 +6278,7 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 		uae_u8 gpix = 0xff;
 		if (!denise_blank_active) {
 			// borderblank ends 1 shres pixel early
-			dpix_val = cnt == denise_brdstop ? denise_colors.acolors[0] : bordercolor;
+			dpix_val = cnt == denise_brdstop && (denise_hdiw || cnt + 1 == denise_hstrt) ? denise_colors.acolors[0] : bordercolor;
 			gpix = 0;
 			if (denise_hdiw && bpl1dat_trigger) {
 				pix = getbpl6();
