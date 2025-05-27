@@ -79,6 +79,7 @@ enum {
 };
 
 extern int pissoff_value;
+extern int pissoff_nojit_value;
 extern int pissoff;
 
 extern int do_cycles_cck(int);

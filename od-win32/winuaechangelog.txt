@@ -1,4 +1,14 @@
 
+Beta 29:
+
+- Fast mode drawing always masked chip ram addresses to regular chip RAM size causing corrupted graphics if 32-bit chip RAM was enabled.
+- Right edge horizontal scrolling glitch is now only emulated correctly (as in glitches correctly) in accurate emulation modes. Fast CPU modes "fixes" the glitch. I don't normally like "fixing" hardware design flaws but I didn't find any other simple solution to fix this problem without huge changes to fast drawing modes. This might work better in some future version. Normally this condition (Very large right edge overscan + horizontal scrolling) is rarely visible because it looks very ugly.
+- Remove interlace artifacts very glitchy scrolling fixed (b28). There still can be single line that has wrong graphics before it gets redrawn in next frame but because it happens at the same as another usual glitch that affects all lines hen bitplane pointers get updated while scrolling, it is not important problem.
+- If only difference between odd and even field scrolling value in BPLCON1 was AGA-only hires or shres bits, emulation mode that emulates odd/even planes separately was not selected and odd planes used same scrolling value as even planes.
+- Fixed crash when doubleclicking config tree view root node.
+- b25 interlace change was not fully working, it was still possible to get for example autoscale filter mode display jumping between long and short field heights. 
+- Borderblank 1 shres delay emulation got broken partially in b24 update. (Only supported in accurate modes)
+
 Beta 28:
 
 - Display panel Overscan TV modes didn't do anything if "No scaling" filtering mode was selected.
@@ -100,7 +110,7 @@ Beta 20:
 - Integer scale horizontal/vertical resolution aspect ratio correction should now work more sanely (for example if superhires + vertical doubling, result is always vertically doubled first, after that integer scaling ratio is selected). Supports also programmed doublescan modes.
 - In AGA mode reads from write-only registers are now closer to 5.3.1 and older version behavior. (Artificial Paradise / NGC)
 - If resolution/plane count was set before FMODE was updated and original FMODE was too small for new mode, drawing mode was reset to normal (HAM and EHB was drawn as normal mode). Affected hires and shres AGA HAM and EHB modes.
-- Non-accurate CPU mode and writing to CIA high timer register didn't load timer from latch immediately in oneshort mode when timer was already running (Introduced in some 4.9.x version)
+- Non-accurate CPU mode and writing to CIA high timer register didn't load timer from latch immediately in oneshot mode when timer was already running (Introduced in some 4.9.x version)
 
 Beta 19:
 
@@ -182,7 +192,7 @@ Beta 13:
 
 Major performance improvement! Finally faster than older versions!
 
-- Denise side processing is now in separate thread (bitplane shifting, sprite shifting, bitplane/sprite planar to chunky, special modes, bitplane/sprite priorities, strobes/blanking, RGB out etc). Line-based Denise RGA buffering made this possible because it cleanly separates Agnus and Denise logic and Denise is almost fully "fire and forget". Only exception is CLXDAT collision register reads which needs to flush all queued lines (and isn't cycle-accurate yet anyway). AGA color reads don't cause problems because they are can be done in Agnus side emulation. Line queue is quite small (max ~10 lines), it won't cause any latency problems. Compatibility is not affected. (In previous UAE versions Agnus side processed whole frame, then Denise side did the rest which was not very optimal because temporary frame data needed huge RAM buffers)
+- Denise side processing is now in separate thread (bitplane shifting, sprite shifting, bitplane/sprite planar to chunky, special modes, bitplane/sprite priorities, strobes/blanking, RGB out etc). Line-based Denise RGA buffering made this possible because it cleanly separates Agnus and Denise logic and Denise is almost fully "fire and forget". Only exception is CLXDAT collision register reads which needs to flush all queued lines (and isn't cycle-accurate yet anyway). AGA color reads don't cause problems because they can be done in Agnus side emulation. Line queue is quite small (max ~10 lines), it won't cause any latency problems. Compatibility is not affected. (In previous UAE versions Agnus side processed whole frame, then Denise side did the rest which was not very optimal because temporary frame data needed huge RAM buffers)
 - -nomt command line disables multithreaded Denise emulation.
 - Previously always used temporary graphics buffering is only done if needed: display port adapter enabled (which also includes genlock in image mode, grayscale and CD32 FMV). This also increases performance. Only affects native chipset modes. When using display port adapter: complete chipset display frame is drawn to temporary RAM buffer, then display port adapter emulation merges it with any display port adapter graphics and writes the result to D3D texture. When this is bypassed, chipset graphics is directly drawn to D3D texture in single pass.
 - Any enabled display port adapter (including genlock in image mode, grayscale or CD32 FMV) or enabled light pen disables non-CE border/bitplane optimizations.
