@@ -8663,9 +8663,9 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->m68k_speed = 0;
 	p->cpu_compatible = 1;
 	p->address_space_24 = 1;
-	p->cpu_cycle_exact = 0;
-	p->cpu_memory_cycle_exact = 0;
-	p->blitter_cycle_exact = 0;
+	p->cpu_cycle_exact = true;
+	p->cpu_memory_cycle_exact = true;
+	p->blitter_cycle_exact = true;
 	p->chipset_mask = CSMASK_ECS_AGNUS;
 	p->chipset_hr = false;
 	p->display_calibration = false;

@@ -261,7 +261,7 @@ void WIN32GUI_LoadUIString (DWORD id, TCHAR *string, DWORD dwStringLen)
 		LoadString (hInst, id, string, dwStringLen);
 }
 
-static int quickstart_model = 0, quickstart_conf = 0, quickstart_compa = 1;
+static int quickstart_model = 0, quickstart_conf = 0, quickstart_compa = 0;
 static int quickstart_model_confstore[16];
 static int quickstart_floppy = 1, quickstart_cd = 0, quickstart_ntsc = 0;
 static int quickstart_floppytype[2], quickstart_floppysubtype[2];
