@@ -486,11 +486,13 @@ static int read_toc (int track, int msflsn, uae_u8 *out)
 
 static int cdrom_modeset (uae_u8 *cmd)
 {
-	cdtv_sectorsize = (cmd[2] << 8) | cmd[3];
-	if (cdtv_sectorsize != 2048 && cdtv_sectorsize != 2336 && cdtv_sectorsize != 2352 && cdtv_sectorsize != 2328) {
+	int sectorsize = (cmd[2] << 8) | cmd[3];
+	if (sectorsize != 512 && sectorsize != 1024 && sectorsize != 2048 && sectorsize != 2052 && sectorsize != 2336 && sectorsize != 2340) {
 		write_log (_T("CDTV: tried to set unknown sector size %d\n"), cdtv_sectorsize);
-		cdtv_sectorsize = 2048;
+		cd_error = 1;
+		return 0;
 	}
+	cdtv_sectorsize = sectorsize;
 	return 0;
 }
 
@@ -528,6 +530,14 @@ static void cdrom_command_thread (uae_u8 b)
 
 	switch (cdrom_command_input[0])
 	{
+	case 0x00:
+	case 0x80:
+		if (cdrom_command_cnt_in == 2) {
+			cdrom_command_output[0] = 0xaa;
+			cdrom_command_output[1] = 0x55;
+			cdrom_command_accepted(2, s, &cdrom_command_cnt_in);
+		}
+		break;
 	case 0x01: /* seek */
 		if (cdrom_command_cnt_in == 7) {
 			cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
@@ -604,15 +614,43 @@ static void cdrom_command_thread (uae_u8 b)
 			cdrom_command_accepted (uaestrlen(MODEL_NAME), s, &cdrom_command_cnt_in);
 			cd_finished = 1;
 		}
-	case 0x84:
+		break;
+	case 0x84: /* mode set */
 		if (cdrom_command_cnt_in == 7) {
 			cdrom_command_accepted (cdrom_modeset (cdrom_command_input), s, &cdrom_command_cnt_in);
 			cd_finished = 1;
 		}
 		break;
+	case 0x85: /* mode sense */
+		if (cdrom_command_cnt_in == 1) {
+			cdrom_command_output[0] = cdtv_sectorsize >> 8;
+			cdrom_command_output[1] = cdtv_sectorsize >> 0;
+			cdrom_command_accepted(2, s, &cdrom_command_cnt_in);
+		}
+		break;
+	case 0x86: /* capacity */
+		if (cdrom_command_cnt_in == 1) {
+			int size = toc.lastaddress - 1;
+			cdrom_command_output[0] = size >> 16;
+			cdrom_command_output[1] = size >> 8;
+			cdrom_command_output[2] = size >> 0;
+			cdrom_command_output[3] = cdtv_sectorsize >> 8;
+			cdrom_command_output[4] = cdtv_sectorsize >> 0;
+			if (ismedia() <= 0) {
+				cd_error = 1;
+			}
+			cdrom_command_accepted(ismedia() <= 0 ? -1 : 5, s, &cdrom_command_cnt_in);
+		}
+		break;
 	case 0x87: /* subq */
 		if (cdrom_command_cnt_in == 7) {
 			cdrom_command_accepted (cdrom_subq (cdrom_command_output, cdrom_command_input[1] & 2), s, &cdrom_command_cnt_in);
+		}
+		break;
+	case 0x88:
+		if (cdrom_command_cnt_in == 1) {
+			memset(cdrom_command_output, 0, 14);
+			cdrom_command_accepted(14, s, &cdrom_command_cnt_in);
 		}
 		break;
 	case 0x89:
@@ -630,6 +668,15 @@ static void cdrom_command_thread (uae_u8 b)
 			pause_audio (s[1] == 0x00 ? 1 : 0);
 			cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 			cd_finished = 1;
+		}
+		break;
+	case 0xa2:
+		if (cdrom_command_cnt_in == 1) {
+			cdrom_command_output[0] = 0;
+			cdrom_command_output[1] = 0;
+			cdrom_command_output[2] = 0;
+			cdrom_command_output[3] = 0;
+			cdrom_command_accepted(4, s, &cdrom_command_cnt_in);
 		}
 		break;
 	case 0xa3: /* front panel */
@@ -670,14 +717,17 @@ static void dma_do_thread (void)
 		uae_u8 buffer[2352];
 		if (!didread || readsector != (cdrom_offset / cdtv_sectorsize)) {
 			readsector = cdrom_offset / cdtv_sectorsize;
-			if (cdtv_sectorsize != 2048)
-				didread = sys_command_cd_rawread (unitnum, buffer, readsector, 1, cdtv_sectorsize);
-			else
-				didread = sys_command_cd_read (unitnum, buffer, readsector, 1);
+			if (cdtv_sectorsize < 2048) {
+				didread = 0;
+			} else if (cdtv_sectorsize != 2048) {
+				didread = sys_command_cd_rawread(unitnum, buffer, readsector, 1, cdtv_sectorsize);
+			} else {
+				didread = sys_command_cd_read(unitnum, buffer, readsector, 1);
+			}
 			if (!didread) {
 				cd_error = 1;
 				activate_stch = 1;
-				write_log (_T("CDTV: CD read error!\n"));
+				write_log(_T("CDTV: CD read error, sectorsize=%d\n"), cdtv_sectorsize);;
 				break;
 			}
 
@@ -1226,7 +1276,7 @@ static void CDTV_hsync_handler (void)
 
 	subqcnt--;
 	if (subqcnt < 0) {
-		write_comm_pipe_u32 (&requests, 0x0101, 1);
+		write_comm_pipe_u32(&requests, 0x0101, 1);
 		if (cd_playing)
 			subqcnt = 10;
 		else
@@ -1234,7 +1284,7 @@ static void CDTV_hsync_handler (void)
 	}
 
 	if (activate_stch)
-		do_stch ();
+		do_stch();
 }
 
 static void do_stch (void)
