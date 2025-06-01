@@ -1,4 +1,16 @@
 
+Beta 30:
+
+- Default config without default.uae and without Quickstart is now A500 cycle-exact. (Was approximate mode previously)
+- Default Quickstart mode is now cycle-exact (most compatible) A500. (Was approximate mode previously)
+- Added partial support for some undocumented (undocumented as not used by CDTV extended ROM) CDTV CD commands. Added 2052 and 2340 CD sector size support, probably was never used (CDTV CD also accepts 512 and 1024 but they appear to be unusable), removed 2328 and 2352 which are not supported by CDTV CD.
+- Added 2052 (4+2048) and 2340 (4+2336) CD sector size support to generic CD image emulator. (4 byte header + data).
+- Recursive event callbacks fixed. This caused missed events in some situations.
+- Add harddrive Lock option didn't lock all partitions if drive had MBR partition table + one or more known partitions (broke long time ago)
+- If direct harddrive access read or write returns error (for example access denied), log the error.
+- Hard reset again resets color registers to random values (except background color which is set to static value)
+- First VPOSHW write after reset also set Agnus horizontal counter=1, causing small blanking glitch during boot.
+
 Beta 29:
 
 - Fast mode drawing always masked chip ram addresses to regular chip RAM size causing corrupted graphics if 32-bit chip RAM was enabled.
