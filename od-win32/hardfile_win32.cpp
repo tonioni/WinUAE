@@ -1920,7 +1920,6 @@ static void lock_drive(struct hardfiledata *hfd, const TCHAR *name, HANDLE drvha
 		if (DeviceIoControl(drvhandle, FSCTL_DISMOUNT_VOLUME, NULL, 0, NULL, 0, &written, NULL)) {
 			write_log(_T("'%s' locked and dismounted successfully.\n"), name);
 			hfd->handle->dismounted = true;
-			return;
 		}
 	}
 
