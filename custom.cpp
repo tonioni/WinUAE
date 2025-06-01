@@ -6777,7 +6777,6 @@ void custom_reset(bool hardreset, bool keyboardreset)
 			sprhstop = 0xffff;
 			sprhstrt = 0xffff;
 
-#if 0
 			for (int i = 0; i < 32; i++) {
 				uae_u16 c;
 				if (i == 0) {
@@ -6810,7 +6809,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 				}
 #endif
 			}
-#endif
+
 			lof_store = lof_display = 0;
 		}
 
