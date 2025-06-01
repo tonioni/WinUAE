@@ -343,12 +343,17 @@ void do_cycles_slow(int cycles_to_add)
 }
 
 static int event2idx;
+static int event2cnt;
+static int event2restart;
 
 void MISC_handler(void)
 {
 	evt_t mintime;
 	evt_t ct = get_cycles();
 
+	if (event2cnt) {
+		event2restart++;
+	}
 	eventtab[ev_misc].active = 0;
 	mintime = EVT_MAX;
 	int idx2 = event2idx;
@@ -358,7 +363,14 @@ void MISC_handler(void)
 		if (e->active) {
 			if (e->evtime == ct) {
 				e->active = false;
+				event2cnt++;
 				e->handler(e->data);
+				event2cnt--;
+				if (event2restart > 0) {
+					event2restart--;
+					mintime = EVT_MAX;
+					i = 0;
+				}
 			} else {
 				evt_t eventtime = e->evtime - ct;
 				if (eventtime < mintime) {
