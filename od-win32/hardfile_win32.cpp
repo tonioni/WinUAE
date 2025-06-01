@@ -131,6 +131,23 @@ static void fixdrive (struct hardfiledata *hfd)
 }
 #endif
 
+static BOOL HD_ReadFile(HANDLE h, LPVOID buffer, DWORD len, DWORD *outlen, uae_u64 offset)
+{
+	BOOL v = ReadFile(h, buffer, len, outlen, NULL);
+	if (!v) {
+		write_log("HD_READ(%p,%llx,%x) ERR %d\n", h, offset, len, GetLastError());
+	}
+	return v;
+}
+static BOOL HD_WriteFile(HANDLE h, LPVOID buffer, DWORD len, DWORD *outlen, uae_u64 offset)
+{
+	BOOL v = WriteFile(h, buffer, len, outlen, NULL);
+	if (!v) {
+		write_log("HD_WRITE(%p,%llx,%x) ERR %d\n", h, offset, len, GetLastError());
+	}
+	return v;
+}
+
 static int isnomediaerr (DWORD err)
 {
 	if (err == ERROR_NOT_READY ||
@@ -173,7 +190,7 @@ static void rdbdump (HANDLE h, uae_u64 offset, uae_u8 *buf, int blocksize)
 		fppos.QuadPart = offset;
 		if (SetFilePointer (h, fppos.LowPart, &fppos.HighPart, FILE_BEGIN) == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
 			break;
-		ReadFile (h, buf, blocksize, &outlen, NULL);
+		HD_ReadFile(h, buf, blocksize, &outlen, offset);
 		fwrite (buf, 1, blocksize, f);
 		offset += blocksize;
 	}
@@ -259,8 +276,8 @@ static int ismounted(const TCHAR *name, HANDLE hd, int *typep)
 						_stprintf (pdrv, _T("\\\\.\\PhysicalDrive%d"), vde->Extents[i].DiskNumber);
 						ph = CreateFile (pdrv, 0, FILE_SHARE_READ | FILE_SHARE_WRITE,
 							NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-						hfd_log(_T("PhysicalDrive%d: Extent %d Start=%I64X Len=%I64X\n"), i,
-							vde->Extents[i].DiskNumber, vde->Extents[i].StartingOffset.QuadPart, vde->Extents[i].ExtentLength.QuadPart);
+						hfd_log(_T("PhysicalDrive%d: Extent %d Start=%I64X Len=%I64X\n"),
+							vde->Extents[i].DiskNumber, i, vde->Extents[i].StartingOffset.QuadPart, vde->Extents[i].ExtentLength.QuadPart);
 						if (ph != INVALID_HANDLE_VALUE) {
 							DWORD sign2;
 							if (getsignfromhandle (ph, &sign2, &pstyle)) {
@@ -354,7 +371,7 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 				write_log(_T("hd ignored, SetFilePointer failed, error %d\n"), GetLastError());
 				return 1;
 			}
-			ReadFile(h, buf, blocksize, &outlen, NULL);
+			HD_ReadFile(h, buf, blocksize, &outlen, offset);
 			if (outlen != blocksize) {
 				write_log(_T("hd ignored (out=%d bs=%d), read error %d!\n"), outlen, blocksize, GetLastError());
 				return 2;
@@ -1961,7 +1978,7 @@ static void lock_drive(struct hardfiledata *hfd, const TCHAR *name, HANDLE drvha
 								for (int j = 0; j < MAX_LOCKED_VOLUMES; j++) {
 									if (hfd->handle->locked_volumes[j] == INVALID_HANDLE_VALUE) {
 										write_log(_T("%d: Partition found: PhysicalDrive%d: Extent %d Start=%I64X Len=%I64X\n"), i,
-											j, vde->Extents[i].DiskNumber, vde->Extents[i].StartingOffset.QuadPart, vde->Extents[i].ExtentLength.QuadPart);
+											vde->Extents[i].DiskNumber, j, vde->Extents[i].StartingOffset.QuadPart, vde->Extents[i].ExtentLength.QuadPart);
 										hfd->handle->locked_volumes[j] = d;
 										d = INVALID_HANDLE_VALUE;
 										break;
@@ -2561,7 +2578,7 @@ static int hdf_read_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, in
 	}
 	poscheck (hfd, CACHE_SIZE);
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
-		ReadFile(hfd->handle->h, hfd->cache, CACHE_SIZE, &outlen, NULL);
+		HD_ReadFile(hfd->handle->h, hfd->cache, CACHE_SIZE, &outlen, hfd->cache_offset);
 	} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
 		outlen = (DWORD)zfile_fread(hfd->cache, 1, CACHE_SIZE, hfd->handle->zf);
 	}
@@ -2620,7 +2637,7 @@ int hdf_read_target(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int 
 			if (hfd->physsize)
 				poscheck (hfd, len);
 			if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
-				ReadFile (hfd->handle->h, hfd->cache, len, &ret, NULL);
+				HD_ReadFile(hfd->handle->h, hfd->cache, len, &ret, offset);
 				memcpy (buffer, hfd->cache, ret);
 			} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
 				ret = (DWORD)zfile_fread (buffer, 1, len, hfd->handle->zf);
@@ -2676,7 +2693,7 @@ static int hdf_write_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 				}
 			}
 		}
-		WriteFile (hfd->handle->h, hfd->cache, len, &outlen, NULL);
+		HD_WriteFile(hfd->handle->h, hfd->cache, len, &outlen, offset);
 		if (outlen != len) {
 			*error = 45;
 		}
@@ -2690,7 +2707,7 @@ static int hdf_write_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 				int cmplen = tmplen > len ? len : tmplen;
 				memset (tmp, 0xa1, tmplen);
 				hdf_seek (hfd, offset, true);
-				ReadFile (hfd->handle->h, tmp, tmplen, &outlen2, NULL);
+				HD_ReadFile(hfd->handle->h, tmp, tmplen, &outlen2, offset);
 				if (memcmp (hfd->cache, tmp, cmplen) != 0 || outlen != len) {
 					gui_message (_T("\"%s\"\n\nblock zero write failed! Make sure WinUAE has Windows Administrator privileges. Error=%d"), name, err);
 					*error = 45;
