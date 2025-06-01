@@ -351,8 +351,9 @@ void MISC_handler(void)
 
 	eventtab[ev_misc].active = 0;
 	mintime = EVT_MAX;
+	int idx2 = event2idx;
 	for (int i = 0; i < ev2_max; i++) {
-		int idx = (event2idx + i) & (ev2_max - 1);
+		int idx = (idx2 + i) & (ev2_max - 1);
 		ev2 *e = &eventtab2[idx];
 		if (e->active) {
 			if (e->evtime == ct) {
