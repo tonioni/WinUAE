@@ -113,6 +113,8 @@ static void INT2 (void)
 static volatile int cdrom_command_cnt_out, cdrom_command_size_out;
 static uae_u8 cdrom_command_output[16];
 
+// scor = subchannel frame
+// sbcp = subchannel data byte
 static volatile int stch, sten, scor, sbcp;
 static volatile int cmd, enable, xaen, dten;
 
@@ -997,38 +999,36 @@ static void tp_bput (int addr, uae_u8 v)
 
 static uae_u8 subtransferbuf[SUB_CHANNEL_SIZE];
 
-#define SUBCODE_CYCLES (2 * maxhpos)
+#define SUBCODE_CYCLES (460)
 static int subcode_activecnt;
 
-static void subcode_interrupt (uae_u32 v)
+static void subcode_interrupt(uae_u32 v)
 {
-	subcode_activecnt--;
-	if (subcode_activecnt > 0) {
-		if (subcode_activecnt > 1)
-			subcode_activecnt = 1;
+	if (subcodeoffset < -1) {
 		return;
 	}
-
-	if (subcodeoffset < -1)
-		return;
+	if (scor < 0) {
+		scor = 0;
+		tp_check_interrupts();
+	}
+	subcode_activecnt--;
+	if (subcode_activecnt > 0) {
+		if (sbcp || scor) {
+			event2_newevent2(SUBCODE_CYCLES, 0, subcode_interrupt);
+			return;
+		}
+	}
 	if (sbcp && scor == 0) {
 		sbcp = 0;
 		// CD+G interrupt didn't read data fast enough, just abort until next packet
 		return;
 	}
-	if (scor < 0) {
-		scor = 0;
-		if (issub ()) {
-			subcodeoffset = 0;
-		}
-		tp_check_interrupts ();
+	if (subcodeoffset >= 0) {
+		sbcp = 1;
+		tp_check_interrupts();
 	}
-	if (subcodeoffset >= SUB_CHANNEL_SIZE)
-		return;
-	sbcp = 1;
-	tp_check_interrupts ();
-	subcode_activecnt++;
-	event2_newevent2 (SUBCODE_CYCLES, 0, subcode_interrupt);
+	subcode_activecnt = 2;
+	event2_newevent2(SUBCODE_CYCLES, 0, subcode_interrupt);
 }
 
 static uae_u8 tp_bget (int addr)
@@ -1055,10 +1055,11 @@ static uae_u8 tp_bget (int addr)
 			tp_a |= (v << 5) & 64;
 			tp_a |= (v << 7) & 128;
 			v = tp_a;
-			subcodeoffset++;
 			sbcp = 0;
-			if (subcodeoffset >= SUB_CHANNEL_SIZE)
+			subcodeoffset++;
+			if (subcodeoffset >= SUB_CHANNEL_SIZE) {
 				subcodeoffset = -2;
+			}
 		}
 		break;
 	case 1:
@@ -1220,7 +1221,7 @@ static void CDTV_hsync_handler (void)
 	}
 
 	static int subchannelcounter;
-	int cntmax = (int)(maxvpos * vblank_hz / 75 - 6);
+	int cntmax = (int)(maxvpos * vblank_hz / 75 - 2);
 	if (subchannelcounter > 0)
 		subchannelcounter--;
 	if (subchannelcounter <= 0) {
@@ -1240,7 +1241,9 @@ static void CDTV_hsync_handler (void)
 						subcodebufferoffset -= MAX_SUBCODEBUFFER;
 					sbcp = 0;
 					scor = 1;
-					subcode_activecnt++;
+					subcodeoffset = 0;
+					subcode_activecnt = 5;
+					event2_newevent_x_remove(subcode_interrupt);
 					event2_newevent2 (SUBCODE_CYCLES, 0, subcode_interrupt);
 					tp_check_interrupts ();
 				}
