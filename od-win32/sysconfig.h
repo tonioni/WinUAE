@@ -170,8 +170,6 @@
 #define PATH_MAX MAX_DPATH
 #endif
 
-#define UAE_RAND_MAX RAND_MAX
-
 #ifndef GFXFILTER
 #undef OPENGL
 #undef D3D
