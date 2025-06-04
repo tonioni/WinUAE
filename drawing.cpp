@@ -1836,50 +1836,10 @@ static void refresh_indicator_init(void)
 	if (!currprefs.refresh_indicator)
 		return;
 
-	refresh_indicator_height = 600;
-	refresh_indicator_buffer = xcalloc(uae_u8, MAX_PIXELS_PER_LINE * 2 * refresh_indicator_height);
+	refresh_indicator_height = 724;
+	refresh_indicator_buffer = xcalloc(uae_u8, MAX_PIXELS_PER_LINE * sizeof(uae_u32) * refresh_indicator_height);
 	refresh_indicator_changed = xcalloc(uae_u8, refresh_indicator_height);
 	refresh_indicator_changed_prev = xcalloc(uae_u8, refresh_indicator_height);
-}
-
-static const int refresh_indicator_colors[] = { 0x777, 0x0f0, 0x00f, 0xff0, 0xf0f };
-
-static void refresh_indicator_update(struct vidbuffer *vb)
-{
-	struct vidbuf_description *vidinfo = &adisplays[vb->monitor_id].gfxvidinfo;
-	for (int i = 0; i < max_ypos_thisframe1; i++) {
-		int i1 = i + min_ypos_for_screen;
-		int line = i + thisframe_y_adjust_real;
-		int whereline = amiga2aspect_line_map[i1];
-		int wherenext = amiga2aspect_line_map[i1 + 1];
-
-		if (whereline >= vb->inheight)
-			break;
-		if (whereline < 0)
-			continue;
-		if (line >= refresh_indicator_height)
-			break;
-
-		xlinebuffer = row_map[whereline];
-		uae_u8 pixel = refresh_indicator_changed_prev[line];
-		if (wherenext >= 0) {
-			pixel = refresh_indicator_changed_prev[line & ~1];
-		}
-
-		int color1 = 0;
-		int color2 = 0;
-		if (pixel <= 4) {
-			color1 = color2 = refresh_indicator_colors[pixel];
-		} else if (pixel <= 8) {
-			color2 = refresh_indicator_colors[pixel - 5];
-		}
-		for (int x = 0; x < 8; x++) {
-			putpixel(xlinebuffer, NULL, x, xcolors[color1]);
-		}
-		for (int x = 8; x < 16; x++) {
-			putpixel(xlinebuffer, NULL, x, xcolors[color2]);
-		}
-	}
 }
 
 bool drawing_can_lineoptimizations(void)
@@ -1888,7 +1848,7 @@ bool drawing_can_lineoptimizations(void)
 		currprefs.cs_color_burst || currprefs.gfx_grayscale || currprefs.monitoremu) {
 		return false;
 	}
-	if (lightpen_active || debug_dma >= 2 || debug_heatmap >= 2 || refresh_indicator_buffer) {
+	if (lightpen_active || debug_dma >= 2 || debug_heatmap >= 2) {
 		return false;
 	}
 	return true;
@@ -1913,11 +1873,6 @@ static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
 		}
 		if (inputdevice_get_lightpen_id() >= 0 && (lightpen_active & 2)) {
 			lightpen_update(vb, 1);
-		}
-	}
-	if (refresh_indicator_buffer) {
-		if (denise_lock()) {
-			refresh_indicator_update(vb);
 		}
 	}
 }
@@ -5785,6 +5740,58 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		ls->strlong_seen = denise_strlong_seen;
 		ls->vb = denise_vblank_active;
 		ls->lol = lol;
+	}
+
+	if (refresh_indicator_buffer && buf1t) {
+		static const int refresh_indicator_colors[] = { 0x777, 0x0f0, 0x00f, 0xff0, 0xf0f };
+		const int indicator_width = 16;
+		int yadjust = currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA ? minfirstline_linear << currprefs.gfx_vresolution : 0;
+		int lineno = gfx_ypos;
+		int w = (buf1 - buf1t) - indicator_width;
+		if (w > 0) {
+			if (w > MAX_PIXELS_PER_LINE) {
+				w = MAX_PIXELS_PER_LINE;
+			}
+			if (lineno >= 0 && lineno < refresh_indicator_height) {
+				void *p = refresh_indicator_buffer + lineno * MAX_PIXELS_PER_LINE * sizeof(uae_u32);
+				void *ps = buf1t + indicator_width;
+				if (!memcmp(p, ps, w * sizeof(uae_u32))) {
+					if (refresh_indicator_changed[lineno] != 0xff) {
+						refresh_indicator_changed[lineno]++;
+						if (refresh_indicator_changed[lineno] > refresh_indicator_changed_prev[lineno]) {
+							refresh_indicator_changed_prev[lineno] = refresh_indicator_changed[lineno];
+						}
+					}
+				} else {
+					memcpy(p, ps, w * sizeof(uae_u32));
+					if (refresh_indicator_changed[lineno] != refresh_indicator_changed_prev[lineno]) {
+						refresh_indicator_changed_prev[lineno] = 0;
+					}
+					refresh_indicator_changed[lineno] = 0;
+				}
+			}
+
+			uae_u8 pixel = refresh_indicator_changed_prev[lineno];
+			int color1 = 0;
+			int color2 = 0;
+			if (pixel <= 4) {
+				color1 = color2 = refresh_indicator_colors[pixel];
+			} else if (pixel <= 8) {
+				color2 = refresh_indicator_colors[pixel - 5];
+			}
+			for (int x = 0; x < 8; x++) {
+				buf1t[x] = xcolors[color1];
+				if (buf2t) {
+					buf2t[x] = xcolors[color1];
+				}
+			}
+			for (int x = 8; x < 16; x++) {
+				buf1t[x] = xcolors[color2];
+				if (buf2t) {
+					buf2t[x] = xcolors[color2];
+				}
+			}
+		}
 	}
 
 	if (!line_is_blanked && denise_planes > 0) {
