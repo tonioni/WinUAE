@@ -5450,7 +5450,7 @@ static void lightpen_trigger_func(uae_u32 v)
 
 static bool do_render_slice(int mode, int slicecnt, int lastline)
 {
-	//draw_lines(lastline, slicecnt);
+	draw_denise_line_queue_flush();
 	crender_screen(0, mode, true);
 	return true;
 }
