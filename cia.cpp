@@ -183,6 +183,8 @@ static struct rtc_ricoh_data rtc_ricoh;
 static int internaleclockphase;
 static bool cia_cycle_accurate;
 
+int cia_timer_hack_adjust = 1;
+
 static bool acc_mode(void)
 {
 	return cia_cycle_accurate;
@@ -1484,6 +1486,16 @@ static uae_u8 ReadCIAReg(int num, int reg)
 	case 7:
 	{
 		uae_u16 tval = t->timer - t->passed;
+		// fast CPU timer hack
+		if ((t->cr & CR_START) && !(t->cr & CR_INMODE1) && !(t->cr & CR_INMODE) && t->latch == t->timer) {
+			if (currprefs.cachesize || currprefs.m68k_speed < 0) {
+				uae_u16 adj = cia_timer_hack_adjust;
+				if (adj >= tval && tval > 1) {
+					adj = tval - 1;
+				}
+				tval -= adj;
+			}
+		}
 		if (reg == 4 || reg == 6) {
 			return tval & 0xff;
 		}
@@ -1629,10 +1641,24 @@ static void CIA_cr_write(int num, int tnum, uae_u8 val)
 	if (!acc_mode()) {
 		// if inaccurate mode: do everything immediately
 
+		// Fast CPU timer hack. If timer is stopped, add few extra ticks to timer before stopping it.
+		if ((t->cr & CR_START) && !(val & CR_START) && !(t->cr & CR_INMODE1) && !(t->cr & CR_INMODE) && t->timer == t->latch) {
+			if (currprefs.cachesize || currprefs.m68k_speed < 0) {
+				uae_u16 adj = cia_timer_hack_adjust;
+				if (adj >= t->timer && t->timer > 1) {
+					adj = t->timer - 1;
+				}
+				if (t->timer > adj) {
+					t->timer -= adj;
+				}
+			}
+		}
+
 		if (val & CR_LOAD) {
 			val &= ~CR_LOAD;
 			t->timer = t->latch;
 		}
+
 		if (val & CR_START) {
 			if (!CIA_timer_inmode(tnum, val)) {
 				t->inputpipe = CIA_PIPE_ALL_MASK;

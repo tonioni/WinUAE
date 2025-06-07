@@ -6572,6 +6572,7 @@ extern int kb_mcu_log;
 extern int logitech_lcd;
 extern uae_s64 max_avi_size;
 extern int floppy_writemode;
+extern int cia_timer_hack_adjust;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -7215,6 +7216,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp(arg, _T("osk"))) {
 		on_screen_keyboard = getval(np);
+		return 2;
+	}
+	if (!_tcscmp(arg, _T("cia_timer_hack"))) {
+		cia_timer_hack_adjust = getval(np);
 		return 2;
 	}
 
