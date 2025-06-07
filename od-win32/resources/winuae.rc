@@ -1454,7 +1454,7 @@ BEGIN
             VALUE "FileDescription", "WinUAE"
             VALUE "FileVersion", "6.0.0.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2024 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2025 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
             VALUE "ProductVersion", "6.0.0.0"

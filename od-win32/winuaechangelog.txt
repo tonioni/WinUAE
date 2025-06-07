@@ -1,4 +1,15 @@
 
+Beta 31:
+
+- Adjusted CDTV CD+G subchannel read timing. CDTV CD+G graphics should be stable again. Timing is quite critical, every subchannel byte generates interrupt, CPU runs short interrupt handler which reads the byte and acknowledges the interrupt, then returns. There are 96 subchannel bytes per CD audio frame = 75 * 96 bytes per second. One interrupt about every 2.2 scan lines.
+- Refresh indicator feature is working again (show_refresh_indicator=true command line option). Now detects all graphics changes, previously only bitplane changes counted. Also can be more CPU heavy because it stores whole RGB output, not just bitplane chunky values. (v6 chipset emulation does not anymore have separate temporary chunky bitplane buffers). Not supported in fast drawing modes.
+- Force Denise drawing thread output flush before drawing next slice in beamrace mode.
+- Fixed FDI disk image support. Was broken long time ago, decoder hung in infinite loop.
+- Added CIA hack to JIT and fastest CPU mode that guarantees when running timer is read or timer is stopped by clearing START bit, following timer read has always counted down at least single tick from initial start value. Some programs try to detect CPU speed by running short CPU code and time it using CIA timer. But fail to handle zero CIA timer count resulting in divide by zero crash.
+- OpalVision emulation now blanks left and right edges and control line data on top. (King of Karate has dark blue line at top which seems to be part of image)
+- OpalVision OpalTest test program works again without flickering.
+- Fixed possible crash during reset when using emulated video port display hardware, including genlock.
+
 Beta 30:
 
 - Default config without default.uae and without Quickstart is now A500 cycle-exact. (Was approximate mode previously)

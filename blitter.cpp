@@ -4,7 +4,7 @@
 * Custom chip emulation
 *
 * (c) 1995 Bernd Schmidt, Alessandro Bissacco
-* (c) 2002 - 2024 Toni Wilen
+* (c) 2002 - 2025 Toni Wilen
 */
 
 #define SPEEDUP 1
