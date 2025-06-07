@@ -3016,11 +3016,11 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		uae_u8 *dstline = NULL;
 		int ydisp = -1;
 
-		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
+		int yoff = (((y * 2 - oddlines) - src->yoffset) / vdbl);
 		if (yoff >= 0 && yoff < src->inheight) {
 			line = src->bufmem + yoff * src->rowbytes;
 			line_genlock = row_map_genlock ? row_map_genlock[yoff] : NULL;
-			dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
+			dstline = dst->bufmem + (((y * 2 - oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
 			if (y >= yimgstart) {
 				ydisp = y - yimgstart;
 			}
@@ -3091,13 +3091,15 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		bool command_update = false;
 		bool hstart = false;
 
-		int ax = 8;
-		for (x = 0; x < src->inwidth; x++, ax++) {
+		int xoffset = 8;
+		int ax = xoffset;
+
+		for (x = 0; x < src->inwidth - xoffset; x++, ax++) {
 			uae_u8 *sa = line + ((x << 1) >> hdbl_shift) * src->pixbytes;
 			uae_u8 newval = FIRGB(src, sa);
 			uae_u8 val = prev | newval;
 
-			uae_u8 *d = dstline + ((x << 1) >> hdbl_shift) * dst->pixbytes + dst->pixbytes;
+			uae_u8 *d = dstline + ((ax << 1) >> hdbl_shift) * dst->pixbytes;
 			uae_u8 *d2 = d + dst->rowbytes;
 
 			uae_u8 *s = line + ((ax << 1) >> hdbl_shift) * src->pixbytes;
@@ -3370,7 +3372,6 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 					xxx = false;
 				}
 #endif
-
 				if (opal->control_y && y >= opal->control_y) {
 				
 					if (opal_debug & 2)
@@ -3454,6 +3455,24 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 				}
 				prevbyte = val;
 			}
+		}
+
+		// blank left and right edge
+		for (x = 0; x < (xoffset + 2); x++) {
+			uae_u8 *d = dstline + ((x << 1) >> hdbl_shift) * dst->pixbytes;
+			uae_u8 *d2 = d + dst->rowbytes;
+			PUT_PRGB(d, d2, dst, 0, 0, 0, 0, doublelines, true);
+		}
+		for (x = src->inwidth - (xoffset + 2); x < src->inwidth; x++) {
+			uae_u8 *d = dstline + ((x << 1) >> hdbl_shift) * dst->pixbytes;
+			uae_u8 *d2 = d + dst->rowbytes;
+			PUT_PRGB(d, d2, dst, 0, 0, 0, 0, doublelines, true);
+		}
+		if (ydisp < 0) {
+			uae_u8 *d = dstline;
+			uae_u8 *d2 = d + dst->rowbytes;
+			memset(d, 0, dst->inwidth * dst->pixbytes);
+			memset(d2, 0, dst->inwidth * dst->pixbytes);
 		}
 
 		if (command_update) {
