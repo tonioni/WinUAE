@@ -1903,8 +1903,8 @@ static void setspecialmonitorpos(struct vidbuffer *vb)
 static void vbcopy(struct vidbuffer *vbout, struct vidbuffer *vbin)
 {
 	if (vbout->locked) {
-		for (int h = 0; h < vbout->height_allocated; h++) {
-			memcpy(vbout->bufmem + h * vbout->rowbytes, vbin->bufmem + h * vbin->rowbytes, vbout->width_allocated * vbout->pixbytes);
+		for (int h = 0; h < vbout->height_allocated && h < vbin->height_allocated; h++) {
+			memcpy(vbout->bufmem + h * vbout->rowbytes, vbin->bufmem + h * vbin->rowbytes, (vbin->width_allocated > vbout->width_allocated ? vbout->width_allocated : vbin->width_allocated) * vbout->pixbytes);
 		}
 	}
 }
