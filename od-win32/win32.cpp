@@ -3358,7 +3358,7 @@ bool handle_events (void)
 			setpaused (pause_emulation);
 			was_paused = pause_emulation;
 			mon->manual_painting_needed++;
-			gui_fps (0, 0, 0, 0, 0);
+			gui_fps (0, gui_data.lines, gui_data.lace, 0, 0);
 			gui_led (LED_SND, 0, -1);
 			// we got just paused, report it to caller.
 			return 1;
