@@ -1782,7 +1782,7 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 		out = true;
 	}
 
-	int cx = ((lightpen_x[lpnum] + visible_left_border) >> 1) + 29;
+	int cx = ((lightpen_x[lpnum] + visible_left_border) >> (1 + currprefs.gfx_resolution)) + 29;
 
 	int cy = lightpen_y[lpnum];
 	cy >>= linedbl;
