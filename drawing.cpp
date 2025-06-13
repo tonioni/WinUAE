@@ -418,6 +418,7 @@ static bool denise_strlong_unalign, strlong_emulation;
 static int denise_phbstrt, denise_phbstop, denise_phbstrt_lores, denise_phbstop_lores;
 static int linear_denise_vbstrt, linear_denise_vbstop;
 static int linear_denise_hbstrt, linear_denise_hbstop;
+static int linear_denise_frame_hbstrt, linear_denise_frame_hbstop;
 static int denise_visible_lines, denise_visible_lines_counted;
 static uae_u16 hbstrt_denise_reg, hbstop_denise_reg;
 static uae_u16 fmode_denise, denise_bplfmode, denise_sprfmode;
@@ -2382,11 +2383,8 @@ void get_mode_blanking_limits(int *phbstop, int *phbstrt, int *pvbstop, int *pvb
 {
 	*pvbstop = linear_denise_vbstrt;
 	*pvbstrt = linear_denise_vbstop;
-	int stop = linear_denise_hbstop;
-	int strt = linear_denise_hbstrt;
-	int len = (current_linear_hpos << 3) - (stop - strt);
-	*phbstop = stop;
-	*phbstrt = stop + len;
+	*phbstop = linear_denise_frame_hbstop;
+	*phbstrt = linear_denise_frame_hbstrt;
 }
 
 static void setup_brdblank(void)
@@ -5740,6 +5738,11 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		ls->strlong_seen = denise_strlong_seen;
 		ls->vb = denise_vblank_active;
 		ls->lol = lol;
+	}
+
+	if (linear_denise_hbstrt >= 0 && linear_denise_hbstop >= 0 && !denise_vblank_active) {
+		linear_denise_frame_hbstrt = linear_denise_hbstrt & ~15;
+		linear_denise_frame_hbstop = linear_denise_hbstop & ~15;
 	}
 
 	if (refresh_indicator_buffer && buf1t) {
