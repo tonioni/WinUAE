@@ -11345,11 +11345,18 @@ static void custom_trigger_start(void)
 
 	int custom_fastmode_prev = custom_fastmode;
 
-	if (custom_disabled && !eventtab[ev_sync].active && !currprefs.cpu_memory_cycle_exact && currprefs.cs_optimizations < DISPLAY_OPTIMIZATIONS_NONE) {
-		custom_fastmode = 0;
-		start_sync_imm_handler();
-		write_log("Chipset emulation inactive\n");
+	if (custom_disabled) {
+		if (!eventtab[ev_sync].active && !currprefs.cpu_memory_cycle_exact && currprefs.cs_optimizations < DISPLAY_OPTIMIZATIONS_NONE) {
+			custom_fastmode = 0;
+			start_sync_imm_handler();
+			write_log("Chipset emulation inactive\n");
+		}
+		linear_hpos_prev[2] = linear_hpos_prev[1];
+		linear_hpos_prev[1] = linear_hpos_prev[0];
+		linear_hpos_prev[0] = maxhpos_short;
+		linear_hpos = maxhpos_short;
 	}
+
 	if (!canvhposw()) {
 		// ignore pending V(H)POSW writes if in normal mode
 		if (agnus_pos_change > -2) {
