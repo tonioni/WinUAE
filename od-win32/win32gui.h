@@ -22,7 +22,7 @@ void HtmlHelp(const TCHAR*);
 #define MAX_GUIIDPARAMS 16
 #define MAX_DLGID 100
 
-#define xSendDlgItemMessage(a, b, c, d, e) (int)SendDlgItemMessage(a, b, c, (WPARAM)d, (LPARAM)e)
+#define xSendDlgItemMessage(a, b, c, d, e) (int)SendDlgItemMessage(a, b, c, (WPARAM)(d), (LPARAM)(e))
 
 struct dlgstore
 {
