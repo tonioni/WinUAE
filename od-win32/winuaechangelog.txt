@@ -1,5 +1,14 @@
 
-Beta 31:
+Beta 32 (RC2):
+
+- Paula audio timing calcution used programmed vertical timing but hardwired PAL/NTSC horizontal timing when in RTG mode with inactive Amiga screen in doublescan mode. (b22)
+- Fixed genlock emulation horizontal scaling and horizontal lightpen positioning, horizontal blanking changes broke it in some early beta.
+- Pause zeroed display line count OSD (That normally shows 313p etc).
+- At least Sound stereo delay GUI setting become empty instead of showing "-" when entering GUI again. Possibly others too. (Old bug)
+- If ECS/AGA programmed mode registers got badly enough corrupted causing Agnus DMA to steal all cycles and CPU was accessing chip RAM: exiting UAE would become impossible because CPU never got any cycles. Normally CPU emulator checks state changes between each instruction.
+- Added some missing translation strings.
+
+Beta 31 (RC1):
 
 - Adjusted CDTV CD+G subchannel read timing. CDTV CD+G graphics should be stable again. Timing is quite critical, every subchannel byte generates interrupt, CPU runs short interrupt handler which reads the byte and acknowledges the interrupt, then returns. There are 96 subchannel bytes per CD audio frame = 75 * 96 bytes per second. One interrupt about every 2.2 scan lines.
 - Refresh indicator feature is working again (show_refresh_indicator=true command line option). Now detects all graphics changes, previously only bitplane changes counted. Also can be more CPU heavy because it stores whole RGB output, not just bitplane chunky values. (v6 chipset emulation does not anymore have separate temporary chunky bitplane buffers). Not supported in fast drawing modes.

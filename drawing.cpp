@@ -113,10 +113,10 @@ static volatile bool thread_debug_lock;
 
 static void denise_handle_quick_strobe(uae_u16 strobe, int offset, int vpos);
 static void draw_denise_vsync(int);
-static void denise_update_reg(uae_u16 reg, uae_u16 v, int linecnt);
+static void denise_update_reg(uae_u16 reg, uae_u16 v, uae_u32 linecnt);
 static void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls);
 
-static void quick_denise_rga(int linecnt, int startpos, int endpos)
+static void quick_denise_rga(uae_u32 linecnt, int startpos, int endpos)
 {
 	int pos = startpos;
 	endpos++;
@@ -3900,7 +3900,7 @@ static void expand_drga(struct denise_rga *rd)
 	}
 }
 
-static void flush_fast_rga(int linecnt)
+static void flush_fast_rga(uae_u32 linecnt)
 {
 	// extract fast CPU RGA pipeline
 	while (rga_denise_fast_write != rga_denise_fast_read) {
@@ -3916,7 +3916,7 @@ static void flush_fast_rga(int linecnt)
 	}
 }
 
-static void denise_update_reg(uae_u16 reg, uae_u16 v, int linecnt)
+static void denise_update_reg(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
 {
 	// makes sure fast queue is flushed first
 	if (rga_denise_fast_write != rga_denise_fast_read) {
@@ -5737,7 +5737,7 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		const int indicator_width = 16;
 		int yadjust = currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA ? minfirstline_linear << currprefs.gfx_vresolution : 0;
 		int lineno = gfx_ypos;
-		int w = (buf1 - buf1t) - indicator_width;
+		int w = addrdiff(buf1, buf1t) - indicator_width;
 		if (w > 0) {
 			if (w > MAX_PIXELS_PER_LINE) {
 				w = MAX_PIXELS_PER_LINE;
@@ -7151,6 +7151,9 @@ static bool waitqueue_nolock(void)
 }
 static bool waitqueue(void)
 {
+	if (quit_program) {
+		return false;
+	}
 	if (!thread_debug_lock) {
 		write_log("Denise queue without lock!\n");
 		return false;
@@ -7217,7 +7220,7 @@ void draw_denise_bitplane_line_fast_queue(int gfx_ypos, enum nln_how how, struct
 	}
 }
 
-void quick_denise_rga_queue(int linecnt, int startpos, int endpos)
+void quick_denise_rga_queue(uae_u32 linecnt, int startpos, int endpos)
 {
 	if (MULTITHREADED_DENISE) {
 

@@ -119,7 +119,7 @@ static struct linestate *current_line_state;
 static struct linestate lines[MAX_SCANDOUBLED_LINES + 1][2];
 static int rga_denise_cycle, rga_denise_cycle_start, rga_denise_cycle_count_start, rga_denise_cycle_count_end;
 static int draw_line_next_line, draw_line_wclks;
-static int rga_denise_cycle_line = 1;
+static uae_u32 rga_denise_cycle_line = 1;
 static struct pipeline_reg preg;
 static struct pipeline_func pfunc[MAX_PIPELINE_REG];
 static uae_u16 prev_strobe;
