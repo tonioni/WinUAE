@@ -5042,14 +5042,6 @@ static void vsync_handler_render(void)
 	frame_shown = false;
 	frame_rendered = false;
 
-	if (quit_program > 0) {
-		/* prevent possible infinite loop at wait_cycles().. */
-		ad->framecnt = 0;
-		//reset_decisions_scanline_start();
-		//reset_decisions_hsync_start();
-		return;
-	}
-
 	if (vblank_hz_mult > 0) {
 		vblank_hz_state ^= 1;
 	} else {
@@ -6529,7 +6521,29 @@ static void vsync_start_check(void)
 	}
 }
 
-static bool vsync_line;
+static bool uae_quit_check(void)
+{
+	if (quit_program < 0) {
+#ifdef SAVESTATE
+		if (!savestate_state && quit_program == -UAE_QUIT && currprefs.quitstatefile[0]) {
+			savestate_initsave(currprefs.quitstatefile, 1, 1, true);
+			save_state(currprefs.quitstatefile, _T(""));
+		}
+#endif
+		quit_program = -quit_program;
+		set_inhibit_frame(0, IHF_QUIT_PROGRAM);
+		set_special(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
+		return true;
+	}
+	if (quit_program > 0) {
+		struct amigadisplay *ad = &adisplays[0];
+		/* prevent possible infinite loop at wait_cycles().. */
+		ad->framecnt = 0;
+		return true;
+	}
+	return false;
+}
+
 // executed at start of scanline
 static void hsync_handler(bool vs)
 {
@@ -6542,7 +6556,9 @@ static void hsync_handler(bool vs)
 			uae_reset(0, 0);
 			return;
 		}
-
+		if (uae_quit_check()) {
+			return;
+		}
 	}
 	if (vpos == vsync_startline + 1 && !maxvpos_display_vsync_next) {
 		inputdevice_read_msg(true);
@@ -6588,7 +6604,6 @@ static void hsync_handler(bool vs)
 		}
 
 	}
-	vsync_line = vs;
 	hsync_handler_post(vs);
 }
 
@@ -11228,6 +11243,7 @@ static void vsync_nosync(void)
 	vsync_display_render();
 	vsync_display_rendered = false;
 	virtual_vsync_check();
+	uae_quit_check();
 }
 
 static void custom_trigger_start_nosync(void)
@@ -12403,7 +12419,7 @@ static int dma_cycle(int *mode, int *ipl)
 	blt_info.nasty_cnt = 0;
 	while (currprefs.cpu_memory_cycle_exact) {
 		struct rgabuf *r = read_rga_out();
-		if (r->alloc <= 0) {
+		if (r->alloc <= 0 || quit_program > 0) {
 			break;
 		}
 		blt_info.nasty_cnt++;
