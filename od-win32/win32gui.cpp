@@ -9434,8 +9434,10 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		struct romlist *has8039 = getromlistbyids(ids3, NULL);
 
 		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_RESETCONTENT, 0, 0);
-		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, (LPARAM)_T("Keyboard disconnected"));
-		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, (LPARAM)_T("UAE High level emulation"));
+		WIN32GUI_LoadUIString(IDS_KEYBOARD_DISCONNECTED, tmp, sizeof(tmp) / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
+		WIN32GUI_LoadUIString(IDS_KEYBOARD_HIGHLEVEL, tmp, sizeof(tmp) / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
 		_tcscpy(tmp, _T("A500 / A500+ (6570-036 MCU)"));
 		appendkbmcurom(tmp, has657036);
 		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
@@ -9459,9 +9461,12 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
 
 		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_RESETCONTENT, 0, 0);
-		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)_T("Full"));
-		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)_T("Partial"));
-		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)_T("None"));
+		WIN32GUI_LoadUIString(IDS_DISPLAY_OPTIMIZATION_FULL, tmp, sizeof(tmp) / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)tmp);
+		WIN32GUI_LoadUIString(IDS_DISPLAY_OPTIMIZATION_PARTIAL, tmp, sizeof(tmp) / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)tmp);
+		WIN32GUI_LoadUIString(IDS_DISPLAY_OPTIMIZATION_NONE, tmp, sizeof(tmp) / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_DISPLAY_OPTIMIZATION, CB_ADDSTRING, 0, (LPARAM)tmp);
 
 		xSendDlgItemMessage(hDlg, IDC_CS_EXT, CB_RESETCONTENT, 0, 0);
 		xSendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));

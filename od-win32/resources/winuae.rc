@@ -2249,6 +2249,15 @@ BEGIN
     IDS_CHOOSE_VIDEO_CODEC  "Choose Video Codec"
 END
 
+STRINGTABLE
+BEGIN
+    IDS_DISPLAY_OPTIMIZATION_FULL "Full"
+    IDS_DISPLAY_OPTIMIZATION_PARTIAL "Partial"
+    IDS_DISPLAY_OPTIMIZATION_NONE "None"
+    IDS_KEYBOARD_DISCONNECTED "Keyboard disconnected"
+    IDS_KEYBOARD_HIGHLEVEL  "UAE High level emulation"
+END
+
 #endif    // English (United Kingdom) resources
 /////////////////////////////////////////////////////////////////////////////
 
