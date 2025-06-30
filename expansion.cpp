@@ -1480,6 +1480,7 @@ static bool expamem_init_uaeboard(struct autoconfig_info *aci)
 	aci->set_params = set_params_filesys;
 
 	expamem_init_clear();
+	// ks12 / !rom / uaeboard_nodiag = map boot rom but don't execute it.
 	expamem_write(0x00, (p->uaeboard > 1 ? Z2_MEM_128KB : Z2_MEM_64KB) | zorroII | (ks12 || !rom || p->uaeboard_nodiag ? 0 : rom_card));
 
 	expamem_write(0x08, no_shutup);
@@ -3691,28 +3692,26 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 	}
 
 #ifdef FILESYS
-	if (!p->uaeboard_nodiag) {
-		if (do_mount && p->uaeboard >= 0 && p->uaeboard < 2) {
-			cards_set[cardno].flags = CARD_FLAG_UAEROM;
-			cards_set[cardno].name = _T("UAEFS");
-			cards_set[cardno].zorro = 2;
-			cards_set[cardno].initnum = expamem_init_filesys;
-			cards_set[cardno++].map = expamem_map_filesys;
-		}
-		if (p->uaeboard > 0) {
-			cards_set[cardno].flags = CARD_FLAG_UAEROM;
-			cards_set[cardno].name = _T("UAEBOARD");
-			cards_set[cardno].zorro = 2;
-			cards_set[cardno].initnum = expamem_init_uaeboard;
-			cards_set[cardno++].map = expamem_map_uaeboard;
-		}
-		if (do_mount && p->uaeboard < 2) {
-			cards_set[cardno].flags = CARD_FLAG_UAEROM;
-			cards_set[cardno].name = _T("UAEBOOTROM");
-			cards_set[cardno].zorro = BOARD_NONAUTOCONFIG_BEFORE;
-			cards_set[cardno].initnum = expamem_rtarea_init;
-			cards_set[cardno++].map = NULL;
-		}
+	if (do_mount && p->uaeboard >= 0 && p->uaeboard < 2) {
+		cards_set[cardno].flags = CARD_FLAG_UAEROM;
+		cards_set[cardno].name = _T("UAEFS");
+		cards_set[cardno].zorro = 2;
+		cards_set[cardno].initnum = expamem_init_filesys;
+		cards_set[cardno++].map = expamem_map_filesys;
+	}
+	if (p->uaeboard > 0) {
+		cards_set[cardno].flags = CARD_FLAG_UAEROM;
+		cards_set[cardno].name = _T("UAEBOARD");
+		cards_set[cardno].zorro = 2;
+		cards_set[cardno].initnum = expamem_init_uaeboard;
+		cards_set[cardno++].map = expamem_map_uaeboard;
+	}
+	if (do_mount && p->uaeboard < 2) {
+		cards_set[cardno].flags = CARD_FLAG_UAEROM;
+		cards_set[cardno].name = _T("UAEBOOTROM");
+		cards_set[cardno].zorro = BOARD_NONAUTOCONFIG_BEFORE;
+		cards_set[cardno].initnum = expamem_rtarea_init;
+		cards_set[cardno++].map = NULL;
 	}
 #endif
 #ifdef PICASSO96
