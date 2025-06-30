@@ -387,7 +387,7 @@ static bool aga_genlock_features_zdclken;
 
 uae_sem_t gui_sem;
 
-static int rga_denise_fast_read, rga_denise_fast_write;
+static volatile int rga_denise_fast_read, rga_denise_fast_write;
 #define DENISE_RGA_SLOT_FAST_TOTAL 1024
 static struct denise_rga rga_denise_fast[DENISE_RGA_SLOT_FAST_TOTAL];
 
@@ -3904,15 +3904,18 @@ static void flush_fast_rga(uae_u32 linecnt)
 {
 	// extract fast CPU RGA pipeline
 	while (rga_denise_fast_write != rga_denise_fast_read) {
-		struct denise_rga *rd = &rga_denise_fast[rga_denise_fast_read];
-		if (linecnt < rd->line) {
+		int rp = rga_denise_fast_read;
+		struct denise_rga *rd = &rga_denise_fast[rp];
+		// Any RGA queued accesses must be processed first
+		if (linecnt <= rd->line) {
 			break;
 		}
 		expand_drga(rd);
 		expand_drga_early(rd);
 		expand_drga_early2x(rd);
-		rga_denise_fast_read++;
-		rga_denise_fast_read &= DENISE_RGA_SLOT_FAST_TOTAL - 1;
+		rp++;
+		rp &= DENISE_RGA_SLOT_FAST_TOTAL - 1;
+		rga_denise_fast_read = rp;
 	}
 }
 
@@ -4662,15 +4665,17 @@ static void denise_handle_quick_strobe(uae_u16 strobe, int offset, int vpos)
 
 bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
 {
-	if (((rga_denise_fast_write + 1) & (DENISE_RGA_SLOT_FAST_TOTAL - 1))  == rga_denise_fast_read) {
+	int wp = rga_denise_fast_write;
+	if (((wp + 1) & (DENISE_RGA_SLOT_FAST_TOTAL - 1)) == rga_denise_fast_read) {
 		return false;
 	}
-	struct denise_rga *r = &rga_denise_fast[rga_denise_fast_write];
+	struct denise_rga *r = &rga_denise_fast[wp];
 	r->rga = reg;
 	r->v = v;
 	r->line = linecnt;
-	rga_denise_fast_write++;
-	rga_denise_fast_write &= DENISE_RGA_SLOT_FAST_TOTAL - 1;
+	wp++;
+	wp &= DENISE_RGA_SLOT_FAST_TOTAL - 1;
+	rga_denise_fast_write = wp;
 	return true;
 }
 
