@@ -424,7 +424,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 				ds->mode = 1;
 				cv = 2;
 
-				dstratio = 1.0f * cw / ch;
+				dstratio = 1.0f * (cw * xmult) / (ch * ymult);
 
 				width_aspect = cw;
 				height_aspect = ch;
