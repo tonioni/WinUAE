@@ -4133,11 +4133,10 @@ uae_u8 *save_expansion_boards(size_t *len, uae_u8 *dstptr, int cardnum)
 
 uae_u8 *restore_expansion_boards(uae_u8 *src)
 {
+	static bool uaeboardrestorefirst;
 	if (!src) {
 		restore_cardno = 0;
-#if 0
-		currprefs.uaeboard = changed_prefs.uaeboard = -1;
-#endif
+		uaeboardrestorefirst = true;
 		return NULL;
 	}
 	TCHAR *s;
@@ -4158,14 +4157,14 @@ uae_u8 *restore_expansion_boards(uae_u8 *src)
 	for (int j = 0; j < 16; j++) {
 		ec->aci.autoconfig_bytes[j] = restore_u8();
 	}
-#if 0
 	if (ec->flags & CARD_FLAG_UAEROM) {
 		if (ec->base >= 0xe90000 && ec->base < 0xf00000) {
 			if (ec->size > 65536) {
 				currprefs.uaeboard = changed_prefs.uaeboard = 2;
 			} else {
-				if (currprefs.uaeboard < 0) {
+				if (uaeboardrestorefirst) {
 					currprefs.uaeboard = changed_prefs.uaeboard = 0;
+					uaeboardrestorefirst = false;
 				} else {
 					currprefs.uaeboard = changed_prefs.uaeboard = 1;
 				}
@@ -4174,7 +4173,6 @@ uae_u8 *restore_expansion_boards(uae_u8 *src)
 			currprefs.uaeboard = changed_prefs.uaeboard = 0;
 		}
 	}
-#endif
 	uae_u32 dev_num = 0;
 	uae_u32 romtype = restore_u32();
 	if (romtype != 0xffffffff) {
