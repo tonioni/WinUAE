@@ -51,7 +51,6 @@ static void lts_ecs_shres_dhires(void)
 					sv0 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 0);
 			uae_u32 sv1 = 0;
 			if (denise_spr_nr_armeds) {
 				uae_u32 svt;
@@ -60,7 +59,6 @@ static void lts_ecs_shres_dhires(void)
 					sv1 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 2);
 			if (sv0 || sv1) {
 				get_shres_spr_pix(sv0, sv1, &dpix_val0, &dpix_val2);
 				if (sv0) {
@@ -91,9 +89,6 @@ static void lts_ecs_shres_dhires(void)
 				shiftbpl2();
 				shiftbpl2();
 				shiftbpl2();
-			}
-			if (bpldat_copy[0] && (denise_hcounter_cmp & 3) == bplcon1_shift[0]) { 
-				copybpl2();
 			}
 			internal_pixel_cnt += 4;
 			sprites_hidden = sprites_hidden2;
@@ -165,7 +160,6 @@ static void lts_ecs_shres_dhires_filtered(void)
 					sv0 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 0);
 			uae_u32 sv1 = 0;
 			if (denise_spr_nr_armeds) {
 				uae_u32 svt;
@@ -174,7 +168,6 @@ static void lts_ecs_shres_dhires_filtered(void)
 					sv1 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 2);
 			if (sv0 || sv1) {
 				get_shres_spr_pix(sv0, sv1, &dpix_val0, &dpix_val2);
 				if (sv0) {
@@ -207,9 +200,6 @@ static void lts_ecs_shres_dhires_filtered(void)
 				shiftbpl2();
 				shiftbpl2();
 				shiftbpl2();
-			}
-			if (bpldat_copy[0] && (denise_hcounter_cmp & 3) == bplcon1_shift[0]) { 
-				copybpl2();
 			}
 			internal_pixel_cnt += 4;
 			sprites_hidden = sprites_hidden2;
@@ -281,7 +271,6 @@ static void lts_ecs_shres_dshres(void)
 					sv0 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 0);
 			uae_u32 sv1 = 0;
 			if (denise_spr_nr_armeds) {
 				uae_u32 svt;
@@ -290,7 +279,6 @@ static void lts_ecs_shres_dshres(void)
 					sv1 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 2);
 			if (sv0 || sv1) {
 				get_shres_spr_pix(sv0, sv1, &dpix_val0, &dpix_val2);
 				if (sv0) {
@@ -335,9 +323,6 @@ static void lts_ecs_shres_dshres(void)
 				shiftbpl2();
 				shiftbpl2();
 				shiftbpl2();
-			}
-			if (bpldat_copy[0] && (denise_hcounter_cmp & 3) == bplcon1_shift[0]) { 
-				copybpl2();
 			}
 			internal_pixel_cnt += 4;
 			sprites_hidden = sprites_hidden2;
@@ -422,7 +407,6 @@ static void lts_ecs_shres_dhires_genlock(void)
 					sv0 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 0);
 			uae_u32 sv1 = 0;
 			if (denise_spr_nr_armeds) {
 				uae_u32 svt;
@@ -431,7 +415,6 @@ static void lts_ecs_shres_dhires_genlock(void)
 					sv1 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 2);
 			if (sv0 || sv1) {
 				get_shres_spr_pix(sv0, sv1, &dpix_val0, &dpix_val2);
 				if (sv0) {
@@ -464,9 +447,6 @@ static void lts_ecs_shres_dhires_genlock(void)
 				shiftbpl2();
 				shiftbpl2();
 				shiftbpl2();
-			}
-			if (bpldat_copy[0] && (denise_hcounter_cmp & 3) == bplcon1_shift[0]) { 
-				copybpl2();
 			}
 			internal_pixel_cnt += 4;
 			sprites_hidden = sprites_hidden2;
@@ -542,7 +522,6 @@ static void lts_ecs_shres_dhires_genlock_filtered(void)
 					sv0 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 0);
 			uae_u32 sv1 = 0;
 			if (denise_spr_nr_armeds) {
 				uae_u32 svt;
@@ -551,7 +530,6 @@ static void lts_ecs_shres_dhires_genlock_filtered(void)
 					sv1 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 2);
 			if (sv0 || sv1) {
 				get_shres_spr_pix(sv0, sv1, &dpix_val0, &dpix_val2);
 				if (sv0) {
@@ -588,9 +566,6 @@ static void lts_ecs_shres_dhires_genlock_filtered(void)
 				shiftbpl2();
 				shiftbpl2();
 				shiftbpl2();
-			}
-			if (bpldat_copy[0] && (denise_hcounter_cmp & 3) == bplcon1_shift[0]) { 
-				copybpl2();
 			}
 			internal_pixel_cnt += 4;
 			sprites_hidden = sprites_hidden2;
@@ -666,7 +641,6 @@ static void lts_ecs_shres_dshres_genlock(void)
 					sv0 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 0);
 			uae_u32 sv1 = 0;
 			if (denise_spr_nr_armeds) {
 				uae_u32 svt;
@@ -675,7 +649,6 @@ static void lts_ecs_shres_dshres_genlock(void)
 					sv1 = svt;
 				}
 			}
-			matchsprites_ecs_shres(cnt + 2);
 			if (sv0 || sv1) {
 				get_shres_spr_pix(sv0, sv1, &dpix_val0, &dpix_val2);
 				if (sv0) {
@@ -724,9 +697,6 @@ static void lts_ecs_shres_dshres_genlock(void)
 				shiftbpl2();
 				shiftbpl2();
 				shiftbpl2();
-			}
-			if (bpldat_copy[0] && (denise_hcounter_cmp & 3) == bplcon1_shift[0]) { 
-				copybpl2();
 			}
 			internal_pixel_cnt += 4;
 			sprites_hidden = sprites_hidden2;

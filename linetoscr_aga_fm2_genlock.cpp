@@ -314,7 +314,58 @@ static void lts_aga_fm2_dpf1_p4_ilores_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dlores_filtered_genlock(void)
 {
@@ -322,7 +373,58 @@ static void lts_aga_fm2_ehb0_p4_ilores_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dlores_filtered_genlock(void)
 {
@@ -330,7 +432,58 @@ static void lts_aga_fm2_ehb1_p4_ilores_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ilores_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ilores_dlores_filtered_genlock(void)
 {
@@ -338,7 +491,58 @@ static void lts_aga_fm2_ham0_p4_ilores_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ilores_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ilores_dlores_filtered_genlock(void)
 {
@@ -346,7 +550,58 @@ static void lts_aga_fm2_ham1_p4_ilores_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dlores_filtered_genlock(void)
 {
@@ -354,7 +609,58 @@ static void lts_aga_fm2_kehb0_p4_ilores_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dlores_filtered_genlock(void)
 {
@@ -670,7 +976,58 @@ static void lts_aga_fm2_dpf1_p8_ilores_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dlores_filtered_genlock(void)
 {
@@ -678,7 +1035,58 @@ static void lts_aga_fm2_ehb0_p8_ilores_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dlores_filtered_genlock(void)
 {
@@ -835,7 +1243,58 @@ static void lts_aga_fm2_ham1_p8_ilores_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dlores_filtered_genlock(void)
 {
@@ -843,7 +1302,58 @@ static void lts_aga_fm2_kehb0_p8_ilores_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dlores_filtered_genlock(void)
 {
@@ -1227,7 +1737,75 @@ static void lts_aga_fm2_dpf1_p4_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dlores_spr_filtered_genlock(void)
 {
@@ -1235,7 +1813,75 @@ static void lts_aga_fm2_ehb0_p4_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dlores_spr_filtered_genlock(void)
 {
@@ -1243,7 +1889,75 @@ static void lts_aga_fm2_ehb1_p4_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ilores_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ilores_dlores_spr_filtered_genlock(void)
 {
@@ -1251,7 +1965,75 @@ static void lts_aga_fm2_ham0_p4_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ilores_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ilores_dlores_spr_filtered_genlock(void)
 {
@@ -1259,7 +2041,75 @@ static void lts_aga_fm2_ham1_p4_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dlores_spr_filtered_genlock(void)
 {
@@ -1267,7 +2117,75 @@ static void lts_aga_fm2_kehb0_p4_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dlores_spr_filtered_genlock(void)
 {
@@ -1651,7 +2569,75 @@ static void lts_aga_fm2_dpf1_p8_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dlores_spr_filtered_genlock(void)
 {
@@ -1659,7 +2645,75 @@ static void lts_aga_fm2_ehb0_p8_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dlores_spr_filtered_genlock(void)
 {
@@ -1850,7 +2904,75 @@ static void lts_aga_fm2_ham1_p8_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dlores_spr_filtered_genlock(void)
 {
@@ -1858,7 +2980,75 @@ static void lts_aga_fm2_kehb0_p8_ilores_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dlores_spr_filtered_genlock(void)
 {
@@ -2558,51 +3748,729 @@ static void lts_aga_fm2_dpf1_p4_ihires_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dlores_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dlores_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ihires_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ihires_dlores_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ihires_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ihires_dlores_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dlores_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dlores_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_n0_p8_ihires_dlores_genlock(void)
 {
@@ -3298,19 +5166,241 @@ static void lts_aga_fm2_dpf1_p8_ihires_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dlores_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dlores_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p8_ihires_dlores_genlock(void)
 {
@@ -3680,19 +5770,241 @@ static void lts_aga_fm2_ham1_p8_ihires_dlores_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dlores_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dlores_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dlores_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_n0_p4_ihires_dlores_spr_genlock(void)
 {
@@ -4528,51 +6840,939 @@ static void lts_aga_fm2_dpf1_p4_ihires_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dlores_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dlores_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ihires_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ihires_dlores_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ihires_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ihires_dlores_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dlores_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dlores_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_n0_p8_ihires_dlores_spr_genlock(void)
 {
@@ -5408,19 +8608,311 @@ static void lts_aga_fm2_dpf1_p8_ihires_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dlores_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dlores_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p8_ihires_dlores_spr_genlock(void)
 {
@@ -5860,19 +9352,311 @@ static void lts_aga_fm2_ham1_p8_ihires_dlores_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dlores_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dlores_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dlores_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 4;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_n0_p4_ishres_dlores_genlock(void)
 {
@@ -6728,7 +10512,77 @@ static void lts_aga_fm2_dpf1_p4_ilores_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dhires_filtered_genlock(void)
 {
@@ -6736,7 +10590,77 @@ static void lts_aga_fm2_ehb0_p4_ilores_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dhires_filtered_genlock(void)
 {
@@ -6744,7 +10668,77 @@ static void lts_aga_fm2_ehb1_p4_ilores_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ilores_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ilores_dhires_filtered_genlock(void)
 {
@@ -6752,7 +10746,77 @@ static void lts_aga_fm2_ham0_p4_ilores_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ilores_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ilores_dhires_filtered_genlock(void)
 {
@@ -6760,7 +10824,77 @@ static void lts_aga_fm2_ham1_p4_ilores_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dhires_filtered_genlock(void)
 {
@@ -6768,7 +10902,77 @@ static void lts_aga_fm2_kehb0_p4_ilores_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dhires_filtered_genlock(void)
 {
@@ -7308,7 +11512,77 @@ static void lts_aga_fm2_dpf1_p8_ilores_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dhires_filtered_genlock(void)
 {
@@ -7316,7 +11590,77 @@ static void lts_aga_fm2_ehb0_p8_ilores_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dhires_filtered_genlock(void)
 {
@@ -7580,7 +11924,77 @@ static void lts_aga_fm2_ham1_p8_ilores_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dhires_filtered_genlock(void)
 {
@@ -7588,7 +12002,77 @@ static void lts_aga_fm2_kehb0_p8_ilores_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dhires_filtered_genlock(void)
 {
@@ -8264,7 +12748,111 @@ static void lts_aga_fm2_dpf1_p4_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dhires_spr_filtered_genlock(void)
 {
@@ -8272,7 +12860,111 @@ static void lts_aga_fm2_ehb0_p4_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dhires_spr_filtered_genlock(void)
 {
@@ -8280,7 +12972,111 @@ static void lts_aga_fm2_ehb1_p4_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ilores_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ilores_dhires_spr_filtered_genlock(void)
 {
@@ -8288,7 +13084,111 @@ static void lts_aga_fm2_ham0_p4_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ilores_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ilores_dhires_spr_filtered_genlock(void)
 {
@@ -8296,7 +13196,111 @@ static void lts_aga_fm2_ham1_p4_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dhires_spr_filtered_genlock(void)
 {
@@ -8304,7 +13308,111 @@ static void lts_aga_fm2_kehb0_p4_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dhires_spr_filtered_genlock(void)
 {
@@ -8980,7 +14088,111 @@ static void lts_aga_fm2_dpf1_p8_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dhires_spr_filtered_genlock(void)
 {
@@ -8988,7 +14200,111 @@ static void lts_aga_fm2_ehb0_p8_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dhires_spr_filtered_genlock(void)
 {
@@ -9320,7 +14636,111 @@ static void lts_aga_fm2_ham1_p8_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dhires_spr_filtered_genlock(void)
 {
@@ -9328,7 +14748,111 @@ static void lts_aga_fm2_kehb0_p8_ilores_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dhires_spr_filtered_genlock(void)
 {
@@ -9788,7 +15312,77 @@ static void lts_aga_fm2_dpf1_p4_ihires_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dhires_filtered_genlock(void)
 {
@@ -9796,7 +15390,77 @@ static void lts_aga_fm2_ehb0_p4_ihires_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dhires_filtered_genlock(void)
 {
@@ -9804,7 +15468,77 @@ static void lts_aga_fm2_ehb1_p4_ihires_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ihires_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ihires_dhires_filtered_genlock(void)
 {
@@ -9812,7 +15546,77 @@ static void lts_aga_fm2_ham0_p4_ihires_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ihires_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ihires_dhires_filtered_genlock(void)
 {
@@ -9820,7 +15624,77 @@ static void lts_aga_fm2_ham1_p4_ihires_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dhires_filtered_genlock(void)
 {
@@ -9828,7 +15702,77 @@ static void lts_aga_fm2_kehb0_p4_ihires_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dhires_filtered_genlock(void)
 {
@@ -10288,7 +16232,77 @@ static void lts_aga_fm2_dpf1_p8_ihires_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dhires_filtered_genlock(void)
 {
@@ -10296,7 +16310,77 @@ static void lts_aga_fm2_ehb0_p8_ihires_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dhires_filtered_genlock(void)
 {
@@ -10520,7 +16604,77 @@ static void lts_aga_fm2_ham1_p8_ihires_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dhires_filtered_genlock(void)
 {
@@ -10528,7 +16682,77 @@ static void lts_aga_fm2_kehb0_p8_ihires_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dhires_filtered_genlock(void)
 {
@@ -11124,7 +17348,111 @@ static void lts_aga_fm2_dpf1_p4_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dhires_spr_filtered_genlock(void)
 {
@@ -11132,7 +17460,111 @@ static void lts_aga_fm2_ehb0_p4_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dhires_spr_filtered_genlock(void)
 {
@@ -11140,7 +17572,111 @@ static void lts_aga_fm2_ehb1_p4_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ihires_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ihires_dhires_spr_filtered_genlock(void)
 {
@@ -11148,7 +17684,111 @@ static void lts_aga_fm2_ham0_p4_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ihires_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ihires_dhires_spr_filtered_genlock(void)
 {
@@ -11156,7 +17796,111 @@ static void lts_aga_fm2_ham1_p4_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dhires_spr_filtered_genlock(void)
 {
@@ -11164,7 +17908,111 @@ static void lts_aga_fm2_kehb0_p4_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dhires_spr_filtered_genlock(void)
 {
@@ -11760,7 +18608,111 @@ static void lts_aga_fm2_dpf1_p8_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dhires_spr_filtered_genlock(void)
 {
@@ -11768,7 +18720,111 @@ static void lts_aga_fm2_ehb0_p8_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dhires_spr_filtered_genlock(void)
 {
@@ -12060,7 +19116,111 @@ static void lts_aga_fm2_ham1_p8_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dhires_spr_filtered_genlock(void)
 {
@@ -12068,7 +19228,111 @@ static void lts_aga_fm2_kehb0_p8_ihires_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dhires_spr_filtered_genlock(void)
 {
@@ -13164,51 +20428,1023 @@ static void lts_aga_fm2_dpf1_p4_ishres_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ishres_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ishres_dhires_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ishres_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ishres_dhires_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ishres_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ishres_dhires_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ishres_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ishres_dhires_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ishres_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ishres_dhires_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ishres_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ishres_dhires_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_n0_p8_ishres_dhires_genlock(void)
 {
@@ -14300,19 +22536,335 @@ static void lts_aga_fm2_dpf1_p8_ishres_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ishres_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ishres_dhires_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ishres_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ishres_dhires_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p8_ishres_dhires_genlock(void)
 {
@@ -14900,19 +23452,335 @@ static void lts_aga_fm2_ham1_p8_ishres_dhires_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ishres_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ishres_dhires_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ishres_dhires_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ishres_dhires_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_n0_p4_ishres_dhires_spr_genlock(void)
 {
@@ -16284,51 +25152,1443 @@ static void lts_aga_fm2_dpf1_p4_ishres_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ishres_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ishres_dhires_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+						dpix_val3 = dpix_val2;
+					}
+				}
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ishres_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ishres_dhires_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+						dpix_val3 = dpix_val2;
+					}
+				}
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ishres_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ishres_dhires_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+						dpix_val3 = dpix_val2;
+					}
+				}
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ishres_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ishres_dhires_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+						dpix_val3 = dpix_val2;
+					}
+				}
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ishres_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ishres_dhires_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+						dpix_val3 = dpix_val2;
+					}
+				}
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ishres_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ishres_dhires_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+						dpix_val3 = dpix_val2;
+					}
+				}
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_n0_p8_ishres_dhires_spr_genlock(void)
 {
@@ -17700,19 +27960,475 @@ static void lts_aga_fm2_dpf1_p8_ishres_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ishres_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ishres_dhires_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+						dpix_val3 = dpix_val2;
+					}
+				}
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ishres_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ishres_dhires_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+						dpix_val3 = dpix_val2;
+					}
+				}
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p8_ishres_dhires_spr_genlock(void)
 {
@@ -18440,19 +29156,475 @@ static void lts_aga_fm2_ham1_p8_ishres_dhires_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ishres_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ishres_dhires_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+						dpix_val3 = dpix_val2;
+					}
+				}
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ishres_dhires_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ishres_dhires_spr_filtered_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 2;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+						dpix_val1 = dpix_val0;
+					}
+				}
+				dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+				gpix0 = filter_pixel_genlock(gpix0, gpix1);
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+						dpix_val3 = dpix_val2;
+					}
+				}
+				dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+				gpix2 = filter_pixel_genlock(gpix2, gpix3);
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_n0_p4_ilores_dshres_genlock(void)
 {
@@ -19356,7 +30528,115 @@ static void lts_aga_fm2_dpf1_p4_ilores_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dshres_filtered_genlock(void)
 {
@@ -19364,7 +30644,115 @@ static void lts_aga_fm2_ehb0_p4_ilores_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dshres_filtered_genlock(void)
 {
@@ -19372,7 +30760,115 @@ static void lts_aga_fm2_ehb1_p4_ilores_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ilores_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ilores_dshres_filtered_genlock(void)
 {
@@ -19380,7 +30876,115 @@ static void lts_aga_fm2_ham0_p4_ilores_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ilores_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ilores_dshres_filtered_genlock(void)
 {
@@ -19388,7 +30992,115 @@ static void lts_aga_fm2_ham1_p4_ilores_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dshres_filtered_genlock(void)
 {
@@ -19396,7 +31108,115 @@ static void lts_aga_fm2_kehb0_p4_ilores_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dshres_filtered_genlock(void)
 {
@@ -20304,7 +32124,115 @@ static void lts_aga_fm2_dpf1_p8_ilores_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dshres_filtered_genlock(void)
 {
@@ -20312,7 +32240,115 @@ static void lts_aga_fm2_ehb0_p8_ilores_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dshres_filtered_genlock(void)
 {
@@ -20750,7 +32786,115 @@ static void lts_aga_fm2_ham1_p8_ilores_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dshres_filtered_genlock(void)
 {
@@ -20758,7 +32902,115 @@ static void lts_aga_fm2_kehb0_p8_ilores_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dshres_filtered_genlock(void)
 {
@@ -21938,7 +34190,183 @@ static void lts_aga_fm2_dpf1_p4_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ilores_dshres_spr_filtered_genlock(void)
 {
@@ -21946,7 +34374,183 @@ static void lts_aga_fm2_ehb0_p4_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ilores_dshres_spr_filtered_genlock(void)
 {
@@ -21954,7 +34558,183 @@ static void lts_aga_fm2_ehb1_p4_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ilores_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ilores_dshres_spr_filtered_genlock(void)
 {
@@ -21962,7 +34742,183 @@ static void lts_aga_fm2_ham0_p4_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ilores_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ilores_dshres_spr_filtered_genlock(void)
 {
@@ -21970,7 +34926,183 @@ static void lts_aga_fm2_ham1_p4_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ilores_dshres_spr_filtered_genlock(void)
 {
@@ -21978,7 +35110,183 @@ static void lts_aga_fm2_kehb0_p4_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ilores_dshres_spr_filtered_genlock(void)
 {
@@ -23158,7 +36466,183 @@ static void lts_aga_fm2_dpf1_p8_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ilores_dshres_spr_filtered_genlock(void)
 {
@@ -23166,7 +36650,183 @@ static void lts_aga_fm2_ehb0_p8_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ilores_dshres_spr_filtered_genlock(void)
 {
@@ -23740,7 +37400,183 @@ static void lts_aga_fm2_ham1_p8_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ilores_dshres_spr_filtered_genlock(void)
 {
@@ -23748,7 +37584,183 @@ static void lts_aga_fm2_kehb0_p8_ilores_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ilores_dshres_spr_filtered_genlock(void)
 {
@@ -24656,7 +38668,115 @@ static void lts_aga_fm2_dpf1_p4_ihires_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dshres_filtered_genlock(void)
 {
@@ -24664,7 +38784,115 @@ static void lts_aga_fm2_ehb0_p4_ihires_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dshres_filtered_genlock(void)
 {
@@ -24672,7 +38900,115 @@ static void lts_aga_fm2_ehb1_p4_ihires_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ihires_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ihires_dshres_filtered_genlock(void)
 {
@@ -24680,7 +39016,115 @@ static void lts_aga_fm2_ham0_p4_ihires_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ihires_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ihires_dshres_filtered_genlock(void)
 {
@@ -24688,7 +39132,115 @@ static void lts_aga_fm2_ham1_p4_ihires_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dshres_filtered_genlock(void)
 {
@@ -24696,7 +39248,115 @@ static void lts_aga_fm2_kehb0_p4_ihires_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dshres_filtered_genlock(void)
 {
@@ -25604,7 +40264,115 @@ static void lts_aga_fm2_dpf1_p8_ihires_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dshres_filtered_genlock(void)
 {
@@ -25612,7 +40380,115 @@ static void lts_aga_fm2_ehb0_p8_ihires_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dshres_filtered_genlock(void)
 {
@@ -26050,7 +40926,115 @@ static void lts_aga_fm2_ham1_p8_ihires_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dshres_filtered_genlock(void)
 {
@@ -26058,7 +41042,115 @@ static void lts_aga_fm2_kehb0_p8_ihires_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dshres_filtered_genlock(void)
 {
@@ -27238,7 +42330,183 @@ static void lts_aga_fm2_dpf1_p4_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ihires_dshres_spr_filtered_genlock(void)
 {
@@ -27246,7 +42514,183 @@ static void lts_aga_fm2_ehb0_p4_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ihires_dshres_spr_filtered_genlock(void)
 {
@@ -27254,7 +42698,183 @@ static void lts_aga_fm2_ehb1_p4_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ihires_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ihires_dshres_spr_filtered_genlock(void)
 {
@@ -27262,7 +42882,183 @@ static void lts_aga_fm2_ham0_p4_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ihires_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ihires_dshres_spr_filtered_genlock(void)
 {
@@ -27270,7 +43066,183 @@ static void lts_aga_fm2_ham1_p4_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ihires_dshres_spr_filtered_genlock(void)
 {
@@ -27278,7 +43250,183 @@ static void lts_aga_fm2_kehb0_p4_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ihires_dshres_spr_filtered_genlock(void)
 {
@@ -28458,7 +44606,183 @@ static void lts_aga_fm2_dpf1_p8_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ihires_dshres_spr_filtered_genlock(void)
 {
@@ -28466,7 +44790,183 @@ static void lts_aga_fm2_ehb0_p8_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ihires_dshres_spr_filtered_genlock(void)
 {
@@ -29040,7 +45540,183 @@ static void lts_aga_fm2_ham1_p8_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ihires_dshres_spr_filtered_genlock(void)
 {
@@ -29048,7 +45724,183 @@ static void lts_aga_fm2_kehb0_p8_ihires_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ihires_dshres_spr_filtered_genlock(void)
 {
@@ -29796,7 +46648,115 @@ static void lts_aga_fm2_dpf1_p4_ishres_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ishres_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ishres_dshres_filtered_genlock(void)
 {
@@ -29804,7 +46764,115 @@ static void lts_aga_fm2_ehb0_p4_ishres_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ishres_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ishres_dshres_filtered_genlock(void)
 {
@@ -29812,7 +46880,115 @@ static void lts_aga_fm2_ehb1_p4_ishres_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ishres_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ishres_dshres_filtered_genlock(void)
 {
@@ -29820,7 +46996,115 @@ static void lts_aga_fm2_ham0_p4_ishres_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ishres_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ishres_dshres_filtered_genlock(void)
 {
@@ -29828,7 +47112,115 @@ static void lts_aga_fm2_ham1_p4_ishres_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ishres_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ishres_dshres_filtered_genlock(void)
 {
@@ -29836,7 +47228,115 @@ static void lts_aga_fm2_kehb0_p4_ishres_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ishres_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ishres_dshres_filtered_genlock(void)
 {
@@ -30584,7 +48084,115 @@ static void lts_aga_fm2_dpf1_p8_ishres_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ishres_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ishres_dshres_filtered_genlock(void)
 {
@@ -30592,7 +48200,115 @@ static void lts_aga_fm2_ehb0_p8_ishres_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ishres_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ishres_dshres_filtered_genlock(void)
 {
@@ -30950,7 +48666,115 @@ static void lts_aga_fm2_ham1_p8_ishres_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ishres_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ishres_dshres_filtered_genlock(void)
 {
@@ -30958,7 +48782,115 @@ static void lts_aga_fm2_kehb0_p8_ishres_dshres_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ishres_dshres_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ishres_dshres_filtered_genlock(void)
 {
@@ -31978,7 +49910,183 @@ static void lts_aga_fm2_dpf1_p4_ishres_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p4_ishres_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p4_ishres_dshres_spr_filtered_genlock(void)
 {
@@ -31986,7 +50094,183 @@ static void lts_aga_fm2_ehb0_p4_ishres_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p4_ishres_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p4_ishres_dshres_spr_filtered_genlock(void)
 {
@@ -31994,7 +50278,183 @@ static void lts_aga_fm2_ehb1_p4_ishres_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham0_p4_ishres_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham0_p4_ishres_dshres_spr_filtered_genlock(void)
 {
@@ -32002,7 +50462,183 @@ static void lts_aga_fm2_ham0_p4_ishres_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ham1_p4_ishres_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ham1_p4_ishres_dshres_spr_filtered_genlock(void)
 {
@@ -32010,7 +50646,183 @@ static void lts_aga_fm2_ham1_p4_ishres_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p4_ishres_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p4_ishres_dshres_spr_filtered_genlock(void)
 {
@@ -32018,7 +50830,183 @@ static void lts_aga_fm2_kehb0_p4_ishres_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p4_ishres_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p4_ishres_dshres_spr_filtered_genlock(void)
 {
@@ -33038,7 +52026,183 @@ static void lts_aga_fm2_dpf1_p8_ishres_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb0_p8_ishres_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb0_p8_ishres_dshres_spr_filtered_genlock(void)
 {
@@ -33046,7 +52210,183 @@ static void lts_aga_fm2_ehb0_p8_ishres_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_ehb1_p8_ishres_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_ehb1_p8_ishres_dshres_spr_filtered_genlock(void)
 {
@@ -33540,7 +52880,183 @@ static void lts_aga_fm2_ham1_p8_ishres_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb0_p8_ishres_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb0_p8_ishres_dshres_spr_filtered_genlock(void)
 {
@@ -33548,7 +53064,183 @@ static void lts_aga_fm2_kehb0_p8_ishres_dshres_spr_filtered_genlock(void)
 }
 static void lts_aga_fm2_kehb1_p8_ishres_dshres_spr_genlock(void)
 {
-	lts_null();
+	while (denise_cck < denise_endcycle) {
+		do_denise_cck(denise_linecnt, denise_startpos, denise_cck);
+		if (lts_changed) return;
+		for (int h = 0; h < 2; h++) {
+			if (h) {
+				denise_hcounter_next = denise_hcounter_new;
+			}
+			int cnt = denise_hcounter << 2;
+			int cnt_next = denise_hcounter_next << 2;
+			if (checkhorizontal1_aga(denise_hcounter, denise_hcounter_next, h)) continue;
+			matchsprites_aga(cnt + 0);
+			uae_u8 pix0 = 0;
+			uae_u8 gpix0 = 0xff;
+			uae_u32 dpix_val0 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix0 = get_genlock_transparency_border();
+				dpix_val0 = bordercolor;
+			}
+			uae_u32 sv0 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv0 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 1);
+			uae_u8 pix1 = 0;
+			uae_u8 gpix1 = 0xff;
+			uae_u32 dpix_val1 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix1 = get_genlock_transparency_border();
+				dpix_val1 = bordercolor;
+			}
+			uae_u32 sv1 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv1 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 2);
+			uae_u8 pix2 = 0;
+			uae_u8 gpix2 = 0xff;
+			uae_u32 dpix_val2 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix2 = get_genlock_transparency_border();
+				dpix_val2 = bordercolor;
+			}
+			uae_u32 sv2 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv2 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			matchsprites_aga(cnt + 3);
+			uae_u8 pix3 = 0;
+			uae_u8 gpix3 = 0xff;
+			uae_u32 dpix_val3 = BLANK_COLOR;
+			if (!denise_blank_active) {
+				gpix3 = get_genlock_transparency_border();
+				dpix_val3 = bordercolor;
+			}
+			uae_u32 sv3 = 0;
+			if (denise_spr_nr_armeds) {
+				uae_u32 svt;
+				svt = denise_render_sprites_aga(denise_spr_add);
+				if (!denise_sprite_blank_active && !sprites_hidden) {
+					sv3 = svt;
+				}
+			}
+			internal_pixel_cnt += 1;
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+				if (sv0) {
+					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					if (spix0) {
+						dpix_val0 = denise_colors.acolors[spix0];
+						gpix0 = get_genlock_transparency(spix0);
+
+					}
+				}
+				dtbuf[h][0] = dpix_val0;
+				dtgbuf[h][0] = gpix0;
+				if (sv1) {
+					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					if (spix1) {
+						dpix_val1 = denise_colors.acolors[spix1];
+						gpix1 = get_genlock_transparency(spix1);
+
+					}
+				}
+				dtbuf[h][1] = dpix_val1;
+				dtgbuf[h][1] = gpix1;
+				if (sv2) {
+					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					if (spix2) {
+						dpix_val2 = denise_colors.acolors[spix2];
+						gpix2 = get_genlock_transparency(spix2);
+
+					}
+				}
+				dtbuf[h][2] = dpix_val2;
+				dtgbuf[h][2] = gpix2;
+				if (sv3) {
+					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					if (spix3) {
+						dpix_val3 = denise_colors.acolors[spix3];
+						gpix3 = get_genlock_transparency(spix3);
+
+					}
+				}
+				dtbuf[h][3] = dpix_val3;
+				dtgbuf[h][3] = gpix3;
+				uae_u32 t0 = dtbuf[h ^ lol][0]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t0 = decode_denise_specials_debug(t0, cnt + 0);
+				}
+				#endif
+				*buf1++ = t0;
+				*buf2++ = t0;
+				*gbuf++ = dtgbuf[h ^ lol][0];
+				uae_u32 t1 = dtbuf[h ^ lol][1]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t1 = decode_denise_specials_debug(t1, cnt + 1);
+				}
+				#endif
+				*buf1++ = t1;
+				*buf2++ = t1;
+				*gbuf++ = dtgbuf[h ^ lol][1];
+				uae_u32 t2 = dtbuf[h ^ lol][2]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t2 = decode_denise_specials_debug(t2, cnt + 2);
+				}
+				#endif
+				*buf1++ = t2;
+				*buf2++ = t2;
+				*gbuf++ = dtgbuf[h ^ lol][2];
+				uae_u32 t3 = dtbuf[h ^ lol][3]; 
+				#ifdef DEBUGGER
+				if (decode_specials_debug) {
+					t3 = decode_denise_specials_debug(t3, cnt + 3);
+				}
+				#endif
+				*buf1++ = t3;
+				*buf2++ = t3;
+				*gbuf++ = dtgbuf[h ^ lol][3];
+			}
+			sprites_hidden = sprites_hidden2;
+			#ifdef DEBUGGER
+			*debug_dma_dhpos_odd = denise_hcounter;
+			#endif
+			denise_hcounter_cmp++;
+			denise_hcounter_cmp &= 511;
+			denise_hcounter++;
+			denise_hcounter &= 511;
+			denise_hcounter_next++;
+			denise_hcounter_next &= 511;
+		}
+		denise_pixtotal++;
+		if (denise_pixtotal == 0) {
+			internal_pixel_start_cnt = internal_pixel_cnt;
+		}
+		denise_hcounter = denise_hcounter_new;
+		if (denise_accurate_mode) {
+			denise_hcounter_cmp = denise_hcounter_new;
+		}
+		denise_cck++;
+	}
 }
 static void lts_aga_fm2_kehb1_p8_ishres_dshres_spr_filtered_genlock(void)
 {

@@ -15,7 +15,7 @@
 
 static FILE *outfile;
 static int outfile_indent = 0;
-static int aga, outres, res, planes, modes, bplfmode, sprres, oddeven, ecsshres, genlock, ntsc, filtered;
+static int aga, outres, res, planes, modes, bplfmode, sprres, oddeven, ecsshres, genlock, ntsc, filtered, modetype;
 static int isbuf2 = 0;
 static int maxplanes = 8;
 static char funcnames[500000], funcnamesf[500000];
@@ -245,6 +245,10 @@ static void gen_bplpixmode_aga(int num)
 
 static void gen_getbpl(int num, int maxplanes)
 {
+	if (modetype <= 0) {
+		return;
+	}
+
 	int p = planes < maxplanes ? planes : maxplanes;
 	if (bplfmode == 2) {
 		outf("loaded_pix = getbpl%d_64();", p);
@@ -259,6 +263,10 @@ static void gen_getbpl(int num, int maxplanes)
 
 static void gen_shiftbpl(int maxplanes)
 {
+	if (modetype <= 0) {
+		return;
+	}
+
 	int p = planes < maxplanes ? planes : maxplanes;
 	if (bplfmode == 2) {
 		outf("shiftbpl%d_64();", p);
@@ -269,6 +277,10 @@ static void gen_shiftbpl(int maxplanes)
 
 static void gen_shiftbpl_hr(int maxplanes)
 {
+	if (modetype <= 0) {
+		return;
+	}
+
 	int p = planes < maxplanes ? planes : maxplanes;
 	int add;
 	if (outres > res) {
@@ -408,6 +420,10 @@ static void gen_copybpl_lines(int oddeven)
 
 static void gen_copybpl(void)
 {
+	if (modetype <= 0) {
+		return;
+	}
+	
 	if (oddeven) {
 		// bitplane shifter shifting
 		outf("if (bpldat_copy[0] && (denise_hcounter_cmp & %d) == bplcon1_shift[0]) { ", ((16 << bplfmode) >> res) - 1);
@@ -438,6 +454,10 @@ static void gen_copybpl(void)
 
 static void gen_copybpl_hr(int add)
 {
+	if (modetype <= 0) {
+		return;
+	}
+
 	int max;
 	if (outres > res) {
 		max = 1 << (outres - res);
@@ -493,10 +513,14 @@ static void gen_matchspr(int i)
 	if (sprres >= 0) {
 		if (aga) {
 			outf("matchsprites_aga(cnt + %d);", i);
-		} else if (ecsshres) {
-			outf("matchsprites_ecs_shres(cnt + %d);", i);
 		} else {
-			outf("matchsprites(cnt + %d);", i);
+			if (modetype > 0) {
+				if (ecsshres) {
+					outf("matchsprites_ecs_shres(cnt + %d);", i);
+				} else {
+					outf("matchsprites(cnt + %d);", i);
+				}
+			}
 		}
 	}
 }
@@ -539,15 +563,19 @@ static void gen_pix_aga(void)
 			outf("gpix%d = get_genlock_transparency_border();", off);
 		}
 		outf("	dpix_val%d = bordercolor;", off);
-		outf("	if (denise_hdiw && bpl1dat_trigger) {");
-		outf("	pix%d = loaded_pixs[%d];", off, off);
-		outf("	clxdat |= bplcoltable[pix%d];", off);
-		gen_bplpixmode_aga(off);
+		if (modetype > 0) {
+			outf("	if (denise_hdiw && bpl1dat_trigger) {");
+			outf("	pix%d = loaded_pixs[%d];", off, off);
+			outf("	clxdat |= bplcoltable[pix%d];", off);
+			gen_bplpixmode_aga(off);
+		}
 		outf("	}");
-		outf("	last_bpl_pix = pix%d;", off);
-		outf("}");
-		gen_shiftbpl_hr(maxplanes);
-		gen_copybpl_hr(off);
+		if (modetype > 0) {
+			outf("	last_bpl_pix = pix%d;", off);
+			outf("}");
+			gen_shiftbpl_hr(maxplanes);
+			gen_copybpl_hr(off);
+		}
 
 		if (sprres >= 0) {
 			gen_sprpix(off);
@@ -556,7 +584,9 @@ static void gen_pix_aga(void)
 			}
 		}
 
-		outf("loaded_pixs[%d] = loaded_pix;", off);
+		if (modetype > 0) {
+			outf("loaded_pixs[%d] = loaded_pix;", off);
+		}
 
 		if (res > outres) {
 			for (int i = 0; i < (1 << (res - outres)) - 1; i++) {
@@ -568,31 +598,39 @@ static void gen_pix_aga(void)
 						outf("gpix%d = get_genlock_transparency_border();", off);
 					}
 					outf("	dpix_val%d = bordercolor;", off);
-					outf("	if (denise_hdiw && bpl1dat_trigger) {");
-					outf("	pix%d = loaded_pixs[%d];", off, off);
-					outf("	clxdat |= bplcoltable[pix%d];", off);
-					gen_bplpixmode_aga(off);
+					if (modetype > 0) {
+						outf("	if (denise_hdiw && bpl1dat_trigger) {");
+						outf("	pix%d = loaded_pixs[%d];", off, off);
+						outf("	clxdat |= bplcoltable[pix%d];", off);
+						gen_bplpixmode_aga(off);
+					}
 					outf("	}");
-					outf("	last_bpl_pix = pix%d;", off);
-					outf("}");
-					gen_shiftbpl_hr(maxplanes);
-					gen_copybpl_hr(off);
-					outf("loaded_pixs[%d] = loaded_pix;", off);
+					if (modetype > 0) {
+						outf("	last_bpl_pix = pix%d;", off);
+						outf("}");
+						gen_shiftbpl_hr(maxplanes);
+						gen_copybpl_hr(off);
+						outf("loaded_pixs[%d] = loaded_pix;", off);
+					}
 				} else {
 					// HAM special case, all pixels must be processed.
 					if (modes == CMODE_HAM) {
 						gen_prepix(off);
 						outf("if (!denise_blank_active) {");
 						outf("	dpix_val%d = bordercolor;", off);
-						outf("	if (denise_hdiw && bpl1dat_trigger) {");
-						outf("	pix%d = loaded_pixs[%d];", off, off);
-						outf("	decode_ham_pixel_aga(pix%d);", off);
+						if (modetype > 0) {
+							outf("	if (denise_hdiw && bpl1dat_trigger) {");
+							outf("	pix%d = loaded_pixs[%d];", off, off);
+							outf("	decode_ham_pixel_aga(pix%d);", off);
+						}
 						outf("}");
-						outf("	last_bpl_pix = pix%d;", off);
-						outf("}");
-						gen_shiftbpl_hr(maxplanes);
-						gen_copybpl_hr(off);
-						outf("loaded_pixs[%d] = loaded_pix;", off);
+						if (modetype > 0) {
+							outf("	last_bpl_pix = pix%d;", off);
+							outf("}");
+							gen_shiftbpl_hr(maxplanes);
+							gen_copybpl_hr(off);
+							outf("loaded_pixs[%d] = loaded_pix;", off);
+						}
 					} else {
 						gen_shiftbpl(maxplanes);
 					}
@@ -711,22 +749,24 @@ static void gen_pix(void)
 				outf("gpix%d = get_genlock_transparency_border();", i);
 			}
 			outf("	dpix_val%d = bordercolor;", i);
-			outf("	if (denise_hdiw && bpl1dat_trigger) {");
-			gen_getbpl(i, maxplanes);
-			outf("	clxdat |= bplcoltable[pix%d];", i);
-			if (planes > 4) {
-				outf("	if (decode_specials) {");
-				outf("		pix%d = decode_denise_specials(pix%d);", i, i);
+			if (modetype > 0) {
+				outf("	if (denise_hdiw && bpl1dat_trigger) {");
+				gen_getbpl(i, maxplanes);
+				outf("	clxdat |= bplcoltable[pix%d];", i);
+				if (planes > 4) {
+					outf("	if (decode_specials) {");
+					outf("		pix%d = decode_denise_specials(pix%d);", i, i);
+					outf("	}");
+				}
+				gen_bplpixmode_ecs(i);
 				outf("	}");
+				outf("	last_bpl_pix = pix%d;", i);
 			}
-			gen_bplpixmode_ecs(i);
-			outf("	}");
-			outf("	last_bpl_pix = pix%d;", i);
 			outf("}");
 			gen_shiftbpl(maxplanes);
 			pixt[i] = 1;
 		}
-		if (sprres >= 0) {
+		if (sprres >= 0 && modetype > 0) {
 			if (!scnt) {
 				scnt++;
 				gen_sprpix(i);
@@ -835,13 +875,15 @@ static void gen_init(void)
 	if (aga) {
 		outf("int cnt = denise_hcounter << 2;");
 		outf("int cnt_next = denise_hcounter_next << 2;");
-		outf("int cmp = denise_hcounter_cmp << 2;");
+		if (modetype > 0) {
+			outf("int cmp = denise_hcounter_cmp << 2;");
+		}
 	} else {
 		outf("int cnt = denise_hcounter << 2;");
 	}
 }
 
-static bool gen_head(void)
+static int gen_head(void)
 {
 	char funcname[200];
 
@@ -879,49 +921,49 @@ static bool gen_head(void)
 
 	if (filtered) {
 		if (res <= outres) {
-			return false;
+			return 0;
 		}
 	}
 
 	// shres on lores is useless
 	if (res == 2 && outres == 0) {
-		return false;
+		return 0;
 	}
 	// skip non-existing modes
 	if (!aga) {
 		if (planes > 4 && res > 0) {
-			return false;
+			return -1;
 		}
 		if (planes > 6) {
-			return false;
+			return -1;
 		}
 		if (modes == CMODE_HAM && (res > 0 || planes <= 4)) {
-			return false;
+			return -1;
 		}
 		if (planes != 6 && modes == CMODE_EXTRAHB) {
-			return false;
+			return -1;
 		}
 	} else {
 		if (modes == CMODE_HAM && (planes != 6 && planes != 8)) {
-			return false;
+			return -1;
 		}
 		if (planes != 6 && (modes == CMODE_EXTRAHB || modes == CMODE_EXTRAHB_ECS_KILLEHB)) {
-			return false;
+			return -1;
 		}
 		// FMODE=1: Superhires max 4 planes
 		if (bplfmode == 1 && planes > 4 && res > 1) {
-			return false;
+			return -1;
 		}
 		// FMODE=0: Hires max 4 planes.
 		if (bplfmode == 0 && planes > 4 && res > 0) {
-			return false;
+			return -1;
 		}
 		// FMODE=0: Superhires max 2 planes.
 		if (bplfmode == 0 && planes > 2 && res > 1) {
-			return false;
+			return -1;
 		}
 	}
-	return true;
+	return 1;
 }
 
 static bool gen_fasthead(void)
@@ -1430,6 +1472,7 @@ int main (int argc, char *argv[])
 	oddeven = 1;
 	genlock = 0;
 	ntsc = -1;
+	modetype = 0;
 
 	for (bplfmode = 0; bplfmode < 3; bplfmode++) {
 
@@ -1444,7 +1487,8 @@ int main (int argc, char *argv[])
 					for (planes = 2; planes <= 8; planes += 2) {
 						for (modes = 0; modes < 5; modes++) {
 							for (oddeven = 0; oddeven < 2; oddeven++) {
-								if (gen_head()) {
+								modetype = gen_head();
+								if (modetype) {
 									gen_start();
 									gen_init();
 									gen_pix_aga();
@@ -1454,7 +1498,8 @@ int main (int argc, char *argv[])
 								}
 								gen_tail();
 								filtered = 1;
-								if (gen_head()) {
+								modetype = gen_head();
+								if (modetype) {
 									gen_start();
 									gen_init();
 									gen_pix_aga();
@@ -1489,7 +1534,8 @@ int main (int argc, char *argv[])
 					for (planes = 4; planes <= 8; planes += 4) {
 						for (modes = 0; modes < 5; modes++) {
 							for (oddeven = 0; oddeven < 2; oddeven++) {
-								if (gen_head()) {
+								modetype = gen_head();
+								if (modetype) {
 									gen_start();
 									gen_init();
 									gen_pix_aga();
@@ -1499,7 +1545,8 @@ int main (int argc, char *argv[])
 								}
 								gen_tail();
 								filtered = 1;
-								if (gen_head()) {
+								modetype = gen_head();
+								if (modetype) {
 									gen_start();
 									gen_init();
 									gen_pix_aga();
@@ -1536,7 +1583,8 @@ int main (int argc, char *argv[])
 					planes = planecnts[pc];
 					for (modes = 0; modes < 4; modes++) {
 						for (oddeven = 0; oddeven < 2; oddeven++) {
-							if (gen_head()) {
+							modetype = gen_head();
+							if (modetype) {
 								gen_start();
 								gen_init();
 								gen_pix();
@@ -1546,7 +1594,8 @@ int main (int argc, char *argv[])
 							}
 							gen_tail();
 							filtered = 1;
-							if (gen_head()) {
+							modetype = gen_head();
+							if (modetype) {
 								gen_start();
 								gen_init();
 								gen_pix();
@@ -1581,7 +1630,8 @@ int main (int argc, char *argv[])
 				sprres = spr == 0 ? -1 : 0;
 				for (modes = 0; modes < 4; modes++) {
 					for (oddeven = 0; oddeven < 2; oddeven++) {
-						if (gen_head()) {
+						modetype = gen_head();
+						if (modetype) {
 							gen_start();
 							gen_init();
 							gen_pix();
@@ -1591,7 +1641,8 @@ int main (int argc, char *argv[])
 						}
 						gen_tail();
 						filtered = 1;
-						if (gen_head()) {
+						modetype = gen_head();
+						if (modetype) {
 							gen_start();
 							gen_init();
 							gen_pix();
@@ -1625,7 +1676,8 @@ int main (int argc, char *argv[])
 					planes = planecnts[pc];
 					for (modes = 0; modes < 4; modes++) {
 						for (oddeven = 0; oddeven < 2; oddeven++) {
-							if (gen_head()) {
+							modetype = gen_head();
+							if (modetype) {
 								gen_start();
 								gen_init();
 								gen_pix();
@@ -1635,7 +1687,8 @@ int main (int argc, char *argv[])
 							}
 							gen_tail();
 							filtered = 1;
-							if (gen_head()) {
+							modetype = gen_head();
+							if (modetype) {
 								gen_start();
 								gen_init();
 								gen_pix();
@@ -1670,7 +1723,8 @@ int main (int argc, char *argv[])
 				sprres = spr == 0 ? -1 : 0;
 				for (modes = 0; modes < 4; modes++) {
 					for (oddeven = 0; oddeven < 2; oddeven++) {
-						if (gen_head()) {
+						modetype = gen_head();
+						if (modetype) {
 							gen_start();
 							gen_init();
 							gen_pix();
@@ -1680,7 +1734,8 @@ int main (int argc, char *argv[])
 						}
 						gen_tail();
 						filtered = 1;
-						if (gen_head()) {
+						modetype = gen_head();
+						if (modetype) {
 							gen_start();
 							gen_init();
 							gen_pix();
