@@ -7651,6 +7651,10 @@ static int REGPARAM2 custom_wput_1(uaecptr addr, uae_u32 value, int noget)
 	}
 #endif
 	int c = get_reg_chip(addr);
+	int ret = 0;
+	if (c & 1) {
+		ret = custom_wput_agnus(addr, value, noget);
+	}
 	if (!(noget & 0x8000) && (c & 2)) {
 		uae_u32 v = value;
 		if (c & 4) {
@@ -7666,10 +7670,7 @@ static int REGPARAM2 custom_wput_1(uaecptr addr, uae_u32 value, int noget)
 			write_drga(addr, NULL, v);
 		}
 	}
-	if (c & 1) {
-		return custom_wput_agnus(addr, value, noget);
-	}
-	return 0;
+	return ret;
 }
 
 static void REGPARAM2 custom_wput(uaecptr addr, uae_u32 value)
