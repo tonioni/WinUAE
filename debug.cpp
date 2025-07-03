@@ -3087,10 +3087,11 @@ static uaecptr decode_copper_insn(FILE *file, uae_u16 mword1, uae_u16 mword2, ua
 					break;
 				i++;
 			}
-			if (custd[i].name)
+			if (custd[i].name && custd[i].name[0] && _tcscmp(custd[i].name, _T("-"))) {
 				console_out_f(_T("%s := 0x%04x\n"), custd[i].name, insn & 0xffff);
-			else
+			} else {
 				console_out_f(_T("%04x := 0x%04x\n"), addr, insn & 0xffff);
+			}
 		}
 		break;
 
