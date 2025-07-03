@@ -799,7 +799,7 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	*heightp = 0;
 	*depth = 32;
 	*locked = false;
-	if (!vb)
+	if (!vb || mon->screen_is_picasso)
 		return NULL;
 	if (!vb->locked) {
 		if (!lockscr(vb, false, false)) {
