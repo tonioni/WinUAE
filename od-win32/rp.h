@@ -32,6 +32,7 @@ extern void rp_writemodem(uae_u8);
 extern void rp_modemstate(int);
 extern void rp_writemodemstatus(bool, bool, bool, bool);
 extern void rp_readmodemstatus(bool*,bool*,bool*,bool*);
+extern void rp_drive_access_error(int error);
 
 extern TCHAR *rp_param;
 extern int rp_rpescapekey;

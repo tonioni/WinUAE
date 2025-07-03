@@ -1549,7 +1549,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				savestate_initsave (NULL, 0, TRUE, true);
 				return 1;
 			}
-			if (vpos == maxvpos_display_vsync + 1) {
+			if (vpos == vsync_startline + 1) {
 				savestate_initsave (_T(""), 1, TRUE, true);
 				save_state (s, _T("AmigaForever"));
 				ret = 1;
@@ -2576,6 +2576,13 @@ void rp_writeprinter(uae_char *b, int len)
 		RPSendMessagex(RP_IPC_TO_HOST_DEVICEWRITEBYTE, unit, (LPARAM)*b & 0xFF, 0, 0, &guestinfo, NULL);
 	else
 		RPSendMessagex(RP_IPC_TO_HOST_DEVICEWRITEBYTES, unit, 0, b, len, &guestinfo, NULL);
+}
+
+void rp_drive_access_error(int error)
+{
+	if (!initialized)
+		return;
+	RPSendMessage(RP_IPC_TO_HOST_STATUS, RP_STATUS_PARTITION_TABLE_WRITE_ERROR, error, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_test(void)

@@ -24236,7 +24236,7 @@ void gui_message (const TCHAR *format,...)
 	_vsntprintf (msg, sizeof msg / sizeof (TCHAR), format, parms);
 	va_end (parms);
 
-	if (full_property_sheet) {
+	if (full_property_sheet || rp_isactive()) {
 		pre_gui_message (msg);
 		return;
 	}
@@ -24291,9 +24291,11 @@ void pre_gui_message (const TCHAR *format,...)
 	if (msg[_tcslen (msg) - 1] != '\n')
 		write_log (_T("\n"));
 
-	WIN32GUI_LoadUIString (IDS_ERRORTITLE, szTitle, MAX_DPATH);
-	_tcscat (szTitle, BetaStr);
-	MessageBox (guiDlg, msg, szTitle, MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+	if (!rp_isactive()) {
+		WIN32GUI_LoadUIString (IDS_ERRORTITLE, szTitle, MAX_DPATH);
+		_tcscat (szTitle, BetaStr);
+		MessageBox (guiDlg, msg, szTitle, MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+	}
 
 }
 

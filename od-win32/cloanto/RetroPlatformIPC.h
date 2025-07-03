@@ -2,14 +2,14 @@
  Name    : RetroPlatformIPC.h
  Project : RetroPlatform Player
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2023 Cloanto Corporation - All rights reserved. This
+ Legal   : Copyright 2007-2025 Cloanto Corporation - All rights reserved. This
          : file is multi-licensed under the terms of the Mozilla Public License
          : version 2.0 as published by Mozilla Corporation and the GNU General
          : Public License, version 2 or later, as published by the Free
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2023-05-11 10:31:21
+ Updated : 2025-06-28 17:42:21
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -18,8 +18,8 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "10.2"
-#define RETROPLATFORM_API_VER_MAJOR  10
+#define RETROPLATFORM_API_VER       "11.2"
+#define RETROPLATFORM_API_VER_MAJOR  11
 #define RETROPLATFORM_API_VER_MINOR  2
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
@@ -59,7 +59,7 @@
 #define RP_IPC_TO_HOST_DEVICECONTENT	    (WM_APP + 27) // extended in RetroPlatform API 3.0
 #define RP_IPC_TO_HOST_KEYBOARDLAYOUT		(WM_APP + 30) // introduced in RetroPlatform API 7.1
 #define RP_IPC_TO_HOST_PRIVATE_SHAREDEVENT  (WM_APP + 31) // introduced in RetroPlatform API 7.2
-#define RP_IPC_TO_HOST_PRIVATE_TYPECLIPDONE (WM_APP + 32) // introduced in RetroPlatform API 7.2
+#define RP_IPC_TO_HOST_PRIVATE_TYPETEXTDONE (WM_APP + 32) // introduced in RetroPlatform API 7.2
 #define RP_IPC_TO_HOST_PRIVATE_KEYEVENT     (WM_APP + 33) // introduced in RetroPlatform API 7.2
 #define RP_IPC_TO_HOST_PRIVATE_GUESTEVENT   (WM_APP + 34) // introduced in RetroPlatform API 7.2
 #define RP_IPC_TO_HOST_PRIVATE_KEYREMINDER  (WM_APP + 35) // introduced in RetroPlatform API 7.2
@@ -79,6 +79,11 @@
 #define RP_IPC_TO_HOST_PRIVATE_CANTYPECLIPB (WM_APP + 49) // introduced in RetroPlatform API 10.0
 #define RP_IPC_TO_HOST_DEVICEWRITEBYTES     (WM_APP + 50) // introduced in RetroPlatform API 10.1
 #define RP_IPC_TO_HOST_DEVICESETSIGNALS     (WM_APP + 51) // introduced in RetroPlatform API 10.1
+#define	RP_IPC_TO_HOST_PRIVATE_GUESTDLLSTARTUP (WM_APP + 52) // introduced in RetroPlatform API 10.3
+#define	RP_IPC_TO_HOST_PRIVATE_FRAMEWINDOW  (WM_APP + 53) // introduced in RetroPlatform API 10.3
+#define	RP_IPC_TO_HOST_TOPWINDOW			(WM_APP + 54) // introduced in RetroPlatform API 10.3
+#define	RP_IPC_TO_HOST_PRIVATE_PRINTERATTR	(WM_APP + 55) // introduced in RetroPlatform API 11.1
+#define	RP_IPC_TO_HOST_STATUS				(WM_APP + 56) // introduced in RetroPlatform API 11.2
 
 // ****************************************************************************
 //  Host-to-Guest Messages
@@ -131,6 +136,9 @@
 #define RP_IPC_TO_GUEST_EXECUTE              (WM_APP + 248) // introduced in RetroPlatform API 10.0
 #define RP_IPC_TO_GUEST_DEVICEWRITEBYTE      (WM_APP + 249) // introduced in RetroPlatform API 10.1
 #define RP_IPC_TO_GUEST_DEVICESETSIGNALS     (WM_APP + 250) // introduced in RetroPlatform API 10.1
+#define	RP_IPC_TO_GUEST_PRIVATE_FRAMEWINDOW  (WM_APP + 251) // introduced in RetroPlatform API 10.3
+#define	RP_IPC_TO_GUEST_PRIVATE_TYPETEXT     (WM_APP + 252) // introduced in RetroPlatform API 10.4
+#define	RP_IPC_TO_GUEST_PRIVATE_DEVICECOMMAND (WM_APP + 253) // introduced in RetroPlatform API 11.0
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -524,11 +532,11 @@ typedef struct RPScreenCapture
 #define RP_SHARED_EVENT_PRESSED_DEFERRED 0x0002
 #define	RP_SHARED_EVENT_RELEASED		 0x0001
 
-// RP_IPC_TO_GUEST_PRIVATE_TYPECLIP return code
-#define PRIVATETYPECLIP_NOTIMPL		0
-#define PRIVATETYPECLIP_FAILED		1
-#define PRIVATETYPECLIP_SUCCEDED	2
-#define PRIVATETYPECLIP_INPROGRESS	3 // a RP_IPC_TO_HOST_PRIVATE_TYPECLIPDONE will be sent when done
+// RP_IPC_TO_GUEST_PRIVATE_TYPECLIP and RP_IPC_TO_GUEST_PRIVATE_TYPETEXT return code
+#define PRIVATETYPETEXT_NOTIMPL		0
+#define PRIVATETYPETEXT_FAILED		1
+#define PRIVATETYPETEXT_SUCCEEDED	2
+#define PRIVATETYPETEXT_INPROGRESS	3 // a RP_IPC_TO_HOST_PRIVATE_TYPETEXTDONE will be sent when done
 
 
 // RPScreenOverlay (used by RP_IPC_TO_GUEST_SCREENOVERLAY)
@@ -660,8 +668,64 @@ typedef struct RPExecuteResult
 #define RP_SIGNAL_DTR  0x00000020 // Data Terminal Ready
 
 
+// RP_IPC_TO_GUEST_PRIVATE_TYPETEXT
+
+typedef struct RPTypeText
+{
+	DWORD cbSize;           // the size of this structure, in bytes (not including the extra size of the szText array)
+	DWORD dwTypematicRate;  // characters per second or 0
+	DWORD dwGuestFeatures;  // RP_FEATURE_* flags
+	DWORD dwTextLength;     // length of the output string (not including the terminating null character)
+	WCHAR szText[1];        // output string (variable-sized array)
+} RPTYPETEXT;
+
+
+// RP_IPC_TO_GUEST_PRIVATE_DEVICECOMMAND
+#define RP_PDCMD_SHOW_PREVIEW	1
+#define RP_PDCMD_PRINT_LIST		2
+
+#define PRIVATEDEVICECOMMAND_NOTIMPL     PRIVATETYPETEXT_NOTIMPL
+#define PRIVATEDEVICECOMMAND_FAILED      PRIVATETYPETEXT_FAILED
+#define PRIVATEDEVICECOMMAND_SUCCEEDED   PRIVATETYPETEXT_SUCCEEDED
+#define PRIVATEDEVICECOMMAND_INPROGRESS  PRIVATETYPETEXT_INPROGRESS	// a RP_IPC_TO_HOST_PRIVATE_TYPETEXTDONE will be sent when done
+
+typedef struct RPPrivateDeviceCommand
+{
+	DWORD cbSize;           // the size of this structure, in bytes (not including the extra size of the dwParams array)
+	BYTE  btDeviceCategory; // RP_PDCMD_* value
+	BYTE  btDeviceNumber;   // device number
+	DWORD dwCommand;        // RP_DEVCMD_* value
+	DWORD dwParamCount;     // count of the dwParams array
+	DWORD dwParams[1];
+} RPPRIVATEDEVICECOMMAND;
+
+
+// RP_IPC_TO_HOST_PRIVATE_PRINTERATTR
+
+typedef struct RPPrinterAttribute
+{
+	DWORD cbSize;           // the size of this structure, in bytes
+	WCHAR szPort[100];      // printer port
+    DWORD dwUnit;           // printer unit
+	WCHAR szAttribute[100]; // attribute name
+	WCHAR szValue[100];     // attribute value
+} RPPRINTERATTRIBUTE;
+
+
+// RP_IPC_TO_HOST_STATUS
+
+#define RP_STATUS_PARTITION_TABLE_WRITE_ERROR	1
+
+
+
 // Legacy Compatibility
 #ifndef RP_NO_LEGACY
+// Changed in 10.4
+#define RP_IPC_TO_HOST_PRIVATE_TYPECLIPDONE RP_IPC_TO_HOST_PRIVATE_TYPETEXTDONE
+#define PRIVATETYPECLIP_NOTIMPL		PRIVATETYPETEXT_NOTIMPL
+#define PRIVATETYPECLIP_FAILED		PRIVATETYPETEXT_FAILED
+#define PRIVATETYPECLIP_SUCCEEDED	PRIVATETYPETEXT_SUCCEEDED
+#define PRIVATETYPECLIP_INPROGRESS	PRIVATETYPETEXT_INPROGRESS
 // Changed in 7.0
 #define RP_MOUSECAPTURE_MAGICMOUSE RP_MOUSECAPTURE_INTEGRATED
 // Changed in 3.0

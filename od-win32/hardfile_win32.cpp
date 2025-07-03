@@ -21,6 +21,10 @@
 #include "rommgr.h"
 #include "fsdb.h"
 
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
+
 #define hfd_log write_log
 #define hfd_log2
 //#define hdf_log2 write_log
@@ -2661,12 +2665,18 @@ static int hdf_write_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 {
 	DWORD outlen = 0;
 
-	if (hfd->ci.readonly) {
-		*error = 28;
-		return 0;
-	}
 	if (hfd->dangerous) {
 		*error = 28;
+#ifdef RETROPLATFORM
+		rp_drive_access_error(3);
+#endif
+		return 0;
+	}
+	if (hfd->ci.readonly) {
+		*error = 28;
+#ifdef RETROPLATFORM
+		rp_drive_access_error(4);
+#endif
 		return 0;
 	}
 	if (len == 0)
@@ -2675,6 +2685,9 @@ static int hdf_write_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 	hfd->cache_valid = 0;
 	if (hdf_seek(hfd, offset, true)) {
 		*error = 45;
+#ifdef RETROPLATFORM
+		rp_drive_access_error(2);
+#endif
 		return 0;
 	}
 	poscheck (hfd, len);
@@ -2689,6 +2702,9 @@ static int hdf_write_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 					gui_message (_T("\"%s\"\n\nBlock zero write attempt but drive has one or more mounted PC partitions or WinUAE does not have Administrator privileges. Erase the drive or unmount all PC partitions first."), name);
 					hfd->ci.readonly = true;
 					*error = 45;
+#ifdef RETROPLATFORM
+					rp_drive_access_error(0);
+#endif
 					return 0;
 				}
 			}
@@ -2696,6 +2712,9 @@ static int hdf_write_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 		HD_WriteFile(hfd->handle->h, hfd->cache, len, &outlen, offset);
 		if (outlen != len) {
 			*error = 45;
+#ifdef RETROPLATFORM
+			rp_drive_access_error(5);
+#endif
 		}
 		if (offset == 0) {
 			DWORD err = GetLastError();
@@ -2711,6 +2730,9 @@ static int hdf_write_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 				if (memcmp (hfd->cache, tmp, cmplen) != 0 || outlen != len) {
 					gui_message (_T("\"%s\"\n\nblock zero write failed! Make sure WinUAE has Windows Administrator privileges. Error=%d"), name, err);
 					*error = 45;
+#ifdef RETROPLATFORM
+					rp_drive_access_error(1);
+#endif
 				}
 				VirtualFree (tmp, 0, MEM_RELEASE);
 			}
