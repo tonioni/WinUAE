@@ -3137,12 +3137,9 @@ static void DMACON(int hpos, uae_u16 v)
 
 	changed = dmacon ^ oldcon;
 
-#if 0
-	if (v == 0x9696 && vpos == 0xf1 && agnus_hpos == 0x60)
-		write_log(_T("%04x -> %04x %08x\n"), oldcon, dmacon, m68k_getpc ());
-	if (changed)
-		write_log(_T("%04x -> %04x %08x\n"), oldcon, dmacon, m68k_getpc ());
-#endif
+	if (0) {
+		write_log("%04x: %04x -> %04x %08x %08x\n", changed, oldcon, dmacon, M68K_GETPC, cop_state.ip);
+	}
 
 	int oldcop = (oldcon & DMA_COPPER) != 0 && (oldcon & DMA_MASTER) != 0;
 	int newcop = (dmacon & DMA_COPPER) != 0 && (dmacon & DMA_MASTER) != 0;

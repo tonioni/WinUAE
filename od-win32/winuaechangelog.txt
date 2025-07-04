@@ -1,4 +1,13 @@
 
+
+Beta 33 (Final):
+
+- UAE Boot ROM type state restore fixed (was some half-finished feature that was forgotten year or two ago).
+- Full-window + superhires + interlace aspect ratio was weird if aspect ratio correction was enabled.
+- Fast CPU could do Denise/Lisa register access before already queued RGA queue access was processed. (For example if Copper wrote to COLOR0, slightly later CPU write to COLOR0 can still happen before buffered Copper write was fully done).
+- "Invalid" screen modes that disable Agnus bitplane DMA (for example 8 plane hires but FMODE=0) didn't draw anything but of course current background color and sprites (if AGA bordersprites are active) should still be drawn normally.
+- Possible fix for IDE emulation read/write error during data transfer leaving DRQ active.
+
 Beta 32 (RC2):
 
 - Paula audio timing calcution used programmed vertical timing but hardwired PAL/NTSC horizontal timing when in RTG mode with inactive Amiga screen in doublescan mode. (b22)
