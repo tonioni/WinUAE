@@ -18,6 +18,7 @@
 #include "fsdb.h"
 #include "autoconf.h"
 #include "filesys.h"
+#include "arcadia.h"
 
 #define SAVE_ROM 0
 
@@ -96,7 +97,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 324
+#define NEXT_ROM_ID 332
 
 #if NEXT_ROM_ID >= MAX_ROMMGR_ROMS
 #error Increase MAX_ROMMGR_ROMS!
@@ -811,14 +812,32 @@ static struct romdata roms[] = {
 	0x4e71ec63, 0x8e95bc8d,0xa06050fc,0xb596b5b4,0xc8cf9102,0x1ff4aeb3, NULL, NULL },
 	{ _T("CyberStorm MK II"), 0, 0, 0, 0, _T("CSMKII\0"), 131072, 96, 0, 0, ROMTYPE_CB_CSMK2, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk2.rom") },
-	{ _T("CyberStorm MK III"), 0, 0, 0, 0, _T("CSMKIII\0"), 131072, 97, 0, 0, ROMTYPE_CB_CSMK3, 0, 0, NULL,
-	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk3.rom") },
-	{ _T("CyberStorm PPC"), 0, 0, 0, 0, _T("CSPPC\0"), 131072, 98, 0, 0, ROMTYPE_CB_CSPPC, 0, 0, NULL,
-	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormppc.rom") },
-	{ _T("Blizzard PPC 68040"), 0, 0, 0, 0, _T("BPPC\0"), 524288, 99, 0, 0, ROMTYPE_CB_BLIZPPC, 0, 0, NULL,
-	  0, 0, 0, 0, 0, 0, NULL, _T("blizzardppc_040.rom") },
-	{ _T("Blizzard PPC 68060"), 0, 0, 0, 0, _T("BPPC\0"), 524288, 100, 0, 0, ROMTYPE_CB_BLIZPPC, 0, 0, NULL,
-	  0, 0, 0, 0, 0, 0, NULL, _T("blizzardppc_060.rom") },
+
+	{ _T("CyberStorm MK III v44.67"), 44, 67, 0, 0, _T("CSMKIII\0"), 131072, 97, 0, 0, ROMTYPE_CB_CSMK3, 0, 0, NULL,
+	  0, 0x4673baad,0xee2bfca3,0x151fbe15,0x3bc48308,0x8d932118, NULL, _T("cyberstormmk3.rom") },
+	{ _T("CyberStorm MK III v44.69"), 44, 69, 0, 0, _T("CSMKIII\0"), 131072, 324, 0, 0, ROMTYPE_CB_CSMK3, 0, 0, NULL,
+	  0, 0xfa033a77,0x1c9174f4,0xf91a595c,0xbcc46416,0xfbba84af, NULL, NULL },
+	{ _T("CyberStorm MK III v44.71"), 44, 71, 0, 0, _T("CSMKIII\0"), 131072, 325, 0, 0, ROMTYPE_CB_CSMK3, 0, 0, NULL,
+	  0, 0x8f902c86,0x2cb1792f,0x789b2cf8,0xec1016d9,0x62e029c5, NULL, NULL },
+	{ _T("CyberStorm PPC v44.67"), 44, 67, 0, 0, _T("CSPPC\0"), 131072, 98, 0, 0, ROMTYPE_CB_CSPPC, 0, 0, NULL,
+	  0, 0x7223763d,0x90316bdb,0x4d5001a9,0xa877cce4,0x00d68283, NULL, _T("cyberstormppc.rom") },
+	{ _T("CyberStorm PPC v44.69"), 44, 69, 0, 0, _T("CSPPC\0"), 131072, 326, 0, 0, ROMTYPE_CB_CSPPC, 0, 0, NULL,
+	  0, 0x34807066,0xe2b7694e,0x856a3031,0x387f40f2,0xbe75aad9, NULL, NULL },
+	{ _T("CyberStorm PPC v44.71"), 44, 71, 0, 0, _T("CSPPC\0"), 131072, 327, 0, 0, ROMTYPE_CB_CSPPC, 0, 0, NULL,
+	  0, 0xc7cb3c4f,0xa66e260f,0x43bff704,0x4049a264,0xa729e590, NULL, NULL },
+	{ _T("Blizzard PPC 68040 v44.67"), 44, 67, 0, 0, _T("BPPC\0"), 524288, 99, 0, 0, ROMTYPE_CB_BLIZPPC, 0, 0, NULL,
+	  0, 0x96564e51,0x5df30654,0x05d223ab,0xc958fe76,0xc5223fb5, NULL, _T("blizzardppc_040.rom") },
+	{ _T("Blizzard PPC 68060 v44.67"), 44, 67, 0, 0, _T("BPPC\0"), 524288, 100, 0, 0, ROMTYPE_CB_BLIZPPC, 0, 0, NULL,
+	  0, 0xf7533d16,0x9fcfc720,0x192fbc32,0x92b75f99,0x8c36f8ce, NULL, _T("blizzardppc_060.rom") },
+	{ _T("Blizzard PPC 68040 v44.69"), 44, 67, 0, 0, _T("BPPC\0"), 524288, 328, 0, 0, ROMTYPE_CB_BLIZPPC, 0, 0, NULL,
+	  0, 0xc8a63707,0xbe89c549,0x25f99e6b,0x6c1b8ca4,0x605b2e57, NULL, NULL },
+	{ _T("Blizzard PPC 68060 v44.69"), 44, 67, 0, 0, _T("BPPC\0"), 524288, 329, 0, 0, ROMTYPE_CB_BLIZPPC, 0, 0, NULL,
+	  0, 0xacc30e57,0xed900be3,0x87f466d0,0x57600791,0x316b0af5, NULL, NULL },
+	{ _T("Blizzard PPC 68040 v44.71"), 44, 67, 0, 0, _T("BPPC\0"), 524288, 330, 0, 0, ROMTYPE_CB_BLIZPPC, 0, 0, NULL,
+	  0, 0x9d0e3e2c,0xd5ca81b0,0x322f265c,0x83198aee,0xc81ee336, NULL, NULL },
+	{ _T("Blizzard PPC 68060 v44.71"), 44, 67, 0, 0, _T("BPPC\0"), 524288, 331, 0, 0, ROMTYPE_CB_BLIZPPC, 0, 0, NULL,
+	  0, 0x33fd6090,0xc54114bf,0xdb73618a,0xaf19cc43,0x7ebdee3f, NULL, NULL },
+
 	{ _T("ACA 500"), 0, 0, 0, 0, _T("ACA500\0"), 524288, 137, 0, 0, ROMTYPE_CB_ACA500, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("menu500.aca") },
 
@@ -1596,7 +1615,7 @@ static struct romdata *checkromdata (const uae_u8 *sha1, int size, uae_u32 mask)
 {
 	int i = 0;
 	while (roms[i].name) {
-		if (!notcrc32(roms[i].crc32) && roms[i].size >= size) {
+		if (roms[i].crc32 != 0xffffffff && roms[i].size >= size) {
 			if (roms[i].type & mask) {
 				if (!cmpsha1 (sha1, &roms[i]))
 					return &roms[i];
@@ -1721,8 +1740,23 @@ struct romdata *getromdatabydata (uae_u8 *rom, int size)
 			get_sha1 (rom, size, sha1);
 			ret = checkromdata (sha1, size, ROMTYPE_AR2);
 			memcpy (rom, tmp, 4);
+			// BlizzardPPC/CyberStormMK3/PPC images have config data
+			if (!ret && (size == 131072 || size == 524288)) {
+				uae_u8 *rt = xmalloc(uae_u8, 524288);
+				if (rt) {
+					memcpy(rt, rom, size);
+					memset(rt + 0x10, 0, 0x20);
+					get_sha1(rt, 0x1c000, sha1);
+					ret = checkromdata(sha1, size, -1);
+					if (!ret && size == 524288) {
+						get_sha1(rt, 0x50000, sha1);
+						ret = checkromdata(sha1, size, -1);
+					}
+					xfree(rt);
+				}
+			}
 		}
-	}//9 
+	}
 	xfree (tmpbuf);
 	return ret;
 }
@@ -2881,4 +2915,86 @@ struct zfile *flashromfile_open(const TCHAR *name)
 		write_log(_T("Flash file '%s' loaded, %s.\n"), name, rw ? _T("RW") : _T("RO"));
 	}
 	return f;
+}
+
+struct romdata *scan_single_rom_file(struct zfile *f)
+{
+	uae_u8 buffer[20] = { 0 };
+	uae_u8 *rombuf;
+	int cl = 0, size;
+	struct romdata *rd = 0;
+
+	zfile_fseek(f, 0, SEEK_END);
+	size = zfile_ftell32(f);
+	zfile_fseek(f, 0, SEEK_SET);
+	if (size > 524288 * 2) {/* don't skip KICK disks or 1M ROMs */
+		write_log(_T("'%s': too big %d, ignored\n"), zfile_getname(f), size);
+		return 0;
+	}
+	zfile_fread(buffer, 1, 11, f);
+	if (!memcmp(buffer, "KICK", 4)) {
+		zfile_fseek(f, 512, SEEK_SET);
+		if (size > 262144)
+			size = 262144;
+	} else if (!memcmp(buffer, "AMIROMTYPE1", 11)) {
+		cl = 1;
+		size -= 11;
+	} else {
+		zfile_fseek(f, 0, SEEK_SET);
+	}
+	rombuf = xcalloc(uae_u8, size);
+	if (!rombuf)
+		return 0;
+	zfile_fread(rombuf, 1, size, f);
+	if (cl > 0) {
+		decode_cloanto_rom_do(rombuf, size, size);
+		cl = 0;
+	}
+	if (!cl) {
+		rd = getromdatabydata(rombuf, size);
+		if (!rd && (size & 65535) == 0) {
+			/* check byteswap */
+			int i;
+			for (i = 0; i < size; i += 2) {
+				uae_u8 b = rombuf[i];
+				rombuf[i] = rombuf[i + 1];
+				rombuf[i + 1] = b;
+			}
+			rd = getromdatabydata(rombuf, size);
+		}
+	}
+	if (!rd) {
+		const TCHAR *name = my_getfilepart(zfile_getname(f));
+		rd = getfrombydefaultname(name, size);
+	}
+	if (!rd) {
+		write_log(_T("!: Name='%s':%d\nCRC32=%08X SHA1=%s\n"),
+			zfile_getname(f), size, get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
+	} else {
+		TCHAR tmp[MAX_DPATH];
+		getromname(rd, tmp);
+		write_log(_T("*: %s:%d = %s\nCRC32=%08X SHA1=%s\n"),
+			zfile_getname(f), size, tmp, get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
+	}
+	xfree(rombuf);
+	return rd;
+}
+
+struct romdata *scan_single_rom(const TCHAR *path)
+{
+	struct zfile *z;
+	TCHAR tmp[MAX_DPATH];
+	struct romdata *rd;
+
+	_tcscpy(tmp, path);
+	rd = scan_arcadia_rom(tmp, 0);
+	if (rd)
+		return rd;
+	rd = getromdatabypath(path);
+	if (rd && rd->crc32 == 0xffffffff)
+		return rd;
+	z = zfile_fopen(path, _T("rb"), ZFD_NORMAL);
+	if (!z)
+		return 0;
+	return scan_single_rom_file(z);
 }

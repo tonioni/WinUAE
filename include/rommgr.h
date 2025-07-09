@@ -288,6 +288,8 @@ extern void romlist_clear (void);
 extern struct zfile *read_rom(struct romdata *rd, bool rw = false);
 extern struct zfile *read_rom_name(const TCHAR *filename, bool rw = false);
 extern struct zfile *read_device_from_romconfig(struct romconfig *rc, uae_u32 romtype, bool rw = false);
+extern struct romdata *scan_single_rom_file(struct zfile *f);
+extern struct romdata *scan_single_rom(const TCHAR *path);
 
 extern int load_keyring (struct uae_prefs *p, const TCHAR *path);
 extern uae_u8 *target_load_keyfile (struct uae_prefs *p, const TCHAR *path, int *size, TCHAR *name);
