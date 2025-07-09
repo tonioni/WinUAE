@@ -183,7 +183,6 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 void draw_denise_border_line_fast_queue(int gfx_ypos, enum nln_how how, struct linestate *ls);
 bool start_draw_denise(void);
 void end_draw_denise(void);
-bool has_draw_denise(void);
 void denise_reset(bool);
 bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 linecnt);
 void denise_store_registers(void);

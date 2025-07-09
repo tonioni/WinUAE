@@ -2309,6 +2309,7 @@ static void m(int monid)
 
 static void flipgui(int opengui)
 {
+	end_draw_denise();
 	D3D_guimode(0, opengui);
 	if (full_property_sheet)
 		return;

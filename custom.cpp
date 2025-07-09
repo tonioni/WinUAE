@@ -5056,18 +5056,13 @@ static void vsync_display_render(void)
 		vsyncmintimepre = read_processor_time();
 
 		if (!custom_disabled) {
-			if (!has_draw_denise()) {
-				start_draw_denise();
-			}
+			start_draw_denise();
 			draw_denise_vsync_queue(display_redraw);
 			display_redraw = false;
 		}
 
 		draw_denise_line_queue_flush();
-
-		if (has_draw_denise()) {
-			end_draw_denise();
-		}
+		end_draw_denise();
 		vsync_handler_render();
 		if (!custom_disabled) {
 			start_draw_denise();
@@ -6996,10 +6991,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	setmaxhpos();
 	resetfulllinestate();
 	updateprghpostable();
-
-	if (!has_draw_denise()) {
-		start_draw_denise();
-	}
+	start_draw_denise();
 
 #ifdef ACTION_REPLAY
 	/* Doing this here ensures we can use the 'reset' command from within AR */
@@ -10991,9 +10983,7 @@ static void dmal_fast(void)
 
 static void do_draw_line(void)
 {
-	if (!has_draw_denise()) {
-		start_draw_denise();
-	}
+	start_draw_denise();
 
 	if (custom_fastmode_exit) {
 		custom_fastmode_exit = 0;
@@ -12737,8 +12727,5 @@ bool ispal(int *lines)
 void custom_end_drawing(void)
 {
 	draw_denise_line_queue_flush();
-	if (has_draw_denise()) {
-		write_log("flushing denise draw queue\n");
-		end_draw_denise();
-	}
+	end_draw_denise();
 }

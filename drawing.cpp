@@ -5031,11 +5031,6 @@ void denise_restore_registers(void)
 	expand_fmode(s_fmode);
 }
 
-bool has_draw_denise(void)
-{
-	return thread_debug_lock;
-}
-
 void set_drawbuffer(void)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
@@ -5060,11 +5055,11 @@ bool start_draw_denise(void)
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	struct vidbuffer *vb = &vidinfo->drawbuffer;
 
-	vidinfo->outbuffer = vb;
-
 	if (thread_debug_lock) {
-		write_log("start_draw_denise: thread_debug_lock already set!");
+		return true;
 	}
+
+	vidinfo->outbuffer = vb;
 
 	if (!lockscr(vb, false, display_reset > 0)) {
 		return false;
@@ -5088,10 +5083,6 @@ void end_draw_denise(void)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	struct vidbuffer *vb = &vidinfo->drawbuffer;
-
-	if (!thread_debug_lock) {
-		write_log("end_draw_denise: thread_debug_lock not set!\n");
-	}
 
 	draw_denise_line_queue_flush();
 
