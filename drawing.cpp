@@ -552,7 +552,7 @@ static void count_frame(int monid)
 		ad->framecnt = 1;
 }
 
-STATIC_INLINE int xshift (int x, int shift)
+STATIC_INLINE int xshift(int x, int shift)
 {
 	if (shift < 0)
 		return x >> (-shift);
@@ -560,16 +560,20 @@ STATIC_INLINE int xshift (int x, int shift)
 		return x << shift;
 }
 
-int coord_native_to_amiga_x (int x)
+int coord_native_to_amiga_x(int x)
 {
 	x += visible_left_border;
 	return x;
 }
 
-int coord_native_to_amiga_y (int y)
+int coord_native_to_amiga_y(int y)
 {
-	if (!native2amiga_line_map || y < 0 || y >= native2amiga_line_map_height)
-		return -1;
+	if (!native2amiga_line_map || y < 0) {
+		return 0;
+	}
+	if (y >= native2amiga_line_map_height) {
+		y = native2amiga_line_map_height - 1;
+	}
 	return native2amiga_line_map[y] + thisframe_y_adjust - minfirstline;
 }
 

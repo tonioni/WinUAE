@@ -2676,14 +2676,27 @@ static bool get_mouse_position(int *xp, int *yp, int inx, int iny)
 		}
 		x = (int)(x * fmx);
 		y = (int)(y * fmy);
-		x -= (int)(fdx * fmx) - 1;
-		y -= (int)(fdy * fmy) - 2;
+		x -= (int)(fdx * 1.0) - 0;
+		y -= (int)(fdy * 1.0) - 2;
+		if (x < 0) {
+			ob = true;
+			x = 0;
+		}
+		if (x * fmx >= vidinfo->outbuffer->outwidth) {
+			ob = true;
+			x = vidinfo->outbuffer->outwidth - 1;
+		}
+		if (y < 0) {
+			ob = true;
+			y = 0;
+		}
+		if (y * fmy >= vidinfo->outbuffer->outheight) {
+			ob = true;
+			y = vidinfo->outbuffer->outheight - 1;
+		}
 		x = coord_native_to_amiga_x(x);
 		if (y >= 0) {
 			y = coord_native_to_amiga_y(y) * 2;
-		}
-		if (x < 0 || y < 0 || x >= vidinfo->outbuffer->outwidth || y >= vidinfo->outbuffer->outheight) {
-			ob = true;
 		}
 	}
 	*xp = x;
