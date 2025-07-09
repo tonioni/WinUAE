@@ -11563,6 +11563,7 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static void enable_for_expansiondlg(HWND hDlg)
 {
+	struct rtgboardconfig *rbc = &workprefs.rtgboards[gui_rtg_index];
 	int z3 = true;
 	int en;
 
@@ -11600,6 +11601,8 @@ static void enable_for_expansiondlg(HWND hDlg)
 	ew(hDlg, IDC_RTG_VBINTERRUPT, rtg3);
 	ew(hDlg, IDC_RTG_THREAD, rtg3 && en);
 	ew(hDlg, IDC_RTG_HWSPRITE, rtg3);
+
+	ew(hDlg, IDC_RTG_SWITCHER, rbc->rtgmem_size > 0 && !gfxboard_get_switcher(rbc));
 }
 
 static void values_to_expansiondlg(HWND hDlg)
@@ -11712,6 +11715,7 @@ static void values_to_expansiondlg(HWND hDlg)
 	CheckDlgButton(hDlg, IDC_RTG_VBINTERRUPT, workprefs.rtg_hardwareinterrupt);
 	CheckDlgButton(hDlg, IDC_RTG_HWSPRITE, workprefs.rtg_hardwaresprite);
 	CheckDlgButton(hDlg, IDC_RTG_THREAD, workprefs.rtg_multithread);
+	CheckDlgButton(hDlg, IDC_RTG_SWITCHER, rbc->rtgmem_size > 0 && (rbc->autoswitch || gfxboard_get_switcher(rbc) || rbc->rtgmem_type < GFXBOARD_HARDWARE));
 
 	xSendDlgItemMessage(hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_SETCURSEL,
 					   (workprefs.win32_rtgscaleaspectratio == 0) ? 0 :
@@ -11863,6 +11867,12 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			case IDC_RTG_THREAD:
 				workprefs.rtg_multithread = ischecked(hDlg, IDC_RTG_THREAD);
 				break;
+			case IDC_RTG_SWITCHER:
+				{
+					struct rtgboardconfig *rbc = &workprefs.rtgboards[gui_rtg_index];
+					rbc->autoswitch = ischecked(hDlg, IDC_RTG_SWITCHER);
+					break;
+				}
 			}
 			if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
 				uae_u32 mask = workprefs.picasso96_modeflags;

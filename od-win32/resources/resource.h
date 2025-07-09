@@ -1273,6 +1273,7 @@
 #define IDC_RTG_INTEGERSCALE            1801
 #define IDC_INFOBOX_TEXT2               1802
 #define IDC_INPUTMAPOUTM                1802
+#define IDC_RTG_SWITCHER                1802
 #define IDC_INFOBOX_TEXT1               1803
 #define IDC_INFOBOX_TEXT3               1804
 #define IDC_CD_EJECT                    1804

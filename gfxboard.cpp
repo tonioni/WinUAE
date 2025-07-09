@@ -1743,7 +1743,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 					}
 				}
 #endif
-				if (!gb->board->hasswitcher && gb->vram) {
+				if ((!gb->board->hasswitcher && gb->rbc->autoswitch) && gb->vram) {
 					bool svga_on(void *p);
 					bool on = svga_on(gb->pcemobject2);
 					set_monswitch(gb, on);
@@ -4725,6 +4725,15 @@ int gfxboard_get_configtype(struct rtgboardconfig *rbc)
 	struct rtggfxboard *gb = &rtggfxboards[rbc->rtg_index];
 	gb->board = find_board(type);
 	return gb->board->configtype;
+}
+
+bool gfxboard_get_switcher(struct rtgboardconfig *rbc)
+{
+	int type = rbc->rtgmem_type;
+	if (type < GFXBOARD_HARDWARE)
+		return true;
+	const struct gfxboard *b = find_board(type);
+	return b->hasswitcher;
 }
 
 bool gfxboard_need_byteswap (struct rtgboardconfig *rbc)
