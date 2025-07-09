@@ -3541,6 +3541,15 @@ void NMI (void)
 	do_interrupt (7);
 }
 
+static void cpu_halt_clear(void)
+{
+	regs.halted = 0;
+	if (gui_data.cpu_halted) {
+		gui_data.cpu_halted = 0;
+		gui_led(LED_CPU, 0, -1);
+	}
+}
+
 static void maybe_disable_fpu(void)
 {
 	if (currprefs.cpu_model == 68060 && currprefs.cpuboard_type == 0 && (rtarea_base != 0xf00000 || !need_uae_boot_rom(&currprefs))) {
@@ -3575,9 +3584,7 @@ static void m68k_reset2(bool hardreset)
 {
 	uae_u32 v;
 
-	regs.halted = 0;
-	gui_data.cpu_halted = 0;
-	gui_led(LED_CPU, 0, -1);
+	cpu_halt_clear();
 
 	regs.spcflags = 0;
 	m68k_reset_delay = 0;
@@ -4667,7 +4674,7 @@ static int do_specialties (int cycles)
 		return 1;
 	
 	while (spcflags & SPCFLAG_CPUINRESET) {
-		regs.halted = 0;
+		cpu_halt_clear();
 		x_do_cycles(4 * CYCLE_UNIT);
 		spcflags = regs.spcflags;
 		if (!(spcflags & SPCFLAG_CPUINRESET) || (spcflags & SPCFLAG_BRK) || (spcflags & SPCFLAG_MODE_CHANGE)) {
@@ -6558,7 +6565,7 @@ void m68k_go (int may_quit)
 		cputrace.state = -1;
 
 		if (regs.halted == CPU_HALT_ACCELERATOR_CPU_FALLBACK) {
-			regs.halted = 0;
+			cpu_halt_clear();
 			cpu_do_fallback();
 		}
 
