@@ -147,18 +147,24 @@ static int REGPARAM2 rtarea_check (uaecptr addr, uae_u32 size)
 static uae_u32 REGPARAM2 rtarea_lget (uaecptr addr)
 {
 	addr &= 0xFFFF;
-	if (addr & 1)
+	if (addr & 1) {
 		return 0;
-	if (addr >= 0xfffd)
+	}
+	if (addr >= 0xfffd) {
 		return 0;
+	}
 	return (rtarea_bank.baseaddr[addr + 0] << 24) | (rtarea_bank.baseaddr[addr + 1] << 16) |
 		(rtarea_bank.baseaddr[addr + 2] << 8) | (rtarea_bank.baseaddr[addr + 3] << 0);
 }
 static uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
 {
 	addr &= 0xFFFF;
-	if (addr & 1)
+	if (addr & 1) {
 		return 0;
+	}
+	if (currprefs.uaeboard_nodiag) {
+		return (rtarea_bank.baseaddr[addr] << 8) + rtarea_bank.baseaddr[addr + 1];
+	}
 
 	uaecptr addr2 = addr - RTAREA_TRAP_STATUS;
 
@@ -180,6 +186,10 @@ static uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
 static uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
 {
 	addr &= 0xFFFF;
+
+	if (currprefs.uaeboard_nodiag) {
+		return rtarea_bank.baseaddr[addr];
+	}
 
 	hwtrap_check_int();
 	if (rtarea_trap_status(addr)) {
@@ -224,14 +234,20 @@ static bool rtarea_write(uaecptr addr)
 static void REGPARAM2 rtarea_bput (uaecptr addr, uae_u32 value)
 {
 	addr &= 0xffff;
-	if (!rtarea_write(addr))
+
+	if (!rtarea_write(addr)) {
 		return;
+	}
 	rtarea_bank.baseaddr[addr] = value;
 	if (addr == RTAREA_INTREQ + 3) {
 		mousehack_wakeup();
 	}
-	if (!rtarea_trap_status(addr))
+	if (currprefs.uaeboard_nodiag) {
 		return;
+	}
+	if (!rtarea_trap_status(addr)) {
+		return;
+	}
 	addr -= RTAREA_TRAP_STATUS;
 	int trap_offset = addr & (RTAREA_TRAP_STATUS_SIZE - 1);
 	int trap_slot = addr / RTAREA_TRAP_STATUS_SIZE;
@@ -264,11 +280,17 @@ static void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
 	addr &= 0xffff;
 	value &= 0xffff;
 
-	if (addr & 1)
+	if (addr & 1) {
 		return;
-
-	if (!rtarea_write(addr))
+	}
+	if (!rtarea_write(addr)) {
 		return;
+	}
+	if (currprefs.uaeboard_nodiag) {
+		rtarea_bank.baseaddr[addr + 0] = value >> 8;
+		rtarea_bank.baseaddr[addr + 1] = (uae_u8)value;
+		return;
+	}
 
 	uaecptr addr2 = addr - RTAREA_TRAP_STATUS;
 
@@ -308,18 +330,22 @@ static void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
 static void REGPARAM2 rtarea_lput (uaecptr addr, uae_u32 value)
 {
 	addr &= 0xffff;
-	if (addr & 1)
+	if (addr & 1) {
 		return;
-	if (addr >= 0xfffd)
+	}
+	if (addr >= 0xfffd) {
 		return;
-	if (!rtarea_write(addr))
+	}
+	if (!rtarea_write(addr)) {
 		return;
+	}
+
 	rtarea_bank.baseaddr[addr + 0] = value >> 24;
 	rtarea_bank.baseaddr[addr + 1] = value >> 16;
 	rtarea_bank.baseaddr[addr + 2] = value >> 8;
 	rtarea_bank.baseaddr[addr + 3] = value >> 0;
 
-	if (rtarea_trap_status(addr)) {
+	if (!currprefs.uaeboard_nodiag && rtarea_trap_status(addr)) {
 		addr -= RTAREA_TRAP_STATUS;
 		int trap_offset = addr & (RTAREA_TRAP_STATUS_SIZE - 1);
 		int trap_slot = addr / RTAREA_TRAP_STATUS_SIZE;
