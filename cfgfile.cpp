@@ -9058,7 +9058,7 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 		p->ppc_mode = 1;
 		cpuboard_setboard(p, BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_PPC);
 		p->cpuboardmem1.size = 128 * 1024 * 1024;
-		int roms_ppc[] = { 98, -1 };
+		int roms_ppc[] = { 98, 326, 327, -1 };
 		configure_rom(p, roms_ppc, romcheck);
 #endif
 		break;
@@ -9274,7 +9274,7 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
 	int roms[4];
-	int roms_bliz[2];
+	int roms_bliz[4];
 
 	buildin_default_prefs_68020 (p);
 	roms[0] = 11;
@@ -9283,6 +9283,8 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 	roms[3] = -1;
 	roms_bliz[0] = -1;
 	roms_bliz[1] = -1;
+	roms_bliz[2] = -1;
+	roms_bliz[3] = -1;
 	p->cs_rtc = 0;
 	p->cs_compatible = CP_A1200;
 	built_in_chipset_prefs (p);
@@ -9330,8 +9332,10 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
             roms[0] = 15;
             roms[1] = 11;
             roms[2] = -1;
-            roms_bliz[0] = 100;
-            configure_rom(p, roms_bliz, romcheck);
+			roms_bliz[0] = 100;
+			roms_bliz[1] = 329;
+			roms_bliz[2] = 330;
+			configure_rom(p, roms_bliz, romcheck);
             break;
 #endif
 #else
