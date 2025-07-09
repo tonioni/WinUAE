@@ -957,9 +957,11 @@ static void flushqueue(void)
 #endif
 	for (;;) {
 		bool breakcond;
+		int recdata;
 		if (!readseravail(&breakcond)) {
 			break;
 		}
+		readser(&recdata);
 	}
 }
 
