@@ -3222,12 +3222,13 @@ static void expand_colmask(void)
 		clxcon_bpl_enable2 = 0;
 		clxcon_bpl_match2 = 0;
 	}
+	bool bplalwayson = currprefs.collision_level >= 3 && clxcon_bpl_enable2 == 0;
 	if (clxcon_bpl_enable_o != clxcon_bpl_enable2 || clxcon_bpl_match_o != clxcon_bpl_match2) {
 		for (int i = 0; i < (aga_mode ? 256 : 64); i++) {
 			uae_u8 m = i & clxcon_bpl_enable;
 			uae_u8 odd = m & 0x55;
 			uae_u8 even = m & 0xaa;
-			if ((odd && even) && m == (clxcon_bpl_enable2 & clxcon_bpl_match2)) {
+			if (((odd && even) && m == (clxcon_bpl_enable2 & clxcon_bpl_match2)) || bplalwayson) {
 				bplcoltable[i] = 0x0001;
 			} else {
 				bplcoltable[i] = 0x0000;
