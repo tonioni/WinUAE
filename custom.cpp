@@ -7498,6 +7498,9 @@ static int custom_wput_agnus(int addr, uae_u32 value, int noget)
 	case 0x5E: BLTSIZH(hpos, value); break;
 	case 0x1E4: DIWHIGH(value); break;
 
+	case 0x098: CLXCON(value); break;
+	case 0x10e: CLXCON2(value); break;
+
 	case 0x1DC: BEAMCON0(value); break;
 	case 0x1C0:
 		if (htotal != value) {
