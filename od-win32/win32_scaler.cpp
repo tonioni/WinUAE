@@ -206,11 +206,10 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 	if (mon->screen_is_picasso) {
 		getrtgfilterdata(monid, ds);
-		if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, ds->dstwidth, ds->dstheight)) {
+		if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, ds->srcwidth, ds->srcheight)) {
 			ds->xoffset += (int)mrsx;
 			ds->yoffset += (int)mrsy;
-			ds->dstwidth += (int)mrmx;
-			ds->dstheight += (int)mrmy;
+			sizeoffset(ds, (int)mrmx, (int)mrmy);
 		}
 		return;
 	}
@@ -224,7 +223,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 	extrah = (int)(-ahs * (filter_vert_zoom - currprefs.gf[idx].gfx_filteroverlay_overscan * 10) / 2.0f);
 
 	extraw2 = 0;
-	if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, avidinfo->outbuffer->inwidth2, avidinfo->outbuffer->inheight2)) {
+	if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, ds->srcwidth, ds->srcheight)) {
 		extraw2 = (int)mrmx;
 		//extrah -= mrmy;
 	}
@@ -752,11 +751,10 @@ cont:
 
 end:
 
-	if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, avidinfo->outbuffer->inwidth2, avidinfo->outbuffer->inheight2)) {
+	if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, ds->srcwidth, ds->srcheight)) {
 		ds->xoffset += (int)mrsx;
 		ds->yoffset += (int)mrsy;
-		ds->outwidth += (int)mrmx;
-		ds->outheight += (int)mrmy;
+		sizeoffset(ds, (int)mrmx, (int)mrmy);
 	}
 
 	check_custom_limits();
