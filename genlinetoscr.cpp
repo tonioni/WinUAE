@@ -1756,6 +1756,7 @@ int main (int argc, char *argv[])
 	// ECS SuperHires
 	set_outfile("../../linetoscr_ecs_shres.cpp");
 
+	modetype = 1;
 	planes = 2;
 	res = 2;
 	modes = 0;
