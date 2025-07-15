@@ -3330,7 +3330,7 @@ static void event_doint_delay_do_ext_old(uae_u32 v)
 	doint();
 }
 
-static void event_doint_delay_do_ext(uae_u32 v)
+void event_doint_delay_do_ext(uae_u32 v)
 {
 	uae_u16 old = intreq2;
 	setclr(&intreq, v | 0x8000);
