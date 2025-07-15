@@ -33,6 +33,7 @@
 #include "flashrom.h"
 #include "savestate.h"
 #include "devices.h"
+#include "specialmonitors.h"
 
 #define CUBO_DEBUG 1
 
@@ -890,7 +891,9 @@ static void sony_serial_read(uae_u16 w)
 	break;
 	case 0x2b: // FWD Step
 	ld_address++;
+#ifdef AVIOUTPUT
 	getsetpositionvideograb(ld_address);
+#endif
 	ld_mode = LD_MODE_STILL;
 	ld_direction = 0;
 	ack();
@@ -901,7 +904,9 @@ static void sony_serial_read(uae_u16 w)
 	if (ld_address) {
 		ld_address--;
 	}
+#ifdef AVIOUTPUT
 	getsetpositionvideograb(ld_address);
+#endif
 	ld_mode = LD_MODE_STILL;
 	ld_direction = 0;
 	ack();
@@ -979,18 +984,20 @@ static void sony_serial_read(uae_u16 w)
 		}
 		ld_mode_value = 0;
 		ld_mode = LD_MODE_PLAY;
+#ifdef AVIOUTPUT
 		pausevideograb(0);
+#endif
 		ack();
 		if (log_ld) {
 			write_log(_T("LD: REPEAT CNT=%d, %d TO %d\n"), ld_repcnt, ld_startaddress, ld_endaddress);
 		}
 	} else if (ld_mode_value == LD_MODE_SEARCH) {
-		uae_s32 endpos = (uae_s32)getdurationvideograb();
 		ld_address = ld_value;
 		ack();
 		// delay seek status response by 2 frames (Platoon requires this)
 		ld_wait_seek = arcadia_hsync_cnt + 2 * maxvpos;
 #ifdef AVIOUTPUT
+		uae_s32 endpos = (uae_s32)getdurationvideograb();
 		if (ld_address > endpos) {
 			ld_address = endpos;
 			getsetpositionvideograb(ld_address);
@@ -1011,7 +1018,7 @@ static void sony_serial_read(uae_u16 w)
 	ld_value = 0;
 	ack();
 	if (log_ld)
-		write_log(_T("LD: CLEAR ENTRY\n"), ld_value);
+		write_log(_T("LD: CLEAR ENTRY\n"));
 	break;
 	case 0x4a: // R-PLAY 'J'
 	ld_mode = LD_MODE_PLAY;
@@ -1970,10 +1977,10 @@ static void cubo_write_pic(uae_u8 v)
 			int offset = cubo_pic_bit_cnt / 8;
 			if (offset < sizeof(cubo_pic_key)) {
 				cubo_pic_key[offset] = cubo_pic_byte;
-				write_log(_T("Cubo PIC received %02x (%d/%d)\n"), cubo_pic_byte, offset, sizeof(cubo_pic_key));
+				write_log(_T("Cubo PIC received %02x (%d/%zu)\n"), cubo_pic_byte, offset, sizeof(cubo_pic_key));
 			}
 			if (offset == sizeof(cubo_pic_key) - 1) {
-				write_log(_T("Cubo PIC key in: "), cubo_key);
+				write_log(_T("Cubo PIC key in: "));
 				for (int i = 0; i < 8; i++) {
 					write_log(_T("%02x "), cubo_pic_key[i + 2]);
 				}
