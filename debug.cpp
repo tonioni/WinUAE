@@ -454,7 +454,8 @@ uae_u32 get_ilong_debug (uaecptr addr)
 		return 0xffffffff;
 	}
 }
-uae_u8 *get_real_address_debug(uaecptr addr)
+
+static uae_u8 *get_real_address_debug(uaecptr addr)
 {
 	if (debug_mmu_mode) {
 		flagtype olds = regs.s;
@@ -1467,20 +1468,6 @@ static uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u
 	if (a)
 		v |= a[255 - ((c >> 24) & 0xff)];
 	return v;
-}
-
-static void putpixel(uae_u8 *buf, uae_u8 *genlockbuf, int x, xcolnr c8)
-{
-	if (x <= 0) {
-		return;
-	}
-
-	if (genlockbuf) {
-		genlockbuf[x] = 1;
-	}
-
-	uae_u32 *p = (uae_u32*)buf + x;
-	*p = c8;
 }
 
 #define lc(x) ledcolor (x, xredcolors, xgreencolors, xbluecolors, NULL)
