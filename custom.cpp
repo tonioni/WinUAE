@@ -11905,8 +11905,6 @@ static void check_hsyncs(void)
 	}
 }
 
-extern void process_blitter(struct rgabuf*);
-
 static void handle_rga_out(void)
 {
 	if (dmal_next) {
@@ -12197,7 +12195,6 @@ static void generate_dma_requests(void)
 	}
 
 	if (blt_info.blit_queued || blitter_delayed_update) {
-		extern void generate_blitter(void);
 		generate_blitter();
 	}
 }
