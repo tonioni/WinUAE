@@ -10,6 +10,7 @@
 #define UAE_COMMPIPE_H
 
 #include "uae/types.h"
+#include "threaddep/thread.h"
 
 typedef union {
 	int i;
