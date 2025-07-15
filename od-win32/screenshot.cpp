@@ -607,8 +607,6 @@ void Screenshot_RGBinfo (int rb, int gb, int bb, int ab, int rs, int gs, int bs,
 	rgb_as = as;
 }
 
-extern bool get_custom_color_reg(int colreg, uae_u8 *r, uae_u8 *g, uae_u8 *b);
-
 static uae_u32 uniquecolors[256] = { 0 };
 static int uniquecolorcount, uniquecolordepth;
 static uae_u8 *palettebm;

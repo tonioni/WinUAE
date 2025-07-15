@@ -24,6 +24,7 @@
 #endif
 #include "audio.h"
 #include "cia.h"
+#include "custom.h"
 
 extern uae_u8 agnus_hpos;
 int custom_fastmode;
@@ -73,7 +74,6 @@ void events_schedule(void)
 	}
 }
 
-extern void vsync_event_done(void);
 extern int vsync_activeheight;
 
 static bool event_check_vsync(void)
