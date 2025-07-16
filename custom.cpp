@@ -3321,7 +3321,7 @@ static void intreq_checks(uae_u16 oldreq, uae_u16 newreq)
 	serial_rbf_change((newreq & 0x0800) ? 1 : 0);
 }
 
-void event_doint_delay_do_ext_old(uae_u32 v)
+static void event_doint_delay_do_ext_old(uae_u32 v)
 {
 	uae_u16 old = intreq2;
 	setclr(&intreq, (1 << v) | 0x8000);
