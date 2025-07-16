@@ -61,6 +61,8 @@ int gfxboard_get_devnum(struct uae_prefs *p, int index);
 
 int pcem_getvramsize(void);
 
+void gfxboard_intreq(void *p, int act, bool safe);
+
 #define GFXBOARD_UAE_Z2 0
 #define GFXBOARD_UAE_Z3 1
 #define GFXBOARD_HARDWARE 2
