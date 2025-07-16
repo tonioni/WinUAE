@@ -56,6 +56,9 @@ extern void restore_blitter_start(void);
 void blitter_loadbdat(uae_u16 v);
 void blitter_loadcdat(uae_u16 v);
 
+void process_blitter(struct rgabuf *rga);
+void generate_blitter(void);
+
 typedef void blitter_func(uaecptr, uaecptr, uaecptr, uaecptr, struct bltinfo *);
 
 #define BLITTER_MAX_WORDS 2048
