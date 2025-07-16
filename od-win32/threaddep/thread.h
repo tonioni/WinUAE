@@ -1,3 +1,6 @@
+#ifndef THREADDEP_THREAD_H
+#define THREADDEP_THREAD_H
+
 typedef HANDLE uae_sem_t;
 typedef HANDLE uae_thread_id;
 
@@ -21,3 +24,5 @@ STATIC_INLINE void uae_wait_thread(uae_thread_id tid)
     WaitForSingleObject (tid, INFINITE);
     CloseHandle (tid);
 }
+
+#endif /* THREADDEP_THREAD_H */

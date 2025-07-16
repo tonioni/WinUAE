@@ -1,6 +1,8 @@
 #ifndef UAE_A2091_H
 #define UAE_A2091_H
 
+#include "commpipe.h"
+
 #ifdef A2091
 
 #define WD_STATUS_QUEUE 2
@@ -168,6 +170,8 @@ extern void comspec_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct 
 extern int add_wd_scsi_hd (struct wd_state *wd, int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level);
 extern int add_wd_scsi_cd (struct wd_state *wd, int ch, int unitnum);
 extern int add_wd_scsi_tape (struct wd_state *wd, int ch, const TCHAR *tape_directory, bool readonly);
+
+void gvp_accelerator_set_dma_bank(uae_u8);
 
 #endif /* A2091 */
 
