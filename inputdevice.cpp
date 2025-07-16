@@ -3703,12 +3703,21 @@ static uae_u16 getjoystate (int joy)
 
 	v = (uae_u8)mouse_x[joy] | (mouse_y[joy] << 8);
 #if DONGLE_DEBUG
-	if (notinrom ())
+	if (M68K_GETPC < 0xe00000)
 		write_log (_T("JOY%dDAT %04X %s\n"), joy, v, debuginfo (0));
 #endif
 	if (inputdevice_logging & 2)
 		write_log (_T("JOY%dDAT=%04x %08x\n"), joy, v, M68K_GETPC);
 	return v;
+}
+
+void pulse_joydat(int joy, int xy, int dir)
+{
+	if (xy) {
+		mouse_y[joy] += dir;
+	} else {
+		mouse_x[joy] += dir;
+	}
 }
 
 uae_u16 JOY0DAT (void)
@@ -4480,7 +4489,7 @@ void POTGO (uae_u16 v)
 	if (inputdevice_logging & (16 | 128))
 		write_log (_T("POTGO_W: %04X %08X\n"), v, M68K_GETPC);
 #if DONGLE_DEBUG
-	if (notinrom ())
+	if (M68K_GETPC < 0xe00000)
 		write_log (_T("POTGO %04X %s\n"), v, debuginfo(0));
 #endif
 	dongle_potgo (v);
@@ -4511,7 +4520,7 @@ uae_u16 POTGOR (void)
 	v = handle_joystick_potgor (potgo_value) & 0x5500;
 	v = dongle_potgor (v);
 #if DONGLE_DEBUG
-	if (notinrom ())
+	if (M68K_GETPC < 0xe00000)
 		write_log (_T("POTGOR %04X %s\n"), v, debuginfo(0));
 #endif
 	if (inputdevice_logging & 16)
