@@ -5027,30 +5027,30 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	_stprintf(gb->lbsmemorybankname, _T("%s VRAM LONGSWAP"), gb->board->name);
 	_stprintf(gb->regbankname, _T("%s REG"), gb->board->name);
 
-	memcpy(&gb->gfxboard_bank_memory, &tmpl_gfxboard_bank_memory, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_wbsmemory, &tmpl_gfxboard_bank_wbsmemory, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_lbsmemory, &tmpl_gfxboard_bank_lbsmemory, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_nbsmemory, &tmpl_gfxboard_bank_nbsmemory, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_registers, &tmpl_gfxboard_bank_registers, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_registers2, &tmpl_gfxboard_bank_registers2, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_special, &tmpl_gfxboard_bank_special, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_memory_nojit, &tmpl_gfxboard_bank_memory_nojit, sizeof addrbank);
+	memcpy(&gb->gfxboard_bank_memory, &tmpl_gfxboard_bank_memory, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_wbsmemory, &tmpl_gfxboard_bank_wbsmemory, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_lbsmemory, &tmpl_gfxboard_bank_lbsmemory, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_nbsmemory, &tmpl_gfxboard_bank_nbsmemory, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_registers, &tmpl_gfxboard_bank_registers, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_registers2, &tmpl_gfxboard_bank_registers2, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_special, &tmpl_gfxboard_bank_special, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_memory_nojit, &tmpl_gfxboard_bank_memory_nojit, sizeof(addrbank));
 
-	memcpy(&gb->gfxboard_bank_vram_pcem, &tmpl_gfxboard_bank_vram_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_vram_normal_pcem, &tmpl_gfxboard_bank_vram_normal_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_vram_wordswap_pcem, &tmpl_gfxboard_bank_vram_wordswap_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_vram_longswap_pcem, &tmpl_gfxboard_bank_vram_longswap_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_vram_cv_1_pcem, &tmpl_gfxboard_bank_vram_cv_1_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_vram_p4z2_pcem, &tmpl_gfxboard_bank_vram_p4z2_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_io_swap_pcem, &tmpl_gfxboard_bank_io_swap_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_io_swap2_pcem, &tmpl_gfxboard_bank_io_swap2_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_io_pcem, &tmpl_gfxboard_bank_io_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_pci_pcem, &tmpl_gfxboard_bank_pci_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_mmio_pcem, &tmpl_gfxboard_bank_mmio_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_mmio_wbs_pcem, &tmpl_gfxboard_bank_mmio_wbs_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_mmio_lbs_pcem, &tmpl_gfxboard_bank_mmio_lbs_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_special_pcem, &tmpl_gfxboard_bank_special_pcem, sizeof addrbank);
-	memcpy(&gb->gfxboard_bank_bios, &tmpl_gfxboard_bank_bios, sizeof addrbank);
+	memcpy(&gb->gfxboard_bank_vram_pcem, &tmpl_gfxboard_bank_vram_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_vram_normal_pcem, &tmpl_gfxboard_bank_vram_normal_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_vram_wordswap_pcem, &tmpl_gfxboard_bank_vram_wordswap_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_vram_longswap_pcem, &tmpl_gfxboard_bank_vram_longswap_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_vram_cv_1_pcem, &tmpl_gfxboard_bank_vram_cv_1_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_vram_p4z2_pcem, &tmpl_gfxboard_bank_vram_p4z2_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_io_swap_pcem, &tmpl_gfxboard_bank_io_swap_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_io_swap2_pcem, &tmpl_gfxboard_bank_io_swap2_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_io_pcem, &tmpl_gfxboard_bank_io_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_pci_pcem, &tmpl_gfxboard_bank_pci_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_mmio_pcem, &tmpl_gfxboard_bank_mmio_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_mmio_wbs_pcem, &tmpl_gfxboard_bank_mmio_wbs_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_mmio_lbs_pcem, &tmpl_gfxboard_bank_mmio_lbs_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_special_pcem, &tmpl_gfxboard_bank_special_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_bios, &tmpl_gfxboard_bank_bios, sizeof(addrbank));
 
 	gb->gfxboard_bank_memory.name = gb->memorybankname;
 	gb->gfxboard_bank_memory_nojit.name = gb->memorybanknamenojit;
@@ -5192,13 +5192,13 @@ bool gfxboard_init_memory_p4_z2 (struct autoconfig_info *aci)
 	if (!aci->doinit)
 		return true;
 
-	memcpy(&gb->gfxboard_bank_memory, &tmpl_gfxboard_bank_memory, sizeof addrbank);
+	memcpy(&gb->gfxboard_bank_memory, &tmpl_gfxboard_bank_memory, sizeof(addrbank));
 	gb->gfxboard_bank_memory.bget = gfxboard_bget_mem_autoconfig;
 	gb->gfxboard_bank_memory.bput = gfxboard_bput_mem_autoconfig;
 	return true;
 }
 
-bool gfxboard_init_registersx(struct autoconfig_info *aci, int regnum)
+static bool gfxboard_init_registersx(struct autoconfig_info *aci, int regnum)
 {
 	struct rtggfxboard *gb = &rtggfxboards[aci->devnum];
 	int size;
