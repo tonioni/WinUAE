@@ -867,7 +867,7 @@ static void setclr(uae_u16 *p, uae_u16 val)
 // is last display line?
 static bool is_last_line(void)
 {
-	return  vpos == vsync_startline || vpos + 1 == vsync_startline;
+	return  vpos == vsync_startline || (vpos + 1 == vsync_startline && vpos_prev + 1 != vsync_startline - 1);
 }
 
 static void docols(struct color_entry *colentry)
