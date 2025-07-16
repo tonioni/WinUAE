@@ -2354,6 +2354,7 @@ void restore_blitter_finish(void)
 		blitter_delayed_update = true;
 		maybe_load_mods();
 	}
+	//activate_debugger();
 }
 
 uae_u8 *restore_blitter(uae_u8 *src)
@@ -2567,6 +2568,7 @@ uae_u8 *restore_blitter_new(uae_u8 *src)
 //		if (blitter_pipe[i]) {
 //			blt_info.blit_queued = BLITTER_MAX_PIPELINED_CYCLES;
 //		}
+		restore_u16();
 		restore_u16();
 		restore_u8();
 //		cycle_line_pipe[i] = restore_u16();

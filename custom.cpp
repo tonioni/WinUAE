@@ -6651,10 +6651,6 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	memory_map_dump();
 #endif
 
-	rga_slot_first_offset = 0;
-	rga_slot_in_offset = 1;
-	rga_slot_out_offset = 2;
-
 	for(int i = 0; i < DENISE_RGA_SLOT_TOTAL; i++) {
 		struct denise_rga *r = &rga_denise[i];
 		memset(r, 0, sizeof(struct denise_rga));
@@ -6749,6 +6745,9 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	}
 
 	if (!savestate_state) {
+		rga_slot_first_offset = 0;
+		rga_slot_in_offset = 1;
+		rga_slot_out_offset = 2;
 		cia_hsync = 0;
 		extra_cycle = 0;
 		currprefs.chipset_mask = changed_prefs.chipset_mask;
@@ -7754,6 +7753,9 @@ void restore_custom_start(void)
 	memset(&cop_state, 0, sizeof(cop_state));
 	cop_state.state = COP_stop;
 	denise_reset(true);
+	rga_slot_first_offset = 0;
+	rga_slot_in_offset = 1;
+	rga_slot_out_offset = 2;
 }
 
 #define RB restore_u8()
@@ -8423,6 +8425,9 @@ static uaecptr *getptfromreg(int reg)
 {
 	switch (reg)
 	{
+	case -1:
+	case 0xffff:
+		return NULL;
 	case 0x000:
 		return &blt_info.bltdpt;
 	case 0x070:
@@ -8520,6 +8525,8 @@ uae_u8 *save_custom_slots(size_t *len, uae_u8 *dstptr)
 		save_u16(regidx);
 	}
 
+	save_u8(rga_slot_first_offset);
+
 	*len = dst - dstbak;
 	return dstbak;
 }
@@ -8571,6 +8578,9 @@ uae_u8 *restore_custom_slots(uae_u8 *src)
 			regidx = restore_u16();
 			r->conflict = getptfromreg(regidx);
 		}
+		rga_slot_first_offset = restore_u8();
+		rga_slot_in_offset = (rga_slot_first_offset + 1) & 3;
+		rga_slot_out_offset = (rga_slot_in_offset + 1) & 3;
 	}
 
 	return src;
