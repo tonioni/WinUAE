@@ -1,6 +1,7 @@
 #ifndef UAE_IDE_H
 #define UAE_IDE_H
 
+#include "commpipe.h"
 #include "uae/types.h"
 
 /* IDE drive registers */
