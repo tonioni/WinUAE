@@ -684,7 +684,7 @@ static uae_u32 REGPARAM2 chipmem_bget_limit(uaecptr addr)
 	return v;
 }
 
-void REGPARAM2 chipmem_lput_limit(uaecptr addr, uae_u32 l)
+static void REGPARAM2 chipmem_lput_limit(uaecptr addr, uae_u32 l)
 {
 	uae_u32 *m;
 
@@ -696,7 +696,7 @@ void REGPARAM2 chipmem_lput_limit(uaecptr addr, uae_u32 l)
 	do_put_mem_long(m, l);
 }
 
-void REGPARAM2 chipmem_wput_limit(uaecptr addr, uae_u32 w)
+static void REGPARAM2 chipmem_wput_limit(uaecptr addr, uae_u32 w)
 {
 	uae_u16 *m;
 
@@ -708,7 +708,7 @@ void REGPARAM2 chipmem_wput_limit(uaecptr addr, uae_u32 w)
 	do_put_mem_word(m, w);
 }
 
-void REGPARAM2 chipmem_bput_limit(uaecptr addr, uae_u32 b)
+static void REGPARAM2 chipmem_bput_limit(uaecptr addr, uae_u32 b)
 {
 	addr &= chipmem_bank.mask;
 	if (addr >= 0x180000) {
@@ -2032,7 +2032,6 @@ static struct zfile *get_kickstart_filehandle(struct uae_prefs *p)
 	return f;
 }
 
-extern struct zfile *read_executable_rom(struct zfile*, int size, int blocks);
 static const uae_u8 romend[20] = {
 	0x00, 0x08, 0x00, 0x00,
 	0x00, 0x18, 0x00, 0x19, 0x00, 0x1a, 0x00, 0x1b, 0x00, 0x1c, 0x00, 0x1d, 0x00, 0x1e, 0x00, 0x1f
@@ -3502,7 +3501,8 @@ static uae_u32 REGPARAM2 threadcpu_wget(uaecptr addr)
 
 	return v;
 }
-uae_u32 REGPARAM2 threadcpu_bget(uaecptr addr)
+
+static uae_u32 REGPARAM2 threadcpu_bget(uaecptr addr)
 {
 	uae_u32 v = process_cpu_indirect_memory_read(addr, 0);
 
@@ -3528,7 +3528,7 @@ static addrbank *get_bank_cpu_thread(addrbank *bank)
 		at = xcalloc(addrbank_thread, 1);
 	thread_banks[thread_banks_used++] = at;
 	at->orig = bank;
-	memcpy(&at->ab, bank, sizeof addrbank);
+	memcpy(&at->ab, bank, sizeof(addrbank));
 	addrbank *tb = &at->ab;
 	tb->jit_read_flag = S_READ;
 	tb->jit_write_flag = S_WRITE;
