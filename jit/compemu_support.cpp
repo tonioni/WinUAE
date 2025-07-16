@@ -4299,7 +4299,6 @@ void build_comp(void)
 	if (cpu_level > 4)
 		cpu_level--;
 #ifdef NOFLAGS_SUPPORT_GENCOMP
-	extern const struct cputbl *uaegetjitcputbl(void);
 	const struct cputbl *nfctbl = uaegetjitcputbl();
 #endif
 #endif
