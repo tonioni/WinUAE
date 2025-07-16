@@ -3616,7 +3616,9 @@ static int debug_mem_off (uaecptr *addrp)
 	if (ba->mask || ba->startmask) {
 		uae_u32 start = ba->startmask ? ba->startmask : ba->start;
 		addr -= start;
-		addr &= ba->mask;
+		if (ba->mask) {
+			addr &= ba->mask;
+		}
 		addr += start;
 	}
 	*addrp = addr;
