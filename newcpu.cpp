@@ -10212,8 +10212,6 @@ void fill_prefetch (void)
 	}
 }
 
-extern bool cpuboard_fc_check(uaecptr addr, uae_u32 *v, int size, bool write);
-
 uae_u32 sfc_nommu_get_byte(uaecptr addr)
 {
 	uae_u32 v;

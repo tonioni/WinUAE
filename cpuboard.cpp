@@ -389,16 +389,17 @@ static bool is_aca500(struct uae_prefs *p)
 
 extern addrbank cpuboardmem1_bank;
 MEMORY_FUNCTIONS(cpuboardmem1);
-static addrbank cpuboardmem1_bank = {
+addrbank cpuboardmem1_bank = {
 	cpuboardmem1_lget, cpuboardmem1_wget, cpuboardmem1_bget,
 	cpuboardmem1_lput, cpuboardmem1_wput, cpuboardmem1_bput,
 	cpuboardmem1_xlate, cpuboardmem1_check, NULL, _T("*B"), _T("cpuboard ram"),
 	cpuboardmem1_lget, cpuboardmem1_wget,
 	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
+
 extern addrbank cpuboardmem2_bank;
 MEMORY_FUNCTIONS(cpuboardmem2);
-static addrbank cpuboardmem2_bank = {
+addrbank cpuboardmem2_bank = {
 	cpuboardmem2_lget, cpuboardmem2_wget, cpuboardmem2_bget,
 	cpuboardmem2_lput, cpuboardmem2_wput, cpuboardmem2_bput,
 	cpuboardmem2_xlate, cpuboardmem2_check, NULL, _T("*B"), _T("cpuboard ram #2"),
@@ -1178,7 +1179,7 @@ void cyberstorm_mk3_ppc_irq(int id, int level)
 	devices_rethink_all(cpuboard_rethink);
 }
 
-void blizzardppc_irq_setonly(int level)
+static void blizzardppc_irq_setonly(int level)
 {
 	if (level)
 		io_reg[CSIII_REG_IRQ] &= ~P5_IRQ_SCSI;
