@@ -3043,6 +3043,7 @@ static void COPJMP(int num, int vblank)
 		} else {
 			cop_state.state = COP_strobe_delay_start;
 		}
+		cop_state.strobeip = 0xffffffff;
 	} else {
 		// copper request done for next cycle
 		if (vblank) {
@@ -9481,6 +9482,9 @@ static void generate_copper(void)
 		// But it still gets allocated by copper if it is free = CPU and blitter can't use it.
 		if (bus_allocated) {
 			cop_state.state = COP_strobe_delay2;
+			if (cop_state.strobeip == 0xffffffff) {
+				cop_state.strobetype = 1;
+			}
 			cop_state.strobeip = getstrobecopip();
 			cop_state.strobe = 0;
 			cop_state.ignore_next = 0;
