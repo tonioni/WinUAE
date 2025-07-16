@@ -59,10 +59,6 @@ void pause_sound_device (struct sound_data *sd);
 void resume_sound_device (struct sound_data *sd);
 void set_volume_sound_device (struct sound_data *sd, int volume, int mute);
 
-#if SOUNDSTUFF > 0
-extern int outputsample, doublesample;
-#endif
-
 extern int active_sound_stereo;
 
 #define PUT_SOUND_WORD(b) do { *(uae_u16 *)paula_sndbufpt = b; paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 2); } while (0)
