@@ -492,15 +492,7 @@ static bool cdda_play_func2 (struct cdunit *cdu, int *outpos)
 		if (oldplay != cdu->cdda_play) {
 			struct cdtoc *t;
 			int sector, diff;
-#ifdef WIN32
 			struct _timeb tb1, tb2;
-#else
-#ifdef HAVE_SYS_TIMEB_H
-			struct timespec ts1, ts2;
-#else
-#warning Missing timing functions
-#endif
-#endif
 
 			idleframes = 0;
 			silentframes = 0;
