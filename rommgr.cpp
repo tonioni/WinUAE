@@ -315,7 +315,7 @@ static struct romdata roms[] = {
 	0x87746be2, 0x5BEF3D62,0x8CE59CC0,0x2A66E6E4,0xAE0DA48F,0x60E78F7F, NULL, NULL, 1 },
 
 	/* plain CD32 rom */
-	{ _T("CD32 ROM (KS + extended)"), 3, 1, 40, 60, _T("CD32\0"), 2 * 524288, 64, 1, 0, ROMTYPE_KICKCD32 | ROMTYPE_EXTCD32 | ROMTYPE_CD32, 0, 0, NULL,
+	{ _T("CD32 ROM (KS + extended)"), 3, 1, 40, 60, _T("CD32\0"), 2 * 524288, 64, 1, 0, ROMTYPE_CD32, 0, 0, NULL,
 	0xf5d4f3c8, 0x9fa14825,0xc40a2475,0xa2eba5cf,0x325bd483,0xc447e7c1, NULL, NULL, 1 },
 	/* real CD32 rom dump 391640-03 */
 	ALTROMPN(64, 1, 1, 2 * 524288, ROMTYPE_CD32, _T("391640-03"), 0xa4fbc94a, 0x816ce6c5,0x07787585,0x0c7d4345,0x2230a9ba,0x3a2902db )
@@ -1935,13 +1935,22 @@ void romwarning (const int *ids)
 }
 
 
-static void byteswap (uae_u8 *buf, int size)
+static void byteswap(uae_u8* buf, int size)
 {
 	int i;
 	for (i = 0; i < size; i += 2) {
 		uae_u8 t = buf[i];
 		buf[i] = buf[i + 1];
 		buf[i + 1] = t;
+	}
+}
+static void halfswap(uae_u8* buf, int size)
+{
+	for (int i = 0; i < size / 2; i++) {
+		int j = size / 2 + i;
+		uae_u8 t = buf[i];
+		buf[i] = buf[j];
+		buf[j] = t;
 	}
 }
 static void wordbyteswap (uae_u8 *buf, int size)
@@ -2195,7 +2204,7 @@ struct zfile *read_rom(struct romdata *prd, bool rw)
 				tmp[0] = buf[0];
 				tmp[1] = buf[1];
 				buf[0] = buf[1] = 0;
-				if (get_crc32 (buf, size) == crc32)
+				if (get_crc32(buf, size) == crc32)
 					ok = 1;
 				buf[0] = tmp[0];
 				buf[1] = tmp[1];
@@ -2203,10 +2212,21 @@ struct zfile *read_rom(struct romdata *prd, bool rw)
 			if (!ok) {
 				/* perhaps it is byteswapped without byteswap entry? */
 				byteswap (buf, size);
-				if (get_crc32 (buf, size) == crc32)
+				if (get_crc32(buf, size) == crc32) {
 					ok = 1;
-				if (!ok)
+				}
+				if (!ok) {
 					byteswap(buf, size);
+					// CD32 ROM with lower and upper 512k swapped?
+					if (size == 2 * 512 * 1024) {
+						halfswap(buf, size);
+						if (get_crc32(buf, size) == crc32) {
+							ok = 1;
+						} else {
+							halfswap(buf, size);
+						}
+					}
+				}
 			}
 			if (ok) {
 				alg_descramble(rd, buf, size);
@@ -2942,6 +2962,7 @@ struct romdata *scan_single_rom_file(struct zfile *f)
 	} else {
 		zfile_fseek(f, 0, SEEK_SET);
 	}
+
 	rombuf = xcalloc(uae_u8, size);
 	if (!rombuf)
 		return 0;
@@ -2961,6 +2982,14 @@ struct romdata *scan_single_rom_file(struct zfile *f)
 				rombuf[i + 1] = b;
 			}
 			rd = getromdatabydata(rombuf, size);
+		}
+		if (size == 2 * 512 * 1024 && (!rd || rd->size < 2 * 512 * 1024)) {
+			halfswap(rombuf, size);
+			struct romdata* rd2 = getromdatabydata(rombuf, size);
+			halfswap(rombuf, size);
+			if (rd2 && rd2->size == 2 * 512 * 1024) {
+				rd = rd2;
+			}
 		}
 	}
 	if (!rd) {
