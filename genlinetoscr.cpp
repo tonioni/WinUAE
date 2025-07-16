@@ -1017,21 +1017,21 @@ static void gen_fastdraw_drawmode_ecs(char *colname)
 	if (modes == CMODE_DUALPF) {
 		outf("{");
 		outf("uae_u8 dpval = dpf_lookup[c];");
-		outf("%s = xcolors[colors_ocs[dpval]];", colname);
+		outf("%s = acolors[dpval];", colname);
 		outf("}");
 	} else if (modes == CMODE_HAM) {
 		outf("%s = decode_ham_pixel_fast(c, colors_ocs);", colname);
 	} else if (modes == CMODE_EXTRAHB_ECS_KILLEHB) {
-		outf("%s = xcolors[colors_ocs[c & 31]];", colname);
+		outf("%s = acolors[c & 31];", colname);
 	} else if (modes == CMODE_EXTRAHB) {
 		outf("c &= bplehb_mask;");
 		outf("if (c <= 31) {");
-		outf("	%s = xcolors[colors_ocs[c]];", colname);
+		outf("	%s = acolors[c];", colname);
 		outf("} else {");
 		outf("	%s = xcolors[(colors_ocs[c - 32] >> 1) & 0x777];", colname);
 		outf("}");
 	} else {
-		outf("%s = xcolors[colors_ocs[c]];", colname);
+		outf("%s = acolors[c];", colname);
 	}
 }
 
@@ -1044,24 +1044,24 @@ static void gen_fastdraw_drawmode_aga(char *colname)
 		outf("	dpval += dblpfofs[bpldualpf2of];");
 		outf("}");
 		outf("dpval ^= bxor;");
-		outf("%s = colors_aga[dpval];", colname);
+		outf("%s = acolors[dpval];", colname);
 		outf("}");
 	} else if (modes == CMODE_HAM) {
 		outf("%s = decode_ham_pixel_aga_fast(c, planes, bxor, colors_aga);", colname);
 	} else if (modes == CMODE_EXTRAHB_ECS_KILLEHB) {
 		outf("c ^= bxor;");
-		outf("%s = colors_aga[c & 31];", colname);
+		outf("%s = acolors[c & 31];", colname);
 	} else if (modes == CMODE_EXTRAHB) {
 		outf("c ^= bxor;");
 		outf("if (c & 0x20) {");
 		outf("	uae_u32 v = (colors_aga[c & 31] >> 1) & 0x7f7f7f;");
 		outf("	%s = CONVERT_RGB(v);", colname);
 		outf("} else {");
-		outf("	%s = colors_aga[c];", colname);
+		outf("	%s = acolors[c];", colname);
 		outf("}");
 	} else {
 		outf("c ^= bxor;");
-		outf("%s = colors_aga[c];", colname);
+		outf("%s = acolors[c];", colname);
 	}
 }
 
@@ -1157,10 +1157,11 @@ static void gen_fastdraw(void)
 {
 	int doubling = outres - res;
 
+	outf("uae_u32 *acolors = (uae_u32*)ls->linecolorstate;");
 	if (aga) {
-		outf("uae_u32 *colors_aga = (uae_u32*)ls->linecolorstate;");
+		outf("uae_u32 *colors_aga = (uae_u32*)(ls->linecolorstate + 256 * sizeof(uae_u32));");
 	} else {
-		outf("uae_u16 *colors_ocs = (uae_u16*)ls->linecolorstate;");
+		outf("uae_u16 *colors_ocs = (uae_u16*)(ls->linecolorstate + 256 * sizeof(uae_u32));");
 	}
 	if (aga) {
 		outf("uae_u8 bxor = ls->bplcon4 >> 8;");

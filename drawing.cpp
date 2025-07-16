@@ -6666,12 +6666,7 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 	bool ecsena = ecs_denise && (ls->bplcon0 & 1) != 0;
 	bool brdblank = (ls->bplcon3 & 0x20) && ecsena;
 
-	uae_u32 bgcol;
-	if (aga_mode) {
-		bgcol = brdblank ? 0x000000 : ls->color0;
-	} else {
-		bgcol = brdblank ? 0x000000 : xcolors[ls->color0];
-	}
+	uae_u32 bgcol = brdblank ? 0x000000 : getxcolor(ls->color0);
 
 	int hbstrt_offset = ls->hbstrt_offset >> rshift;
 	int hbstop_offset = ls->hbstop_offset >> rshift;
@@ -6799,11 +6794,11 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 
 	uae_u32 bgcol;
 	if (aga_mode) {
-		bgcol = brdblank ? 0x000000 : ls->color0;
+		bgcol = brdblank ? 0x000000 : getxcolor(ls->color0);
 	} else if (res == 2) {
 		bgcol = brdblank ? 0x000000 : bordercolor_ecs_shres;
 	} else {
-		bgcol = brdblank ? 0x000000 : xcolors[ls->color0];
+		bgcol = brdblank ? 0x000000 : getxcolor(ls->color0);
 	}
 	
 	//bgcol = 0xff00;

@@ -643,7 +643,7 @@ static int display_hstart_fastmode;
 static int color_table_index;
 static bool color_table_changed;
 #define COLOR_TABLE_ENTRIES 2
-static uae_u8 color_tables[COLOR_TABLE_ENTRIES * 256 * sizeof(uae_u32)];
+static uae_u8 color_tables[COLOR_TABLE_ENTRIES * 512 * sizeof(uae_u32)];
 
 #define HSYNCTIME (maxhpos * CYCLE_UNIT)
 
@@ -4274,6 +4274,7 @@ static void COLOR_WRITE(uae_u16 v, int num)
 		uae_u32 cval = (cr << 16) | (cg << 8) | cb;
 
 		agnus_colors.color_regs_aga[colreg] = cval;
+		agnus_colors.acolors[colreg] = getxcolor(cval);
 
 	} else {
 
@@ -8475,7 +8476,6 @@ static uaecptr *getptfromreg(int reg)
 	return &dummyrgaaddr;
 }
 
-
 uae_u8 *save_custom_slots(size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
@@ -10757,8 +10757,10 @@ static bool draw_line_fast(struct linestate *l, int ldv, uaecptr bplptp[8], bool
 		if (color_table_index >= COLOR_TABLE_ENTRIES) {
 			color_table_index = 0;
 		}
-		l->linecolorstate = color_tables + color_table_index * 256 * sizeof(uae_u32);
+		l->linecolorstate = color_tables + color_table_index * 512 * sizeof(uae_u32);
 		uae_u8 *dpt = l->linecolorstate;
+		memcpy(dpt, agnus_colors.acolors, colors * sizeof(uae_u32));
+		dpt += 256 * sizeof(uae_u32);
 		if (aga_mode) {
 			memcpy(dpt, agnus_colors.color_regs_aga, colors * sizeof(uae_u32));
 		} else {
@@ -10766,7 +10768,7 @@ static bool draw_line_fast(struct linestate *l, int ldv, uaecptr bplptp[8], bool
 		}
 		color_table_changed = false;
 	} else {
-		l->linecolorstate = color_tables + color_table_index * 256 * sizeof(uae_u32);
+		l->linecolorstate = color_tables + color_table_index * 512 * sizeof(uae_u32);
 	}
 
 	l->color0 = aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0];
