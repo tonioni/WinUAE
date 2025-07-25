@@ -349,13 +349,16 @@ static bool ischs(uae_u8 *identity)
 
 #define CA "Commodore\0Amiga\0"
 static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, uae_u8 *data, int cnt, int *flags, bool log);
-static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf, int blocksize, uae_u8 *identity, bool canchs)
+static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf, int blocksize, uae_u8 *identity, bool canchs, bool *accepted)
 {
 	uae_u64 origoffset = offset;
 	int i, j, blocks = 63, empty = 1;
 	DWORD outlen;
 	int specialaccessmode = 0;
 
+	if (accepted) {
+		*accepted = false;
+	}
 	for (j = 0; j < blocks; j++) {
 		memset(buf, 0xaa, blocksize);
 
@@ -389,12 +392,18 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 			if (do_rdbdump)
 				rdbdump(h, offset, buf, blocksize);
 			write_log(_T("hd accepted (adide rdb detected at block %d)\n"), j);
+			if (accepted) {
+				*accepted = true;
+			}
 			return -3;
 		}
 		if (!memcmp(buf, "RDSK", 4) || !memcmp(buf, "DRKS", 4)) {
 			if (do_rdbdump)
 				rdbdump(h, offset, buf, blocksize);
 			write_log(_T("hd accepted (rdb detected at block %d)\n"), j);
+			if (accepted) {
+				*accepted = true;
+			}
 			return -1;
 		}
 
@@ -2148,7 +2157,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			if (udi->partitiondrive)
 				hfd->flags |= HFD_FLAGS_REALDRIVEPARTITION;
 			if (hfd->offset == 0 && !hfd->drive_empty) {
-				int sf = safetycheck (hfd->handle->h, udi->device_path, 0, hfd->cache, hfd->ci.blocksize, hfd->identity, udi->chsdetected);
+				int sf = safetycheck (hfd->handle->h, udi->device_path, 0, hfd->cache, hfd->ci.blocksize, hfd->identity, udi->chsdetected, NULL);
 				if (sf > 0)
 					goto end;
 				if (sf == 0 && !hfd->ci.readonly && harddrive_dangerous != 0x1234dead) {
@@ -3253,21 +3262,30 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			int safepart = 0;
 			udi->dangerous = -6;
 			udi->readonly = readonly ? 2 : 0;
-			if (dli->PartitionCount == 1 && dli->PartitionEntry[0].Mbr.PartitionType != 0x76 && dli->PartitionEntry[0].Mbr.PartitionType != 0x30) {
+			if (dli->PartitionCount == 1 && dli->PartitionEntry[0].StartingOffset.QuadPart == 0) {
 				goto checkrdb;
 			}
 			write_log (_T("%d MBR partitions found\n"), dli->PartitionCount);
 			for (i = 0; i < dli->PartitionCount && (*index2) < MAX_FILESYSTEM_UNITS; i++) {
 				PARTITION_INFORMATION_EX *pi = &dli->PartitionEntry[i];
-				if (pi->Mbr.PartitionType == PARTITION_ENTRY_UNUSED)
-					continue;
 				write_log (_T("%d: num: %d type: %02X offset: %I64d size: %I64d, "), i,
 					pi->PartitionNumber, pi->Mbr.PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
-				if (pi->Mbr.RecognizedPartition == 0) {
-					write_log (_T("unrecognized\n"));
+
+				bool accepted = false;
+				if (i == 0) {
+					// check if drive is MBR partitioned with RDB on top of it.
+					int dang = safetycheck(hDevice, udi->device_path, 0, buffer, dg.BytesPerSector, udi->identity, udi->chsdetected, &accepted);
+					if (accepted) {
+						udi->dangerous = dang;
+					}
+				}
+
+				if (!accepted && (pi->Mbr.RecognizedPartition == 0 || pi->Mbr.PartitionType == PARTITION_ENTRY_UNUSED)) {
+					write_log(_T("unrecognized\n"));
 					udi->readonly = readonly ? 2 : 0;
 					continue;
 				}
+
 				nonzeropart++;
 				udi++;
 				(*index2)++;
@@ -3341,7 +3359,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	}
 checkrdb:
 	if (udi->offset == 0 && udi->size) {
-		udi->dangerous = safetycheck (hDevice, udi->device_path, 0, buffer, dg.BytesPerSector, udi->identity, udi->chsdetected);
+		udi->dangerous = safetycheck (hDevice, udi->device_path, 0, buffer, dg.BytesPerSector, udi->identity, udi->chsdetected, NULL);
 		if (udi->dangerous > 0)
 			goto end;
 	}
