@@ -1729,7 +1729,8 @@ static int isromext (const TCHAR *path, bool deepscan)
 	ext++;
 
 	if (!_tcsicmp (ext, _T("rom")) || !_tcsicmp (ext, _T("bin")) ||  !_tcsicmp (ext, _T("adf")) || !_tcsicmp (ext, _T("key"))
-		|| !_tcsicmp (ext, _T("a500")) || !_tcsicmp (ext, _T("a1200")) || !_tcsicmp (ext, _T("a4000")) || !_tcsicmp (ext, _T("cd32")))
+		|| !_tcsicmp (ext, _T("a500")) || !_tcsicmp(ext, _T("a600"))
+		|| !_tcsicmp(ext, _T("a1200")) || !_tcsicmp(ext, _T("a3000")) || !_tcsicmp (ext, _T("a4000")) || !_tcsicmp (ext, _T("cd32")))
 		return 1;
 	if (_tcslen (ext) >= 2 && toupper(ext[0]) == 'U' && isdigit (ext[1]))
 		return 1;
@@ -1855,7 +1856,7 @@ static int listrom (const int *roms)
 	i = 0;
 	while (roms[i] >= 0) {
 		struct romdata *rd = getromdatabyid (roms[i]);
-		if (rd && romlist_get (rd))
+		if (rd && rd->crc32 != 0xffffffff && romlist_get(rd))
 			return 1;
 		i++;
 	}
