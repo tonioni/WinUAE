@@ -10745,7 +10745,10 @@ static bool draw_line_fast(struct linestate *l, int ldv, uaecptr bplptp[8], bool
 	int colors = getcolorcount(planes);
 	int len = l->bpllen;
 	for (int i = 0; i < planes; i++) {
-		uaecptr pt = bplptp[i] & chipmem_bank.mask;
+		uaecptr pt = bplptp[i];
+		if (!currprefs.z3chipmem.size) {
+			pt &= chipmem_bank.mask;
+		}
 		if (!valid_address(pt, len)) {
 			return false;
 		}
