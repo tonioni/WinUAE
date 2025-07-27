@@ -353,7 +353,7 @@ int visible_left_border, visible_right_border;
 /* Pixels outside of visible_start and visible_stop are always black */
 static int visible_left_start, visible_right_stop;
 static int visible_top_start, visible_bottom_stop;
-bool exthblanken;
+static bool exthblanken;
 static int exthblank;
 static bool syncdebug;
 
@@ -5146,14 +5146,16 @@ void end_draw_denise(void)
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	struct vidbuffer *vb = &vidinfo->drawbuffer;
 
-	draw_denise_line_queue_flush();
+	if (thread_debug_lock) {
+		draw_denise_line_queue_flush();
 
-	thread_debug_lock = false;
+		thread_debug_lock = false;
 
-	unlockscr(vb, denise_y_start, denise_y_end);
+		unlockscr(vb, denise_y_start, denise_y_end);
 
-	if (vidinfo->outbuffer != vidinfo->inbuffer) {
-		vidinfo->inbuffer->locked = vidinfo->outbuffer->locked;
+		if (vidinfo->outbuffer != vidinfo->inbuffer) {
+			vidinfo->inbuffer->locked = vidinfo->outbuffer->locked;
+		}
 	}
 }
 
@@ -5346,6 +5348,7 @@ static void get_line(int gfx_ypos, enum nln_how how)
 	struct vidbuffer *vb = vidinfo->inbuffer;
 	int eraselines = 0;
 	int yadjust = currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA ? minfirstline_linear << currprefs.gfx_vresolution : 0;
+	uae_u8 *xstart, *xend;
 	int xshift = 0;
 
 	xlinebuffer = NULL;
@@ -7396,7 +7399,7 @@ void draw_denise_vsync_queue(int erase)
 {
 	if (MULTITHREADED_DENISE) {
 
-		if (!waitqueue()) {
+		if (!waitqueue_nolock()) {
 			return;
 		}
 		struct denise_rga_queue *q = &rga_queue[rga_queue_write & DENISE_RGA_SLOT_CHUNKS_MASK];
