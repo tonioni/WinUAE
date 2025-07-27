@@ -757,6 +757,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 	float hmult, vmult;
 	bool half;
 	bool rtg;
+	int scalemode = p->gf[0].gfx_filter_autoscale;
 
 	hres = p->gfx_resolution;
 	vres = p->gfx_vresolution;
@@ -844,10 +845,10 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 		if (p->gf[0].gfx_filter_scanlines || p->gfx_pscanlines)
 			m |= RP_SCREENMODE_SCANLINES;
 
-		if (p->gfx_xcenter_pos == 0 && p->gfx_ycenter_pos == 0)
-			cf |= RP_CLIPFLAGS_NOCLIP;
-		else if (p->gf[0].gfx_filter_autoscale == AUTOSCALE_RESIZE || p->gf[0].gfx_filter_autoscale == AUTOSCALE_NORMAL)
+		if (scalemode == AUTOSCALE_RESIZE || scalemode == AUTOSCALE_NORMAL || scalemode == AUTOSCALE_INTEGER_AUTOSCALE)
 			cf |= RP_CLIPFLAGS_AUTOCLIP;
+		else if (p->gfx_xcenter_pos == 0 && p->gfx_ycenter_pos == 0)
+			cf |= RP_CLIPFLAGS_NOCLIP;
 	}
 
 	if (full) {
@@ -859,6 +860,9 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 	}
 	if (p->gf[rtg].gfx_filter_bilinear) {
 		m |= RP_SCREENMODE_INTERPOLATION;
+	}
+	if (!rtg && p->gfx_ntscpixels) {
+		m |= RP_SCREENMODE_PIXEL_ORIGINAL_RATIO;
 	}
 
 	sm->dwScreenMode = m | (storeflags & (RP_SCREENMODE_SCALING_STRETCH | RP_SCREENMODE_SCALING_SUBPIXEL));
@@ -930,6 +934,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	p->gf[0].gfx_filter_right_border = 0;
 	p->gf[0].gfx_filter_bottom_border = 0;
 	p->gf[0].gfx_filter_autoscale = AUTOSCALE_CENTER;
+	p->gfx_ntscpixels = false;
+
 	disp = getdisplay(p, 0);
 
 	if (log_rp & 2) {
@@ -1132,7 +1138,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 		if (keepaspect) {
 			p->gf[0].gfx_filter_aspect = -1;
-			p->gf[0].gfx_filter_keep_autoscale_aspect = 1;
+			p->gf[0].gfx_filter_keep_autoscale_aspect = integerscale ? 0 : 1;
 			p->gf[0].gfx_filter_keep_aspect = 1;
 		} else {
 			p->gf[0].gfx_filter_aspect = 0;
@@ -1195,6 +1201,10 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			p->gf[0].gfx_filter_bilinear = (sm->dwScreenMode & RP_SCREENMODE_INTERPOLATION) != 0;
 		} else {
 			p->gf[0].gfx_filter_bilinear = interpolation_old(sm->dwScreenMode);
+		}
+
+		if (sm->dwScreenMode & RP_SCREENMODE_PIXEL_ORIGINAL_RATIO) {
+			p->gfx_ntscpixels = true;
 		}
 	}
 
