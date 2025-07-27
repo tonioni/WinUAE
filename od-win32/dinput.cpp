@@ -2116,6 +2116,42 @@ static void initialize_windowsmouse (void)
 
 static uae_u8 rawkeystate[256];
 static int rawprevkey;
+static int key_lshift, key_lwin;
+
+static void sendscancode(int num, int scancode, int pressed)
+{
+	scancode = keyhack(scancode, pressed, num);
+#if DEBUG_SCANCODE
+	write_log(_T("%02X %d %d\n"), scancode, pressed, isfocus());
+#endif
+	if (scancode < 0)
+		return;
+	if (!isfocus())
+		return;
+	if (isfocus() < 2 && currprefs.input_tablet >= TABLET_MOUSEHACK && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC))
+		return;
+	if (!mouseactive && !(currprefs.win32_active_input & 1)) {
+		if ((currprefs.win32_guikey <= 0 && scancode == DIK_F12) || (scancode == currprefs.win32_guikey)) {
+			inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
+		}
+		return;
+	}
+	if (pressed) {
+		di_keycodes[num][scancode] = 1;
+	}
+	else {
+		if ((di_keycodes[num][scancode] & 1) && pause_emulation) {
+			di_keycodes[num][scancode] = 2;
+		}
+		else {
+			di_keycodes[num][scancode] = 0;
+		}
+	}
+	if (stopoutput == 0) {
+		my_kbd_handler(num, scancode, pressed, false);
+	}
+}
+
 static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 {
 	int i, num;
@@ -2567,6 +2603,45 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 		if (!pressed)
 			return;
 #endif
+		// quick hack to support copilot+ key as right amiga key
+		bool key_lx_repress = false;
+		if (scancode == DIK_LWIN) {
+			if (pressed) {
+				if (key_lwin < 2) {
+					key_lwin++;
+				}
+			} else {
+				if (key_lwin > 0) {
+					key_lwin--;
+				}
+			}
+		}
+		if (scancode == DIK_LSHIFT) {
+			if (pressed) {
+				if (key_lshift < 2) {
+					key_lshift++;
+				}
+			} else {
+				if (key_lshift > 0) {
+					key_lshift--;
+				}
+			}
+		}
+		if (scancode == 0x6e && key_lwin > 0 && key_lshift > 0) {
+			if (pressed) {
+				if (key_lwin == 1) {
+					sendscancode(num, DIK_LWIN, 0);
+				}
+				if (key_lshift == 1) {
+					sendscancode(num, DIK_LSHIFT, 0);
+				}
+				scancode = DIK_RWIN;
+			} else {
+				key_lx_repress = true;
+				scancode = DIK_RWIN;
+			}
+			rawprevkey = -1;
+		}
 
 		if (pressed) {
 			// previously pressed key and current press is same key? Repeat. Ignore it.
@@ -2605,33 +2680,14 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, scancode, pressed, -1);
 			}
 		} else {
-			scancode = keyhack (scancode, pressed, num);
-#if DEBUG_SCANCODE
-			write_log (_T("%02X %d %d\n"), scancode, pressed, isfocus ());
-#endif
-			if (scancode < 0)
-				return;
-			if (!isfocus ())
-				return;
-			if (isfocus () < 2 && currprefs.input_tablet >= TABLET_MOUSEHACK && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC))
-				return;
-			if (!mouseactive && !(currprefs.win32_active_input & 1)) {
-				if ((currprefs.win32_guikey <= 0 && scancode == DIK_F12) || (scancode == currprefs.win32_guikey)) {
-					inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
+			sendscancode(num, scancode, pressed);
+			if (key_lx_repress) {
+				if (key_lwin == 1) {
+					sendscancode(num, DIK_LWIN, 1);
 				}
-				return;
-			}
-			if (pressed) {
-				di_keycodes[num][scancode] = 1;
-			} else {
-				if ((di_keycodes[num][scancode] & 1) && pause_emulation) {
-					di_keycodes[num][scancode] = 2;
-				} else {
-					di_keycodes[num][scancode] = 0;
+				if (key_lshift == 1) {
+					sendscancode(num, DIK_LSHIFT, 1);
 				}
-			}
-			if (stopoutput == 0) {
-				my_kbd_handler (num, scancode, pressed, false);
 			}
 		}
 	}
@@ -3758,6 +3814,7 @@ void release_keys(void)
 	}
 	memset (rawkeystate, 0, sizeof rawkeystate);
 	rawprevkey = -1;
+	key_lwin = key_lshift = 0;
 }
 
 static void flushmsgpump (void)
