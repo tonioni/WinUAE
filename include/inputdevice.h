@@ -391,6 +391,6 @@ bool osk_status(void);
 
 void inputdevice_draco_key(int kc);
 
-extern int key_swap_hack, key_swap_hack2;
+extern int key_swap_hack, key_swap_hack2, key_swap_end_pgup;
 
 #endif /* UAE_INPUTDEVICE_H */

@@ -6819,6 +6819,7 @@ static void resetregistry (void)
 	regdelete(NULL, _T("ArtImageCount"));
 	regdelete(NULL, _T("ArtImageWidth"));
 	regdelete(NULL, _T("KeySwapBackslashF11"));
+	regdelete(NULL, _T("KeyEndPageUp"));
 }
 
 #include "zip.h"
@@ -18607,7 +18608,8 @@ static void values_to_inputdlg (HWND hDlg)
 	SetDlgItemInt (hDlg, IDC_INPUTAUTOFIRERATE, workprefs.input_autofire_linecnt, FALSE);
 	SetDlgItemInt (hDlg, IDC_INPUTSPEEDD, workprefs.input_joymouse_speed, FALSE);
 	SetDlgItemInt (hDlg, IDC_INPUTSPEEDA, workprefs.input_joymouse_multiplier, FALSE);
-	CheckDlgButton (hDlg, IDC_INPUTDEVICEDISABLE, (!input_total_devices || inputdevice_get_device_status (input_selected_device)) ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(hDlg, IDC_INPUTDEVICEDISABLE, (!input_total_devices || inputdevice_get_device_status(input_selected_device)) ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(hDlg, IDC_KEYBOARD_ENDHACK, key_swap_end_pgup ? BST_CHECKED : BST_UNCHECKED);
 	if (key_swap_hack == 2) {
 		CheckDlgButton(hDlg, IDC_KEYBOARD_SWAPHACK, BST_INDETERMINATE);
 	} else {
@@ -20191,6 +20193,13 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			break;
 		case IDC_INPUTDEVICEDISABLE:
 			inputdevice_set_device_status (input_selected_device, ischecked (hDlg, IDC_INPUTDEVICEDISABLE));
+			break;
+		case IDC_KEYBOARD_ENDHACK:
+			{
+				key_swap_end_pgup = IsDlgButtonChecked(hDlg, IDC_KEYBOARD_ENDHACK);
+				regsetint(NULL, _T("KeyEndPageUp"), key_swap_end_pgup);
+				values_to_inputdlg(hDlg);
+			}
 			break;
 		case IDC_KEYBOARD_SWAPHACK:
 			{

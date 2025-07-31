@@ -19,6 +19,7 @@ int no_directinput = 0;
 int no_windowsmouse = 0;
 int winekeyboard = 0;
 int key_swap_hack = 0;
+int key_swap_end_pgup = 0;
 
 #define _WIN32_WINNT 0x501 /* enable RAWINPUT support */
 
@@ -2116,7 +2117,7 @@ static void initialize_windowsmouse (void)
 
 static uae_u8 rawkeystate[256];
 static int rawprevkey;
-static int key_lshift, key_lwin;
+static int key_lshift, key_lwin, key_pgup;
 
 static void sendscancode(int num, int scancode, int pressed)
 {
@@ -2150,6 +2151,80 @@ static void sendscancode(int num, int scancode, int pressed)
 	if (stopoutput == 0) {
 		my_kbd_handler(num, scancode, pressed, false);
 	}
+}
+
+static int key_swap_end(int num, int scancode, int pressed, bool *repress)
+{
+	if (key_pgup) {
+		int sc = scancode;
+		switch (scancode) {
+		case DIK_PRIOR:
+			scancode = DIK_END;
+			key_pgup = pressed;
+			return scancode;
+		case DIK_NEXT: // PGUP -> PGDN (Freeze button)
+			scancode = DIK_PRIOR;
+			break;
+		// numpad emulation
+		case DIK_7:
+			scancode = DIK_F14;
+			break;
+		case DIK_8:
+			scancode = DIK_F15;
+			break;
+		case DIK_9:
+			scancode = DIK_DIVIDE;
+			break;
+		case DIK_0:
+			scancode = DIK_MULTIPLY;
+			break;
+		case DIK_U:
+			scancode = DIK_NUMPAD7;
+			break;
+		case DIK_I:
+			scancode = DIK_NUMPAD8;
+			break;
+		case DIK_O:
+			scancode = DIK_NUMPAD9;
+			break;
+		case DIK_P:
+			scancode = DIK_SUBTRACT;
+			break;
+		case DIK_J:
+			scancode = DIK_NUMPAD1;
+			break;
+		case DIK_K:
+			scancode = DIK_NUMPAD2;
+			break;
+		case DIK_L:
+			scancode = DIK_NUMPAD3;
+			break;
+		case DIK_SEMICOLON:
+			scancode = DIK_NUMPADENTER;
+			break;
+		case DIK_M:
+			scancode = DIK_NUMPAD0;
+			break;
+		case DIK_COMMA:
+			scancode = DIK_DECIMAL;
+			break;
+		case DIK_PERIOD:
+			scancode = DIK_NUMPADENTER;
+			break;
+		}
+		if (sc != scancode) {
+			sendscancode(num, DIK_END, 0);
+			*repress = true;
+		}
+	} else {
+		if (scancode == DIK_END) {
+			scancode = DIK_PRIOR;
+		} else if (scancode == DIK_PRIOR) {
+			scancode = DIK_END;
+			key_pgup = pressed;
+		}
+	}
+	return scancode;
 }
 
 static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
@@ -2603,6 +2678,10 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 		if (!pressed)
 			return;
 #endif
+		bool key_endswap_repress = false;
+		if (key_swap_end_pgup) {
+			scancode = key_swap_end(num, scancode, pressed, &key_endswap_repress);
+		}
 		// quick hack to support copilot+ key as right amiga key
 		bool key_lx_repress = false;
 		if (scancode == DIK_LWIN) {
@@ -2688,6 +2767,9 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 				if (key_lshift == 1) {
 					sendscancode(num, DIK_LSHIFT, 1);
 				}
+			}
+			if (key_endswap_repress) {
+				sendscancode(num, DIK_END, 1);
 			}
 		}
 	}
@@ -3815,6 +3897,7 @@ void release_keys(void)
 	memset (rawkeystate, 0, sizeof rawkeystate);
 	rawprevkey = -1;
 	key_lwin = key_lshift = 0;
+	key_pgup = 0;
 }
 
 static void flushmsgpump (void)

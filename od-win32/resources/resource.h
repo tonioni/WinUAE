@@ -1362,6 +1362,7 @@
 #define IDC_KEYBOARD_SWAPHACK           1865
 #define IDC_SCSIROM24BITDMA             1866
 #define IDC_CUSTOMDATAPATH              1866
+#define IDC_KEYBOARD_ENDHACK            1866
 #define IDC_SER_RTSCTSDTRDTECD          1867
 #define IDC_SER_RI                      1868
 #define ID__FLOPPYDRIVES                40004

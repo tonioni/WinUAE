@@ -5961,6 +5961,7 @@ static void WIN32_HandleRegistryStuff (void)
 		quickstart = 1;
 
 	regqueryint(NULL, _T("KeySwapBackslashF11"), &key_swap_hack);
+	regqueryint(NULL, _T("KeyEndPageUp"), &key_swap_end_pgup);
 
 	tmp[0] = 0;
 	size = sizeof(tmp) / sizeof(TCHAR);
