@@ -472,17 +472,22 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 		_stprintf(regstr, _T(",%c%d.%c"), dp & 0x8000 ? disasm_areg : disasm_dreg, (int)r, dp & 0x800 ? disasm_long : disasm_word);
 		addr = base + (uae_s32)((uae_s8)disp8) + dispreg;
 		if (buffer) {
+			TCHAR offtxt[16];
+			if (disp8 < 0)
+				_stprintf(offtxt, disasm_lc_hex(_T("-$%02X")), -disp8);
+			else
+				_stprintf(offtxt, disasm_lc_hex(_T("$%02X")), disp8);
 			if (pcrel) {
 				if (disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL)) {
-					_stprintf(buffer, _T("(%s%s%s,$%02x=$%08x) == $%08x"), name, regstr, mult, (uae_u8)disp8, (*pcp) += disp8, addr);
+					_stprintf(buffer, _T("(%s,%s%s%s=%08x) == $%08x"), offtxt, name, regstr, mult, (*pcp) += disp8, addr);
 				} else {
-					_stprintf(buffer, _T("(%s%s%s,$%02x=$%08x)"), name, regstr, mult, (uae_u8)disp8, (*pcp) += disp8);
+					_stprintf(buffer, _T("(%s,%s%s%s=$%08x)"), offtxt, name, regstr, mult, (*pcp) += disp8);
 				}
 			} else {
 				if (disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL)) {
-					_stprintf(buffer, _T("(%s%s%s,$%02x) == $%08x"), name, regstr, mult, (uae_u8)disp8, addr);
+					_stprintf(buffer, _T("(%s,%s%s%s) == $%08x"), offtxt, name, regstr, mult, addr);
 				} else {
-					_stprintf(buffer, _T("(%s%s%s,$%02x)"), name, regstr, mult, (uae_u8)disp8);
+					_stprintf(buffer, _T("(%s,%s%s%s)"), offtxt, name, regstr, mult);
 				}
 			}
 			if (((dp & 0x0100) || m != 1) && currprefs.cpu_model < 68020) {
@@ -554,7 +559,7 @@ uaecptr ShowEA(void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsi
 			else
 				_stprintf (offtxt, disasm_lc_hex(_T("$%04X")), disp16);
 			addr = m68k_areg (regs, reg) + disp16;
-			_stprintf(buffer, _T("(%c%d,%s)"), disasm_areg, reg, offtxt);
+			_stprintf(buffer, _T("(%s,%c%d)"), offtxt, disasm_areg, reg);
 			if (disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL)) {
 				_stprintf(buffer + _tcslen(buffer), disasm_lc_hex(_T(" == $%08X")), addr);
 			}
@@ -570,14 +575,20 @@ uaecptr ShowEA(void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsi
 		}
 		break;
 	case PC16:
-		disp16 = get_iword_debug (pc); pc += 2;
-		addr += (uae_s16)disp16;
-		_stprintf(buffer, _T("(%s"), disasm_pcreg);
-		_stprintf(buffer + _tcslen(buffer), disasm_lc_hex(_T(",$%04X)")), disp16 & 0xffff);
-		if (disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL)) {
-			_stprintf(buffer + _tcslen(buffer), disasm_lc_hex(_T(" == $%08X")), addr);
+		{
+			TCHAR offtxt[32];
+			disp16 = get_iword_debug (pc); pc += 2;
+			if (disp16 < 0)
+				_stprintf(offtxt, disasm_lc_hex(_T("-$%04X")), -disp16);
+			else
+				_stprintf(offtxt, disasm_lc_hex(_T("$%04X")), disp16);
+			addr += disp16;
+			_stprintf(buffer, _T("(%s,%s)"), offtxt, disasm_pcreg);
+			if (disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL)) {
+				_stprintf(buffer + _tcslen(buffer), disasm_lc_hex(_T(" == $%08X")), addr);
+			}
+			showea_val(buffer, opcode, addr, size);
 		}
-		showea_val(buffer, opcode, addr, size);
 		break;
 	case PC8r:
 		{
