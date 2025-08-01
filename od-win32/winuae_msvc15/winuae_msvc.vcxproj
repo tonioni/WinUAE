@@ -1050,7 +1050,7 @@
     <ClCompile Include="..\..\kbmcu\8048\co8048.cpp" />
     <ClCompile Include="..\..\kbmcu\keyboard_mcu_6500_1.cpp" />
     <ClCompile Include="..\..\kbmcu\keyboard_mcu_6805.cpp" />
-    <ClCompile Include="..\..\kbmcu\keyboard_mcu_d8039hlc .cpp" />
+    <ClCompile Include="..\..\kbmcu\keyboard_mcu_d8039hlc.cpp" />
     <ClCompile Include="..\..\kbmcu\m6805\m68emu.cpp" />
     <ClCompile Include="..\..\kbmcu\m6805\m68_ops.cpp" />
     <ClCompile Include="..\..\logging.cpp" />
