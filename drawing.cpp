@@ -5349,7 +5349,6 @@ static void get_line(int gfx_ypos, enum nln_how how)
 	struct vidbuffer *vb = vidinfo->inbuffer;
 	int eraselines = 0;
 	int yadjust = currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA ? minfirstline_linear << currprefs.gfx_vresolution : 0;
-	uae_u8 *xstart, *xend;
 	int xshift = 0;
 
 	xlinebuffer = NULL;

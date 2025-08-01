@@ -309,7 +309,7 @@ static const TCHAR *uaescsidevmodes[] = {
 };
 static const TCHAR *uaebootrom[] = {
 	_T("automatic"),
-	_T("disabled"), 
+	_T("disabled"),
 	_T("min"),
 	_T("full"),
 	NULL
