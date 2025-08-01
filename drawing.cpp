@@ -176,6 +176,7 @@ static void read_denise_line_queue(void)
 		nolock = true;
 	} else if (q->type == 5) {
 		draw_denise_vsync(q->erase);
+		nolock = true;
 	} else if (q->type == 6) {
 		denise_update_reg(q->reg, q->val, q->linecnt);
 		nolock = true;
