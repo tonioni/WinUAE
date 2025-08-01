@@ -1168,7 +1168,7 @@ static void rawinputfriendlynames (void)
 				if (SetupDiGetDeviceInstanceId (di, &dd, devpath, sizeof devpath / sizeof(TCHAR), &size)) {
 					DEVINST devinst = dd.DevInst;
 
-					TCHAR *cg = outGUID (&guid[ii]);
+					const TCHAR *cg = outGUID (&guid[ii]);
 					for (;;) {
 						TCHAR devname[MAX_DPATH];
 						ULONG size2;

@@ -110,6 +110,6 @@ typedef enum
 } DirectDraw_Mask_e;
 
 extern const TCHAR *DXError(HRESULT hr);
-extern TCHAR *outGUID (const GUID *guid);
+extern const TCHAR *outGUID (const GUID *guid);
 
 #endif
