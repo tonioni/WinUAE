@@ -1,4 +1,3 @@
-﻿/*
 /*
 * UAE - The Un*x Amiga Emulator
 *
