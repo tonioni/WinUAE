@@ -253,7 +253,7 @@ void my_close (struct my_openfile_s *mos)
 	xfree (mos);
 }
 
-uae_s64 int my_lseek (struct my_openfile_s *mos, uae_s64 int offset, int whence)
+uae_s64 my_lseek(struct my_openfile_s *mos, uae_s64 offset, int whence)
 {
 	LARGE_INTEGER li, old;
 
@@ -270,7 +270,7 @@ uae_s64 int my_lseek (struct my_openfile_s *mos, uae_s64 int offset, int whence)
 		return -1;
 	return old.QuadPart;
 }
-uae_s64 int my_fsize (struct my_openfile_s *mos)
+uae_s64 my_fsize(struct my_openfile_s *mos)
 {
 	LARGE_INTEGER li;
 	if (!GetFileSizeEx (mos->h, &li))
