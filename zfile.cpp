@@ -138,7 +138,7 @@ static void zcache_close (void)
 	while (zc) {
 		struct zcache *n = zc->next;
 		zcache_free_data (zc);
-		xfree (n);
+		xfree(zc);
 		zc = n;
 	}
 }
@@ -1788,7 +1788,7 @@ static struct zfile *zfile_fopen_x (const TCHAR *name, const TCHAR *mode, int ma
 
 	if (_tcslen (name) == 0)
 		return NULL;
-	manglefilename(name, path, sizeof(path) / sizeof TCHAR);
+	manglefilename(name, path, sizeof(path) / sizeof(TCHAR));
 	l = zfile_fopen_2 (path, mode, mask);
 	if (!l)
 		return 0;
