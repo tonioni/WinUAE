@@ -1021,7 +1021,7 @@
     <ClCompile Include="..\..\kbmcu\keyboard_mcu_6805.cpp">
       <Filter>kbmcu</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\kbmcu\keyboard_mcu_d8039hlc .cpp">
+    <ClCompile Include="..\..\kbmcu\keyboard_mcu_d8039hlc.cpp">
       <Filter>kbmcu</Filter>
     </ClCompile>
     <ClCompile Include="..\..\kbmcu\m6805\m68_ops.cpp">
