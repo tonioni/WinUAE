@@ -217,9 +217,6 @@ typedef long uae_atomic;
 /* Define if your struct stat has st_blocks.  */
 /* #undef HAVE_ST_BLOCKS */
 
-/* Define if utime(file, NULL) sets file's timestamp to the present.  */
-#define HAVE_UTIME_NULL 1
-
 /* Define as __inline if that's what the C compiler calls it.  */
 /* #undef inline */
 #define __inline__ __inline
@@ -235,14 +232,8 @@ typedef long uae_atomic;
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef pid_t */
 
-/* Define if you need to in order for stat and other things to work.  */
-/* #undef _POSIX_SOURCE */
-
 /* Define as the return type of signal handlers (int or void).  */
 #define RETSIGTYPE void
-
-/* Define if you have the ANSI C header files.  */
-#define STDC_HEADERS 1
 
 /* Define if you can safely include both <sys/time.h> and <time.h>.  */
 #ifdef __GNUC__
@@ -255,9 +246,6 @@ typedef long uae_atomic;
 
 /* Define if your <sys/time.h> declares struct tm.  */
 /* #undef TM_IN_SYS_TIME */
-
-/* Define if the X Window System is missing or not being used.  */
-#define X_DISPLAY_MISSING 1
 
 /* Define if you have the Andrew File System.  */
 /* #undef AFS */
@@ -420,17 +408,11 @@ typedef long uae_atomic;
 /* Define if you have the mkfifo function.  */
 /* #undef HAVE_MKFIFO */
 
-/* Define if you have the readdir_r function.  */
-/* #undef HAVE_READDIR_R */
-
 /* Define if you have the rmdir function.  */
 #define HAVE_RMDIR 1
 
 /* Define if you have the select function.  */
 /* #undef HAVE_SELECT */
-
-/* Define if you have the sigaction function.  */
-/* #undef HAVE_SIGACTION */
 
 /* Define if you have the strchr function.  */
 /* #undef HAVE_STRCHR */
@@ -459,20 +441,6 @@ typedef long uae_atomic;
 /* Define if you have the vsprintf function.  */
 #define HAVE_VSPRINTF 1
 
-/* Define if you have the <curses.h> header file.  */
-/* #undef HAVE_CURSES_H */
-
-/* Define if you have the <cybergraphx/cybergraphics.h> header file.  */
-/* #undef HAVE_CYBERGRAPHX_CYBERGRAPHICS_H */
-
-/* Define if you have the <ddraw.h> header file.  */
-#ifndef _WIN32_WCE
-#define HAVE_DDRAW_H 1
-#endif
-
-/* Define if you have the <devices/ahi.h> header file.  */
-/* #undef HAVE_DEVICES_AHI_H */
-
 /* Define if you have the <dirent.h> header file.  */
 /* #define HAVE_DIRENT_H 1 */
 
@@ -480,12 +448,6 @@ typedef long uae_atomic;
 #ifndef _WIN32_WCE
 #define HAVE_FCNTL_H 1
 #endif
-
-/* Define if you have the <features.h> header file.  */
-/* #undef HAVE_FEATURES_H */
-
-/* Define if you have the <getopt.h> header file.  */
-/* #undef HAVE_GETOPT_H */
 
 /* Define if you have the <ggi/libggi.h> header file.  */
 /* #undef HAVE_GGI_LIBGGI_H */
@@ -537,12 +499,6 @@ typedef long uae_atomic;
 /* Define if you have the <sys/fs/s5param.h> header file.  */
 /* #undef HAVE_SYS_FS_S5PARAM_H */
 
-/* Define if you have the <sys/fs_types.h> header file.  */
-/* #undef HAVE_SYS_FS_TYPES_H */
-
-/* Define if you have the <sys/fstyp.h> header file.  */
-/* #undef HAVE_SYS_FSTYP_H */
-
 /* Define if you have the <sys/ioctl.h> header file.  */
 /* #undef HAVE_SYS_IOCTL_H */
 
@@ -557,12 +513,6 @@ typedef long uae_atomic;
 
 /* Define if you have the <sys/param.h> header file.  */
 /* #undef HAVE_SYS_PARAM_H */
-
-/* Define if you have the <sys/shm.h> header file.  */
-/* #undef HAVE_SYS_SHM_H */
-
-/* Define if you have the <sys/soundcard.h> header file.  */
-/* #undef HAVE_SYS_SOUNDCARD_H */
 
 /* Define if you have the <sys/stat.h> header file.  */
 #ifndef _WIN32_WCE

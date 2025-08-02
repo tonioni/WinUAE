@@ -1,4 +1,3 @@
-﻿/*
 /*
 * UAE - The Un*x Amiga Emulator
 *
@@ -4266,7 +4265,7 @@ void releasehdc(int monid, HDC hdc)
 	}
 }
 
-TCHAR *outGUID(const GUID *guid)
+const TCHAR *outGUID(const GUID *guid)
 {
 	static TCHAR gb[64];
 	if (guid == NULL)
