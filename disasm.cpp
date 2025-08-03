@@ -2094,16 +2094,29 @@ uae_u32 m68k_disasm_2(TCHAR *buf, int bufsize, uaecptr pc, uae_u16 *bufpc, int b
 			if (movemout(instrname, mask, dp->dmode, 0, false))
 				_tcscat(instrname, _T(","));
 			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &deaddr2, &actualea_dst, safemode);
-		} else if (lookup->mnemo == i_DIVL || lookup->mnemo == i_MULL) {
-			TCHAR *p;
+		} else if (lookup->mnemo == i_MULL) {
 			extra = get_disasm_word(pc, bufpc, bufpcsize, 0);
 			add_disasm_word(&pc, &bufpc, &bufpcsize, 2);
 			if (extra & 0x0800) // signed/unsigned
 				instrname[3] = 'S';
 			else
 				instrname[3] = 'U';
-			if (lookup->mnemo == i_DIVL && !(extra & 0x0400)) {
-				// DIVSL.L/DIVUL.L
+			disasm_lc_mnemo(instrname);
+			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
+			TCHAR *p = instrname + _tcslen(instrname);
+			if (extra & 0x0400)
+				_stprintf(p, _T(",%c%d:%c%d"), disasm_dreg, extra & 7, disasm_dreg, (extra >> 12) & 7);
+			else
+				_stprintf(p, _T(",%c%d"), disasm_dreg, (extra >> 12) & 7);
+		} else if (lookup->mnemo == i_DIVL) {
+			extra = get_disasm_word(pc, bufpc, bufpcsize, 0);
+			add_disasm_word(&pc, &bufpc, &bufpcsize, 2);
+			if (extra & 0x0800) // signed/unsigned
+				instrname[3] = 'S';
+			else
+				instrname[3] = 'U';
+			if (!(extra & 0x0400)) {
+				// DIVS.L/DIVU.L->DIVSL.L/DIVUL.L
 				instrname[8] = 0;
 				instrname[7] = ' ';
 				instrname[6] = instrname[5];
@@ -2112,11 +2125,8 @@ uae_u32 m68k_disasm_2(TCHAR *buf, int bufsize, uaecptr pc, uae_u16 *bufpc, int b
 			}
 			disasm_lc_mnemo(instrname);
 			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
-			p = instrname + _tcslen(instrname);
-			if (extra & 0x0400)
-				_stprintf(p, _T(",%c%d:%c%d"), disasm_dreg, extra & 7, disasm_dreg, (extra >> 12) & 7);
-			else
-				_stprintf(p, _T(",%c%d"), disasm_dreg, (extra >> 12) & 7);
+			TCHAR* p = instrname + _tcslen(instrname);
+			_stprintf(p, _T(",%c%d:%c%d"), disasm_dreg, extra & 7, disasm_dreg, (extra >> 12) & 7);
 		} else if (lookup->mnemo == i_MOVES) {
 			TCHAR *p;
 			add_disasm_word(&pc, &bufpc, &bufpcsize, 2);
