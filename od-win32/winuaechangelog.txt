@@ -1,4 +1,37 @@
 
+6.0.0 bug fixes:
+
+- Fixed TCP serial mode hang.
+- Entering and exiting GUI when in fullscreen mode crash fix.
+- Virtual mouse driver mode was not in sync with host cursor, both RTG and native modes.
+- Filter overlay graphics display positioning/size calculation was broken.
+- ECS superhires works again (got broken in last minute update before final).
+- CLXDAT bit 0 (odd to even bitplane collision bit) didn't get set in special case where no planes are selected for collision detection (=always collides). (Cruncher Factory/Kingsoft). This is now also more accurate than in pre-v6 versions, CLXDAT bit 0 is only set when bitplanes are active (not in border or in blanking regions), even in "always collides" state (no bitplanes are enabled for collision).
+- CLXCON and CLXCON2 was always saved as zero (or if statefile was loaded first, value from statefile) to statefile.
+- Fixed edge case in COPJMP sequence where copper forgot it was going to load the pointer register and continued executing from current address.
+- Vertical and horizontal centering works again (was not converted to new chipset emulation and did nothing). Some limits change: now works with non-"auto" scaling filters, disabled if genlock image/video emulation is active (this never worked properly in old versions and too messy to work around), horizontal is now restricted to max 1/4 of width to prevent weird cases to cause weird side-effects. Like previously, only supported in display panel Overscan and smaller settings.
+- Fast drawing mode + 32-bit Chip RAM address mask fix. (Garbage in fast drawing mode lines)
+- When switching from emulated graphics board to native programmed mode screen, sometimes screen (fast drawing mode part) had offset.
+- In some situations emulated graphics board was not drawn fully, bottom part was blank.
+- Add Harddrive: Storage devices containing MBR partition table with RDB in later blocks was not detected correctly.
+- OpalVision possible buffer underrun crash fix.
+
+Other bug fixes/updates:
+
+- RoboCop 3 dongle emulation fixed.
+- Added Native/RTG autoswitcher option. Previously all RTG boards without built-in switcher always autoswitched, now it is optional, default enabled.
+- If UAE Boot ROM is partially disabled (Mapped but diag bit not set in autoconfig data), writing to m68/host trap related areas caused a crash.
+- ROM scanner now detects CyberStorm MK3/PPC and BlizzardPPC flash rom images using checksums. Address ranges that make ROM image unique (Serial number/board config and menu config areas) are ignored in checksum calculation.
+- ROM scanner *.a600 ROM extension added. Super IV cartridge is not anymore shown as detected without ROM image (Super IV is a special case, "ROM" is loaded from disk and "placeholder" ROM was always detected as found)
+- Copilot key now works as a right Windows (Right Amiga) key. Note that this is a hack and causes some (harmless) extra shift and left Windows key presses and releases due to Copilot key being really weird. (LSHIFT + LWIN + F23!)
+- Automatic display switcher now also uses DPMS power saving state to detect if board is active or inactive. (S3 Trio, S3 Virge, Voodoo, Cirrus Logic and Matrox currently only)
+- PC keyboard without numpad/end key optional translation mode. When enabled, PageUp becomes End (End still works normally). Because cartridge freeze is also PageUp, freeze becomes PageUp + PageDown. END/PageUp + cursor left is Pause and cursor right is Warp mode. (Replacing print screen key). PageUp + 7890/UIOP/JKL<key right of L>/M<key right of M> emulates numpad. Note that numpad emulation is done before PC to Amiga translation which means it does not override enabled numpad joystick option. Option in Input panel. This is registry/ini specific setting (just like F11 option).
+- Built-in AROS ROM finally updated.
+- Debugger disassembler (d16,An) addressing mode was (An,d16). If (d16,PC) addressing mode's d16 was negative (for example -1), it was output as $FFFF not -$0001.
+- Debugger disassembler DIVSL.L second output register was not listed (shared code with MULxL which didn't have this special case)
+- Debugger memwatch point change mode detected negative byte/word value writes as always changed due to sign extension before comparison.
+
+6.0.0
 
 Beta 33 (Final):
 
