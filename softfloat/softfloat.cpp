@@ -115,7 +115,7 @@ int8_t floatx80_internal_mode = float_round_nearest_even;
  *----------------------------------------------------------------------------*/
 floatx80 roundSaveFloatx80Internal( int8_t roundingPrecision, flag zSign, int32_t zExp, uint64_t zSig0, uint64_t zSig1, float_status *status )
 {
-    int64_t roundMask, roundBits;
+    uint64_t roundMask, roundBits;
     uint64_t roundIncrement;
     flag increment;
     
@@ -227,7 +227,7 @@ static void saveFloat32Internal( flag zSign, int16_t zExp, uint32_t zSig, float_
 
 void getRoundedFloatInternal( int8_t roundingPrecision, flag *pzSign, int32_t *pzExp, uint64_t *pzSig )
 {
-    int64_t roundMask, roundBits;
+    uint64_t roundMask, roundBits;
     uint64_t roundIncrement;
     flag increment;
 
@@ -1350,7 +1350,7 @@ floatx80 roundAndPackFloatx80( int8_t roundingPrecision, flag zSign, int32_t zEx
 {
     int8_t roundingMode;
     flag roundNearestEven, increment;
-    int64_t roundMask, roundBits;
+    uint64_t roundMask, roundBits;
     uint64_t roundIncrement;
     int32_t expOffset;
     
@@ -1504,7 +1504,7 @@ floatx80 roundSigAndPackFloatx80( int8_t roundingPrecision, flag zSign, int32_t 
 {
     int8_t roundingMode;
     flag roundNearestEven, isTiny;
-    int64_t roundMask, roundBits;
+    uint64_t roundMask, roundBits;
     uint64_t roundIncrement;
     
     roundingMode = status->float_rounding_mode;
