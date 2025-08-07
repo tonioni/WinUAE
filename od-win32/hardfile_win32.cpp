@@ -484,7 +484,7 @@ static void trim (TCHAR *s)
 		s[_tcslen(s) - 1] = 0;
 }
 
-int isharddrive (const TCHAR *name)
+static int isharddrive (const TCHAR *name)
 {
 	int i;
 	for (i = 0; i < hdf_getnumharddrives (); i++) {
