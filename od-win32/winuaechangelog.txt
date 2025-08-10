@@ -1,4 +1,13 @@
 
+Beta 2:
+
+- ROM scanner detected ROMs dialog didn't list CD32 if only detected CD32 ROM was single 1M ROM.
+- CD32 single 1M ROM was not supported in Quickstart mode.
+- Single CD32 1M ROM with swapped upper and lower 512k was not swapped when loading ROM. (Scanner swapped it but loader did not)
+- Debugger S and L command now accept quoted path/filename.
+
+Beta 1:
+
 6.0.0 bug fixes:
 
 - Fixed TCP serial mode hang.
@@ -28,7 +37,7 @@ Other bug fixes/updates:
 - PC keyboard without numpad/end key optional translation mode. When enabled, PageUp becomes End (End still works normally). Because cartridge freeze is also PageUp, freeze becomes PageUp + PageDown. END/PageUp + cursor left is Pause and cursor right is Warp mode. (Replacing print screen key). PageUp + 7890/UIOP/JKL<key right of L>/M<key right of M> emulates numpad. Note that numpad emulation is done before PC to Amiga translation which means it does not override enabled numpad joystick option. Option in Input panel. This is registry/ini specific setting (just like F11 option).
 - Built-in AROS ROM finally updated.
 - Debugger disassembler (d16,An) addressing mode was (An,d16). If (d16,PC) addressing mode's d16 was negative (for example -1), it was output as $FFFF not -$0001.
-- Debugger disassembler DIVSL.L second output register was not listed (shared code with MULxL which didn't have this special case)
+- Debugger disassembler DIVxL.L second output register was not listed (shared code with MULxL which didn't have this special case)
 - Debugger memwatch point change mode detected negative byte/word value writes as always changed due to sign extension before comparison.
 
 6.0.0
