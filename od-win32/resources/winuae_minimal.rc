@@ -936,6 +936,7 @@ BEGIN
     COMBOBOX        IDC_INPUTCOPYFROM,324,285,70,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Swap 1<>2",IDC_INPUTSWAP,324,302,70,14
     CONTROL         "Swap Backslash/F11",IDC_KEYBOARD_SWAPHACK,"Button",BS_AUTO3STATE | WS_TABSTOP,209,302,87,10
+    CONTROL         "Page Up = End",IDC_KEYBOARD_ENDHACK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,111,302,87,10
 END
 
 IDD_FILTER DIALOGEX 0, 0, 396, 316
@@ -1263,12 +1264,12 @@ BEGIN
     CONTROL         "",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,94,103,20
     EDITTEXT        IDC_P96RAM,201,97,40,12,ES_CENTER | ES_READONLY
     CONTROL         "Scale if smaller than display size setting",IDC_RTG_SCALE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,130,175,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,130,162,10
     CONTROL         "Always scale in windowed mode",IDC_RTG_SCALE_ALLOW,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,143,162,10
     CONTROL         "Always center",IDC_RTG_CENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,156,162,10
     CONTROL         "Integer scaling",IDC_RTG_INTEGERSCALE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,169,161,10
-    CONTROL         "Multithreaded",IDC_RTG_THREAD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,143,83,10
+    CONTROL         "Multithreaded",IDC_RTG_THREAD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,143,96,10
     CONTROL         "Hardware sprite emulation",IDC_RTG_HWSPRITE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,156,96,10
     CONTROL         "Hardware vertical blank interrupt",IDC_RTG_VBINTERRUPT,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,169,129,10
@@ -1284,6 +1285,7 @@ BEGIN
     COMBOBOX        IDC_RTG_BUFFERCNT,153,227,84,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CTEXT           "Aspect ratio:",IDC_STATIC,282,212,83,10,SS_CENTERIMAGE
     COMBOBOX        IDC_RTG_SCALE_ASPECTRATIO,282,227,84,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Native/RTG autoswitch",IDC_RTG_SWITCHER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,130,95,10
 END
 
 IDD_INPUTMAP DIALOGEX 0, 0, 421, 293
@@ -1435,8 +1437,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 6,0,0,0
- PRODUCTVERSION 6,0,0,0
+ FILEVERSION 6,0,1,0
+ PRODUCTVERSION 6,0,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1452,12 +1454,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "6.0.0.0"
+            VALUE "FileVersion", "6.0.1.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2025 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "6.0.0.0"
+            VALUE "ProductVersion", "6.0.1.0"
         END
     END
     BLOCK "VarFileInfo"
