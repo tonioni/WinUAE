@@ -2789,7 +2789,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			{
 				LPNMMOUSE lpnm = (LPNMMOUSE)lParam;
 				int num = (int)lpnm->dwItemSpec;
-				int df0 = 9;
+				int df0 = 11;
 				if (num >= df0 && num <= df0 + 3) { // DF0-DF3
 					num -= df0;
 					if (nm->code == NM_RCLICK) {
@@ -2798,12 +2798,13 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 						DiskSelection(hWnd, IDC_DF0 + num, 0, &changed_prefs, NULL, NULL);
 						disk_insert(num, changed_prefs.floppyslots[num].df);
 					}
-				} else if (num == 5) {
-					if (nm->code == NM_CLICK) // POWER
+				} else if (num == 6) { // POWER
+					if (nm->code == NM_CLICK) {
 						inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
-					else
+					} else {
 						uae_reset(0, 1);
-				} else if (num == 4) {
+					}
+				} else if (num == 4) { // FPS
 					if (pause_emulation) {
 						resumepaused(9);
 						setmouseactive(mon->monitor_id, 1);
