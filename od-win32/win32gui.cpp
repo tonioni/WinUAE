@@ -910,6 +910,27 @@ void exit_gui (int ok)
 	}
 }
 
+static bool getdlgnumber(HWND hDlg, int *vpp, int min, int max)
+{
+	TCHAR txt[100], *p;
+	txt[0] = 0;
+	if (SendMessage(hDlg, WM_GETTEXT, (WPARAM)sizeof(txt) / sizeof(TCHAR), (LPARAM)txt)) {
+		int vp = _tcstol(txt, &p, 10);
+		if (vp < min) {
+			vp = min;
+			_stprintf(txt, _T("%d"), vp);
+			SendMessage(hDlg, WM_SETTEXT, 0, (LPARAM)txt);
+		} else if (vp > max) {
+			vp = max;
+			_stprintf(txt, _T("%d"), vp);
+			SendMessage(hDlg, WM_SETTEXT, 0, (LPARAM)txt);
+		}
+		*vpp = vp;
+		return true;
+	}
+	return false;
+}
+
 static int getcbn (HWND hDlg, int v, TCHAR *out, int maxlen)
 {
 	LRESULT val = xSendDlgItemMessage (hDlg, v, CB_GETCURSEL, 0, 0L);
@@ -21156,7 +21177,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		if(recursive > 0)
 			break;
 		recursive++;
-		switch (wParam)
+		switch (LOWORD(wParam))
 		{
 		case IDC_FILTERDEFAULT:
 		{
@@ -21187,9 +21208,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		case IDC_FILTERPRESETLOAD:
 		case IDC_FILTERPRESETSAVE:
 		case IDC_FILTERPRESETDELETE:
-			recursive--;
 			filter_preset (hDlg, wParam);
-			recursive++;
 			break;
 		case IDC_FILTERKEEPASPECT:
 			{
@@ -21215,8 +21234,98 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				workprefs.gf[filter_nativertg].enable = ischecked(hDlg, IDC_FILTERENABLE);
 			}
 			break;
+
+		case IDC_FILTERHZV:
+		case IDC_FILTERVZV:
+		case IDC_FILTERHOV:
+		case IDC_FILTERVOV:
+		{
+			HWND hz = GetDlgItem(hDlg, IDC_FILTERHZV);
+			HWND vz = GetDlgItem(hDlg, IDC_FILTERVZV);
+			HWND ho = GetDlgItem(hDlg, IDC_FILTERHOV);
+			HWND vo = GetDlgItem(hDlg, IDC_FILTERVOV);
+			HWND h = (HWND)lParam;
+			struct gfx_filterdata *fdwp = &workprefs.gf[filter_nativertg];
+			struct gfx_filterdata *fd = &currprefs.gf[filter_nativertg];
+			int val;
+
+			if (fdwp->gfx_filter_autoscale == AUTOSCALE_MANUAL) {
+				if (h == hz && getdlgnumber(hz, &val, -1, 1900)) {
+					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, val);
+				}
+				if (h == vz && getdlgnumber(vz, &val, -1, 1900)) {
+					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERVZV, TBM_SETPOS, TRUE, val);
+				}
+				if (h == ho && getdlgnumber(ho, &val, -1, 700)) {
+					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERHOV, TBM_SETPOS, TRUE, val);
+				}
+				if (h == vo && getdlgnumber(vo, &val, -1, 700)) {
+					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERVOV, TBM_SETPOS, TRUE, val);
+				}
+			} else if (fdwp->gfx_filter_autoscale == AUTOSCALE_OVERSCAN_BLANK) {
+				if (h == hz && getdlgnumber(hz, &val, 0, 1900)) {
+					fd->gfx_filter_left_border = fdwp->gfx_filter_left_border = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, val);
+				}
+				if (h == vz && getdlgnumber(vz, &val, 0, 1900)) {
+					fd->gfx_filter_right_border = fdwp->gfx_filter_right_border = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERVZV, TBM_SETPOS, TRUE, val);
+				}
+				if (h == vo && getdlgnumber(vo, &val, 0, 700)) {
+					fd->gfx_filter_top_border = fdwp->gfx_filter_top_border = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERHOV, TBM_SETPOS, TRUE, val);
+				}
+				if (h == vo && getdlgnumber(vo, &val, 0, 700)) {
+					fd->gfx_filter_bottom_border = fdwp->gfx_filter_bottom_border = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERVOV, TBM_SETPOS, TRUE, val);
+				}
+			} else {
+				if (h == hz) {
+					if (getdlgnumber(hz, &val, -99, 99)) {
+						fd->gfx_filter_horiz_zoom = (float)val;
+						xSendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, val);
+						if (fdwp->gfx_filter_keep_aspect) {
+							fd->gfx_filter_vert_zoom = currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
+							xSendDlgItemMessage(hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, (int)fdwp->gfx_filter_vert_zoom);
+						}
+					}
+				} else if (h == vz) {
+					if (getdlgnumber(vz, &val, -99, 99)) {
+						fd->gfx_filter_vert_zoom = (float)val;
+						xSendDlgItemMessage(hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, val);
+						if (fdwp->gfx_filter_keep_aspect) {
+							fd->gfx_filter_horiz_zoom = currprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
+							xSendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, (int)fdwp->gfx_filter_horiz_zoom);
+						}
+					}
+				}
+				fdwp->gfx_filter_horiz_zoom = fd->gfx_filter_horiz_zoom;
+				fdwp->gfx_filter_vert_zoom = fd->gfx_filter_vert_zoom;
+				if (h == ho && getdlgnumber(ho, &val, -99, 99)) {
+					fdwp->gfx_filter_horiz_offset = (float)val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERHOV, TBM_SETPOS, TRUE, val);
+				}
+				if (h == vo && getdlgnumber(vo, &val, -99, 99)) {
+					fdwp->gfx_filter_vert_offset = (float)val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERVOV, TBM_SETPOS, TRUE, val);
+				}
+				fd->gfx_filter_horiz_offset = fdwp->gfx_filter_horiz_offset;
+				fd->gfx_filter_vert_offset = fdwp->gfx_filter_vert_offset;
+			}
+			if (!full_property_sheet) {
+				init_colors(0);
+				notice_new_xcolors();
+			}
+			updatedisplayarea(-1);
+		}
+		break;
+
 		default:
-			if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+			if (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == CBN_KILLFOCUS)  {
 				switch (LOWORD (wParam))
 				{
 				case IDC_FILTER_NATIVERTG:
@@ -21329,7 +21438,6 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 						updatedisplayarea(-1);
 					}
 					break;
-
 				}
 			}
 			break;
@@ -22804,6 +22912,22 @@ static void EndCustomResize(HWND hWindow, BOOL bCanceled)
 	}
 }
 
+static bool checkeditcontrol(HWND hDlg)
+{
+	// Do not close GUI if an edit control has focus.
+	HWND hwnd = GetFocus();
+	if (hwnd) {
+		TCHAR name[100];
+		if (GetClassName(hwnd, name, sizeof(name) / sizeof(TCHAR))) {
+			if (!_tcscmp(name, _T("Edit"))) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+
 static int dialogreturn;
 static int devicechangetimer = -1;
 static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -23055,12 +23179,18 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				HtmlHelp(ppage[currentpage].help);
 				return TRUE;
 			case IDOK:
+			{
+				if (checkeditcontrol(hDlg)) {
+					setfocus(hDlg, IDOK);
+					return TRUE;
+				}
 				updatePanel (-1, 0);
 				dialogreturn = 1;
 				DestroyWindow (hDlg);
 				gui_to_prefs ();
 				guiDlg = NULL;
 				return TRUE;
+			}
 			case IDCANCEL:
 				updatePanel (-1, 0);
 				dialogreturn = 0;
