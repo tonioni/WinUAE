@@ -9974,11 +9974,7 @@ static void generate_func (const char *extra)
 	}
 
 	if (generate_stbl) {
-#ifdef NOFLAGS_SUPPORT_GENCPU
-		fprintf(stblfile, "{ NULL, NULL, NULL, NULL, 0, 0, { 0, 0 }, 0 } };\n");
-#else
-		fprintf(stblfile, "{ NULL, NULL, 0, 0, { 0, 0 }, 0 } };\n");
-#endif
+		fprintf(stblfile, "{ 0 }};\n");
 	}
 }
 
