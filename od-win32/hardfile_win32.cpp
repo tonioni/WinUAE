@@ -457,16 +457,18 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 			return -8;
 		}
 		if (mounted < 0) {
-			write_log (_T("hd ignored, NTFS partitions\n"));
+			write_log (_T("NTFS partitions\n"));
 			return 0;
 		}
 		if (mounted > 1) {
 			return 3;
 		}
 		if (ptype == PARTITION_STYLE_GPT) {
+			write_log(_T("PARTITION_STYLE_GPT\n"));
 			return -11;
 		}
 		if (ptype == PARTITION_STYLE_MBR) {
+			write_log(_T("PARTITION_STYLE_MBR\n"));
 			return -6;
 		}
 		return -10;
@@ -1898,7 +1900,7 @@ static bool getdeviceinfo(HANDLE hDevice, struct uae_driveinfo *udi)
 		return false;
 	udi->size = gli.Length.QuadPart;
 
-	// check for amithlon partitions, if any found = quick mount not possible
+	// check for amithlon partitions, if none found = quick mount not possible
 	status = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_LAYOUT_EX, NULL, 0,
 		&outBuf, sizeof (outBuf), &returnedLength, NULL);
 	if (!status)
@@ -1909,11 +1911,7 @@ static bool getdeviceinfo(HANDLE hDevice, struct uae_driveinfo *udi)
 	if (dli->PartitionStyle == PARTITION_STYLE_MBR) {
 		for (int i = 0; i < dli->PartitionCount; i++) {
 			PARTITION_INFORMATION_EX *pi = &dli->PartitionEntry[i];
-			if (pi->Mbr.PartitionType == PARTITION_ENTRY_UNUSED)
-				continue;
-			if (pi->Mbr.RecognizedPartition == 0)
-				continue;
-			if (i + 1 == amipart) {
+			if (pi->PartitionNumber == amipart) {
 				udi->offset = pi->StartingOffset.QuadPart;
 				udi->size = pi->PartitionLength.QuadPart;
 				return false;
@@ -2091,8 +2089,11 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			_tcscat (udi->device_full_path, p);
 			_tcscpy (udi->device_name, name);
 			_tcscpy (udi->device_path, p);
-			if (!getdeviceinfo (h, udi))
+			if (!getdeviceinfo(h, udi)) {
 				udi = NULL;
+			} else {
+				write_log("- Partition start: %I64d, size: %I64d \n", udi->offset, udi->size);
+			}
 			CloseHandle (h);
 			h = INVALID_HANDLE_VALUE;
 		}
@@ -2119,18 +2120,18 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 
 			flags = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
 			h = CreateFile (udi->device_path,
-				rw | (hfd->ci.readonly && !chs ? 0 : GENERIC_WRITE),
-				srw | (hfd->ci.readonly && !chs ? 0 : FILE_SHARE_WRITE),
-				NULL, OPEN_EXISTING, flags, NULL);
+					rw | (hfd->ci.readonly && !chs ? 0 : GENERIC_WRITE),
+					srw | (hfd->ci.readonly && !chs ? 0 : FILE_SHARE_WRITE),
+					NULL, OPEN_EXISTING, flags, NULL);
 			hfd->handle->h = h;
 			if (h == INVALID_HANDLE_VALUE && !hfd->ci.readonly) {
 				DWORD err = GetLastError();
 				write_log(_T("Real HD open (RW) error: %d\n"), err);
 				if (err == ERROR_WRITE_PROTECT || err == ERROR_SHARING_VIOLATION) {
 					h = CreateFile (udi->device_path,
-						GENERIC_READ,
-						FILE_SHARE_READ,
-						NULL, OPEN_EXISTING, flags, NULL);
+							GENERIC_READ,
+							FILE_SHARE_READ,
+							NULL, OPEN_EXISTING, flags, NULL);
 					if (h != INVALID_HANDLE_VALUE) {
 						hfd->ci.readonly = true;
 						write_log(_T("Real HD open succeeded in read-only mode\n"));
@@ -2158,8 +2159,9 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				hfd->flags |= HFD_FLAGS_REALDRIVEPARTITION;
 			if (hfd->offset == 0 && !hfd->drive_empty) {
 				int sf = safetycheck (hfd->handle->h, udi->device_path, 0, hfd->cache, hfd->ci.blocksize, hfd->identity, udi->chsdetected, NULL);
-				if (sf > 0)
+				if (sf > 0) {
 					goto end;
+				}
 				if (sf == 0 && !hfd->ci.readonly && harddrive_dangerous != 0x1234dead) {
 					write_log (_T("'%s' forced read-only, safetycheck enabled\n"), udi->device_path);
 					hfd->dangerous = 1;
@@ -3271,6 +3273,11 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 				write_log (_T("%d: num: %d type: %02X offset: %I64d size: %I64d, "), i,
 					pi->PartitionNumber, pi->Mbr.PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
 
+				if (pi->PartitionLength.QuadPart == 0) {
+					write_log(_T("zero size\n"));
+					continue;
+				}
+
 				bool accepted = false;
 				if (i == 0) {
 					// check if drive is MBR partitioned with RDB on top of it.
@@ -3282,7 +3289,6 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 
 				if (!accepted && (pi->Mbr.RecognizedPartition == 0 || pi->Mbr.PartitionType == PARTITION_ENTRY_UNUSED)) {
 					write_log(_T("unrecognized\n"));
-					udi->readonly = readonly ? 2 : 0;
 					continue;
 				}
 
