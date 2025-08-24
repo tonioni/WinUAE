@@ -3418,14 +3418,19 @@ static float xD3D_getrefreshrate(int monid)
 	return d3d->vblank;
 }
 
-static bool xD3D11_initvals(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t_h, int *freq, int mmulth, int mmultv, bool doalloc)
+static int xD3D11_initvals(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t_h, int *freq, int mmulth, int mmultv, bool doalloc)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
-	bool changed = false;
+	int changed = 0;
 
 	if (d3d->m_screenWidth != w_w || d3d->m_screenHeight != w_h) {
-		changed = true;
+		changed = 1;
 	}
+	int hz = getrefreshrate(monid, w_w, w_h);
+	if (isfs(d3d) > 0 && freq && hz != *freq) {
+		changed = -1;
+	}
+
 	d3d->m_screenWidth = w_w;
 	d3d->m_screenHeight = w_h;
 	d3d->dmultxh = mmulth;
@@ -3971,8 +3976,9 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		d3d->swapChainDesc.BufferCount, d3d->swapChainDesc.Flags, d3d->swapChainDesc.Format,
 		d3d->swapChainDesc.Scaling, d3d->swapChainDesc.SwapEffect, d3d->vblankintervals);
 
-	if (isfs(d3d) > 0)
+	if (isfs(d3d) > 0) {
 		D3D_resize(monid, 1);
+	}
 	D3D_resize(monid, 0);
 
 	ret = 1;
@@ -4209,8 +4215,21 @@ static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int *fr
 		return _T("D3D11 INITIALIZATION ERROR");
 	} else {
 		struct d3d11struct *d3d = &d3d11data[monid];
-		if (xD3D11_initvals(ahwnd, monid, w_w, w_h, w_w, w_h, freq, mmulth, mmultv, true)) {
+		int r = xD3D11_initvals(ahwnd, monid, w_w, w_h, w_w, w_h, freq, mmulth, mmultv, true);
+		if (r > 0) {
 			d3d->fsresizedo = true;
+		} else if (r < 0) {
+			xD3D11_free(monid, true);
+			int v = xxD3D11_init(ahwnd, monid, w_w, w_h, freq, mmulth, mmultv);
+			if (v > 0) {
+				return NULL;
+			}
+			xD3D11_free(monid, true);
+			*errp = 1;
+			if (v <= 0) {
+				return _T("");
+			}
+			return _T("D3D11 INITIALIZATION ERROR (FREQ)");
 		} else {
 			*errp = -1;
 		}
