@@ -646,7 +646,7 @@ static int64_t roundAndPackInt64(flag zSign, uint64_t absZ0, uint64_t absZ1,
         float_raise(float_flag_invalid, status);
         return
               zSign ? (int64_t) LIT64( 0x8000000000000000 )
-            : LIT64( 0x7FFFFFFFFFFFFFFF );
+            : (int64_t) LIT64( 0x7FFFFFFFFFFFFFFF );
     }
     if (absZ1) {
         status->float_exception_flags |= float_flag_inexact;
