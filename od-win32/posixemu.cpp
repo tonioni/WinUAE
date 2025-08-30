@@ -26,7 +26,6 @@
 #include "options.h"
 #include "posixemu.h"
 #include "threaddep/thread.h"
-#include "filesys.h"
 #include "win32.h"
 
 #include <Avrt.h>

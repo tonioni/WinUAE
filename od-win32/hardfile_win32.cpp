@@ -8,7 +8,6 @@
 
 #include "resource.h"
 
-#include "threaddep/thread.h"
 #include "options.h"
 #include "filesys.h"
 #include "blkdev.h"

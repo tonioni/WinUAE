@@ -9,13 +9,9 @@
 
 #include "options.h"
 #include "xwin.h"
-#include "custom.h"
-#include "drawing.h"
 #include "render.h"
-#include "win32.h"
 #include "win32gfx.h"
 #include "statusline.h"
-#include "uae.h"
 #include "direct3d.h"
 #include "gfxfilter.h"
 

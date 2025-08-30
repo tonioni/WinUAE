@@ -24,8 +24,6 @@ Copyright(c) 2001 - 2002; §ane
 #include "options.h"
 #include "audio.h"
 #include "custom.h"
-#include "memory.h"
-#include "newcpu.h"
 #include "picasso96.h"
 #include "render.h"
 #include "win32.h"

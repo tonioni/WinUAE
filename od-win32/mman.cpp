@@ -13,8 +13,6 @@
 #include "autoconf.h"
 #include "gfxboard.h"
 #include "cpuboard.h"
-#include "rommgr.h"
-#include "newcpu.h"
 #include "gui.h"
 #ifdef WINUAE
 #include "win32.h"

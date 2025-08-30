@@ -13,15 +13,10 @@
 
 #ifdef WINDDK
 
-#include "traps.h"
-#include "memory.h"
 #include "threaddep/thread.h"
 #include "blkdev.h"
 #include "scsidev.h"
 #include "gui.h"
-#ifdef RETROPLATFORM
-#include "rp.h"
-#endif
 
 #include <stddef.h>
 

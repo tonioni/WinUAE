@@ -31,7 +31,6 @@
 #include "resource.h"
 
 #include "options.h"
-#include "parser.h"
 #include "midi.h"
 #include "registry.h"
 #include "win32gui.h"

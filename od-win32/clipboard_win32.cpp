@@ -14,9 +14,7 @@
 #include "keybuf.h"
 #include "memory.h"
 #include "autoconf.h"
-
 #include "threaddep/thread.h"
-#include "memory.h"
 #include "native2amiga_api.h"
 
 int clipboard_debug;

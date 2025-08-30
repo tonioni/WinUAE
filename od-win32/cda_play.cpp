@@ -14,7 +14,6 @@
 #include "sysdeps.h"
 
 #include "options.h"
-#include "render.h"
 #include "audio.h"
 #include "blkdev.h"
 #include "threaddep/thread.h"

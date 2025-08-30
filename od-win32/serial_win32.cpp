@@ -15,12 +15,10 @@
 #include "sysdeps.h"
 
 #include "options.h"
-#include "uae.h"
 #include "memory.h"
 #include "custom.h"
 #include "events.h"
 #include "newcpu.h"
-#include "cia.h"
 #include "serial.h"
 #include "enforcer.h"
 #include "arcadia.h"

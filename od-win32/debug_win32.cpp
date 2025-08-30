@@ -21,8 +21,6 @@
 #include "memory.h"
 #include "custom.h"
 #include "newcpu.h"
-#include "cia.h"
-#include "disk.h"
 #include "debug.h"
 #include "identify.h"
 #include "savestate.h"

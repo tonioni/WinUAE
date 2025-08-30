@@ -28,7 +28,6 @@ using Microsoft::WRL::ComPtr;
 #include "statusline.h"
 #include "hq2x_d3d.h"
 #include "gui.h"
-#include "gfxboard.h"
 
 #include "d3dx.h"
 

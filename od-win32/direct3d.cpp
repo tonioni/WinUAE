@@ -24,7 +24,6 @@
 #include "options.h"
 #include "xwin.h"
 #include "custom.h"
-#include "drawing.h"
 #include "render.h"
 #include "win32.h"
 #include "win32gfx.h"

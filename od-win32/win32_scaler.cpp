@@ -8,10 +8,8 @@
 #include "custom.h"
 #include "xwin.h"
 #include "win32.h"
-#include "win32gfx.h"
 #include "gfxfilter.h"
 #include "render.h"
-#include "statusline.h"
 #include "drawing.h"
 #include "direct3d.h"
 
