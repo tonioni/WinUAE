@@ -30,7 +30,6 @@
 #define C_LIBPNG
 
 #include "epsonprinter.h"
-#include "win32.h"
 #include "parser.h"
 #include "threaddep/thread.h"
 #include "uae/io.h"

@@ -53,7 +53,6 @@ static bool memlogw = true;
 #include "rommgr.h"
 #include "zfile.h"
 #include "gfxboard.h"
-#include "rommgr.h"
 #include "xwin.h"
 #include "devices.h"
 #include "gfxfilter.h"
@@ -62,7 +61,6 @@ static bool memlogw = true;
 #include "pci_hw.h"
 #include "pcem/pcemglue.h"
 #include "qemuvga/qemuuaeglue.h"
-#include "qemuvga/vga.h"
 #include "draco.h"
 #include "autoconf.h"
 

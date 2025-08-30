@@ -214,8 +214,6 @@
 #include "ar.h"
 #include "savestate.h"
 #include "crc32.h"
-#include "akiko.h"
-#include "xwin.h"
 #include "gfxboard.h"
 
 #define DEBUG

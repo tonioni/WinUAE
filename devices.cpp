@@ -67,8 +67,6 @@
 #ifdef AVIOUTPUT
 #include "videograb.h"
 #endif
-#include "rommgr.h"
-#include "newcpu.h"
 #ifdef WITH_MIDIEMU
 #include "midiemu.h"
 #endif

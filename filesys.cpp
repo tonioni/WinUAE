@@ -31,7 +31,6 @@
 #include "uae.h"
 #include "memory.h"
 #include "custom.h"
-#include "events.h"
 #include "newcpu.h"
 #include "filesys.h"
 #include "autoconf.h"
@@ -44,15 +43,7 @@
 #include "zarchive.h"
 #include "gui.h"
 #include "gayle.h"
-#include "idecontrollers.h"
 #include "savestate.h"
-#ifdef A2091
-#include "a2091.h"
-#endif
-#ifdef NCR
-#include "ncr_scsi.h"
-#endif
-#include "cdtv.h"
 #include "sana2.h"
 #include "bsdsocket.h"
 #include "uaeresource.h"
@@ -68,7 +59,6 @@
 #include "tabletlibrary.h"
 #include "cia.h"
 #include "picasso96.h"
-#include "cpuboard.h"
 #include "rommgr.h"
 #include "debug.h"
 #include "debugmem.h"
