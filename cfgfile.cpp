@@ -5315,6 +5315,7 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 		if (! getintval (&tmpp, &uci.bootpri, 0))
 			goto empty_fs;
 	} else if (type == 1 || ((type == 2 || type == 3 || type == 4) && uaehfentry)) {
+		bool midmarker = false;
 		tmpp = _tcschr (value, ':');
 		if (tmpp == 0)
 			goto invalid_fs;
@@ -5330,7 +5331,10 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 			_tcscpy (uci.rootdir, n);
 			xfree(n);
 			tmpp = (TCHAR*)end;
-			*tmpp++ = 0;
+			midmarker = *tmpp == ':'; // <real hd path>:<optional extra path/drive letter>?
+			if (!midmarker) {
+				*tmpp++ = 0;
+			}
 		} else {
 			tmpp = _tcschr (tmpp, ',');
 			if (tmpp == 0)
@@ -5338,7 +5342,8 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 			*tmpp++ = 0;
 			_tcscpy (uci.rootdir, tmpp2);
 		}
-		if (type == 4) {
+		if (type == 4 && midmarker) {
+			// get optional extra path
 			const TCHAR *tmppr = tmpp;
 			const TCHAR *tmppr2 = tmpp;
 			TCHAR *root2 = getnextentry(&tmppr, ',');
