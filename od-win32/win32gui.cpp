@@ -18983,7 +18983,7 @@ static void showextramap (HWND hDlg)
 	SetWindowText (GetDlgItem (hDlg, IDC_INPUTMAPOUTM), out);
 }
 
-static void input_find (HWND hDlg, HWND mainDlg, int mode, int set, bool oneshot);
+static void input_find(HWND hDlg, HWND mainDlg, int mode, int set, bool oneshot, bool firsteventonly);
 static int rawmode;
 static int inputmap_remap_counter, inputmap_view_offset;
 static int inputmap_remap_event;
@@ -19045,7 +19045,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 	if (GetWindowInfo (myDlg, &pwi)) {
 		// GUI inactive = disable capturing
 		if (pwi.dwWindowStatus != WS_ACTIVECAPTION) {
-			input_find (hDlg, myDlg, 0, false, false);
+			input_find (hDlg, myDlg, 0, false, false, false);
 			return;
 		}
 	}
@@ -19054,7 +19054,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 	int devnum, wtype, state;
 	int cnt = inputdevice_testread_count ();
 	if (cnt < 0) {
-		input_find (hDlg, myDlg, 0, FALSE, false);
+		input_find (hDlg, myDlg, 0, false, false, false);
 		return;
 	}
 	if (!cnt)
@@ -19062,7 +19062,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 	int ret = inputdevice_testread (&devnum, &wtype, &state, true);
 	if (ret > 0) {
 		if (wtype == INPUTMAP_F12) {
-			input_find (hDlg, myDlg, 0, FALSE, false);
+			input_find (hDlg, myDlg, 0, false, false, false);
 			return;
 		}
 		if (input_selected_widget != devnum || input_selected_widget != wtype) {
@@ -19085,7 +19085,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				inputmap_remap_event = 0;
 				inputdevice_generate_jport_custom(&workprefs, inputmap_port);
 				InitializeListView (myDlg);
-				input_find (hDlg, myDlg, 0, FALSE, false);
+				input_find (hDlg, myDlg, 0, false, false, false);
 				return;
 
 			} else if (inputmap == 1) { // ports panel / remap
@@ -19184,10 +19184,10 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				//write_log (_T("%d %d %d %d %d\n"), input_selected_device, input_selected_widget, type, evtnum, type2);
 
 				// if this and previous are same axis and they match (up/down or left/right)
-				// and not oneshot mode
+				// and not oneshot mode: merge to single axis
 				if (!inputmap_oneshot && (inputmap_remap_counter & 1) == 1) {
 					if (type2 == IDEV_WIDGET_BUTTONAXIS && prevtype2 == IDEV_WIDGET_BUTTONAXIS) {
-						if (axisevent == prevaxisevent && (axisstate > 0 && prevaxisstate < 0)) {
+						if (axisevent == prevaxisevent && ((axisstate > 0 && prevaxisstate < 0) || (axisstate < 0 && prevaxisstate > 0))) {
 							if ((type == IDEV_WIDGET_BUTTONAXIS && prevtype == IDEV_WIDGET_BUTTONAXIS) ||
 								(type == IDEV_WIDGET_AXIS && prevtype == IDEV_WIDGET_AXIS)) {
 								for (int i = 0; i < wcnt; i++) {
@@ -19213,7 +19213,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				InitializeListView (hDlg);
 				inputmap_remap_counter++;
 				if (inputmap_remap_counter >= max || inputmap_oneshot) {
-					input_find (hDlg, myDlg, 0, FALSE, false);
+					input_find (hDlg, myDlg, 0, false, false, false);
 					return;
 				}
 				
@@ -19305,7 +19305,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				ListView_SetItemState (list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
 				ListView_SetItemState (list, itemindex, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 				if (rawmode == 1) {
-					input_find (hDlg, myDlg, 0, FALSE, false);
+					input_find (hDlg, myDlg, 0, false, false, false);
 					if (IsWindowEnabled (GetDlgItem (hDlg, IDC_INPUTAMIGA))) {
 						setfocus (hDlg, IDC_INPUTAMIGA);
 						xSendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_SHOWDROPDOWN , TRUE, 0L);
@@ -19348,14 +19348,14 @@ static void inputmap_disable (HWND hDlg, bool disable)
 	}
 }
 
-static void input_find (HWND hDlg, HWND mainDlg, int mode, int set, bool oneshot)
+static void input_find(HWND hDlg, HWND mainDlg, int mode, int set, bool oneshot, bool firsteventonly)
 {
 	static TCHAR tmp[200];
 	if (set && !rawmode) {
 		rawmode = mode ? 2 : 1;
 		inputmap_oneshot = oneshot;
 		inputmap_disable (hDlg, true);
-		inputdevice_settest (TRUE);
+		inputdevice_settest(true, firsteventonly);
 		inputdevice_acquire (mode ? -1 : -2);
 		TCHAR tmp2[MAX_DPATH];
 		GetWindowText (guiDlg, tmp, sizeof tmp / sizeof (TCHAR));
@@ -19376,7 +19376,7 @@ static void input_find (HWND hDlg, HWND mainDlg, int mode, int set, bool oneshot
 		inputdevice_unacquire ();
 		rawinput_release();
 		inputmap_disable (hDlg, false);
-		inputdevice_settest (FALSE);
+		inputdevice_settest(false, 0);
 		SetWindowText (mainDlg, tmp);
 		SetFocus (hDlg);
 		rawmode = FALSE;
@@ -19677,7 +19677,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		break;
 	}
 	case WM_DESTROY:
-		input_find (hDlg, hDlg, 0, false, false);
+		input_find (hDlg, hDlg, 0, false, false, false);
 		pages[INPUTMAP_ID] =  NULL;
 		inputmap_port_remap = -1;
 		inputmap_remap_counter = -1;
@@ -19695,7 +19695,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 						inputmap_selected = lv->iItem;
 						inputmap_remap_counter = getremapcounter (lv->iItem);
 						if (JSEM_ISCUSTOM(inputmap_port, 0, &workprefs)) {
-							input_find (hDlg, hDlg, 1, true, true);
+							input_find (hDlg, hDlg, 1, true, true, true);
 						}
 						if (inputmapselected_old < 0)
 							ew(hDlg, IDC_INPUTMAP_SPECIALS, TRUE);
@@ -19731,7 +19731,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			inputmap_port_remap = -1;
 			inputmap_remap_counter = -1;
 			inputmap_view_offset = 0;
-			input_find (hDlg, hDlg, 0, true, false);
+			input_find (hDlg, hDlg, 0, true, false, false);
 			break;
 			case IDC_INPUTMAP_CAPTURE:
 			if (inputmap_remap_counter < 0)
@@ -19743,7 +19743,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
 			ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
 			ListView_SetItemState (h, inputmap_remap_counter, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-			input_find (hDlg, hDlg, 1, true, false);
+			input_find (hDlg, hDlg, 1, true, false, false);
 			break;
 			case IDC_INPUTMAP_SPECIALS:
 			input_remapspecials(hDlg);
@@ -19761,7 +19761,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 					inputmap_remap_counter = -2;
 					inputmap_remap_event = i;
 					inputmap_port_remap = inputmap_port;
-					input_find (hDlg, hDlg, 1, true, false);
+					input_find (hDlg, hDlg, 1, true, false, true);
 					break;
 				}
 				i++;
@@ -20181,7 +20181,7 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		recursive--;
 		return TRUE;
 	case WM_DESTROY:
-		input_find (hDlg, guiDlg, 0, false, false);
+		input_find(hDlg, guiDlg, 0, false, false, false);
 		break;
 	case WM_COMMAND:
 		if (recursive)
@@ -20191,10 +20191,10 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		{
 		case IDC_INPUTREMAP:
 			input_selected_event = -1;
-			input_find (hDlg, guiDlg, 0, true, false);
+			input_find(hDlg, guiDlg, 0, true, false, false);
 			break;
 		case IDC_INPUTTEST:
-			input_find (hDlg, guiDlg, 1, true, false);
+			input_find(hDlg, guiDlg, 1, true, false, false);
 			break;
 		case IDC_INPUTCOPY:
 			input_copy (hDlg);

@@ -373,10 +373,10 @@ extern int handle_custom_event (const TCHAR *custom, int append);
 extern int inputdevice_geteventid(const TCHAR *s);
 extern void inputdevice_playevents(void);
 
-extern int inputdevice_testread (int*, int*, int*, bool);
-extern int inputdevice_istest (void);
-extern void inputdevice_settest (int);
-extern int inputdevice_testread_count (void);
+extern int inputdevice_testread(int*, int*, int*, bool);
+extern int inputdevice_istest(void);
+extern void inputdevice_settest(bool, bool);
+extern int inputdevice_testread_count(void);
 
 bool target_can_autoswitchdevice(void);
 void target_inputdevice_acquire(void);

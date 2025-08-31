@@ -153,7 +153,7 @@ static int joymodes[MAX_JPORTS][MAX_JPORT_DEVS], joysubmodes[MAX_JPORTS][MAX_JPO
 static const int *joyinputs[MAX_JPORTS];
 
 static int input_acquired;
-static int testmode;
+static int testmode, testmode_oneshot;
 struct teststore
 {
 	int testmode_type;
@@ -7112,9 +7112,16 @@ int inputdevice_get_compatibility_input (struct uae_prefs *prefs, int index, int
 				if (port - 1 != index)
 					continue;
 				for (k = 0; axistable[k] >= 0; k += 3) {
-					if (evtnum2 == axistable[k] || evtnum2 == axistable[k + 1] || evtnum2 == axistable[k + 2]) {
+					if (evtnum2 == axistable[k + 0]) {
 						for (l = 0; inputlist[l] >= 0; l++) {
-							if (inputlist[l] == axistable[k] || inputlist[l] == axistable[k + 1] || inputlist[l] == axistable[k + 1]) {
+							if (inputlist[l] == axistable[k + 1] || inputlist[l] == axistable[k + 2]) {
+								ignore = true;
+							}
+						}
+					}
+					if (evtnum2 == axistable[k + 1] || evtnum2 == axistable[k + 2]) {
+						for (l = 0; inputlist[l] >= 0; l++) {
+							if (inputlist[l] == axistable[k + 0]) {
 								ignore = true;
 							}
 						}
@@ -9491,8 +9498,14 @@ static void inputdevice_testrecord_test(int type, int num, int wtype, int wnum, 
 		testmode = -1;
 		return;
 	}
-	if (testmode_count >= TESTMODE_MAX)
+
+	if (testmode_count >= TESTMODE_MAX) {
 		return;
+	}
+	if (testmode_oneshot && testmode_count > 0) {
+		return;
+	}
+
 	if (type == IDTYPE_KEYBOARD) {
 		if (wnum >= 0x100) {
 			wnum = 0x100 - wnum;
@@ -9535,6 +9548,7 @@ static void inputdevice_testrecord_test(int type, int num, int wtype, int wnum, 
 	}
 
 	//write_log (_T("%d %d %d %d %d/%d\n"), type, num, wtype, wnum, state, max);
+
 	struct teststore *ts = &testmode_data[testmode_count];
 	ts->testmode_type = type;
 	ts->testmode_num = num;
@@ -9559,10 +9573,11 @@ int inputdevice_istest (void)
 {
 	return testmode;
 }
-void inputdevice_settest (int set)
+void inputdevice_settest (bool set, bool singleevent)
 {
-	testmode = set;
+	testmode = set ? 1 : 0;
 	testmode_count = 0;
+	testmode_oneshot = singleevent ? 1 : 0;
 	testmode_wait[0].testmode_num = -1;
 	testmode_wait[1].testmode_num = -1;
 }
