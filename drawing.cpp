@@ -1554,11 +1554,13 @@ static void init_drawing_frame(void)
 			largest_count_res = i;
 		}
 	}
-	if (currprefs.gfx_resolution == changed_prefs.gfx_resolution && lines_count > 0) {
+	bool resolution_detected = resolution_count[RES_LORES] || resolution_count[RES_HIRES] || resolution_count[RES_SUPERHIRES];
+
+	if (currprefs.gfx_resolution == changed_prefs.gfx_resolution && lines_count > 0 && resolution_detected) {
 		detected_screen_resolution = largest_res;
 	}
 
-	if (currprefs.gfx_resolution == changed_prefs.gfx_resolution && lines_count > 0) {
+	if (currprefs.gfx_resolution == changed_prefs.gfx_resolution && lines_count > 0 && resolution_detected) {
 
 		if (currprefs.gfx_autoresolution_vga && programmedmode == 1 && vidinfo->gfx_resolution_reserved >= RES_HIRES && vidinfo->gfx_vresolution_reserved >= VRES_DOUBLE) {
 			if (largest_res == RES_SUPERHIRES && (vidinfo->gfx_resolution_reserved < RES_SUPERHIRES || vidinfo->gfx_vresolution_reserved < 1)) {
