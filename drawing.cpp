@@ -5105,6 +5105,13 @@ void set_drawbuffer(void)
 			vb->outheight = vb2->outheight;
 			vb->inwidth = vb2->inwidth;
 			vb->inheight = vb2->inheight;
+			vb->extrawidth = vb2->extrawidth;
+			vb->extraheight = vb2->extraheight;
+			vb->xoffset = vb2->xoffset;
+			vb->yoffset = vb2->yoffset;
+			vb->inxoffset = vb2->inxoffset;
+			vb->inyoffset = vb2->inyoffset;
+			vb->monitor_id = vb2->monitor_id;
 		}
 	} else {
 		vidinfo->inbuffer = &vidinfo->drawbuffer;
