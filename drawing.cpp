@@ -5491,6 +5491,7 @@ static void draw_denise_vsync(int erase)
 		// delay until next frame to prevent single black frame
 		erase_next_draw = true;
 		center_y_erase = false;
+		resetfulllinestate();
 	}
 }
 
