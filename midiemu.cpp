@@ -108,7 +108,7 @@ static void midi_emu_add_roms(void)
 	} else {
 		if (!load_rom(path, _T("pcm_cm32l"))) {
 			if (!load_rom(path, _T("cm32l_pcm"))) {
-				load_rom(path, _T("pcm_mt32"));
+				load_rom(path, _T("pcm_cm32l_l"));
 				load_rom(path, _T("pcm_cm32l_h"));
 			}
 		}
