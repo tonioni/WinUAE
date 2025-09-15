@@ -24149,11 +24149,11 @@ void gui_led (int led, int on, int brightness)
 			m68label = _T("68k");
 			m68klabelchange = true;
 		}
-		if (gui_data.cpu_halted < 0) {
+		if (gui_data.cpu_halted < 0 || gui_data.cpu_stopped) {
 			if (!m68klabelchange)
-				_tcscpy(p, _T("STOP"));
+				_tcscpy(p, _T("CPU:STOP"));
 			else
-				_tcscat(p, _T(" 68k: STOP"));
+				_tcscat(p, _T("68k: STOP"));
 		} else {
 			_stprintf(p, _T("%s: %.0f%%"), m68label, (double)((gui_data.idle) / 10.0));
 		}
