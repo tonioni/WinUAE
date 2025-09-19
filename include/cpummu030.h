@@ -115,6 +115,7 @@ extern void REGPARAM3 mmu030_put_long_unaligned(uaecptr addr, uae_u32 val, uae_u
 
 extern uaecptr debug_mmu030_translate(uaecptr addr, int fc, bool write, struct mmu_debug_data **mdd);
 extern void debug_mmu030_translate_end(void);
+extern void mmu030_dump_tables(int fc);
 
 static ALWAYS_INLINE uae_u32 uae_mmu030_get_fc_code(void)
 {

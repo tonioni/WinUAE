@@ -3607,3 +3607,69 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 		}
 	}
 }
+
+void mmu030_dump_tables(int fc)
+{
+	uaecptr addr = 0, phys_c = 0;
+	uaecptr addr_prev = addr;
+	uaecptr phys_prev = addr;
+	uae_u32 desc_prev = 0xffffffff;
+	uae_u16 status = 0, status_prev = 0;
+
+	console_out_f(_T("FC=%d\n"), fc);
+	for (;;) {
+		struct mmu_debug_data *mdd;
+
+		uae_u32 desc = 0xffffffff;
+		uaecptr phys = 0xffffffff;
+		TRY(prb) {
+			phys = debug_mmu030_translate(addr, fc, false, &mdd);
+		} CATCH(prb) {
+		} ENDTRY;
+		for (int i = 0; i < MAX_MMU_DEBUG_DESCRIPTOR_LEVEL; i++) {
+			if (mdd->descriptor[i] == 0xffffffff) {
+				break;
+			}
+			desc = get_long(mdd->descriptor[i]);
+		}
+		status = mmu030.status;
+
+		if (addr == 0) {
+			desc_prev = desc;
+			addr_prev = addr;
+			phys_prev = phys;
+			phys_c = phys;
+			status_prev = status;
+		}
+
+		if (((desc_prev & (DESCR_WP | DESCR_CI | DESCR_TYPE_MASK)) != (desc & (DESCR_WP | DESCR_CI | DESCR_TYPE_MASK))) ||
+			((status & (MMUSR_SUPER_VIOLATION | MMUSR_WRITE_PROTECTED)) != (status_prev & (MMUSR_SUPER_VIOLATION | MMUSR_WRITE_PROTECTED))) ||
+			(phys_prev != phys && phys_c != phys) || addr + regs.mmu_page_size == 0) {
+			uaecptr addr_end = addr;
+			if (addr_end + regs.mmu_page_size == 0) {
+				addr_end += regs.mmu_page_size;
+			}
+			console_out_f(_T("%08x - %08x (%08x) S=%d,WP=%d - CI=%d,WP=%d,DT=%d\n"),
+				addr_prev, addr_end - 1, desc_prev,
+				(status_prev & MMUSR_SUPER_VIOLATION) ? 1 : 0,
+				(status_prev & MMUSR_WRITE_PROTECTED) ? 1 : 0,
+				(desc_prev >> 6) & 1,
+				(desc_prev >> 2) & 1,
+				(desc_prev >> 0) & 3
+				);
+			desc_prev = desc;
+			addr_prev = addr;
+			phys_prev = phys;
+			phys_c = phys;
+			status_prev = status;
+		}
+
+		addr += regs.mmu_page_size;
+		phys_c += regs.mmu_page_size;
+		if (addr == 0) {
+			break;
+		}
+	}
+
+
+}

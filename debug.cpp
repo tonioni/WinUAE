@@ -6624,7 +6624,7 @@ static void debug_do_mmu_translate(uaecptr addrl)
 					if (desc != 0xffffffff) {
 						descdata = get_long_debug(desc);
 						if ((descdata & 3) ==  2) {
-							console_out_f(_T(" - IND %08x (%08x = %08x,PDT=%d)\n"),
+							console_out_f(_T(" - IND  %08x (%08x = %08x,PDT=%d)\n"),
 								desc, descdata & ~3, descdata & 3);
 							pageidx++;
 						}
@@ -7244,8 +7244,18 @@ static bool debug_line (TCHAR *input)
 				if (*inptr == 'm' && inptr[1] == 'u') {
 					inptr += 2;
 					if (inptr[0] == 'd') {
-						if (currprefs.mmu_model >= 68040)
+						if (currprefs.mmu_model >= 68040) {
 							mmu_dump_tables();
+						} else {
+							int fc = debug_mmu_mode;
+							if (more_params(&inptr)) {
+								fc = readint(&inptr, NULL);
+							}
+							if (fc <= 0 || fc > 7) {
+								fc = 2;
+							}
+							mmu030_dump_tables(fc);
+						}
 					} else {
 						if (currprefs.mmu_model) {
 							if (more_params (&inptr))
