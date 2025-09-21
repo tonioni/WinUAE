@@ -3233,8 +3233,9 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		udi->heads = dg.TracksPerCylinder;
 	}
 
-	if (gli_ok && gli.Length.QuadPart)
+	if (gli_ok && gli.Length.QuadPart) {
 		udi->size = gli.Length.QuadPart;
+	}
 
 	if (ischs(udi->identity) && gli.Length.QuadPart == 0) {
 		int c, h, s;
@@ -3359,14 +3360,16 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			}
 
 		} else {
-			write_log (_T("no MBR partition table detected, checking for RDB\n"));
+			write_log (_T("no MBR or GPT partition table detected\n"));
 		}
 	}
 checkrdb:
 	if (udi->offset == 0 && udi->size) {
 		udi->dangerous = safetycheck (hDevice, udi->device_path, 0, buffer, dg.BytesPerSector, udi->identity, udi->chsdetected, NULL);
-		if (udi->dangerous > 0)
+		if (udi->dangerous > 0) {
+			write_log("Drive not added: %d\n", udi->dangerous);
 			goto end;
+		}
 	}
 amipartfound:
 	_stprintf (udi2->device_name, _T(":%s"), orgname);
