@@ -564,6 +564,7 @@
 #define IDC_LM_IDOUBLED3                1200
 #define IDC_CPU0                        1200
 #define IDC_CPU1                        1201
+#define IDC_SCALENTSC                   1201
 #define IDC_CPU2                        1202
 #define IDC_CPU3                        1203
 #define IDC_CPU4                        1204

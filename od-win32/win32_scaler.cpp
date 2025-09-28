@@ -15,7 +15,7 @@
 
 #include <float.h>
 
-#define AUTORESIZE_FRAME_DELAY 10
+#define AUTORESIZE_FRAME_DELAY 4
 
 static float filteroffsetx, filteroffsety, filterxmult = 1.0, filterymult = 1.0;
 
@@ -113,6 +113,44 @@ static bool get_auto_aspect_ratio(int monid, int cw, int ch, int crealh, int sca
 	return false;
 }
 
+static float getpalntscratio(float dstratio, int keep_aspect, int palntscadjust)
+{
+	int lh = 0;
+	bool isp = ispal(&lh);
+	float palntscratio = dstratio;
+	if (lh > 1) {
+		float palh = (313 - 25) * 2 + 1.0f;
+		float ntsch = (263 - 20) * 2 + 1.0f;
+		float ll = lh * 2 + 1.0f;
+		if (abs(lh - (263 - 20)) <= 22) {
+			ll = ntsch;
+		}
+		if (abs(lh - (313 - 25)) <= 22) {
+			ll = palh;
+		}
+		if (currprefs.ntscmode) {
+			if (palntscadjust && !isp) {
+				palntscratio = palntscratio * palh / ll;
+			}
+			if (keep_aspect == 2 && isp) {
+				palntscratio = palntscratio * 0.93f;
+			} else if (keep_aspect == 1 && !isp) {
+				palntscratio = palntscratio * 0.98f;
+			}
+		} else {
+			if (palntscadjust && !isp) {
+				palntscratio = palntscratio * palh / ll;
+			}
+			if (keep_aspect == 2 && isp) {
+				palntscratio = palntscratio * 0.95f;
+			} else if (keep_aspect == 1 && !isp) {
+				palntscratio = palntscratio * 0.95f;
+			}
+		}
+	}
+	return palntscratio;
+}
+
 static bool get_aspect(int monid, float *dstratiop, float *srcratiop, float *xmultp, float *ymultp, bool doautoaspect, float autoaspectratio, int keep_aspect, int filter_aspect)
 {
 	struct amigadisplay *ad = &adisplays[monid];
@@ -189,7 +227,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 	int idx = ad->gf_index;
 	int keep_aspect = currprefs.gf[idx].gfx_filter_keep_aspect;
 	int filter_aspect = currprefs.gf[idx].gfx_filter_aspect;
-	int palntscadjust = 1;
+	int palntscadjust = currprefs.gfx_ntscpixels;
 	int autoselect = 0;
 
 	float filter_horiz_zoom = currprefs.gf[idx].gfx_filter_horiz_zoom / 1000.0f;
@@ -242,7 +280,6 @@ void getfilterdata(int monid, struct displayscale *ds)
 	if (!specialmode && scalemode == AUTOSCALE_STATIC_AUTO) {
 		filter_aspect = 0;
 		keep_aspect = 0;
-		palntscadjust = 1;
 		if (ds->dstwidth >= 640 && ds->dstwidth <= 800 && ds->dstheight >= 480 && ds->dstheight <= 600 && !programmedmode) {
 			autoselect = 1;
 			scalemode = AUTOSCALE_NONE;
@@ -493,8 +530,11 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 			if (scalemode == AUTOSCALE_CENTER) {
 
-				int ww = cw * ds->scale;
-				int hh = ch * ds->scale;
+				int scalex = ds->scale;
+				int scaley = ds->scale;
+
+				int ww = cw * scalex;
+				int hh = ch * scaley;
 
 				ds->outwidth = ds->dstwidth * ds->scale;
 				ds->outheight = ds->dstheight * ds->scale;
@@ -547,6 +587,9 @@ void getfilterdata(int monid, struct displayscale *ds)
 				float scalex = currprefs.gf[idx].gfx_filter_horiz_zoom_mult > 0 ? currprefs.gf[idx].gfx_filter_horiz_zoom_mult : 1.0f;
 				float scaley = currprefs.gf[idx].gfx_filter_vert_zoom_mult > 0 ? currprefs.gf[idx].gfx_filter_vert_zoom_mult : 1.0f;
 
+				float palntscratio = getpalntscratio(dstratio, keep_aspect, palntscadjust);
+				scaley = scaley * palntscratio / dstratio;
+
 				ds->outwidth = (int)(cw * ds->scale);
 				ds->outheight = (int)(ch * ds->scale);
 				ds->xoffset += cx * ds->scale;
@@ -564,8 +607,9 @@ void getfilterdata(int monid, struct displayscale *ds)
 					gmh->gfx_size_win.width = ww;
 					gmh->gfx_size_win.height = hh;
 					fixup_prefs_dimensions (&changed_prefs);
-					if (oldwinw != gmh->gfx_size_win.width || oldwinh != gmh->gfx_size_win.height)
+					if (oldwinw != gmh->gfx_size_win.width || oldwinh != gmh->gfx_size_win.height) {
 						set_config_changed ();
+					}
 				}
 				ds->xoffset += -(gmh->gfx_size_win.width - ww + 1) / 2;
 				ds->yoffset += -(gmh->gfx_size_win.height - hh + 1) / 2;
@@ -674,63 +718,8 @@ cont:
 	}
 
 	{
-		int lh = 0;
-		bool isp = ispal(&lh);
-		if (lh > 1) {
-			float palntscratio = dstratio;
-			float palh = (312 - 25) * 2 + 1.0f;
-			float ntsch = (262 - 20) * 2 + 1.0f;
-			float ll = (lh - 23) * 2 + 1.0f;
-			if (abs(lh - (262 - 20)) <= 22) {
-				ll = ntsch;
-			}
-			if (abs(lh - (312 - 25)) <= 22) {
-				ll = palh;
-			}
-			if (currprefs.gfx_ntscpixels) {
-				if (!isp) {
-					palntscratio = palntscratio * palh / ll;
-				}
-				if (currprefs.ntscmode) {
-					if (keep_aspect == 2 && isp) {
-						palntscratio = palntscratio * 0.93f;
-					}
-					else if (keep_aspect == 1 && !isp) {
-						palntscratio = palntscratio * 0.98f;
-					}
-				} else {
-					if (keep_aspect == 2 && isp) {
-						palntscratio = palntscratio * 0.95f;
-					}
-					else if (keep_aspect == 1 && !isp) {
-						palntscratio = palntscratio * 0.95f;
-					}
-				}
-			} else {
-				if (currprefs.ntscmode) {
-					if (palntscadjust && isp) {
-						palntscratio = palntscratio * ntsch / ll;
-					}
-					if (keep_aspect == 2 && isp) {
-						palntscratio = palntscratio * 0.93f;
-					} else if (keep_aspect == 1 && !isp) {
-						palntscratio = palntscratio * 0.98f;
-					}
-				} else {
-					if (palntscadjust && !isp) {
-						palntscratio = palntscratio * palh / ll;
-					}
-					if (keep_aspect == 2 && isp) {
-						palntscratio = palntscratio * 0.95f;
-					} else if (keep_aspect == 1 && !isp) {
-						palntscratio = palntscratio * 0.95f;
-					}
-				}
-			}
-			if (palntscratio != dstratio) {
-				ymult = ymult * palntscratio / dstratio;
-			}
-		}
+		float palntscratio = getpalntscratio(dstratio, keep_aspect, palntscadjust);
+		ymult = ymult * palntscratio / dstratio;
 	}
 
 	if (srcratio > dstratio) {
