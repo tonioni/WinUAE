@@ -8729,8 +8729,10 @@ static int rdb_mount (TrapContext *ctx, UnitInfo *uip, int unit_no, int partnum,
 
 	for (rdblock = 0; rdblock < lastblock; rdblock++) {
 		hdf_read_rdb (hfd, bufrdb, rdblock * hfd->ci.blocksize, hfd->ci.blocksize, &error);
-		if (!error && rdblock == 0 && bufrdb[0] == 0xBA && bufrdb[1] == 0xBE) {
-				// A2090 "BABE" partition table?
+		if (!error && rdblock == 0 && (
+			(bufrdb[0] == 0xBA && bufrdb[1] == 0xBE && bufrdb[2] == 0x00 && bufrdb[3] == 0x00) || // A2090
+			(bufrdb[0] == 0x44 && bufrdb[1] == 0x4f && bufrdb[2] == 0x53 && bufrdb[3] == 0x00 && bufrdb[4] == 0xBA && bufrdb[5] == 0xBE))) { // MAST
+				// A2090 or Mast FireBall "BABE" partition table?
 				int v = pt_babe(ctx, bufrdb, uip, unit_no, partnum, parmpacket);
 				if (v)
 					return v;

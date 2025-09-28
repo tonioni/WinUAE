@@ -14516,7 +14516,7 @@ static void hardfile_testrdb (struct hfdlg_vals *hdf)
 	hfd.ci.readonly = true;
 	hfd.ci.blocksize = 512;
 	hdf->rdb = 0;
-	if (hdf_open (&hfd, current_hfdlg.ci.rootdir) > 0) {
+	if (hdf_open (&hfd, hdf->ci.rootdir) > 0) {
 		for (i = 0; i < 16; i++) {
 			hdf_read_rdb (&hfd, id, i * 512, 512, &error);
 			if (!error && i == 0 && !memcmp (id + 2, "CIS", 3)) {
@@ -14524,13 +14524,18 @@ static void hardfile_testrdb (struct hfdlg_vals *hdf)
 				hdf->ci.controller_type_unit = 0;
 				break;
 			}
-			bool babe = id[0] == 0xBA && id[1] == 0xBE; // A2090
+			bool babe = id[0] == 0xBA && id[1] == 0xBE && id[2] == 0x00 && id[3] == 0x00; // A2090
+			babe |= id[0] == 0x44 && id[1] == 0x4f && id[2] == 0x53 && id[3] == 0x00 && id[4] == 0xBA && id[5] == 0xBE && id[6] == 0x00 && id[7] == 0x00; // Mast FireBall
 			if (!error && (!memcmp (id, "RDSK\0\0\0", 7) || !memcmp (id, "CDSK\0\0\0", 7) || !memcmp (id, "DRKS\0\0", 6) ||
 				(id[0] == 0x53 && id[1] == 0x10 && id[2] == 0x9b && id[3] == 0x13 && id[4] == 0 && id[5] == 0) || babe)) {
 				// RDSK or ADIDE "encoded" RDSK
 				int blocksize = 512;
-				if (!babe)
+				if (!babe) {
 					blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
+					if (!blocksize) {
+						blocksize = 512;
+					}
+				}
 				hdf->ci.cyls = hdf->ci.highcyl = hdf->forcedcylinders = 0;
 				hdf->ci.sectors = 0;
 				hdf->ci.surfaces = 0;
@@ -15036,12 +15041,13 @@ static void inithardfile (HWND hDlg, bool media)
 	inithdcontroller (hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF, media);
 	xSendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString (IDS_HF_FS_CUSTOM, tmp, sizeof (tmp) / sizeof (TCHAR));
-	xSendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("RDB/OFS/FFS"));
-	xSendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PFS3"));
-	xSendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PDS3"));
-	xSendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("SFS"));
-	xSendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
-	xSendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_SETCURSEL, 0, 0);
+	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("OFS/FFS"));
+	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PFS3"));
+	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PDS3"));
+	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("SFS"));
+	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("RDB"));
+	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
+	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_SETCURSEL, 0, 0);
 }
 
 static void sethfdostype (HWND hDlg, int idx)
@@ -15057,10 +15063,28 @@ static void sethfdostype (HWND hDlg, int idx)
 	case 3:
 		SetDlgItemText (hDlg, IDC_HF_DOSTYPE, _T("0x53465300"));
 	break;
+	case 4:
+		SetDlgItemText(hDlg, IDC_HF_DOSTYPE, _T("0x5244534b"));
+		break;
 	default:
 		SetDlgItemText (hDlg, IDC_HF_DOSTYPE, _T(""));
 	break;
 	}
+}
+
+static bool is_rdb_block(uae_u8 *id, int *blocksize)
+{
+	if (!memcmp(id, "RDSK", 4) || !memcmp(id, "CDSK", 4)) {
+		*blocksize = (id[16] << 24) | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
+		return true;
+	}
+	bool babe = id[0] == 0xBA && id[1] == 0xBE && id[2] == 0x00 && id[3] == 0x00; // A2090
+	babe |= id[0] == 0x44 && id[1] == 0x4f && id[2] == 0x53 && id[3] == 0x00 && id[4] == 0xBA && id[5] == 0xBE && id[6] == 0x00 && id[7] == 0x00; // Mast FireBall
+	if (babe) {
+		*blocksize = 512;
+		return true;
+	}
+	return false;
 }
 
 static void updatehdfinfo(HWND hDlg, bool force, bool defaults, bool realdrive)
@@ -15091,8 +15115,7 @@ static void updatehdfinfo(HWND hDlg, bool force, bool defaults, bool realdrive)
 				hdf_read (&hfd, id, i * 512, 512, &error);
 				bsize = hfd.virtsize;
 				current_hfdlg.size = hfd.virtsize;
-				if (!memcmp (id, "RDSK", 4) || !memcmp (id, "CDSK", 4)) {
-					blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
+				if (is_rdb_block(id, &blocksize)) {
 					gotrdb = true;
 					break;
 				}
@@ -15224,8 +15247,9 @@ static void hardfilecreatehdf (HWND hDlg, TCHAR *newpath)
 	TCHAR dostype[16];
 	GetDlgItemText (hDlg, IDC_HF_DOSTYPE, dostype, sizeof (dostype) / sizeof (TCHAR));
 	res = xSendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_GETCURSEL, 0, 0);
-	if (res == 0)
+	if (res == 0) {
 		dostype[0] = 0;
+	}
 	if (CreateHardFile (hDlg, setting, dostype, newpath, hdfpath)) {
 		if (!current_hfdlg.ci.rootdir[0]) {
 			fullpath (hdfpath, sizeof hdfpath / sizeof (TCHAR));
