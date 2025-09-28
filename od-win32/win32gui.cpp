@@ -11579,6 +11579,7 @@ static void enable_for_expansiondlg(HWND hDlg)
 	struct rtgboardconfig *rbc = &workprefs.rtgboards[gui_rtg_index];
 	int z3 = true;
 	int en;
+	bool monitors = false;
 
 	en = !!full_property_sheet;
 
@@ -11587,6 +11588,11 @@ static void enable_for_expansiondlg(HWND hDlg)
 	int rtg3 = workprefs.rtgboards[gui_rtg_index].rtgmem_size && workprefs.rtgboards[gui_rtg_index].rtgmem_type < GFXBOARD_HARDWARE;
 	int rtg4 = workprefs.rtgboards[gui_rtg_index].rtgmem_type < GFXBOARD_HARDWARE;
 	int rtg5 = workprefs.rtgboards[gui_rtg_index].rtgmem_size && full_property_sheet;
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		if (workprefs.rtgboards[i].rtgmem_size && workprefs.rtgboards[i].monitor_id > 0) {
+			monitors = true;
+		}
+	}
 
 	int rtg0 = rtg2;
 	if (gui_rtg_index > 0) {
@@ -11599,6 +11605,7 @@ static void enable_for_expansiondlg(HWND hDlg)
 	ew(hDlg, IDC_P96MEM, rtg0);
 	ew(hDlg, IDC_RTG_Z2Z3, z3);
 	ew(hDlg, IDC_MONITOREMU_MON, rtg5);
+	//ew(hDlg, IDC_MONITOREMU_ACTIVEMON, TRUE);
 	ew(hDlg, IDC_RTG_8BIT, rtg);
 	ew(hDlg, IDC_RTG_16BIT, rtg);
 	ew(hDlg, IDC_RTG_24BIT, rtg);
@@ -11682,6 +11689,7 @@ static void values_to_expansiondlg(HWND hDlg)
 
 	xSendDlgItemMessage(hDlg, IDC_RTG_Z2Z3, CB_SETCURSEL, rbc->rtgmem_size == 0 ? 0 : gfxboard_get_index_from_id(rbc->rtgmem_type) + 1, 0);
 	xSendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_SETCURSEL, rbc->monitor_id, 0);
+	//xSendDlgItemMessage(hDlg, IDC_MONITOREMU_ACTIVEMON, CB_SETCURSEL, 0, 0);
 	xSendDlgItemMessage(hDlg, IDC_RTG_NUM, CB_SETCURSEL, gui_rtg_index, 0);
 	xSendDlgItemMessage(hDlg, IDC_RTG_8BIT, CB_SETCURSEL, (workprefs.picasso96_modeflags & RGBFF_CLUT) ? 1 : 0, 0);
 	xSendDlgItemMessage(hDlg, IDC_RTG_16BIT, CB_SETCURSEL,
@@ -11764,10 +11772,17 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		}
 
 		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_RESETCONTENT, 0, 0);
+#if 0
+		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_ACTIVEMON, CB_RESETCONTENT, 0, 0);
 		for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
 			_stprintf(tmp, _T("%d"), i + 1);
 			xSendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
+		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_ACTIVEMON, CB_ADDSTRING, 0, _T("Chipset"));
+		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_ACTIVEMON, CB_ADDSTRING, 0, _T("RTG #1"));
+		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_ACTIVEMON, CB_ADDSTRING, 0, _T("RTG #2"));
+		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_ACTIVEMON, CB_ADDSTRING, 0, _T("RTG #3"));
+#endif
 
 		xSendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_RESETCONTENT, 0, 0);
 		xSendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("-"));
@@ -11927,6 +11942,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 					if (v != CB_ERR) {
 						workprefs.rtgboards[gui_rtg_index].monitor_id = v;
 						values_to_expansiondlg(hDlg);
+						enable_for_expansiondlg(hDlg);
 					}
 					break;
 				case IDC_RTG_Z2Z3:

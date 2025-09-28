@@ -2121,12 +2121,15 @@ static void sendscancode(int num, int scancode, int pressed)
 #if DEBUG_SCANCODE
 	write_log(_T("%02X %d %d\n"), scancode, pressed, isfocus());
 #endif
-	if (scancode < 0)
+	if (scancode < 0) {
 		return;
-	if (!isfocus())
+	}
+	if (!isfocus()) {
 		return;
-	if (isfocus() < 2 && currprefs.input_tablet >= TABLET_MOUSEHACK && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC))
+	}
+	if (isfocus() < 2 && currprefs.input_tablet >= TABLET_MOUSEHACK && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) {
 		return;
+	}
 	if (!mouseactive && !(currprefs.win32_active_input & 1)) {
 		if ((currprefs.win32_guikey <= 0 && scancode == DIK_F12) || (scancode == currprefs.win32_guikey)) {
 			inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
@@ -2135,8 +2138,7 @@ static void sendscancode(int num, int scancode, int pressed)
 	}
 	if (pressed) {
 		di_keycodes[num][scancode] = 1;
-	}
-	else {
+	} else {
 		if ((di_keycodes[num][scancode] & 1) && pause_emulation) {
 			di_keycodes[num][scancode] = 2;
 		}

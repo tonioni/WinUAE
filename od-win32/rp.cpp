@@ -1194,9 +1194,9 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		}
 
 		if (keepaspect) {
-			bool type = p->gf[0].gfx_filter_autoscale == AUTOSCALE_MANUAL && !ntsc_extended;
-			p->gf[0].gfx_filter_aspect = type ? -1 : 0;
-			p->gf[0].gfx_filter_keep_autoscale_aspect = ntsc_extended ? 0 : 1;
+			//bool type = p->gf[0].gfx_filter_autoscale == AUTOSCALE_MANUAL && ntsc_extended;
+			p->gf[0].gfx_filter_aspect = -1;
+			p->gf[0].gfx_filter_keep_autoscale_aspect = ntsc_extended || fs ? 0 : 1;
 			p->gf[0].gfx_filter_keep_aspect = 1;
 		} else {
 			p->gf[0].gfx_filter_aspect = 0;

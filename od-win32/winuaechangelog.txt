@@ -1,4 +1,43 @@
 
+
+6.x bugs fixed:
+
+- Another blitter statesave restore when active fix. If blitter was active when restoring and state was saved with 6.0+, restore might have resumed the blit incorrectly.
+- Status bar Power and DFx: had offset when clicking with mouse since capslock/line count was added.
+- Add harddrive still didn't work correctly in all situations. (Partition was selected correctly but when emulation started, it didn't find the selected partition anymore). Added some more log messages.
+- Configurations that need internal RAM graphics buffer (lightpen cursor, video port adapters including genlock, debugging overlays etc that need to modify output graphics) didn't work correctly in automatic scaling modes (right half of display blanked and possible other side-effects)
+- Configurations that need internal RAM graphics buffer (see above) and switching PAL/NTSC (or some other reason for screen height change) didn't update line mapping table, leaving "new" part of display at the bottom blank.
+- Autoresolution + NTSC (possibly also in some other display modes) switched between lores and hires continuously.
+- Fast line drawing in some situations drew only part of scan line (Pinball Illusions table selection screen or Brilliance II first line of bottom screen)
+- Fast line drawing in DPF mode with both planes having different scroll value: visible garbage was possible in right border (Pinball Illusions table selection screen)
+- Horizontal centering change sometimes left garbage in edges of screen.
+- A2024 and possibly some other display port adapters got broken in 6.0.1.
+- On the fly switching to 68000/010 cycle-exact from any non-cycle-exact left internal cycle counter unaligned, causing CE 68000/010 to lose DMA slots "randomly".
+
+Other fixes and new features:
+
+- Added "Always stretch NTSC mode" checkbox to Filter panel (name needs to be better?). If selected (default), NTSC mode is stretched to match PAL mode height. Most filter modes had this active by default. It is now optional. Does not affect Integer scale, most automatic scale and TV modes.
+- Paula pot counter increment is clocked by first strobe slot, was still using start of scanline. (As usual, no one cares)
+- If GUI has text/numeric edit control active, return only unfocuses the control instead of exiting GUI. Return without focused edit control still exists GUI like previously.
+- GUI filter horizontal/vertical number boxes are now directly editable.
+- Manual filter mode positioning range increased, previously negative values were not accepted.
+- Direct3D 11 mode ignored on the fly fullscreen refresh rate changes.
+- External HRTMon ROM images were not accepted. (Maybe some really old ones did work?)
+- Gameports remap window didn't always list all mapped input events. Non-listed events still worked correctly.
+- Gameports remap and manually adding events with "Add event" button and input source was analog stick movement: remapping "randomly" chose between analog and digital input variant. Now digital variant ([-]/[+] at the end of name) has priority.
+- Added 3.2.3 KS ROM checksums (Amiberry)
+- If 680x0 CPU is stopped with IPL mask = 7 (CPU can only wake up with NMI or reset), CPU OSD shows CPU as stopped.
+- Debugger MMU U command now also outputs MMU table descriptor pointers used for table search. Any debugger MMU command now always first flushes descriptor cache. Previously debugger MMU table searches coud modify MMU tables (for example modified bit would get set if not already set). 68030 MMU mmud full table dump command supported.
+- RDB/OFS/FFS hardfile creation option is now separated to RDB and OFS/FFS. RDB adds RDSK identifier to new hardfile and enables Full drive/RDB mode automatically.
+- If A2090 or Mast FireBall hardfile is added, RDB mode was not fully activated automatically.
+- GUI hardfile "New hard disk image file" section does not anymore reset to defaults after HDF has been created and GUI panel is fully updated after new HDF has been created.
+- Added GVP QuikPak (non-XP) 68060 accelerator board. Only has $F00000 ROM that does usual 68060 FPU disable and also adds 9999/22 fake autoconfig device and resident "J Boyer Copyright 1996", no SCSI etc. ROM added to ROM scanner.
+- Added Archos Overdrive HD 3.0 ROM ("amiquest.device (IDE 3.0 05/05/93)") ("IDE 5.0 10/02/94" was added long time ago)
+- Renamed "SCSI Kit III" and "SCSI Kit IV" -> "Blizzard SCSI Kit III" and "Blizzard SCSI Kit IV" (Rename does not affect existing configurations)
+
+
+6.0.1
+
 Beta 2:
 
 - ROM scanner detected ROMs dialog didn't list CD32 if only detected CD32 ROM was single 1M ROM.
