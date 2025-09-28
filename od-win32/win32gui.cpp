@@ -15032,22 +15032,24 @@ static void inithdcontroller (HWND hDlg, int ctype, int ctype_unit, int devtype,
 	}
 }
 
-static void inithardfile (HWND hDlg, bool media)
+static void inithardfile(HWND hDlg, bool media, bool init)
 {
 	TCHAR tmp[MAX_DPATH];
 
-	ew (hDlg, IDC_HF_DOSTYPE, FALSE);
-	ew (hDlg, IDC_HF_CREATE, FALSE);
-	inithdcontroller (hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF, media);
-	xSendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
-	WIN32GUI_LoadUIString (IDS_HF_FS_CUSTOM, tmp, sizeof (tmp) / sizeof (TCHAR));
-	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("OFS/FFS"));
-	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PFS3"));
-	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PDS3"));
-	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("SFS"));
-	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("RDB"));
-	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
-	xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_SETCURSEL, 0, 0);
+	if (init) {
+		xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
+		WIN32GUI_LoadUIString(IDS_HF_FS_CUSTOM, tmp, sizeof (tmp) / sizeof (TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("OFS/FFS"));
+		xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PFS3"));
+		xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PDS3"));
+		xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("SFS"));
+		xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("RDB"));
+		xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
+		xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_SETCURSEL, 0, 0);
+	}
+	ew(hDlg, IDC_HF_DOSTYPE, CalculateHardfileSize(hDlg) > 0 && xSendDlgItemMessage(hDlg, IDC_HF_TYPE, CB_GETCURSEL, 0, 0) == 5);
+	ew(hDlg, IDC_HF_CREATE, CalculateHardfileSize(hDlg) > 0);
+	inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF, media);
 }
 
 static void sethfdostype (HWND hDlg, int idx)
@@ -15231,7 +15233,7 @@ static void hardfileselecthdf (HWND hDlg, TCHAR *newpath, bool ask, bool newhd)
 			current_hfdlg.ci.sectors = current_hfdlg.ci.reserved = current_hfdlg.ci.surfaces = 0;
 		}
 	}
-	inithardfile (hDlg, true);
+	inithardfile(hDlg, true, false);
 	hardfile_testrdb (&current_hfdlg);
 	updatehdfinfo (hDlg, true, true, false);
 	get_hd_geometry (&current_hfdlg.ci);
@@ -15255,6 +15257,10 @@ static void hardfilecreatehdf (HWND hDlg, TCHAR *newpath)
 			fullpath (hdfpath, sizeof hdfpath / sizeof (TCHAR));
 			_tcscpy (current_hfdlg.ci.rootdir, hdfpath);
 		}
+		hardfile_testrdb(&current_hfdlg);
+		updatehdfinfo(hDlg, true, true, false);
+		get_hd_geometry(&current_hfdlg.ci);
+		updatehdfinfo(hDlg, false, false, false);
 	}
 	sethardfile (hDlg);
 }
@@ -15515,17 +15521,17 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	case WM_INITDIALOG:
 		recursive++;
 		setchecked(hDlg, IDC_HDF_PHYSGEOMETRY, current_hfdlg.ci.physical_geometry);
-		setautocomplete (hDlg, IDC_PATH_NAME);
-		setautocomplete (hDlg, IDC_PATH_FILESYS);
-		setautocomplete (hDlg, IDC_PATH_GEOMETRY);
+		setautocomplete(hDlg, IDC_PATH_NAME);
+		setautocomplete(hDlg, IDC_PATH_FILESYS);
+		setautocomplete(hDlg, IDC_PATH_GEOMETRY);
 		addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false, -1);
-		inithardfile (hDlg, current_hfdlg.ci.rootdir[0] != 0);
+		inithardfile(hDlg, current_hfdlg.ci.rootdir[0] != 0, true);
 		addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false, -1);
 		addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false, -1);
-		updatehdfinfo (hDlg, true, false, false);
-		sethardfile (hDlg);
-		sethfdostype (hDlg, 0);
-		setac (hDlg, IDC_PATH_NAME);
+		updatehdfinfo(hDlg, true, false, false);
+		sethardfile(hDlg);
+		sethfdostype(hDlg, 0);
+		setac(hDlg, IDC_PATH_NAME);
 		recursive--;
 		customDlgType = IDD_HARDFILE;
 		customDlg = hDlg;
