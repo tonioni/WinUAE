@@ -45,12 +45,12 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	cx = *cxp;
 	cy = *cyp;
 	v = currprefs.gfx_xcenter_pos;
-	if (v >= 0) {
+	if (v >= MANUAL_SCALE_MIN_RANGE) {
 		cx = (v >> (RES_MAX - currprefs.gfx_resolution)) - cx;
 	}
 
 	v = currprefs.gfx_ycenter_pos;
-	if (v >= 0) {
+	if (v >= MANUAL_SCALE_MIN_RANGE) {
 		cy = (v >> (VRES_MAX - currprefs.gfx_vresolution)) - cy;
 	}
 
@@ -91,7 +91,7 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	*cwp = cw;
 	*chp = ch;
 
-	return currprefs.gfx_xcenter_pos >= 0 || currprefs.gfx_ycenter_pos >= 0 || currprefs.gfx_xcenter_size > 0 || currprefs.gfx_ycenter_size > 0;
+	return currprefs.gfx_xcenter_pos >= MANUAL_SCALE_MIN_RANGE || currprefs.gfx_ycenter_pos >= MANUAL_SCALE_MIN_RANGE || currprefs.gfx_xcenter_size > 0 || currprefs.gfx_ycenter_size > 0;
 }
 
 static bool get_auto_aspect_ratio(int monid, int cw, int ch, int crealh, int scalemode, float *autoaspectratio, int idx)
@@ -330,7 +330,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL ||
 			scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 
-			if (scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_MAX) {
+			if (scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_MAX) {
 				// do not default/TV scale programmed modes
 				if (programmedmode) {
 					goto skipcont;
@@ -349,7 +349,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 				cw = avidinfo->drawbuffer.inwidth;
 				ch = avidinfo->drawbuffer.inheight;
 				cv = 1;
-				if (scalemode == AUTOSCALE_STATIC_NOMINAL) { // || scalemode == AUTOSCALE_INTEGER)) {
+				if (scalemode == AUTOSCALE_STATIC_NOMINAL) {
 					if (currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
 						cx = 28 << currprefs.gfx_resolution;
 						cy = 10 << currprefs.gfx_vresolution;
@@ -382,7 +382,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 				bool ok = true;
 				bool manual = false;
 
-				if (currprefs.gfx_xcenter_pos >= 0 || currprefs.gfx_ycenter_pos >= 0) {
+				if (currprefs.gfx_xcenter_pos >= MANUAL_SCALE_MIN_RANGE || currprefs.gfx_ycenter_pos >= MANUAL_SCALE_MIN_RANGE) {
 					changed_prefs.gf[idx].gfx_filter_horiz_offset = currprefs.gf[idx].gfx_filter_horiz_offset = 0.0;
 					changed_prefs.gf[idx].gfx_filter_vert_offset = currprefs.gf[idx].gfx_filter_vert_offset = 0.0;
 					filter_horiz_offset = 0.0;
@@ -477,7 +477,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 			filter_horiz_offset = 0.0;
 			filter_vert_offset = 0.0;
 
-			get_custom_topedge (&cx, &cy, currprefs.gfx_xcenter_pos < 0 && currprefs.gfx_ycenter_pos < 0);
+			get_custom_topedge (&cx, &cy, currprefs.gfx_xcenter_pos < MANUAL_SCALE_MIN_RANGE && currprefs.gfx_ycenter_pos < MANUAL_SCALE_MIN_RANGE);
 			//write_log (_T("%dx%d %dx%d\n"), cx, cy, currprefs.gfx_resolution, currprefs.gfx_vresolution);
 
 			getmanualpos(monid, &cx, &cy, &cw, &ch);
@@ -597,10 +597,12 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 				int ww = (int)(ds->outwidth * scalex);
 				int hh = (int)(ds->outheight * scaley);
-				if (currprefs.gfx_xcenter_size >= 0)
+				if (currprefs.gfx_xcenter_size >= 0) {
 					ww = currprefs.gfx_xcenter_size;
-				if (currprefs.gfx_ycenter_size >= 0)
+				}
+				if (currprefs.gfx_ycenter_size >= 0) {
 					hh = currprefs.gfx_ycenter_size;
+				}
 				if (scalemode == oscalemode && !useold) {
 					int oldwinw = gmc->gfx_size_win.width;
 					int oldwinh = gmc->gfx_size_win.height;

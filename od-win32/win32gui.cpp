@@ -20576,8 +20576,8 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 		(workprefs.gf[filter_nativertg].gfx_filter_aspect < 0) ? 1 :
 		getaspectratioindex (workprefs.gf[filter_nativertg].gfx_filter_aspect) + 2, 0);
 
-	CheckDlgButton (hDlg, IDC_FILTERKEEPASPECT, workprefs.gf[filter_nativertg].gfx_filter_keep_aspect);
-	CheckDlgButton (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, workprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect != 0);
+	CheckDlgButton(hDlg, IDC_FILTERKEEPASPECT, workprefs.gf[filter_nativertg].gfx_filter_keep_aspect);
+	CheckDlgButton(hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, workprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect != 0);
 	CheckDlgButton(hDlg, IDC_SCALENTSC, workprefs.gfx_ntscpixels);
 
 	xSendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_SETCURSEL,
@@ -20648,13 +20648,13 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 	int yrange1, yrange2;
 	
 	if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL) {
-		xrange1 = -1;
-		xrange2 = 1900;
+		xrange1 = MANUAL_SCALE_MIN_RANGE - 1;
+		xrange2 = MANUAL_SCALE_MAX_RANGE;
 		yrange1 = xrange1;
 		yrange2 = xrange2;
 	} else if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_OVERSCAN_BLANK) {
 		xrange1 = 0;
-		xrange2 = 1900;
+		xrange2 = MANUAL_SCALE_MAX_RANGE - 1;
 		yrange1 = 0;
 		yrange2 = 700;
 	} else if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER ||
@@ -21208,10 +21208,10 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			fd->gfx_filter_top_border = fdw->gfx_filter_top_border = -1;
 			fd->gfx_filter_right_border = fdw->gfx_filter_right_border = 0;
 			fd->gfx_filter_bottom_border = fdw->gfx_filter_bottom_border = 0;
-			currprefs.gfx_xcenter_pos = -1;
-			workprefs.gfx_xcenter_pos = -1;
-			currprefs.gfx_ycenter_pos = -1;
-			workprefs.gfx_ycenter_pos = -1;
+			currprefs.gfx_xcenter_pos = MANUAL_SCALE_MIN_RANGE - 1;
+			workprefs.gfx_xcenter_pos = MANUAL_SCALE_MIN_RANGE - 1;
+			currprefs.gfx_ycenter_pos = MANUAL_SCALE_MIN_RANGE - 1;
+			workprefs.gfx_ycenter_pos = MANUAL_SCALE_MIN_RANGE - 1;
 			currprefs.gfx_xcenter_size = -1;
 			workprefs.gfx_xcenter_size = -1;
 			currprefs.gfx_ycenter_size = -1;
