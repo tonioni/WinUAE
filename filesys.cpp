@@ -8421,11 +8421,16 @@ static int pt_babe(TrapContext *ctx, uae_u8 *bufrdb, UnitInfo *uip, int unit_no,
 
 	bad = rl(bufrdb + 4);
 	if (bad) {
-		if (bad * hfd->ci.blocksize > FILESYS_MAX_BLOCKSIZE)
-			return 0;
-		hdf_read_rdb(hfd, bufrdb2, bad * hfd->ci.blocksize, hfd->ci.blocksize, &error);
-		if (bufrdb2[0] != 0xBA || bufrdb2[1] != 0xD1)
-			return 0;
+		if (bufrdb[0] == 0xba && bufrdb[1] == 0xbe) {
+			if (bad * hfd->ci.blocksize > FILESYS_MAX_BLOCKSIZE)
+				return 0;
+			hdf_read_rdb(hfd, bufrdb2, bad * hfd->ci.blocksize, hfd->ci.blocksize, &error);
+			if (bufrdb2[0] != 0xBA || bufrdb2[1] != 0xD1)
+				return 0;
+		} else {
+			// Only A2090 supports bad blocks. Fireball does not.
+			bad = 0;
+		}
 	}
 
 	if (partnum > 0)
