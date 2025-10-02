@@ -508,6 +508,9 @@ static INT_PTR CALLBACK ProgressDialogProc (HWND hDlg, UINT msg, WPARAM wParam, 
 	switch(msg)
 	{
 	case WM_DESTROY:
+		if (cdstate.active) {
+			CustomDialogClose(hDlg, 0);
+		}
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
