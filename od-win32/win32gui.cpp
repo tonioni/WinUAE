@@ -11621,6 +11621,11 @@ static void enable_for_expansiondlg(HWND hDlg)
 	ew(hDlg, IDC_RTG_VBINTERRUPT, rtg3);
 	ew(hDlg, IDC_RTG_THREAD, rtg3 && en);
 	ew(hDlg, IDC_RTG_HWSPRITE, rtg3);
+	ew(hDlg, IDC_RTG_INITIAL_MONITOR, rtg5);
+	if (!rtg5) {
+		CheckDlgButton(hDlg, IDC_RTG_INITIAL_MONITOR, FALSE);
+		rbc->initial_active = false;
+	}
 
 	ew(hDlg, IDC_RTG_SWITCHER, rbc->rtgmem_size > 0 && !gfxboard_get_switcher(rbc));
 }
@@ -11737,6 +11742,7 @@ static void values_to_expansiondlg(HWND hDlg)
 	CheckDlgButton(hDlg, IDC_RTG_HWSPRITE, workprefs.rtg_hardwaresprite);
 	CheckDlgButton(hDlg, IDC_RTG_THREAD, workprefs.rtg_multithread);
 	CheckDlgButton(hDlg, IDC_RTG_SWITCHER, rbc->rtgmem_size > 0 && (rbc->autoswitch || gfxboard_get_switcher(rbc) || rbc->rtgmem_type < GFXBOARD_HARDWARE));
+	CheckDlgButton(hDlg, IDC_RTG_INITIAL_MONITOR, rbc->rtgmem_size > 0 && rbc->initial_active);
 
 	xSendDlgItemMessage(hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_SETCURSEL,
 					   (workprefs.win32_rtgscaleaspectratio == 0) ? 0 :
@@ -11772,12 +11778,12 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		}
 
 		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_RESETCONTENT, 0, 0);
-#if 0
-		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_ACTIVEMON, CB_RESETCONTENT, 0, 0);
 		for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
 			_stprintf(tmp, _T("%d"), i + 1);
 			xSendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
+#if 0
+		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_ACTIVEMON, CB_RESETCONTENT, 0, 0);
 		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_ACTIVEMON, CB_ADDSTRING, 0, _T("Chipset"));
 		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_ACTIVEMON, CB_ADDSTRING, 0, _T("RTG #1"));
 		xSendDlgItemMessage(hDlg, IDC_MONITOREMU_ACTIVEMON, CB_ADDSTRING, 0, _T("RTG #2"));
@@ -11899,6 +11905,18 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				{
 					struct rtgboardconfig *rbc = &workprefs.rtgboards[gui_rtg_index];
 					rbc->autoswitch = ischecked(hDlg, IDC_RTG_SWITCHER);
+					break;
+				}
+			case IDC_RTG_INITIAL_MONITOR:
+				{
+					struct rtgboardconfig *rbc = &workprefs.rtgboards[gui_rtg_index];
+					bool checked = ischecked(hDlg, IDC_RTG_INITIAL_MONITOR);
+					if (checked) {
+						for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+							workprefs.rtgboards[i].initial_active = false;
+						}
+					}
+					rbc->initial_active = checked;
 					break;
 				}
 			}

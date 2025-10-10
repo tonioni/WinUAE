@@ -6269,6 +6269,7 @@ static void picasso_reset2(int monid)
 		struct amigadisplay *ad = &adisplays[i];
 		ad->picasso_requested_on = false;
 	}
+	gfxboard_reset_init();
 
 	unlockrtg();
 }

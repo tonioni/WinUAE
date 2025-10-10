@@ -2911,6 +2911,11 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 					_tcscat(tmp2, _T(","));
 				_tcscat(tmp2 + _tcslen(tmp2), _T("noautoswitch"));
 			}
+			if (rbc->initial_active) {
+				if (tmp2)
+					_tcscat(tmp2, _T(","));
+				_tcscat(tmp2 + _tcslen(tmp2), _T("initial"));
+			}
 			if (tmp2[0]) {
 				if (i > 0)
 					_stprintf(tmp, _T("gfxcard%d_options"), i + 1);
@@ -6292,6 +6297,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 				xfree(s);
 			}
 			rbc->autoswitch = !cfgfile_option_find(value, _T("noautoswitch"));
+			rbc->initial_active = cfgfile_option_find(value, _T("initial"));
 			if (cfgfile_option_find(value, _T("autoswitch"))) {
 				rbc->autoswitch = true;
 			}
