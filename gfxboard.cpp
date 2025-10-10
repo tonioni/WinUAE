@@ -266,7 +266,7 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_ALTAIS_Z3,
 		_T("Altais [DracoBus]"), _T("MacroSystem"), _T("Altais"),
 		18260, 19, 0, 0,
-		0x00000000, 0x00400000, 0x00400000, 0x00400000, 0, BOARD_NONAUTOCONFIG_BEFORE, 3, false, false,
+		0x00000000, 0x00400000, 0x00400000, 0x00400000, 0, BOARD_NONAUTOCONFIG_BEFORE, 3, false, true,
 		0, 0, NULL, &ncr_retina_z3_device, 0, GFXBOARD_BUSTYPE_DRACO
 	},
 	{
@@ -1754,7 +1754,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 					}
 				}
 #endif
-				if ((!gb->board->hasswitcher && gb->rbc->autoswitch) && gb->vram) {
+				if (((!gb->board->hasswitcher && gb->rbc->autoswitch) || gb->board->id == GFXBOARD_ID_ALTAIS_Z3) && gb->vram) {
 					bool svga_on(void *p);
 					bool on = svga_on(gb->pcemobject2);
 					set_monswitch(gb, on);
