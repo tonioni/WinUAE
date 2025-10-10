@@ -2397,7 +2397,8 @@ void drawing_init(void)
 		ad->picasso_on = 0;
 		ad->picasso_requested_on = 0;
 		ad->gf_index = GF_NORMAL;
-		gfx_set_picasso_state(0, 0);
+		gfxboard_reset_init();
+		gfx_set_picasso_state(0, ad->picasso_on);
 	}
 #endif
 	xlinebuffer = NULL;
