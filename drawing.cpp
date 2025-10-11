@@ -396,7 +396,7 @@ static struct denise_rga rga_denise_fast[DENISE_RGA_SLOT_FAST_TOTAL];
 typedef void (*LINETOSRC_FUNC)(void);
 static LINETOSRC_FUNC lts;
 static bool lts_changed, lts_request;
-typedef void (*LINETOSRC_FUNCF)(int,int,int,int,int,int,int,int,int,uae_u32,uae_u8*,uae_u8*,int,int*,int,struct linestate*);
+typedef void (*LINETOSRC_FUNCF)(int,int,int,int,int,int,int,int,uae_u32,uae_u8**,uae_u8**,int,int*,int,struct linestate*);
 
 static int denise_hcounter, denise_hcounter_next, denise_hcounter_new, denise_hcounter_prev, denise_hcounter_cmp;
 static bool denise_accurate_mode;
@@ -463,7 +463,7 @@ static int aga_delayed_color_idx;
 static uae_u16 aga_delayed_color_val, aga_delayed_color_con2, aga_delayed_color_con3;
 static int aga_unalign0, aga_unalign1, bpl1dat_unalign, reswitch_unalign;
 static uae_u8 loaded_pix, loaded_pixs[4];
-static int hresolution, hresolution_add;
+static int hresolution, hresolution_inv, hresolution_add;
 static bool denise_sprite_blank_active;
 static int delayed_sprite_vblank_ecs;
 static bool denise_burst;
@@ -955,8 +955,8 @@ int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hr
 	w = diwlast - diwfirst;
 	dx = diwfirst - (hdisplay_left_border << (RES_MAX + 1)) + (1 << RES_MAX);
 
-	w >>= (RES_MAX - hresolution);
-	dx >>= (RES_MAX - hresolution);
+	w >>= hresolution_inv;
+	dx >>= hresolution_inv;
 
 	y2 = plflastline_total;
 	y1 = plffirstline_total;
@@ -1358,7 +1358,7 @@ static bool cancenter(void)
 			fd->gfx_filter_autoscale != AUTOSCALE_CENTER);
 }
 
-static void center_image (void)
+static void center_image(void)
 {
 	struct amigadisplay *ad = &adisplays[0];
 	struct vidbuf_description *vidinfo = &ad->gfxvidinfo;
@@ -1371,16 +1371,16 @@ static void center_image (void)
 
 	int w = vidinfo->inbuffer->inwidth;
 	int ew = vidinfo->inbuffer->extrawidth;
-	int maxdiw = denisehtotal >> (RES_MAX - currprefs.gfx_resolution);
+	int maxdiw = denisehtotal >> hresolution_inv;
 	int xoffset = 0;
 
-	if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN && diwlastword_total > 0 && diwlastword_total > diwfirstword_total  && cancenter()) {
+	if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN && diwlastword_total > 0 && diwlastword_total > diwfirstword_total && cancenter()) {
 
 		visible_left_border = maxdiw - w;
 		visible_left_border &= ~((xshift(1, 0)) - 1);
 
-		int ww = (diwlastword_total - diwfirstword_total) >> (RES_MAX - hresolution);
-		int wx = ((diwfirstword_total) >> (RES_MAX - hresolution)) - visible_left_border / 2;
+		int ww = (diwlastword_total - diwfirstword_total) >> hresolution_inv;
+		int wx = ((diwfirstword_total) >> hresolution_inv) - (((hdisplay_left_border - 1) * 4) >> (hresolution_inv + (doublescan == 1 ? 1 : 0)));
 
 		if (ww < w && currprefs.gfx_xcenter == 2) {
 			/* Try to center. */
@@ -2984,7 +2984,7 @@ static void update_hblank(void)
 
 static void update_sprres_set(void)
 {
-	denise_spr_add = 1 << (RES_MAX - hresolution);
+	denise_spr_add = 1 << hresolution_inv;
 	denise_spr_shiftsize = 1 << (RES_SUPERHIRES - denise_sprres);
 }
 
@@ -3179,6 +3179,7 @@ static void sethresolution(void)
 			hresolution = RES_SUPERHIRES;
 		}
 	}
+	hresolution_inv = RES_MAX - hresolution;
 }
 
 static void setlasthamcolor(void)
@@ -5682,7 +5683,7 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 			}
 		}
 #endif
-		int rshift = RES_MAX - hresolution;
+		int rshift = hresolution_inv;
 		int hbstrt_offset2 = (hbstrt_offset - internal_pixel_start_cnt) >> rshift;
 		int hbstop_offset2 = (hbstop_offset - internal_pixel_start_cnt) >> rshift;
 		uae_u32 *hbstrt_ptr1 = hbstrt_offset2 >= 0 ? buf1t + hbstrt_offset2 : NULL;
@@ -6099,7 +6100,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 
 	int dpixcnt = 0;
 
-	int xshift = RES_MAX - hresolution;
+	int xshift = hresolution_inv;
 	int xadd = 1 << xshift;
 	int denise_res_size2 = denise_res_size << xshift;
 	if (denise_res > hresolution) {
@@ -6763,7 +6764,7 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 	uae_u32 *buf2p = buf2 != buf1 ? buf2 : NULL;
 	uae_u8 *gbufp = gbuf;
 
-	int rshift = RES_MAX - hresolution;
+	int rshift = hresolution_inv;
 
 	bool ecsena = ecs_denise && (ls->bplcon0 & 1) != 0;
 	bool brdblank = (ls->bplcon3 & 0x20) && ecsena;
@@ -6810,6 +6811,31 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 		memset(gbufp, 0, total);
 	}
 
+}
+
+static int ltsf_init(int draw_start, int draw_startoffset, int *draw_end, int hbstrt_offset, int hbstop_offset)
+{
+	int end = *draw_end;
+	if (end > hbstrt_offset) {
+		end = hbstrt_offset;
+	}
+	int cnt = *draw_end;
+	if (cnt > draw_startoffset) {
+		cnt = draw_startoffset;
+	}
+	if (cnt > hbstop_offset && hbstop_offset >= draw_start) {
+		cnt = hbstop_offset;
+	}
+	if (cnt > bpl1dat_trigger_offset && bpl1dat_trigger_offset >= draw_start) {
+		cnt = bpl1dat_trigger_offset;
+	}
+	int max = addrdiff(xlinebuffer_end, (uae_u8*)buf1) / sizeof(uae_u32);
+	int w = end - cnt;
+	if (w > max) {
+		end -= w - max;
+	}
+	*draw_end = end;
+	return cnt;
 }
 
 void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls)
@@ -6937,7 +6963,7 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	}
 
 	int doubling = hresolution - res;
-	int rshift = RES_MAX - hresolution;
+	int rshift = hresolution_inv;
 
 	int delay1 = (ls->bplcon1 & 0x0f) | ((ls->bplcon1 & 0x0c00) >> 6);
 	int delaymask = (fmode >> res) - 1;
@@ -6988,12 +7014,11 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	int draw_end = ls->internal_pixel_cnt >> rshift;
 	int draw_startoffset = ls->internal_pixel_start_cnt >> rshift;
 
-
-	//write_log("%03d %03d %03d %03d %03d %03d %03d\n", vpos, hbstop_offset, hbstrt_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset, delayoffset);
-
-	uae_u8 bxor = ls->bplcon4 >> 8;
-	buf1 = buf1p;
-	buf2 = buf2p;
+#if 0
+	if (gfx_ypos == 100)
+		write_log("%p %03d %03d %03d %03d %03d %03d %03d %03d %03d %03d\n",
+			buf1p, gfx_ypos, hbstop_offset, hbstrt_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset, draw_start, draw_end, draw_startoffset, delayoffset);
+#endif
 
 	int cpadd = doubling < 0 ? (doubling < -1 ? 2 : 1) : 0;
 	int bufadd = doubling > 0 ? (doubling > 1 ? 2 : 1) : 0;
@@ -7006,7 +7031,7 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 		subpix = 0;
 	} else if (doubling == 0) {
 		cpadds[0] = 1 << cpadd;
-		subpix >>= RES_MAX - hresolution;
+		subpix >>= hresolution_inv;
 		cp -= subpix;
 		cp2 -= subpix;
 	} else if (doubling == 1) {
@@ -7035,8 +7060,24 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 
 #if 1
 	
-	ltsf(draw_start, draw_end, draw_startoffset, hbstrt_offset, hbstop_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset,
-		planecnt, bgcol, cp, cp2, cpadd, cpadds, bufadd, ls);
+	buf1 = buf1p;
+	buf2 = buf2p;
+
+	// if horizontal shift is large enough to skip part of hdiw or bitplane, draw them to temp buffer.
+	if (draw_startoffset > bpl1dat_trigger_offset || draw_startoffset > hbstop_offset || draw_startoffset > hstrt_offset) {
+		buf1 = (uae_u32*)row_tmp8;
+		buf2 = (uae_u32*)row_tmp8;
+		int end = draw_startoffset;
+		int cnt = ltsf_init(draw_start, draw_startoffset, &end, hbstrt_offset, hbstop_offset);
+		ltsf(cnt, end, hbstrt_offset, hbstop_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset,
+			planecnt, bgcol, &cp, &cp2, 1 << cpadd, cpadds, 1 << bufadd, ls);
+		draw_start = draw_startoffset;
+		buf1 = buf1p;
+		buf2 = buf2p;
+	}
+	int cnt = ltsf_init(draw_start, draw_startoffset, &draw_end, hbstrt_offset, hbstop_offset);
+	ltsf(cnt, draw_end, hbstrt_offset, hbstop_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset,
+		planecnt, bgcol, &cp, &cp2, 1 << cpadd, cpadds, 1 << bufadd, ls);
 
 #if 0
 	*buf1++ = 0;
