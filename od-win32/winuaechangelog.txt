@@ -1,4 +1,20 @@
 
+Beta 2:
+
+6.x bugs fixed:
+
+- If horizontal centering moved display far enough left to hide part of bitplane, fast mode drawing had horizontal offset. If centering was far enough right, fast mode drawing didn't stop early enough and wrapped around.
+- Fixed horizontal centering positioning in programmed/scandoubled modes.
+- Added special case for DraCo Altais RTG board: always autoswitch to RTG. DraCo does not have native chipset. (6.0.1 optional autoswitch feature made Altais also optionally autoswitching because Altais does not have built-in switcher. Technically correct but also very annoying with DraCo.)
+
+Other fixes and new features:
+
+- If custom dialog window (HD to HDF creator status bar window possibly was the only one) was closed without user interaction, parent window re-activation was skipped, causing GUI to become completely unresponsive. Old bug.
+- Added "Override initial native chipset display" to RTG panel. If set, selected RTG monitor is immediately active at emulator startup, overriding default chipset display. Screen will be blank until RTG board is initialized. Note: if RTG board has built-in switcher and switcher state is changed, switcher state change will override initial monitor selection.
+- Masoboshi Mastercard v2.204 ROM (final version) was finally found. Added to ROM scanner. Has same "MASOBOSHI.device (MASOBOSHI MC-702 Treiberprogramm)" device strings but also extra "$VER: MasterCard MC302/MC702 2.204 (29.4.96) by Martin Berndt" at the end of ROM that no other known version have.
+
+
+Beta 1:
 
 6.x bugs fixed:
 
