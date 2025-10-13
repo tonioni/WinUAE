@@ -11971,8 +11971,10 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 							workprefs.rtgboards[gui_rtg_index].rtgmem_size = 0;
 						} else {
 							workprefs.rtgboards[gui_rtg_index].rtgmem_type = gfxboard_get_id_from_index(v - 1);
-							if (workprefs.rtgboards[gui_rtg_index].rtgmem_size == 0)
+							if (workprefs.rtgboards[gui_rtg_index].rtgmem_size == 0) {
 								workprefs.rtgboards[gui_rtg_index].rtgmem_size = 4096 * 1024;
+							}
+							workprefs.rtgboards[gui_rtg_index].autoswitch = true;
 						}
 						cfgfile_compatibility_rtg(&workprefs);
 						enable_for_expansiondlg (hDlg);
