@@ -998,9 +998,6 @@ static bool gen_fasthead(void)
 		"int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)", funcname);
 	outf("{");
 
-	outf("uae_u8 *cp = *cpp;");
-	outf("uae_u8 *cp2 = *cp2p;");
-
 	// shres on lores is useless
 	if (res == 2 && outres == 0) {
 		return false;
@@ -1159,6 +1156,9 @@ static void gen_fastdraw_mode(int off, int total)
 static void gen_fastdraw(void)
 {
 	int doubling = outres - res;
+
+	outf("uae_u8 *cp = *cpp;");
+	outf("uae_u8 *cp2 = *cp2p;");
 
 	outf("uae_u32 *acolors = (uae_u32*)ls->linecolorstate;");
 	if (aga) {

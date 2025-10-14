@@ -38,8 +38,6 @@ static void lts_ecs_n_ilores_dlores_b1(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ilores_dlores_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ilores_dlores_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -79,8 +77,6 @@ static void lts_ecs_dpf_ilores_dlores_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ilores_dlores_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ilores_dlores_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -122,8 +118,6 @@ static void lts_ecs_ehb_ilores_dlores_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ilores_dlores_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ilores_dlores_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -160,8 +154,6 @@ static void lts_ecs_ham_ilores_dlores_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ilores_dlores_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ilores_dlores_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -198,8 +190,6 @@ static void lts_ecs_kehb_ilores_dlores_b1(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ilores_dlores_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ihires_dlores_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -583,62 +573,42 @@ static void lts_ecs_kehb_ihires_dlores_b1_filtered(int cnt, int draw_end, int hb
 }
 static void lts_ecs_n_ishres_dlores_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ishres_dlores_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ishres_dlores_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ishres_dlores_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ishres_dlores_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ishres_dlores_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ishres_dlores_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ishres_dlores_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ishres_dlores_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ishres_dlores_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ilores_dhires_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -680,8 +650,6 @@ static void lts_ecs_n_ilores_dhires_b1(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ilores_dhires_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ilores_dhires_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -729,8 +697,6 @@ static void lts_ecs_dpf_ilores_dhires_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ilores_dhires_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ilores_dhires_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -782,8 +748,6 @@ static void lts_ecs_ehb_ilores_dhires_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ilores_dhires_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ilores_dhires_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -825,8 +789,6 @@ static void lts_ecs_ham_ilores_dhires_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ilores_dhires_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ilores_dhires_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -868,8 +830,6 @@ static void lts_ecs_kehb_ilores_dhires_b1(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ilores_dhires_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ihires_dhires_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -906,8 +866,6 @@ static void lts_ecs_n_ihires_dhires_b1(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ihires_dhires_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ihires_dhires_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -947,8 +905,6 @@ static void lts_ecs_dpf_ihires_dhires_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ihires_dhires_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ihires_dhires_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -990,8 +946,6 @@ static void lts_ecs_ehb_ihires_dhires_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ihires_dhires_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ihires_dhires_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1028,8 +982,6 @@ static void lts_ecs_ham_ihires_dhires_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ihires_dhires_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ihires_dhires_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1066,8 +1018,6 @@ static void lts_ecs_kehb_ihires_dhires_b1(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ihires_dhires_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ishres_dhires_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1429,8 +1379,6 @@ static void lts_ecs_n_ilores_dshres_b1(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ilores_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ilores_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1494,8 +1442,6 @@ static void lts_ecs_dpf_ilores_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ilores_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ilores_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1567,8 +1513,6 @@ static void lts_ecs_ehb_ilores_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ilores_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ilores_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1620,8 +1564,6 @@ static void lts_ecs_ham_ilores_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ilores_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ilores_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1673,8 +1615,6 @@ static void lts_ecs_kehb_ilores_dshres_b1(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ilores_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ihires_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1716,8 +1656,6 @@ static void lts_ecs_n_ihires_dshres_b1(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ihires_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ihires_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1765,8 +1703,6 @@ static void lts_ecs_dpf_ihires_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ihires_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ihires_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1818,8 +1754,6 @@ static void lts_ecs_ehb_ihires_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ihires_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ihires_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1861,8 +1795,6 @@ static void lts_ecs_ham_ihires_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ihires_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ihires_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1904,8 +1836,6 @@ static void lts_ecs_kehb_ihires_dshres_b1(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ihires_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1942,8 +1872,6 @@ static void lts_ecs_n_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ishres_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -1980,8 +1908,6 @@ static void lts_ecs_dpf_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ishres_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2018,8 +1944,6 @@ static void lts_ecs_ehb_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ishres_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2056,8 +1980,6 @@ static void lts_ecs_ham_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ishres_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2094,8 +2016,6 @@ static void lts_ecs_kehb_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ishres_dshres_b1_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ilores_dlores_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2135,8 +2055,6 @@ static void lts_ecs_n_ilores_dlores_b2(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ilores_dlores_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ilores_dlores_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2179,8 +2097,6 @@ static void lts_ecs_dpf_ilores_dlores_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ilores_dlores_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ilores_dlores_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2225,8 +2141,6 @@ static void lts_ecs_ehb_ilores_dlores_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ilores_dlores_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ilores_dlores_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2266,8 +2180,6 @@ static void lts_ecs_ham_ilores_dlores_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ilores_dlores_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ilores_dlores_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2307,8 +2219,6 @@ static void lts_ecs_kehb_ilores_dlores_b2(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ilores_dlores_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ihires_dlores_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2722,62 +2632,42 @@ static void lts_ecs_kehb_ihires_dlores_b2_filtered(int cnt, int draw_end, int hb
 }
 static void lts_ecs_n_ishres_dlores_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ishres_dlores_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ishres_dlores_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ishres_dlores_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ishres_dlores_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ishres_dlores_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ishres_dlores_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ishres_dlores_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ishres_dlores_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ishres_dlores_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ilores_dhires_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2824,8 +2714,6 @@ static void lts_ecs_n_ilores_dhires_b2(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ilores_dhires_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ilores_dhires_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2878,8 +2766,6 @@ static void lts_ecs_dpf_ilores_dhires_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ilores_dhires_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ilores_dhires_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2936,8 +2822,6 @@ static void lts_ecs_ehb_ilores_dhires_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ilores_dhires_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ilores_dhires_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -2984,8 +2868,6 @@ static void lts_ecs_ham_ilores_dhires_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ilores_dhires_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ilores_dhires_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3032,8 +2914,6 @@ static void lts_ecs_kehb_ilores_dhires_b2(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ilores_dhires_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ihires_dhires_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3073,8 +2953,6 @@ static void lts_ecs_n_ihires_dhires_b2(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ihires_dhires_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ihires_dhires_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3117,8 +2995,6 @@ static void lts_ecs_dpf_ihires_dhires_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ihires_dhires_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ihires_dhires_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3163,8 +3039,6 @@ static void lts_ecs_ehb_ihires_dhires_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ihires_dhires_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ihires_dhires_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3204,8 +3078,6 @@ static void lts_ecs_ham_ihires_dhires_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ihires_dhires_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ihires_dhires_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3245,8 +3117,6 @@ static void lts_ecs_kehb_ihires_dhires_b2(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ihires_dhires_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ishres_dhires_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3647,8 +3517,6 @@ static void lts_ecs_n_ilores_dshres_b2(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ilores_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ilores_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3721,8 +3589,6 @@ static void lts_ecs_dpf_ilores_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ilores_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ilores_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3803,8 +3669,6 @@ static void lts_ecs_ehb_ilores_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ilores_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ilores_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3865,8 +3729,6 @@ static void lts_ecs_ham_ilores_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ilores_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ilores_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3927,8 +3789,6 @@ static void lts_ecs_kehb_ilores_dshres_b2(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ilores_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ihires_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -3975,8 +3835,6 @@ static void lts_ecs_n_ihires_dshres_b2(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ihires_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ihires_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -4029,8 +3887,6 @@ static void lts_ecs_dpf_ihires_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ihires_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ihires_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -4087,8 +3943,6 @@ static void lts_ecs_ehb_ihires_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ihires_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ihires_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -4135,8 +3989,6 @@ static void lts_ecs_ham_ihires_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ihires_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ihires_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -4183,8 +4035,6 @@ static void lts_ecs_kehb_ihires_dshres_b2(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ihires_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_n_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -4225,8 +4075,6 @@ static void lts_ecs_n_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offset,
 }
 static void lts_ecs_n_ishres_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_dpf_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -4267,8 +4115,6 @@ static void lts_ecs_dpf_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_dpf_ishres_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ehb_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -4309,8 +4155,6 @@ static void lts_ecs_ehb_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ehb_ishres_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_ham_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -4351,8 +4195,6 @@ static void lts_ecs_ham_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 }
 static void lts_ecs_ham_ishres_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static void lts_ecs_kehb_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
@@ -4393,8 +4235,6 @@ static void lts_ecs_kehb_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offs
 }
 static void lts_ecs_kehb_ishres_dshres_b2_filtered(int cnt, int draw_end, int hbstrt_offset, int hbstop_offset, int hstrt_offset, int hstop_offset,int bpl1dat_trigger_offset, int planes, uae_u32 bgcolor, uae_u8 **cpp, uae_u8 **cp2p, int cpaddv, int *cpadds, int bufaddv, struct linestate *ls)
 {
-	uae_u8 *cp = *cpp;
-	uae_u8 *cp2 = *cp2p;
 	lts_null();
 }
 static LINETOSRC_FUNCF linetoscr_ecs_fast_funcs[] = {
