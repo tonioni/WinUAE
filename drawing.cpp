@@ -7110,6 +7110,13 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 		memset(gbuf, 0, total);
 	}
 
+	if (ls->hstop_offset > diwlastword_total && ls->bpl1dat_trigger_offset >= 0) {
+		diwlastword_total = ls->hstop_offset;
+	}
+	if (ls->hstrt_offset < diwfirstword_total && ls->bpl1dat_trigger_offset >= 0) {
+		diwfirstword_total = ls->hstrt_offset;
+	}
+
 #else
 
 	int cnt = draw_start;
