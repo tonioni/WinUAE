@@ -20695,9 +20695,9 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 		yrange1 = xrange1;
 		yrange2 = xrange2;
 	} else if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_OVERSCAN_BLANK) {
-		xrange1 = 0;
+		xrange1 = -1;
 		xrange2 = MANUAL_SCALE_MAX_RANGE - 1;
-		yrange1 = 0;
+		yrange1 = -1;
 		yrange2 = 700;
 	} else if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER ||
 			   workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER_AUTOSCALE) {
@@ -21330,7 +21330,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					xSendDlgItemMessage(hDlg, IDC_FILTERVOV, TBM_SETPOS, TRUE, val);
 				}
 			} else if (fdwp->gfx_filter_autoscale == AUTOSCALE_OVERSCAN_BLANK) {
-				if (h == hz && getdlgnumber(hz, &val, 0, 1900)) {
+				if (h == hz && getdlgnumber(hz, &val, -1, 1900)) {
 					fd->gfx_filter_left_border = fdwp->gfx_filter_left_border = val;
 					xSendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, val);
 				}
@@ -21338,7 +21338,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					fd->gfx_filter_right_border = fdwp->gfx_filter_right_border = val;
 					xSendDlgItemMessage(hDlg, IDC_FILTERVZV, TBM_SETPOS, TRUE, val);
 				}
-				if (h == vo && getdlgnumber(vo, &val, 0, 700)) {
+				if (h == vo && getdlgnumber(vo, &val, -1, 700)) {
 					fd->gfx_filter_top_border = fdwp->gfx_filter_top_border = val;
 					xSendDlgItemMessage(hDlg, IDC_FILTERHOV, TBM_SETPOS, TRUE, val);
 				}
