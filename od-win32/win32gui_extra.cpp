@@ -1,10 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
+
 #include <windows.h>
 #include <windowsx.h>
 #include <commctrl.h>
 #include <Dwmapi.h>
-#include <shellscalingapi.h>
 #include <shlwapi.h>
 #include <uiautomation.h>
 #include "Xinput.h"

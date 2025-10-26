@@ -10,7 +10,6 @@ Copyright(c) 2001 - 2002; §ane
 
 #include <windows.h>
 
-#include <mmsystem.h>
 #include <vfw.h>
 #include <msacm.h>
 #include <ks.h>

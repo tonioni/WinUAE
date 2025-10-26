@@ -13,8 +13,6 @@
 #include "drawing.h"
 #include "direct3d.h"
 
-#include <float.h>
-
 #define AUTORESIZE_FRAME_DELAY 4
 
 static float filteroffsetx, filteroffsety, filterxmult = 1.0, filterymult = 1.0;

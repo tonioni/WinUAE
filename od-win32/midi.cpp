@@ -17,19 +17,11 @@
 */
 
 #include "sysconfig.h"
-#include <windows.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <mmsystem.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <io.h>
-
 #include "sysdeps.h"
 
-#include "resource.h"
+#include <windows.h>
 
+#include "resource.h"
 #include "options.h"
 #include "midi.h"
 #include "registry.h"

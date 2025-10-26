@@ -2,9 +2,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include <stdlib.h>
-#include <stdarg.h>
-
 #include <windows.h>
 
 #include "options.h"
@@ -14,7 +11,6 @@
 #include "keybuf.h"
 #include "memory.h"
 #include "autoconf.h"
-#include "threaddep/thread.h"
 #include "native2amiga_api.h"
 
 int clipboard_debug;

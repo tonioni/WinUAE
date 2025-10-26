@@ -12,8 +12,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include <math.h>
-
 #include "options.h"
 #include "audio.h"
 #include "events.h"
@@ -29,18 +27,15 @@
 #include "xwin.h"
 
 #include <windows.h>
-#include <mmsystem.h>
 #include <mmreg.h>
 #include <dsound.h>
 #include <ks.h>
 #include <ksmedia.h>
 #include <Audioclient.h>
-#include <audiopolicy.h>
 #include <Mmdeviceapi.h>
 #include <Functiondiscoverykeys_devpkey.h>
 #include <al.h>
 #include <alc.h>
-#include <ntverp.h>
 
 #include <portaudio.h>
 

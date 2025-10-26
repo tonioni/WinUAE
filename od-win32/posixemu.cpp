@@ -9,21 +9,12 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#include "options.h"
+
 #include <windows.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <commctrl.h>
-#include <commdlg.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <io.h>
-#include <sys/types.h>
 #include <sys/timeb.h>
-#include <sys/utime.h>
 #include <process.h>
 
-#include "options.h"
 #include "posixemu.h"
 #include "threaddep/thread.h"
 #include "win32.h"

@@ -1,9 +1,6 @@
 
 #include "sysconfig.h"
 
-#include <stdlib.h>
-#include <stdarg.h>
-
 #include "sysdeps.h"
 #include "uaeipc.h"
 #include "options.h"

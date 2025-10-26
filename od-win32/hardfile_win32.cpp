@@ -33,12 +33,10 @@
 #include <ntddstor.h>
 #include <winioctl.h>
 #include <initguid.h>   // Guid definition
-#include <devguid.h>    // Device guids
 #include <setupapi.h>   // for SetupDiXxx functions.
 #include <cfgmgr32.h>   // for SetupDiXxx functions.
 #include <Ntddscsi.h>
 #endif
-#include <stddef.h>
 
 static int usefloppydrives = 0;
 static int num_drives;

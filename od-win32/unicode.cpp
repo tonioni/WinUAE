@@ -4,8 +4,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "options.h"
-
 #define DWFLAGS (0)
 #define FS_TEST 0
 

@@ -13,8 +13,6 @@
 
 #if CPU_x86_64 || CPU_i386
 
-#include <math.h>
-#include <float.h>
 #include <fenv.h>
 
 #define USE_HOST_ROUNDING 1
@@ -24,7 +22,6 @@
 #include "fpp.h"
 #include "uae/attributes.h"
 #include "uae/vm.h"
-#include "newcpu.h"
 #include "softfloat/softfloat-specialize.h"
 
 extern "C"

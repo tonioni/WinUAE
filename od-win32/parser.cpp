@@ -15,18 +15,8 @@
 
 #include <windows.h>
 #include <winspool.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <mmsystem.h>
-#include <commctrl.h>
-#include <commdlg.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <io.h>
 
 #include <setupapi.h>
-#include <Ntddpar.h>
 
 #include "sysdeps.h"
 #include "options.h"

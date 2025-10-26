@@ -19,7 +19,6 @@
 
 #include "resource.h"
 
-#include <stddef.h>
 #include <process.h>
 #include <iphlpapi.h>
 
@@ -33,8 +32,6 @@
 #include "registry.h"
 #include "native2amiga.h"
 #include "win32gui.h"
-#include "wininet.h"
-#include "mmsystem.h"
 #include "win32.h"
 
 int rawsockets = 0;

@@ -15,8 +15,6 @@
 #define KBHOOK 0
 
 #include <stdlib.h>
-#include <stdarg.h>
-#include <signal.h>
 
 #include "sysconfig.h"
 
@@ -26,19 +24,13 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <commctrl.h>
-#include <commdlg.h>
 #include <shellapi.h>
-#include <zmouse.h>
 #include <dbt.h>
-#include <math.h>
-#include <mmsystem.h>
 #include <shobjidl.h>
 #include <shlobj.h>
 #include <shlwapi.h>
 #include <dbghelp.h>
-#include <float.h>
 #include <WtsApi32.h>
-#include <Avrt.h>
 #include <Cfgmgr32.h>
 #include <shellscalingapi.h>
 #include <dinput.h>

@@ -9,9 +9,6 @@
 
 #include "sysconfig.h"
 
-#include <stdlib.h>
-#include <stdarg.h>
-
 #include <windows.h>
 #include <commctrl.h>
 #include <shellapi.h>

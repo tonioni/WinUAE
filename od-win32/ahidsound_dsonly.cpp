@@ -16,17 +16,10 @@
 
 #if defined(AHI)
 
-#include <ctype.h>
-#include <assert.h>
-
 #include <windows.h>
-#include <stdlib.h>
-#include <stdarg.h>
 #include <dsound.h>
-#include <stdio.h>
 
 #include "options.h"
-#include "audio.h"
 #include "memory.h"
 #include "events.h"
 #include "custom.h"
@@ -38,7 +31,6 @@
 #include "parser.h"
 #include "enforcer.h"
 #include "ahidsound.h"
-#include "picasso96_win.h"
 
 static long samples, playchannel, intcount;
 static int record_enabled;

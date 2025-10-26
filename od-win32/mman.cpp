@@ -2,8 +2,6 @@
 // Copyright (C) 2000, Brian King
 // GNU Public License
 
-#include <float.h>
-
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "options.h"

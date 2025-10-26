@@ -34,8 +34,6 @@ int key_swap_end_pgup = 0;
 #include "sysconfig.h"
 
 #include <stdlib.h>
-#include <stdarg.h>
-#include <signal.h>
 
 #include <windows.h>
 #include <dinput.h>
@@ -53,15 +51,11 @@ int key_swap_end_pgup = 0;
 #include "tabletlibrary.h"
 #include "gui.h"
 
-#include <winioctl.h>
 #include <ntddkbd.h>
 #include <ntddpar.h>
 #include <setupapi.h>
 #include <devguid.h>
 #include <cfgmgr32.h>
-#include <wbemidl.h>
-#include <oleauto.h>
-
 
 extern "C" 
 {

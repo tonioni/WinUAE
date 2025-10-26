@@ -18,15 +18,11 @@
 #include "scsidev.h"
 #include "gui.h"
 #include "win32.h"
-#include "audio.h"
 
-#include <devioctl.h>
 #include <ntddcdrm.h>
 #include <windows.h>
 #include <mmsystem.h>
 #include <winioctl.h>
-#include <setupapi.h>   // for SetupDiXxx functions.
-#include <stddef.h>
 
 #include "cda_play.h"
 #ifdef RETROPLATFORM

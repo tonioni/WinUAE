@@ -4,8 +4,6 @@
 
 #include <windows.h>
 
-#include <stdio.h>
-
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "options.h"

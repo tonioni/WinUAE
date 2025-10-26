@@ -33,8 +33,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include <stdlib.h>
-
 #if defined(PICASSO96)
 
 #define MULTIDISPLAY 0

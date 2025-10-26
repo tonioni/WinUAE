@@ -11,9 +11,6 @@
 
 #include "sysconfig.h"
 
-#include <assert.h>
-#include <ctype.h>
-#include <signal.h>
 #include <windows.h>
 #include <dinput.h>
 
@@ -21,8 +18,6 @@
 #include "uae.h"
 #include "gui.h"
 #include "options.h"
-#include "memory.h"
-#include "custom.h"
 #include "keyboard.h"
 #include "inputdevice.h"
 #include "win32.h"

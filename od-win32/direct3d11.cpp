@@ -2,7 +2,6 @@
 /* Direct3D 11 graphics renderer */
 
 #include <windows.h>
-#include "resource.h"
 
 #include <DXGI1_5.h>
 #include <dxgi1_6.h>
@@ -41,7 +40,6 @@ using Microsoft::WRL::ComPtr;
 
 #include "FX11/d3dx11effect.h"
 
-#include <process.h>
 #include <Dwmapi.h>
 
 void (*D3D_free)(int, bool immediate);

@@ -10,19 +10,10 @@
 
 #if defined(AHI)
 
-#include <ctype.h>
-#include <assert.h>
-
 #include <windows.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <math.h>
-#include <process.h>
 
 #include "sysdeps.h"
 #include "options.h"
-#include "audio.h"
 #include "memory.h"
 #include "events.h"
 #include "custom.h"
@@ -34,7 +25,6 @@
 #include "win32.h"
 #include "sounddep/sound.h"
 #include "ahidsound_new.h"
-#include "render.h"
 
 #include <al.h>
 #include <alc.h>

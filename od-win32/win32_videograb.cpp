@@ -5,9 +5,6 @@
 
 #include "sysconfig.h"
 
-#include <stdlib.h>
-#include <stdarg.h>
-
 #include "sysdeps.h"
 #include "options.h"
 

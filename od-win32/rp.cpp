@@ -1,7 +1,4 @@
 
-#include <stdlib.h>
-#include <stdarg.h>
-#include <signal.h>
 
 #include <windows.h>
 

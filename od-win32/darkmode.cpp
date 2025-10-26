@@ -13,8 +13,6 @@
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Uxtheme.lib")
 
-#include "resource.h"
-
 #include "darkmode.h"
 
 #include "IatHook.h"
