@@ -1,4 +1,21 @@
 
+Beta 4:
+
+- OCS/ECS "7-planes" mode didn't enable EHB. (6.0)
+- Immediately switch to full line emulation if BPLxDAT is written to, even if line is normally hidden inside vertical blanking (Blanked lines are emulated with simplified code because bitplanes and sprites can be ignored). Unfortunately bitplane data can be visible in some special cases, possibly only during bitplane DMA overrun condition.
+- D3D11 fullscreen mode active, enter GUI, switch screen mode to windowed or full-window, press Reset button: windowed mode didn't open, neither did fullscreen mode. Nothing opened. (Very old bug).
+- Crash was possible when blanking left/right edges of scanlines, for example when in NTSC mode with NTSC artifacts hidden (b3)
+- AlfaPower HD "ROM disabled" option added.
+
+Beta 3:
+
+- Fixed fast drawing mode horizontal positioning being wrong randomly (b2)
+- NTSC and fast mode and pixel column just before horizontal blank start has changing graphics: single pixel column of garbage was visible (for example NTSC mode + Auto integer scale).
+- If whole screen was drawn in fast drawing mode, horizontal bitplane start and end position was not stored, causing horizontal centering, automatic scale etc to fall back to default setting.
+- Overscan blanking filter setting didn't allow selecting value -1 (disabled).
+- Native/RTG autoswitch is really on by default again.
+- Masoboshi Mastercard v2.202 ROM added.
+
 Beta 2:
 
 6.x bugs fixed:
@@ -34,7 +51,7 @@ Other fixes and new features:
 
 - Added "Always stretch NTSC mode" checkbox to Filter panel (name needs to be better?). If selected (default), NTSC mode is stretched to match PAL mode height. Most filter modes had this active by default. It is now optional. Does not affect Integer scale, most automatic scale and TV modes.
 - Paula pot counter increment is clocked by first strobe slot, was still using start of scanline. (As usual, no one cares)
-- If GUI has text/numeric edit control active, return only unfocuses the control instead of exiting GUI. Return without focused edit control still exists GUI like previously.
+- If GUI has text/numeric edit control active, return only unfocuses the control instead of exiting GUI. Return without focused edit control still exits GUI like previously.
 - GUI filter horizontal/vertical number boxes are now directly editable.
 - Manual filter mode positioning range increased, previously negative values were not accepted.
 - Direct3D 11 mode ignored on the fly fullscreen refresh rate changes.
@@ -141,7 +158,7 @@ Beta 29:
 
 - Fast mode drawing always masked chip ram addresses to regular chip RAM size causing corrupted graphics if 32-bit chip RAM was enabled.
 - Right edge horizontal scrolling glitch is now only emulated correctly (as in glitches correctly) in accurate emulation modes. Fast CPU modes "fixes" the glitch. I don't normally like "fixing" hardware design flaws but I didn't find any other simple solution to fix this problem without huge changes to fast drawing modes. This might work better in some future version. Normally this condition (Very large right edge overscan + horizontal scrolling) is rarely visible because it looks very ugly.
-- Remove interlace artifacts very glitchy scrolling fixed (b28). There still can be single line that has wrong graphics before it gets redrawn in next frame but because it happens at the same as another usual glitch that affects all lines hen bitplane pointers get updated while scrolling, it is not important problem.
+- Remove interlace artifacts very glitchy scrolling fixed (b28). There still can be single line that has wrong graphics before it gets redrawn in next frame but because it happens at the same as another usual glitch that affects all lines when bitplane pointers get updated while scrolling, it is not important problem.
 - If only difference between odd and even field scrolling value in BPLCON1 was AGA-only hires or shres bits, emulation mode that emulates odd/even planes separately was not selected and odd planes used same scrolling value as even planes.
 - Fixed crash when doubleclicking config tree view root node.
 - b25 interlace change was not fully working, it was still possible to get for example autoscale filter mode display jumping between long and short field heights. 
