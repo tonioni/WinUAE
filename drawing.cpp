@@ -5534,10 +5534,10 @@ static void edgeblanking(int hbstrt_offset, int hbstop_offset, int internal_pixe
 	int rshift = hresolution_inv;
 	int hbstrt_offset2 = (hbstrt_offset - internal_pixel_start_cnt) >> rshift;
 	int hbstop_offset2 = (hbstop_offset - internal_pixel_start_cnt) >> rshift;
-	uae_u32 *hbstrt_ptr1 = hbstrt_offset2 >= 0 ? buf1t + hbstrt_offset2 : NULL;
-	uae_u32 *hbstop_ptr1 = hbstop_offset2 >= 0 ? buf1t + hbstop_offset2 : NULL;
-	uae_u32 *hbstrt_ptr2 = buf2 && hbstrt_offset2 >= 0 ? buf2t + hbstrt_offset2 : NULL;
-	uae_u32 *hbstop_ptr2 = buf2 && hbstop_offset2 >= 0 ? buf2t + hbstop_offset2 : NULL;
+	uae_u32 *hbstrt_ptr1 = buf1t && hbstrt_offset2 >= 0 ? buf1t + hbstrt_offset2 : NULL;
+	uae_u32 *hbstop_ptr1 = buf1t && hbstop_offset2 >= 0 ? buf1t + hbstop_offset2 : NULL;
+	uae_u32 *hbstrt_ptr2 = buf2t && hbstrt_offset2 >= 0 ? buf2t + hbstrt_offset2 : NULL;
+	uae_u32 *hbstop_ptr2 = buf2t && hbstop_offset2 >= 0 ? buf2t + hbstop_offset2 : NULL;
 	// blank last pixel row if normal overscan mode, it might have NTSC artifacts
 	if (strlong_seen && hbstrt_ptr1) {
 		int add = 1 << hresolution;
