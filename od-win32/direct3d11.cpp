@@ -416,8 +416,9 @@ D3DGETBLOBPART pD3DGetBlobPart;
 static int isfs(struct d3d11struct *d3d)
 {
 	int fs = isfullscreen();
-	if (fs > 0 && d3d->guimode)
+	if (fs > 0 && d3d->guimode) {
 		return -1;
+	}
 	return fs;
 }
 
@@ -5270,8 +5271,16 @@ static void xD3D11_guimode(int monid, int guion)
 
 	d3d->reloadshaders = true;
 
-	if (isfullscreen() <= 0)
+	if (isfullscreen() <= 0) {
+		if (!guion && d3d->guimode) {
+			// GUI mode active but not fullscreen? Reset display.
+			xD3D11_free(d3d->num, true);
+			WIN32GFX_DisplayChangeRequested(1);
+		}
+		d3d->guimode = 0;
+		d3d->delayedfs = 0;
 		return;
+	}
 	
 	write_log(_T("fs guimode %d\n"), guion);
 	d3d->guimode = guion;
