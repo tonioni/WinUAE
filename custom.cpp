@@ -2373,9 +2373,18 @@ STATIC_INLINE int issyncstopped(uae_u16 con0)
 	return (con0 & 2) && (!currprefs.genlock || currprefs.genlock_effects);
 }
 
+static void setsyncstoppos(void)
+{
+	agnus_hpos = 0;
+	hhpos = 0;
+	linear_hpos = 0;
+	dmal_shifter = 0; // fast CPU fix
+}
+
 static void setsyncstopped(void)
 {
 	syncs_stopped = true;
+	setsyncstoppos();
 	resetfulllinestate();
 }
 
@@ -11534,10 +11543,7 @@ static void inc_cck(void)
 		}
 	}
 	if (syncs_stopped) {
-		agnus_hpos = 0;
-		hhpos = 0;
-		linear_hpos = 0;
-		dmal_shifter = 0; // fast CPU fix
+		setsyncstoppos();
 		set_fakehsync_handler();
 	} else {
 		rga_denise_cycle++;
