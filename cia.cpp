@@ -1689,7 +1689,7 @@ static void CIA_cr_write(int num, int tnum, uae_u8 val)
 	}
 
 	// clear serial port state when switching TX<>RX
-	if (num == 0 && (t->cr & 0x40) != (val & 0x040)) {
+	if (tnum == 0 && (t->cr & 0x40) != (val & 0x040)) {
 		c->sdr_cnt = 0;
 		c->sdr_load = 0;
 		c->sdr_buf = 0;
