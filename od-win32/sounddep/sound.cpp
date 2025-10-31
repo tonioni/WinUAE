@@ -2797,7 +2797,7 @@ static void handle_reset(void)
 void finish_sound_buffer (void)
 {
 	static unsigned long tframe;
-	int bufsize = (int)((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer);
+	int bufsize = addrdiff((uae_u8*)paula_sndbufpt, (uae_u8*)paula_sndbuffer);
 
 	if (sdp->reset) {
 		handle_reset();
@@ -2815,11 +2815,8 @@ void finish_sound_buffer (void)
 		else if (get_audio_nativechannels(active_sound_stereo) >= 6)
 			channelswap6((uae_s16*)paula_sndbuffer, bufsize / 2);
 	}
-#ifdef DRIVESOUND
-	driveclick_mix((uae_s16*)paula_sndbuffer, bufsize / 2, currprefs.dfxclickchannelmask);
-#endif
-	// must be after driveclick_mix
 	paula_sndbufpt = paula_sndbuffer;
+
 #ifdef AVIOUTPUT
 	if (avioutput_audio) {
 		if (AVIOutput_WriteAudio((uae_u8*)paula_sndbuffer, bufsize)) {
