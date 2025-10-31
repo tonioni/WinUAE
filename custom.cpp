@@ -6805,7 +6805,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 			sprhstrt = 0xffff;
 
 			for (int i = 0; i < 32; i++) {
-				uae_u16 c;
+				uae_u16 c = 0;
 				if (i == 0) {
 					c = ((ecs_denise && !aga_mode) || denisea1000) ? 0xfff : 0x000;
 				} else {
