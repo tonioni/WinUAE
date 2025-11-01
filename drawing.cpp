@@ -2321,6 +2321,21 @@ void freevidbuffer(int monid, struct vidbuffer *buf)
 	}
 }
 
+void denise_clearbuffers(void)
+{
+	int monid = 0;
+	struct amigadisplay *ad = &adisplays[monid];
+	struct vidbuf_description *vidinfo = &ad->gfxvidinfo;
+	if (vidinfo->outbuffer && vidinfo->outbuffer->locked) {
+		struct vidbuffer *dst = vidinfo->outbuffer;
+		uae_u8 *p = dst->bufmem;
+		for (int y = 0; y < dst->height_allocated; y++) {
+			memset (p, 0, dst->width_allocated * dst->pixbytes);
+			p += dst->rowbytes;
+		}
+	}
+}
+
 void reset_drawing(void)
 {
 	custom_end_drawing();

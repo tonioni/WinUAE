@@ -11265,6 +11265,9 @@ static void start_sync_imm_handler(void)
 
 static void vsync_nosync(void)
 {
+	if (!nosignal_trigger) {
+		denise_clearbuffers();
+	}
 	nosignal_trigger = true;
 	linear_vpos = 0;
 	vsync_handler_post();
