@@ -11277,6 +11277,9 @@ static void vsync_nosync(void)
 	vsync_display_rendered = false;
 	virtual_vsync_check();
 	uae_quit_check();
+	if (savestate_check()) {
+		uae_reset(0, 0);
+	}
 }
 
 static void custom_trigger_start_nosync(void)
