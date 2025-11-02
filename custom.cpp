@@ -259,6 +259,21 @@ static void write_drga_flag(uae_u32 flags, uae_u32 mask)
 }
 
 static uae_u32 dummyrgaaddr;
+
+static void write_rga_update(struct rgabuf *r, uae_u32 *p)
+{
+	if (p && r->p) {
+		// DMA address pointer conflict causes both old and new address to becomes old OR new.
+		r->conflict = r->p;
+		*r->p |= *p;
+		*p = *r->p;
+		r->pv |= *p;
+	} else if (p) {
+		r->p = p;
+		r->pv = *p;
+	}
+}
+
 struct rgabuf *write_rga(int slot, int type, uae_u16 v, uae_u32 *p)
 {
 	struct rgabuf *r = &rga_pipe[(slot + rga_slot_first_offset) & 3];
@@ -276,16 +291,7 @@ struct rgabuf *write_rga(int slot, int type, uae_u16 v, uae_u32 *p)
 	r->reg &= v;
 	r->type |= type;
 	r->alloc = 1;
-	if (p && r->p) {
-		// DMA address pointer conflict causes both old and new address to becomes old OR new.
-		r->conflict = r->p;
-		*r->p |= *p;
-		*p = *r->p;
-		r->pv |= *p;
-	} else if (p) {
-		r->p = p;
-		r->pv = *p;
-	}
+	write_rga_update(r, p);
 	return r;
 }
 
@@ -780,7 +786,6 @@ static evt_t display_last_hsync, display_last_vsync;
 static bool ddf_limit, ddfstrt_match, hwi_old;
 static int ddf_stopping, ddf_enable_on;
 static int bprun;
-static evt_t bprun_end;
 static int bprun_cycle;
 static bool harddis_v, harddis_h;
 
@@ -9713,14 +9718,18 @@ static void bitplane_rga_ptmod(void)
 					mod = (bpl & 1) ? bpl2mod : bpl1mod;
 				}
 			}
-			r->p = &bplpt[bpl];
-			r->pv = *r->p;
+			write_rga_update(r, &bplpt[bpl]);
 			r->bplmod = mod;
 		} else if (r->type == CYCLE_SPRITE) {
 			int num = r->sprdat & 7;
 			struct sprite *s = &spr[num];
-			r->p = &s->pt;
-			r->pv = *r->p;
+			write_rga_update(r, &s->pt);
+		} else if (r->type == (CYCLE_BITPLANE | CYCLE_SPRITE)) {
+			int num = r->sprdat & 7;
+			struct sprite *s = &spr[num];
+			int bpl = r->bpldat & 7;
+			write_rga_update(r, &s->pt);
+			write_rga_update(r, &bplpt[bpl]);
 		}
 	}
 }
@@ -9763,7 +9772,6 @@ static void bpl_dma_normal_stop(int hpos)
 #endif
 	ddf_stopping = 0;
 	bprun = 0;
-	bprun_end = get_cycles();
 	plfstrt_sprite = 0x100;
 	if (!ecs_agnus) {
 		ddf_limit = true;
@@ -10142,7 +10150,16 @@ static void generate_sprites(int num, int slot)
 		if (dmaen(DMA_SPRITE) && s->dmacycle) {
 			bool dodma = false;
 
-			if (hp <= plfstrt_sprite) {
+			// if bitplane DMA ends and last BPL1DAT slot is also sprite slot and sprite DMA is active: sprite DMA conflicts with bitplane DMA
+			bool bplconflict = false;
+			if (bprun && ddf_stopping == 2) {
+				bool last = islastbplseq();
+				if (last) {
+					bplconflict = true;
+				}
+			}
+
+			if (hp <= plfstrt_sprite || bplconflict) {
 				dodma = true;
 #ifdef AGA
 				if (dodma && s->dblscan && (fmode & 0x8000) && (vpos & 1) != (s->vstart & 1) && s->dmastate) {
@@ -10152,14 +10169,13 @@ static void generate_sprites(int num, int slot)
 				if (dodma) {
 					uae_u32 dat = CYCLE_PIPE_SPRITE | (s->dmastate ? 0x10 : 0x00) | (s->dmacycle == 1 ? 0 : 8) | num;
 					int reg = 0x140 + slot + num * 8 + (s->dmastate ? 4 : 0);
-					struct rgabuf *rga = write_rga(RGA_SLOT_BPL, CYCLE_SPRITE, reg, &s->pt);
-					if (get_cycles() == sprite_dma_change_cycle_on) {
+					struct rgabuf *rga = write_rga(RGA_SLOT_BPL, CYCLE_SPRITE, reg, NULL);
+					evt_t c = get_cycles();
+					if (c == sprite_dma_change_cycle_on) {
 						// If sprite DMA is switched on just when sprite DMA is decided, channel is still decided but it is not allocated!
 						// Blitter can use this cycle, causing a conflict.
 						rga->alloc = 0;
 						rga->conflict = &s->pt;
-					} else if (get_cycles() == bprun_end) {
-						// last bitplane cycle is available for sprites (if bitplane ends before all sprites)
 					}
 					rga->sprdat = dat;
 				}
@@ -12067,11 +12083,11 @@ static void handle_rga_out(void)
 			regs.chipset_latch_rw = sdat;
 			s->pt = r->pv;
 			done = true;
-		} else if (r->type & CYCLE_SPRITE) {
+		} else if (r->type == CYCLE_SPRITE) {
 			int num = r->sprdat & 7;
 			struct sprite *s = &spr[num];
-			*r->p += sprite_width / 8;
-			s->pt = *r->p;
+			r->pv += sprite_width / 8;
+			s->pt = r->pv;
 		}
 
 		// BPL
@@ -12115,10 +12131,23 @@ static void handle_rga_out(void)
 			}
 			bplpt[num] = r->pv;
 			done = true;
+
+			if (r->type & CYCLE_SPRITE) {
+				int num = r->sprdat & 7;
+				struct sprite *s = &spr[num];
+				s->pt = r->pv;
+			}
+
 		} else if (r->type & CYCLE_BITPLANE) {
 			int num = r->bpldat & 7;
 			r->pv += fetchmode_bytes + r->bplmod;
 			bplpt[num] = r->pv;
+
+			if (r->type & CYCLE_SPRITE) {
+				int num = r->sprdat & 7;
+				struct sprite *s = &spr[num];
+				s->pt = r->pv;
+			}
 		}
 
 		if (r->type & CYCLE_BLITTER) {
