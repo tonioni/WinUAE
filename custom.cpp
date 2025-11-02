@@ -9834,7 +9834,7 @@ static void decide_bpl(int hpos)
 	if (ecs_agnus) {
 		// ECS/AGA
 
-
+		// BPRUN latched: on
 		if (bprun < 0 && (hpos & 1)) {
 			bprun = 1;
 			bprun_cycle = 0;
@@ -9845,7 +9845,6 @@ static void decide_bpl(int hpos)
 #endif
 		}
 
-#if 0
 		// BPRUN latched: off
 		if (bprun == 3) {
 			if (ddf_stopping == 1) {
@@ -9855,21 +9854,7 @@ static void decide_bpl(int hpos)
 				}
 			}
 			bprun = 0;
-			bprun_end = hpos;
-		}
-#endif
-
-		// DDFSTRT == DDFSTOP: BPRUN gets enabled and DDF passed state in next cycle.
-		if (ddf_enable_on < 0) {
-			ddf_enable_on = 0;
-			if (bprun && !ddf_stopping) {
-				ddf_stopping = 1;
-#ifdef DEBUGGER
-				if (debug_dma) {
-					record_dma_event_agnus(AGNUS_EVENT_BPRUN2, true);
-				}
-#endif
-			}
+			plfstrt_sprite = 0x100;
 		}
 
 		// Hard start limit
@@ -9877,20 +9862,12 @@ static void decide_bpl(int hpos)
 			ddf_limit = false;
 		}
 
-		// DDFSTRT
-		if (hpos == ddfstrt) {
-			ddf_enable_on = 1;
-			if (currprefs.gfx_scandoubler && linear_vpos < MAX_SCANDOUBLED_LINES) {
-				update_bpl_scandoubler();
-			}
-		}
-
 		// Hard stop limit
 		if (hpos == (0xd7 + 0)) {
 			// Triggers DDFSTOP condition if hard limits are not disabled.
-			ddf_limit = true;
-			if (bprun && !ddf_stopping) {
-				if (!harddis_h) {
+			if (!harddis_h) {
+				ddf_limit = true;
+				if (bprun && !ddf_stopping) {
 					ddf_stopping = 1;
 #ifdef DEBUGGER
 					if (debug_dma) {
@@ -9901,30 +9878,54 @@ static void decide_bpl(int hpos)
 			}
 		}
 
-		// DDFSTOP
-		// Triggers DDFSTOP condition.
-		// Clears DDF allowed flag.
-		if (hpos == (ddfstop | 0)) {
-			if (bprun && !ddf_stopping) {
+		if (hpos == ddfstrt && hpos == ddfstop) {
+
+			// DDFSTRT == DDFSTOP
+			if (bprun && ddf_enable_on) {
 				ddf_stopping = 1;
+				if (currprefs.gfx_scandoubler && linear_vpos < MAX_SCANDOUBLED_LINES) {
+					update_bpl_scandoubler();
+				}
 #ifdef DEBUGGER
 				if (debug_dma) {
 					record_dma_event_agnus(AGNUS_EVENT_BPRUN2, true);
 				}
 #endif
 			}
-			if (ddfstop != ddfstrt) {
-				if (ddf_enable_on) {
-					ddf_enable_on = -1;
-				} else {
-					ddf_enable_on = 0;
+			ddf_enable_on = 1;
+			if (!bprun) {
+				hwi_old = 0;
+			}
+
+		} else {
+
+			// DDFSTRT
+			if (hpos == ddfstrt) {
+				ddf_enable_on = 1;
+				if (currprefs.gfx_scandoubler && linear_vpos < MAX_SCANDOUBLED_LINES) {
+					update_bpl_scandoubler();
+				}
+			}
+
+			// DDFSTOP
+			// Triggers DDFSTOP condition.
+			// Clears DDF allowed flag.
+			if (hpos == ddfstop) {
+				ddf_enable_on = 0;
+				if (bprun && !ddf_stopping) {
+					ddf_stopping = 1;
+#ifdef DEBUGGER
+					if (debug_dma) {
+						record_dma_event_agnus(AGNUS_EVENT_BPRUN2, true);
+					}
+#endif
 				}
 			}
 		}
 
 		// BPRUN can only start if DMA, DIW or DDF state has changed since last time
 		if (!(hpos & 1)) {
-			bool hwi = dma && diw && ddf_enable_on > 0 && (!ddf_limit || harddis_h);
+			bool hwi = dma && diw && ddf_enable_on && (!ddf_limit || harddis_h);
 			if (!bprun && dma && diw && hwi && !hwi_old) {
 				// Bitplane sequencer activated
 				bprun = -1;
@@ -9942,7 +9943,7 @@ static void decide_bpl(int hpos)
 		}
 
 		if (bprun == 2) {
-			bprun = 0;
+			bprun = 3;
 			// If DDF has passed, jumps to last step.
 			// (For example Scoopex Crash landing crack intro)
 			if (ddf_stopping == 1) {
@@ -10006,14 +10007,6 @@ static void decide_bpl(int hpos)
 			}
 #endif
 		}
-#if 0
-		// BPRUN latched: off
-		if (bprun == 3) {
-			bprun = 0;
-			bprun_end = hpos;
-			plfstrt_sprite = 0x100;
-		}
-#endif
 
 		// Hard start limit
 		if (hpos == 0x18) {
