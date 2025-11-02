@@ -21645,20 +21645,22 @@ static void enable_for_avioutputdlg (HWND hDlg)
 	ew (hDlg, IDC_STATEREC_RATE, !input_record && full_property_sheet ? TRUE : FALSE);
 	ew (hDlg, IDC_STATEREC_BUFFERSIZE, !input_record && full_property_sheet ? TRUE : FALSE);
 
+	tmp[0] = 0;
 	if (avioutput_audio == AVIAUDIO_WAV) {
 		_tcscpy (tmp, _T("Wave (internal)"));
 	} else {
 		avioutput_audio = AVIOutput_GetAudioCodec (tmp, sizeof tmp / sizeof (TCHAR));
 	}
-	if(!avioutput_audio) {
+	if (!avioutput_audio) {
 		CheckDlgButton (hDlg, IDC_AVIOUTPUT_AUDIO, BST_UNCHECKED);
 		WIN32GUI_LoadUIString (IDS_AVIOUTPUT_NOCODEC, tmp, sizeof tmp / sizeof (TCHAR));
 	}
 	SetWindowText (GetDlgItem (hDlg, IDC_AVIOUTPUT_AUDIO_STATIC), tmp);
 
+	tmp[0] = 0;
 	if (avioutput_audio != AVIAUDIO_WAV)
 		avioutput_video = AVIOutput_GetVideoCodec (tmp, sizeof tmp / sizeof (TCHAR));
-	if(!avioutput_video) {
+	if (!avioutput_video) {
 		CheckDlgButton (hDlg, IDC_AVIOUTPUT_VIDEO, BST_UNCHECKED);
 		WIN32GUI_LoadUIString (IDS_AVIOUTPUT_NOCODEC, tmp, sizeof tmp / sizeof (TCHAR));
 	}

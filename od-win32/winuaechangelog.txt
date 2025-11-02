@@ -1,4 +1,17 @@
 
+Beta 5
+
+- KS ROM genlock detection still could misdetect genlock in JIT mode causing guru when timer.device attempts TOD calibration and causing non-existing 80000000 guru due to a KS bug (At least KS 3.1, perhaps others too). (6.0)
+- Fixed bad drive click code, was semi-broken since the beginning. Sound buffer size affected click sound quality and possibly clicks were missed completely. For some reason some WASAPI devices seem to play empty drive clicks with very low volume and also sometimes play motor sample + clicks strangely (samples are exact same and even volume is same), maybe some noise filter or something done by driver or something?
+- Visual DMA debugger now defaults again to Agnus lines, line zero at top. vv-x can be used to show virtual line at top, first line after vsync. Also previously it could have shown random bogus lines at the top or bottom.
+- 6.0b1 "If CIA serial port data direction is changed (CRA OUTMODE toggled), serial port state is reset, possible pending transmit or receive is immediately aborted." checked CIA-A vs CIA-B instead of checking if modified control register was A or B. Most likely didn't cause any side-effects, at least with any normal programs.
+- Chipset display is now cleared when entering genlock mode without genlock (hsync and vsync stops). Previously last frame was shown until no sync condition ended.
+- Trying to load a statefile when in genlock no sync condition didn't do anything.
+- ECS/AGA bitplane enable/disable fix when DDFSTRT==DDFSTOP. It always starts bitplane DMA but "ddfstop passed" condition depends on previous state of bitplane logic. Previously it always triggered "ddfstop passed".
+- Some ECS/AGA bitplane sequencer mid scanline DMA on/off logic changes, was lost during v5 to v6 update.
+- If bitplane DMA last BPL1DAT is also sprite slot and sprite is active: sprite and bitplane DMA conflicts. This was emulated in v5 but was lost during v6 update.
+- AVI capture before filtering had swapped color components (6.0)
+
 Beta 4:
 
 - OCS/ECS "7-planes" mode didn't enable EHB. (6.0)
