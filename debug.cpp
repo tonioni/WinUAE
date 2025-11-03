@@ -7656,7 +7656,6 @@ void debug (void)
 	if (savestate_state || quit_program)
 		return;
 
-	bogusframe = 1;
 	disasm_init();
 	addhistory ();
 
@@ -7891,6 +7890,7 @@ void debug (void)
 	last_vpos1 = vpos;
 	last_hpos1 = current_hpos();
 	last_frame = timeframes;
+	bogusframe = 1;
 }
 
 const TCHAR *debuginfo (int mode)
