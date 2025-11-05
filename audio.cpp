@@ -2596,7 +2596,7 @@ void AUDxDAT(int nr, uae_u16 v, uaecptr addr)
 	if (!currprefs.cachesize && (cdp->per < PERIOD_LOW * CYCLE_UNIT || currprefs.cpu_compatible)) {
 		int cyc = 0;
 		if (chan_ena) {
-			// AUDxLEN is processed after 1 CCK delay
+			// AUDxDAT is processed after 1 CCK delay
 			cyc = 1 * CYCLE_UNIT;
 			if ((cdp->state & 15) == 2 || (cdp->state & 15) == 3) {
 				// But INTREQ2 is set immediately
