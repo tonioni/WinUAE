@@ -9,7 +9,7 @@
 
 #include <process.h>
 
-static int userdtsc = 0;
+static int usedtimermode = 0;
 static int qpcdivisor = 0;
 static SYSTEM_INFO si;
 
@@ -25,6 +25,12 @@ static frame_time_t read_processor_time_qpf(void)
 	if (!t)
 		t++;
 	return t;
+}
+
+static frame_time_t read_processor_time_tickcount(void)
+{
+	frame_time_t v = (frame_time_t)GetTickCount64();
+	return v;
 }
 
 uae_s64 read_processor_time_rdtsc(void)
@@ -48,10 +54,13 @@ uae_time_t uae_time(void)
 		cnt = 0;
 	}
 #endif
-	if (userdtsc)
+	if (usedtimermode == 1) {
 		t = read_processor_time_rdtsc();
-	else
+	} else if (usedtimermode == 0) {
 		t = read_processor_time_qpf();
+	} else {
+		t = read_processor_time_tickcount();
+	}
 	return t;
 }
 
@@ -85,6 +94,12 @@ static uae_s64 win32_read_processor_time(void)
 #endif
 }
 
+static void figure_processor_speed_tickcount(void)
+{
+	syncbase = 1000;
+	write_log(_T("CLOCKFREQ: TC %.4fMHz\n"), syncbase / 10000000.0);
+}
+
 static void figure_processor_speed_rdtsc(void)
 {
 	static int freqset;
@@ -106,7 +121,7 @@ static void figure_processor_speed_rdtsc(void)
 	clockrate = (win32_read_processor_time() - clockrate) * 2;
 	dummythread_die = 0;
 	SetThreadPriority(th, oldpri);
-	write_log(_T("CLOCKFREQ: RDTSC %.2fMHz\n"), clockrate / 1000000.0);
+	write_log(_T("CLOCKFREQ: RDTSC %.4fMHz\n"), clockrate / 1000000.0);
 	syncbase = clockrate >> 6;
 }
 
@@ -128,7 +143,7 @@ static void figure_processor_speed_qpf(void)
 		qpfrate >>= 1;
 		qpcdivisor++;
 	}
-	write_log(_T("CLOCKFREQ: QPF %.2fMHz (%.2fMHz, DIV=%d)\n"),
+	write_log(_T("CLOCKFREQ: QPF %.4fMHz (%.2fMHz, DIV=%d)\n"),
 		  freq.QuadPart / 1000000.0,
 		  qpfrate / 1000000.0, 1 << qpcdivisor);
 	syncbase = qpfrate;
@@ -136,17 +151,18 @@ static void figure_processor_speed_qpf(void)
 
 void uae_time_calibrate(void)
 {
-	if (userdtsc) {
+	if (usedtimermode == 1) {
 		figure_processor_speed_rdtsc();
-	}
-	if (!userdtsc) {
+	} if (usedtimermode == 0) {
 		figure_processor_speed_qpf();
+	} else {
+		figure_processor_speed_tickcount();
 	}
 }
 
-void uae_time_use_rdtsc(bool enable)
+void uae_time_use_mode(int mode)
 {
-	userdtsc = enable;
+	usedtimermode = mode;
 }
 
 #elif defined(USE_GLIB)

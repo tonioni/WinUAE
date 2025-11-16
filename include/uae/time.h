@@ -11,7 +11,7 @@ void uae_time_calibrate(void);
 uae_time_t uae_time(void);
 
 #ifdef _WIN32
-void uae_time_use_rdtsc(bool enable);
+void uae_time_use_mode(int mode);
 uae_s64 read_system_time(void);
 uae_s64 read_processor_time_rdtsc(void);
 #endif

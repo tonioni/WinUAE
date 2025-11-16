@@ -6886,7 +6886,11 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("forcerdtsc"))) {
-		uae_time_use_rdtsc(true);
+		uae_time_use_mode(1);
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("forcetickcount"))) {
+		uae_time_use_mode(2);
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("ddsoftwarecolorkey"))) {
