@@ -6075,7 +6075,7 @@ static void saveloadmem (TCHAR **cc, bool save)
 		}
 		if (len == 0)
 			console_out_f (_T("Wrote %08X - %08X (%d bytes) to '%s'.\n"),
-				src2, src2 + len2, len2, name);
+				src2, src2 + len2 - 1, len2, name);
 	} else {
 		len2 = 0;
 		while (len != 0) {
@@ -6093,7 +6093,7 @@ static void saveloadmem (TCHAR **cc, bool save)
 		}
 		if (len == 0)
 			console_out_f (_T("Read %08X - %08X (%d bytes) to '%s'.\n"),
-				src2, src2 + len2, len2, name);
+				src2, src2 + len2 - 1, len2, name);
 	}
 	fclose (fp);
 	return;
