@@ -10497,7 +10497,9 @@ static void check_vsyncs(void)
 
 	if ((agnusa1000 && vpos == 0) || (!agnusa1000 && vpos == maxvpos + lof_store - 1)) {
 		agnus_bsvb = true;
-		agnus_vb = 2;
+		if (!agnus_vb) {
+			agnus_vb = 2;
+		}
 		agnus_vb_start_line = true;
 		update_agnus_vb();
 	}
@@ -11846,18 +11848,6 @@ static void check_hsyncs_hardwired(void)
 			}
 		}
 	}
-
-	if (hp == 2) {
-		if (agnus_vb > 1) {
-			agnus_vb--;
-			update_agnus_vb();
-#ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_event_agnus(AGNUS_EVENT_HW_VB, true);
-			}
-#endif
-		}
-	}
 }
 
 static void check_hsyncs_programmed(void)
@@ -11964,6 +11954,17 @@ static void check_hsyncs_programmed(void)
 static void check_hsyncs(void)
 {
 	int hp = agnus_hpos;
+
+	// agnus_vb 1 CCK delay
+	if (agnus_vb > 1) {
+		agnus_vb--;
+		update_agnus_vb();
+#ifdef DEBUGGER
+		if (debug_dma) {
+			record_dma_event_agnus(AGNUS_EVENT_HW_VB, true);
+		}
+#endif
+	}
 
 	if (hp < HW_HPOS_TABLE_MAX && hw_hpos_table[hp]) {
 		check_hsyncs_hardwired();
