@@ -11977,6 +11977,21 @@ static void check_hsyncs(void)
 	}
 }
 
+static void addmodfm(uae_u32 *addr, int add, int mod, int fm)
+{
+	uae_u32 pt = *addr;
+	if (fm == 1 || fm == 2) {
+		uae_u32 t = (pt & ~3) + add + mod;
+		pt = (t & ~3) | (t & 3);
+	} else if (fm == 3) {
+		uae_u32 t = (pt & ~7) + add + mod;
+		pt = (t & ~7) | (t & 7);
+	} else {
+		pt += add + mod;
+	}
+	*addr = pt;
+}
+
 static void handle_rga_out(void)
 {
 	if (dmal_next) {
@@ -12071,7 +12086,7 @@ static void handle_rga_out(void)
 					write_drga_dat_spr(r->reg, pt, dat << 16);
 				}
 				sdat = dat;
-			} else if (fetchmode_fmode_spr == 1) {
+			} else if (fetchmode_fmode_spr < 3) {
 				uae_u32 dat = fetch32_spr(r);
 				sdat = dat >> 16;
 				if (!dmastate) {
@@ -12097,7 +12112,7 @@ static void handle_rga_out(void)
 				}
 			}
 			if (!disinc) {
-				r->pv += sprite_width / 8;
+				addmodfm(&r->pv, sprite_width / 8, 0, fetchmode_fmode_spr);
 			}
 			regs.chipset_latch_rw = sdat;
 			s->pt = r->pv;
@@ -12105,7 +12120,7 @@ static void handle_rga_out(void)
 		} else if (r->type == CYCLE_SPRITE) {
 			int num = r->sprdat & 7;
 			struct sprite *s = &spr[num];
-			r->pv += sprite_width / 8;
+			addmodfm(&r->pv, sprite_width / 8, 0, fetchmode_fmode_spr);
 			s->pt = r->pv;
 		}
 
@@ -12135,7 +12150,7 @@ static void handle_rga_out(void)
 					uae_u32 dat = fetch16(r);
 					write_drga_dat_bpl16(r->reg, pt, dat, num);
 					regs.chipset_latch_rw = (uae_u16)dat;
-				} else if (fetchmode_fmode_bpl == 1) {
+				} else if (fetchmode_fmode_bpl < 3) {
 					uae_u32 dat = fetch32_bpl(r);
 					write_drga_dat_bpl32(r->reg, pt, dat, num);
 					regs.chipset_latch_rw = (uae_u16)dat;
@@ -12146,7 +12161,7 @@ static void handle_rga_out(void)
 				}
 			}
 			if (!disinc) {
-				r->pv += fetchmode_bytes + r->bplmod;
+				addmodfm(&r->pv, fetchmode_bytes, r->bplmod, fetchmode_fmode_bpl);
 			}
 			bplpt[num] = r->pv;
 			done = true;
@@ -12159,7 +12174,7 @@ static void handle_rga_out(void)
 
 		} else if (r->type & CYCLE_BITPLANE) {
 			int num = r->bpldat & 7;
-			r->pv += fetchmode_bytes + r->bplmod;
+			addmodfm(&r->pv, fetchmode_bytes, r->bplmod, fetchmode_fmode_bpl);
 			bplpt[num] = r->pv;
 
 			if (r->type & CYCLE_SPRITE) {
