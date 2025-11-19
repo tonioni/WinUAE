@@ -1035,7 +1035,6 @@ static void create_cycle_diagram_table(void)
 
 	// hardwired horizontal positions
 	hw_hpos_table[1] = true;
-	hw_hpos_table[2] = true;
 	hw_hpos_table[9] = true;
 	hw_hpos_table[18] = true;
 	hw_hpos_table[35] = true;
