@@ -5580,7 +5580,7 @@ static void hsync_handler_pre(bool onvsync)
 
 		if (!lightpen_triggered && (bplcon0 & 8)) {
 			// lightpen always triggers at the beginning of the last line
-			if (agnus_pvb_start_line) {
+			if (agnus_vb_start_line) {
 				vpos_lpen = vpos;
 				hpos_lpen = 1;
 				hhpos_lpen = HHPOSR();
