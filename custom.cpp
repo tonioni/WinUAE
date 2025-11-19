@@ -602,7 +602,7 @@ static struct chipset_refresh *stored_chipset_refresh;
 int doublescan;
 int programmedmode;
 frame_time_t syncbase;
-static int fmode_saved, fmode;
+static int fmode_saved, fmode, fmode_inuse;
 uae_u16 beamcon0, new_beamcon0;
 static bool beamcon0_dual, beamcon0_pal;
 uae_u16 bemcon0_hsync_mask, bemcon0_vsync_mask;
@@ -1056,6 +1056,26 @@ static const uae_u8 bpl_sequence_2[32] = { 2, 1 };
 static const uae_u8 *bpl_sequence;
 
 /* set currently active Agnus bitplane DMA sequence */
+static void setup_fmodes_delayed(uae_u32 fm)
+{
+	int fmm = 0;
+	switch (fm & 3)
+	{
+		case 0:
+			fmm = 0;
+			break;
+		case 1:
+		case 2:
+			fmm = 1;
+			break;
+		case 3:
+			fmm = 2;
+			break;
+	}
+	fetchmode_bytes = 2 << fmm;
+	fetchmode_fmode_bpl = fm & 3;
+	fetchmode_fmode_spr = (fm >> 2) & 3;
+}
 static void setup_fmodes(uae_u16 con0)
 {
 	switch (fmode & 3)
@@ -1093,18 +1113,20 @@ static void setup_fmodes(uae_u16 con0)
 		bpl_sequence = bpl_sequence_2;
 		break;
 	}
-	fetchmode_size = 16 << fetchmode;
-	fetchmode_bytes = 2 << fetchmode;
-	fetchmode_mask = fetchmode_size - 1;
-	fetchmode_fmode_bpl = fmode & 3;
-	fetchmode_fmode_spr = (fmode >> 2) & 3;
 	curr_diagram = cycle_diagram_table[fetchmode][bplcon0_res][bplcon0_planes_limit];
+	if (fmode_inuse != fmode) {
+		fetchmode_size = 16 << fetchmode;
+		fetchmode_mask = fetchmode_size - 1;
+		// Fetch mode/modulo change is delayed by 2 CCK
+		event2_newevent_xx(-1, 2 * CYCLE_UNIT, fmode, setup_fmodes_delayed);
+	}
+	fmode_inuse = fmode;
 }
-
 
 static void set_chipset_mode(bool imm)
 {
 	fmode = fmode_saved;
+	fmode_inuse = -1;
 	bplcon0 = bplcon0_saved;
 	bplcon1 = bplcon1_saved;
 	bplcon2 = bplcon2_saved;
@@ -1170,6 +1192,7 @@ static void set_chipset_mode(bool imm)
 	if (imm || fmode != fmode_saved) {
 		denise_update_reg_queue(0x1fc, fmode, rga_denise_cycle_line);
 		setup_fmodes(bplcon0);
+		setup_fmodes_delayed(bplcon0);
 	}
 }
 
@@ -6887,6 +6910,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		CLXCON(0);
 		CLXCON2(0);
 		setup_fmodes(bplcon0);
+		setup_fmodes_delayed(bplcon0);
 		beamcon0 = new_beamcon0 = beamcon0_saved = currprefs.ntscmode ? 0x00 : BEAMCON0_PAL;
 		blt_info.blit_main = 0;
 		blt_info.blit_pending = 0;
@@ -6973,6 +6997,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		BPLCON0(v);
 		FMODE(fmode);
 		setup_fmodes(bplcon0);
+		setup_fmodes_delayed(bplcon0);
 		if (!aga_mode) {
 			for(int i = 0 ; i < 32 ; i++)  {
 				vv = denise_colors.color_regs_ecs[i];
@@ -7026,6 +7051,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 
 	sprite_width = GET_SPRITEWIDTH(fmode);
 	setup_fmodes(bplcon0);
+	setup_fmodes_delayed(bplcon0);
 	setmaxhpos();
 	resetfulllinestate();
 	updateprghpostable();
@@ -7953,6 +7979,8 @@ uae_u8 *restore_custom(uae_u8 *src)
 	ddfstrt_saved = ddfstrt;
 	ddfstop_saved = ddfstop;
 	diwhigh_saved = diwhigh;
+	fmode_inuse = -1;
+
 	ddfstrt_val = ddfstrt | 1;
 	ddfstrt_val_old = ddfstrt_val;
 	ddfstrt_cycle = 0;
