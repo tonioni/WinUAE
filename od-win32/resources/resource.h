@@ -486,6 +486,7 @@
 #define IDC_MEMORYMEM                   1028
 #define IDC_PORT0_JOYSMODE              1029
 #define IDC_SCREENMODE_NATIVE2          1029
+#define IDC_CPUSLOTMEM                  1029
 #define IDC_SLOWMEM                     1030
 #define IDC_PORT1_JOYSMODE              1030
 #define IDC_SCREENMODE_RTG2             1030
@@ -507,6 +508,7 @@
 #define IDC_CHIPRAM                     1045
 #define IDC_SLOWRAM                     1046
 #define IDC_Z3TEXT                      1047
+#define IDC_CPUSLOTRAM                  1047
 #define IDC_Z3FASTRAM                   1048
 #define IDC_Z3FASTMEM                   1049
 #define IDC_MEMORYRAM                   1050
