@@ -71,12 +71,10 @@ static uae_u8 *xlinebuffer_genlock_start, *xlinebuffer_genlock_end;
 
 static int *amiga2aspect_line_map, *native2amiga_line_map;
 static int native2amiga_line_map_height;
-static uae_u8 **row_map;
 static uae_u8 *row_map_genlock_buffer;
 static uae_u8 row_tmp8[MAX_PIXELS_PER_LINE * 32 / 8];
 static uae_u8 row_tmp8g[MAX_PIXELS_PER_LINE * 32 / 8];
 static int max_drawn_amiga_line;
-uae_u8 **row_map_genlock;
 uae_u8 *row_map_color_burst_buffer;
 
 static uae_sem_t write_sem, read_sem;
@@ -206,18 +204,6 @@ static void read_denise_line_queue(void)
 			write_log("read_denise_line_queue: queue lock was released during draw!\n");
 		}
 	}
-
-#if 0
-	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
-	struct vidbuffer *vb = vidinfo->inbuffer;
-	if (!vb->locked || !vb->bufmem || row_map[0] == NULL) {
-		write_log("read_denise_line_queue: buffer cleared!\n");
-	}
-	for (int i = 0; i < vb->inheight; i++) {
-		uae_u8 *p = row_map[i];
-		*p = 0x12;
-	}
-#endif
 
 	atomic_inc(&rga_queue_read);
 
@@ -1286,23 +1272,15 @@ void init_row_map(void)
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	struct vidbuffer *vb = vidinfo->inbuffer;
 	static uae_u8 *oldbufmem;
-	static struct vidbuffer *oldvb;
 	static int oldheight_alloc, oldheight, oldpitch;
 	static bool oldgenlock, oldburst;
-	int i, j;
 
 	if (vb->height_allocated > max_uae_height) {
 		write_log(_T("Resolution too high, aborting\n"));
 		abort();
 	}
-	if (!row_map) {
-		row_map = xmalloc(uae_u8 *, max_uae_height + 1);
-		row_map_genlock = xmalloc(uae_u8 *, max_uae_height + 1);
-	}
 
-	if (oldbufmem && oldbufmem == vb->bufmem &&
-		oldvb == vb &&
-		oldheight_alloc == vb->height_allocated &&
+	if (oldheight_alloc == vb->height_allocated &&
 		oldheight == vb->outheight &&
 		oldpitch == vb->rowbytes &&
 		oldgenlock == init_genlock_data &&
@@ -1319,25 +1297,6 @@ void init_row_map(void)
 	if (currprefs.cs_color_burst) {
 		row_map_color_burst_buffer = xcalloc(uae_u8, vb->height_allocated + 2);
 	}
-	for (i = 0, j = 0; i < vb->height_allocated; i++, j += vb->rowbytes) {
-		if (i < vb->outheight) {
-			row_map[i] = vb->bufmem + j;
-		} else {
-			row_map[i] = row_tmp8;
-		}
-		if (init_genlock_data) {
-			row_map_genlock[i] = row_map_genlock_buffer + vb->width_allocated * (i + 1);
-		} else {
-			row_map_genlock[i] = NULL;
-		}
-	}
-	while (i < max_uae_height + 1) {
-		row_map[i] = row_tmp8;
-		row_map_genlock[i] = row_tmp8g;
-		i++;
-	}
-	oldvb = vb;
-	oldbufmem = vb->bufmem;
 	oldheight_alloc = vb->height_allocated;
 	oldheight = vb->outheight;
 	oldpitch = vb->rowbytes;
@@ -1733,25 +1692,60 @@ void putpixel(uae_u8 *buf, uae_u8 *genlockbuf, int x, xcolnr c8)
 	*p = c8;
 }
 
+static uae_u8 *get_row(int monid, int line)
+{
+	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
+	// Surface allocation may be still pending due to resolution change, make sure current size is large enough
+	if (!vidinfo->inbuffer || line < 0 || line >= vidinfo->inbuffer->height_allocated) {
+		return row_tmp8;
+	}
+	if (vidinfo->inbuffer->outwidth > vidinfo->inbuffer->width_allocated) {
+		return row_tmp8;
+	}
+	if (vidinfo->inbuffer->outheight > vidinfo->inbuffer->height_allocated) {
+		return row_tmp8;
+	}
+	uae_u8 *p = vidinfo->inbuffer->bufmem + line * vidinfo->inbuffer->rowbytes;
+	return p;
+}
+uae_u8 *get_row_genlock(int monid, int line)
+{
+	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
+
+	if (!row_map_genlock_buffer) {
+		return NULL;
+	}
+	if (!vidinfo->inbuffer || line < 0 || line >= vidinfo->inbuffer->height_allocated) {
+		return row_tmp8g;
+	}
+	if (vidinfo->inbuffer->outwidth > vidinfo->inbuffer->width_allocated) {
+		return row_tmp8g;
+	}
+	if (vidinfo->inbuffer->outheight > vidinfo->inbuffer->height_allocated) {
+		return row_tmp8g;
+	}
+	return row_map_genlock_buffer + vidinfo->inbuffer->width_allocated * (line + 1);
+}
+
 static void setxlinebuffer(int monid, int line)
 {
 	struct vidbuf_description* vidinfo = &adisplays[monid].gfxvidinfo;
 
 	line += thisframe_y_adjust_real;
 	if (line < 0 || line >= max_uae_height) {
-		xlinebuffer = row_map[max_uae_height - 1];
+		xlinebuffer = get_row(monid, -1);
 		xlinebuffer_genlock = NULL;
 
 		xlinebuffer_start = xlinebuffer;
 		xlinebuffer_end = xlinebuffer + (vidinfo->inbuffer->outwidth * sizeof(uae_u32));
 
 	} else {
-		xlinebuffer = row_map[line];
+		xlinebuffer = get_row(monid, line);
 
 		xlinebuffer_start = xlinebuffer;
 		xlinebuffer_end = xlinebuffer + (vidinfo->inbuffer->outwidth * sizeof(uae_u32));
 
-		xlinebuffer_genlock = row_map_genlock[line];
+		xlinebuffer_genlock = get_row_genlock(monid, line);
 		if (xlinebuffer_genlock) {
 			xlinebuffer_genlock_start = xlinebuffer_genlock;
 			xlinebuffer_genlock_end = xlinebuffer_genlock + (vidinfo->inbuffer->outwidth);
@@ -1766,8 +1760,8 @@ static uae_u8 *status_line_ptr(int monid, int line)
 	int y;
 
 	y = line - (vidinfo->inbuffer->outheight - TD_TOTAL_HEIGHT);
-	xlinebuffer = row_map[line];
-	xlinebuffer_genlock = row_map_genlock[line];
+	xlinebuffer = get_row(monid, line);
+	xlinebuffer_genlock = get_row_genlock(monid, line);
 	return xlinebuffer;
 }
 
@@ -1786,8 +1780,8 @@ static void draw_status_line(int monid, int line, int statusy)
 static void draw_debug_status_line(int monid, int line)
 {
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
-	xlinebuffer = row_map[line];
-	xlinebuffer_genlock = row_map_genlock[line];
+	xlinebuffer = get_row(monid, line);
+	xlinebuffer_genlock = get_row_genlock(monid, line);
 #ifdef DEBUGGER
 	debug_draw(xlinebuffer, xlinebuffer_genlock, line, vidinfo->inbuffer->outwidth, vidinfo->inbuffer->outheight, xredcolors, xgreencolors, xbluecolors);
 #endif
@@ -5391,9 +5385,9 @@ static void lts_null(void)
 	}
 }
 
-static void get_line(int gfx_ypos, enum nln_how how, int lol_shift_prev)
+static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_prev)
 {
-	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
+	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
 	struct vidbuffer *vb = vidinfo->inbuffer;
 	int eraselines = 0;
 	int yadjust = currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA ? minfirstline_linear << currprefs.gfx_vresolution : 0;
@@ -5416,7 +5410,7 @@ static void get_line(int gfx_ypos, enum nln_how how, int lol_shift_prev)
 		struct vidbuf_description* vidinfo = &adisplays[0].gfxvidinfo;
 		int l = 0;
 		while (l < vb->inheight) {
-			uae_u8* b = row_map[l];
+			uae_u8* b = get_row(monid, l);
 			memset(b, 0, vb->inwidth * vb->pixbytes);
 			l++;
 		}
@@ -5713,12 +5707,8 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		buf2 = debug_buf;
 	}
 
-	if (!row_map) {
-		return;
-	}
-
 	if (startcycle == 0) {
-		get_line(gfx_ypos, how, denise_lol_shift_prev);
+		get_line(0, gfx_ypos, how, denise_lol_shift_prev);
 
 		//write_log("# %d %d\n", gfx_ypos, vpos);
 
@@ -6788,7 +6778,7 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 		set_strlong();
 	}
 
-	get_line(gfx_ypos, how, ls->lol_shift_prev);
+	get_line(0, gfx_ypos, how, ls->lol_shift_prev);
 
 	if (!buf1 && !ls->blankedline && denise_planes > 0) {
 		resolution_count[denise_res]++;
@@ -6887,7 +6877,7 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 		set_strlong();
 	}
 
-	get_line(gfx_ypos, how, ls->lol_shift_prev);
+	get_line(0, gfx_ypos, how, ls->lol_shift_prev);
 	
 	//write_log("* %d %d\n", gfx_ypos, vpos);
 

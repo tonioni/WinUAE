@@ -29,11 +29,10 @@ int screenshot_clipmode = 0;
 int screenshot_multi = 0;
 
 extern bool need_genlock_data;
-extern uae_u8 **row_map_genlock;
 
 static bool usealpha(void)
 {
-	return need_genlock_data != 0 && row_map_genlock && currprefs.genlock_image && currprefs.genlock_alpha;
+	return need_genlock_data != 0 && get_row_genlock(0, 0) && currprefs.genlock_image && currprefs.genlock_alpha;
 }
 
 static void namesplit (TCHAR *s)

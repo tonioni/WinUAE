@@ -38,6 +38,7 @@ Copyright(c) 2001 - 2002; §ane
 #include "zfile.h"
 #include "savestate.h"
 #include "gfxboard.h"
+#include "drawing.h"
 
 void WIN32GUI_LoadUIString(DWORD id, TCHAR *string, DWORD dwStringLen);
 
@@ -132,11 +133,10 @@ static LPBITMAPINFOHEADER lpbi;
 static PCOMPVARS pcompvars;
 
 extern bool need_genlock_data;
-extern uae_u8 **row_map_genlock;
 
 static bool usealpha(void)
 {
-	return need_genlock_data != 0 && row_map_genlock && currprefs.genlock_image && currprefs.genlock_alpha;
+	return need_genlock_data != 0 && get_row_genlock(0, 0) && currprefs.genlock_image && currprefs.genlock_alpha;
 }
 
 void avi_message (const TCHAR *format,...)
