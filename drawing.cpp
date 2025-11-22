@@ -426,6 +426,7 @@ struct color_entry denise_colors;
 static bool bpl1dat_trigger, bpl1dat_copy;
 static uae_u32 bordercolor, bordercolor_ecs_shres;
 static int sprites_hidden, sprites_hidden2, sprite_hidden_mask;
+static uae_u32 sprite_pixdata;
 static bool bordersprite, borderblank, bordertrans;
 static bool bpldat_copy[2];
 static int denise_planes, denise_max_planes;
@@ -3314,7 +3315,7 @@ static void expand_colmask(void)
 			uae_u8 m = i & clxcon_bpl_enable;
 			uae_u8 odd = m & 0x55;
 			uae_u8 even = m & 0xaa;
-			if (((odd && even) && m == (clxcon_bpl_enable2 & clxcon_bpl_match2)) || bplalwayson) {
+			if (m == (clxcon_bpl_enable2 & clxcon_bpl_match2) || bplalwayson) {
 				bplcoltable[i] = 0x0001;
 			} else {
 				bplcoltable[i] = 0x0000;
@@ -3439,6 +3440,7 @@ void denise_reset(bool hard)
 	debug_special_csync = currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA + 2;
 	denise_csync_blanken = false;
 	aga_delayed_color_idx = -1;
+	sprite_pixdata = 0;
 	for (int i = 0; i < 256; i++) {
 		uae_u16 v = 0;
 		if (i & (0x01 | 0x02)) { // 0/1
@@ -4239,7 +4241,7 @@ static uae_u32 decode_pixel(uint8_t pix)
 	}
 }
 
-static uae_u8 denise_render_sprites2(uae_u8 apixel, uae_u32 vs)
+static void denise_collide_sprites(uae_u8 apixel, uae_u32 vs)
 {
 	uae_u8 c = vs >> 16;
 	uae_u16 v = (uae_u16)vs;
@@ -4264,6 +4266,15 @@ static uae_u8 denise_render_sprites2(uae_u8 apixel, uae_u32 vs)
 				}
 			}
 		}
+	}
+}
+
+static uae_u8 denise_render_sprites2(uae_u8 apixel, uae_u32 vs)
+{
+	uae_u8 c = vs >> 16;
+	uae_u16 v = (uae_u16)vs;
+	if (currprefs.collision_level) {
+		denise_collide_sprites(apixel, vs);
 	}
 	int *shift_lookup = bpldualpf ? (bpldualpfpri ? dblpf_ms2 : dblpf_ms1) : dblpf_ms;
 	int maskshift, plfmask;
@@ -4674,6 +4685,10 @@ static void do_hstrt_ecs(int cnt)
 		sprites_hidden = sprites_hidden2;
 		last_bpl_pix = 0;
 		setlasthamcolor();
+		if (sprite_pixdata) {
+			// sprite can collide with zero bitplane under the border. OCS/ECS only.
+			denise_collide_sprites(0, sprite_pixdata);
+		}
 	}
 	hstrt_offset = internal_pixel_cnt;
 	denise_hdiw = true;
@@ -6467,10 +6482,14 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 
 		// sprite rendering
 		uae_u32 sv = 0;
+		sprite_pixdata = 0;
 		if (denise_spr_nr_armeds) {
 			uae_u32 svt = denise_render_sprites();
-			if (!denise_blank_active && !sprites_hidden) {
-				sv = svt;
+			if (!denise_blank_active) {
+				sprite_pixdata = svt;
+				if (!sprites_hidden) {
+					sv = sprite_pixdata;
+				}
 			}
 		}
 
