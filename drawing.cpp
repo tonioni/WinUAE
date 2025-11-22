@@ -428,7 +428,7 @@ static uae_u16 fmode_denise, denise_bplfmode, denise_sprfmode;
 static bool denise_sprfmode64, denise_bplfmode64;
 static int bpldat_fmode;
 static int fetchmode_size_denise, fetchmode_mask_denise;
-static int delayed_vblank_ecs;
+static int delayed_vblank_ecs, delayed_pvblank_aga;
 static bool denise_hdiw, denise_hblank, denise_phblank, denise_vblank, denise_pvblank;
 static bool denise_blank_active, denise_blank_active2, denise_hblank_active, denise_vblank_active;
 static bool debug_special_csync, debug_special_hvsync;
@@ -3779,10 +3779,18 @@ static void expand_drga_blanken(struct denise_rga *rd)
 
 bool denise_is_vb(void)
 {
-	if (delayed_vblank_ecs > 0) {
-		return true;
-	} else if (delayed_vblank_ecs < 0) {
-		return false;
+	if (exthblankon_aga) {
+		if (delayed_pvblank_aga > 0) {
+			return true;
+		} else if (delayed_pvblank_aga < 0) {
+			return false;
+		}
+	} else {
+		if (delayed_vblank_ecs > 0) {
+			return true;
+		} else if (delayed_vblank_ecs < 0) {
+			return false;
+		}
 	}
 	return denise_vblank;
 }
@@ -3793,9 +3801,11 @@ static void handle_strobes(struct denise_rga *rd)
 
 		if (rd->rga == 0x03c && previous_strobe != 0x03c) {
 			delayed_vblank_ecs = -1;
+			delayed_pvblank_aga = -1;
 			delayed_sprite_vblank_ecs = -1;
 		} else if (rd->rga != 0x03c && previous_strobe == 0x03c) {
 			delayed_vblank_ecs = 1;
+			delayed_pvblank_aga = 1;
 			delayed_sprite_vblank_ecs = 1;
 		}
 
@@ -4561,9 +4571,9 @@ static void do_phbstrt_aga(int cnt)
 	denise_phblank = true;
 	if (exthblankon_aga) {
 		hbstrt_offset = internal_pixel_cnt;
-		if (delayed_vblank_ecs > 0) {
+		if (delayed_pvblank_aga > 0) {
 			denise_pvblank = true;
-			delayed_vblank_ecs = 0;
+			delayed_pvblank_aga = 0;
 			denise_vblank_active = denise_pvblank;
 			denise_blank_active2 = denise_hblank_active || denise_vblank_active;
 			denise_blank_active = denise_blank_enabled ? denise_blank_active2 : false;
@@ -4580,9 +4590,9 @@ static void do_phbstop_aga(int cnt)
 	denise_phblank = false;
 	if (exthblankon_aga) {
 		hbstop_offset = internal_pixel_cnt;
-		if (delayed_vblank_ecs < 0) {
+		if (delayed_pvblank_aga < 0) {
 			denise_pvblank = false;
-			delayed_vblank_ecs = 0;
+			delayed_pvblank_aga = 0;
 			denise_vblank_active = denise_pvblank;
 			denise_blank_active2 = denise_hblank_active || denise_vblank_active;
 			denise_blank_active = denise_blank_enabled ? denise_blank_active2 : false;
@@ -4617,7 +4627,7 @@ static void do_phbstop_ecs(int cnt)
 	if (exthblankon_ecs) {
 		hbstop_offset = internal_pixel_cnt;
 		if (delayed_vblank_ecs < 0) {
-			denise_pvblank = false;
+			denise_vblank = false;
 			delayed_vblank_ecs = 0;
 			denise_vblank_active = denise_pvblank;
 			denise_blank_active2 = denise_hblank_active || denise_vblank_active;
@@ -4717,16 +4727,16 @@ static void check_fast_hb(void)
 		denise_hblank = true;
 		do_hb();
 	} else {
-		if (delayed_vblank_ecs > 0) {
+		if (delayed_pvblank_aga > 0) {
 			denise_pvblank = true;
-			delayed_vblank_ecs = 0;
+			delayed_pvblank_aga = 0;
 			denise_vblank_active = denise_pvblank;
 			denise_blank_active2 = denise_hblank_active || denise_vblank_active;
 			denise_blank_active = denise_blank_enabled ? denise_blank_active2 : false;
 		}
-		if (delayed_vblank_ecs < 0) {
+		if (delayed_pvblank_aga < 0) {
 			denise_pvblank = false;
-			delayed_vblank_ecs = 0;
+			delayed_pvblank_aga = 0;
 			denise_vblank_active = denise_pvblank;
 			denise_blank_active2 = denise_hblank_active || denise_vblank_active;
 			denise_blank_active = denise_blank_enabled ? denise_blank_active2 : false;
