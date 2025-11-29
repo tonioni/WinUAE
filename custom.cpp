@@ -4904,6 +4904,9 @@ static bool framewait(void)
 			while (rpt_vsync(clockadjust) < 0) {
 				rtg_vsynccheck();
 #if 0
+				audio_is_pull_event();
+#endif
+#if 0
 				if (audio_is_pull_event()) {
 					maybe_process_pull_audio();
 					break;

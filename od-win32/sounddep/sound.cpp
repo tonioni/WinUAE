@@ -110,6 +110,7 @@ struct sound_dp
 	uae_u8 *pullbuffer;
 	int pullbufferlen;
 	int pullbuffermaxlen;
+	bool gotpullevent;
 
 #if USE_XAUDIO
 	// xaudio2
@@ -148,7 +149,11 @@ static int statuscnt;
 #define SND_MAX_BUFFER2 524288
 #define SND_MAX_BUFFER 65536
 
+#if SOUND_MODE_NG
+uae_u16 paula_sndbuffer[SND_MAX_BUFFER * 2 + 8];
+#else
 uae_u16 paula_sndbuffer[SND_MAX_BUFFER];
+#endif
 uae_u16 *paula_sndbufpt;
 int paula_sndbufsize;
 int active_sound_stereo;
@@ -2366,6 +2371,8 @@ static bool finish_sound_buffer_wasapi_pull_do(struct sound_data *sd)
 	HRESULT hr;
 	BYTE *pData;
 
+	s->gotpullevent = false;
+
 	if (s->pullbufferlen <= 0)
 		return false;
 
@@ -2634,6 +2641,7 @@ static bool send_sound_do(struct sound_data *sd)
 		return finish_sound_buffer_wasapi_pull_do(sd);
 	} else if (type == SOUND_DEVICE_PA) {
 		struct sound_dp *s = sd->data;
+		s->gotpullevent = false;
 		ResetEvent(s->pullevent);
 		SetEvent(s->pullevent2);
 	}
@@ -2681,18 +2689,36 @@ HANDLE get_sound_event(void)
 	return 0;
 }
 
+static frame_time_t prevtime;
+
+void audio_got_pull_event(void)
+{
+	struct sound_dp *s = sdp->data;
+	if (s && !s->gotpullevent) {
+		frame_time_t cyc = read_processor_time();
+		//write_log("%lld\n", cyc - prevtime);
+		prevtime = cyc;
+		s->gotpullevent = true;
+	}
+}
+
 bool audio_is_event_frame_possible(int ms)
 {
 	int type = sdp->devicetype;
-	if (sdp->paused || sdp->deactive || sdp->reset)
+	if (sdp->paused || sdp->deactive || sdp->reset) {
 		return false;
+	}
 	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE || type == SOUND_DEVICE_PA) {
+#if 0
+		return true;
+#else
 		struct sound_dp *s = sdp->data;
 		int bufsize = (int)((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer);
 		bufsize /= sdp->samplesize;
 		int todo = s->bufferFrameCount - bufsize;
 		int samplesperframe = (int)(sdp->obtainedfreq / vblank_hz);
 		return samplesperframe >= todo - samplesperframe;
+#endif
 	}
 	return false;
 }
@@ -2738,7 +2764,14 @@ bool audio_is_pull_event(void)
 	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE || type == SOUND_DEVICE_PA) {
 		struct sound_dp *s = sdp->data;
 		if (s->pullmode) {
-			return WaitForSingleObject(s->pullevent, 0) == WAIT_OBJECT_0;
+			if (!s->gotpullevent) {
+				if (WaitForSingleObject(s->pullevent, 0) == WAIT_OBJECT_0) {
+					audio_got_pull_event();
+					return true;
+				}
+				return false;
+			}
+			return true;
 		}
 	}
 	return false;

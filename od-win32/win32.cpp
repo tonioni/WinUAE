@@ -468,18 +468,20 @@ static int sleep_millis2 (int ms, bool main)
 	HANDLE sound_event = get_sound_event();
 	bool wasneg = ms < 0;
 	bool pullcheck = false;
+
 	int ret = 0;
 
 	if (ms < 0)
 		ms = -ms;
 	if (main) {
 		if (sound_event) {
-			bool pullcheck = audio_is_event_frame_possible(ms);
+			pullcheck = audio_is_event_frame_possible(ms);
 			if (pullcheck) {
 				if (WaitForSingleObject(sound_event, 0) == WAIT_OBJECT_0) {
 					if (wasneg) {
 						write_log(_T("efw %d imm abort\n"), ms);
 					}
+					audio_got_pull_event();
 					return -1;
 				}
 			}
@@ -521,10 +523,13 @@ static int sleep_millis2 (int ms, bool main)
 			evt[c++] = sound_event;
 		}
 		DWORD status = WaitForMultipleObjects(c, evt, FALSE, ms);
-		if (sound_event_cnt >= 0 && status == WAIT_OBJECT_0 + sound_event_cnt)
+		if (sound_event_cnt >= 0 && status == WAIT_OBJECT_0 + sound_event_cnt) {
 			ret = -1;
-		if (vblank_event_cnt >= 0 && status == WAIT_OBJECT_0 + vblank_event_cnt)
+			audio_got_pull_event();
+		}
+		if (vblank_event_cnt >= 0 && status == WAIT_OBJECT_0 + vblank_event_cnt) {
 			ret = -1;
+		}
 		if (wasneg) {
 			if (sound_event_cnt >= 0 && status == WAIT_OBJECT_0 + sound_event_cnt) {
 				write_log(_T("efw %d delayed abort\n"), ms);
