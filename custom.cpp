@@ -435,6 +435,7 @@ static int plffirstline, plflastline;
 * worth the trouble..
 */
 static int vpos_lpen, hpos_lpen, hhpos_lpen, lightpen_triggered;
+static uae_u32 vhposr_prev;
 int lightpen_x[2], lightpen_y[2];
 int lightpen_cx[2], lightpen_cy[2], lightpen_active, lightpen_enabled, lightpen_enabled2;
 
@@ -2631,6 +2632,16 @@ static uae_u16 VHPOSR(void)
 	if (0 || M68K_GETPC < 0x00f00000 || M68K_GETPC >= 0x10000000)
 		write_log (_T("VHPOSR %04x at %08x %04x\n"), vp, M68K_GETPC, bplcon0);
 #endif
+
+	if (slow_cpu_access & 2) {
+		if (vp == vhposr_prev) {
+			if (currprefs.cachesize || currprefs.m68k_speed < 0) {
+				set_special(SPCFLAG_CPU_SLOW);
+			}
+		}
+		vhposr_prev = vp;
+	}
+
 	return vp;
 }
 
@@ -5394,6 +5405,7 @@ static void vsync_handler_post(void)
 	vsync_handle_check();
 
 	vsync_cycles = get_cycles();
+	vhposr_prev = 0xffffffff;
 }
 
 static void copper_check(int n)

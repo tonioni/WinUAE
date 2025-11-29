@@ -6559,6 +6559,7 @@ extern int logitech_lcd;
 extern uae_s64 max_avi_size;
 extern int floppy_writemode;
 extern int cia_timer_hack_adjust;
+extern int slow_cpu_access;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -7212,6 +7213,11 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		cia_timer_hack_adjust = getval(np);
 		return 2;
 	}
+	if (!_tcscmp(arg, _T("slow_cpu_access"))) {
+		slow_cpu_access = getval(np);
+		return 2;
+	}
+
 
 #endif
 	return 0;
