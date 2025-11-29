@@ -1384,6 +1384,9 @@ void compute_vsynctime(void)
 	}
 	vsynctimebase_orig = vsynctimebase;
 	cputimebase = syncbase / ((uae_u32)(svpos * shpos));
+	if (cputimebase == 0) {
+		cputimebase = 1;
+	}
 
 	if (linetoggle) {
 		shpos += 0.5f;
@@ -2540,6 +2543,7 @@ static uae_u16 VPOSR(void)
 	if (1 || (M68K_GETPC < 0x00f00000 || M68K_GETPC >= 0x10000000))
 		write_log (_T("VPOSR %04x at %08x\n"), vp, M68K_GETPC);
 #endif
+
 	return vp;
 }
 
@@ -5330,6 +5334,7 @@ static void handle_nosignal(void)
 		struct amigadisplay *ad = &adisplays[0];
 		nosignal_trigger = false;
 		resetfulllinestate();
+		denise_clearbuffers();
 		if (!ad->specialmonitoron) {
 			if (currprefs.gfx_monitorblankdelay > 0) {
 				nosignal_status = 1;
@@ -5579,10 +5584,6 @@ static void hautoscale_check(void)
 static void hsync_handler_pre(bool onvsync)
 {
 	if (!custom_disabled) {
-
-		// make sure decisions are done to end of scanline
-		//finish_partial_decision(maxhpos);
-		//clear_bitplane_pipeline(0);
 
 		/* reset light pen latch */
 		if (agnus_vb_active_end_line) {
@@ -10277,6 +10278,7 @@ static void shift_dmal(void)
 {
 	dmal_shifter <<= 1;
 }
+
 static void handle_dmal(void)
 {
 	if (!dmal_shifter) {
