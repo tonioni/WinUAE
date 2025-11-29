@@ -40,6 +40,8 @@
 #include "gfxboard.h"
 
 #define ENABLE_MULTITHREADED_DENISE 1
+#define FMODE64_HACK 0
+
 extern int multithread_enabled;
 #define MULTITHREADED_DENISE (ENABLE_MULTITHREADED_DENISE && multithread_enabled != 0)
 
@@ -411,6 +413,9 @@ static int linear_denise_frame_hbstrt, linear_denise_frame_hbstop;
 static int denise_visible_lines, denise_visible_lines_counted;
 static uae_u16 hbstrt_denise_reg, hbstop_denise_reg;
 static uae_u16 fmode_denise, denise_bplfmode, denise_sprfmode;
+#if FMODE64_HACK
+static int denise_bplfmode_max;
+#endif
 static bool denise_sprfmode64, denise_bplfmode64;
 static int bpldat_fmode;
 static int fetchmode_size_denise, fetchmode_mask_denise;
@@ -450,6 +455,9 @@ static uae_u16 clxcon_bpl_match_55, clxcon_bpl_match_aa;
 static int aga_delayed_color_idx;
 static uae_u16 aga_delayed_color_val, aga_delayed_color_con2, aga_delayed_color_con3;
 static int aga_unalign0, aga_unalign1, bpl1dat_unalign, reswitch_unalign;
+#if 0
+static int bplcon0_res_unalign, bplcon0_res_unalign_res;
+#endif
 static uae_u8 loaded_pix, loaded_pixs[4];
 static int hresolution, hresolution_inv, hresolution_add;
 static bool denise_sprite_blank_active;
@@ -3162,21 +3170,6 @@ static void expand_bplcon1(uae_u16 v)
 	check_lts_request();
 }
 
-static void expand_bplcon0_early(uae_u16 v)
-{
-	if (!aga_mode) {
-		int ores = denise_res;
-		int nres = GET_RES_DENISE(v);
-		if (ores == RES_LORES && nres == RES_HIRES) {
-			if (ecs_denise) {
-				reswitch_unalign = 3;
-			} else {
-				reswitch_unalign = 3;
-			}
-		}
-	}
-}
-
 int gethresolution(void)
 {
 	return hresolution;
@@ -3203,6 +3196,50 @@ static void setlasthamcolor(void)
 	}
 }
 
+static void expand_bplcon0_early(uae_u16 v)
+{
+	if (!aga_mode) {
+
+		int ores = denise_res;
+		int nres = GET_RES_DENISE(v);
+		if (ores == RES_LORES && nres == RES_HIRES) {
+			if (ecs_denise) {
+				reswitch_unalign = 3;
+			} else {
+				reswitch_unalign = 3;
+			}
+		}
+
+	} else {
+
+#if 0
+		// shres resolution change in AGA is 1 lores pixel earlier
+		if (denise_res != GET_RES_DENISE(v)) {
+			bplcon0_res_unalign = true;
+			bplcon0_res_unalign_res = GET_RES_DENISE(v);
+			aga_unalign0 += 2;
+			aga_unalign1 += 2;
+		}
+#endif
+
+	}
+}
+
+#if 0
+static void expand_bplcon0_unaligned(void)
+{
+	bplcon0_res_unalign = false;
+	denise_res = bplcon0_res_unalign_res;
+	denise_res_size = 1 << denise_res;
+	sethresolution();
+	setbplmode();
+	update_fmode();
+	update_specials();
+	update_sprres();
+	check_lts_request();
+}
+#endif
+
 static void expand_bplcon0(uae_u16 v)
 {
 	uae_u16 old = bplcon0_denise;
@@ -3219,11 +3256,14 @@ static void expand_bplcon0(uae_u16 v)
 
 	bplcon0_denise = v;
 
-	if (denise_res != GET_RES_DENISE(bplcon0_denise) || denise_planes != GET_PLANES(bplcon0_denise)) {
+	if (denise_res != GET_RES_DENISE(bplcon0_denise)) {
 		lts_request = true;
 	}
 
-	int ores = denise_res;
+	if (denise_planes != GET_PLANES(bplcon0_denise)) {
+		lts_request = true;
+	}
+
 	denise_res = GET_RES_DENISE(bplcon0_denise);
 	denise_res_size = 1 << denise_res;
 	sethresolution();
@@ -3252,6 +3292,17 @@ static void expand_bplcon0(uae_u16 v)
 	check_lts_request();
 }
 
+#if FMODE64_HACK
+static uae_u64 make6416(uae_u32 v)
+{
+	return ((uae_u64)v << 48) | ((uae_u64)v << 32) | ((uae_u64)v << 16) | ((uae_u64)v);
+}
+static uae_u64 make6432(uae_u32 v)
+{
+	return ((uae_u64)v << 32) | ((uae_u64)v);
+}
+#endif
+
 static void expand_fmode(uae_u16 v)
 {
 	if (!aga_mode) {
@@ -3264,11 +3315,38 @@ static void expand_fmode(uae_u16 v)
 	denise_xposmask <<= 2;
 	denise_xposmask |= hresolution == RES_SUPERHIRES ? 3 : (hresolution == RES_HIRES ? 2 : 0);
 
+	int fm = denise_bplfmode;
 	denise_bplfmode = (v & 3) == 3 ? 2 : (v & 3) == 0 ? 0 : 1;
+#if FMODE64_HACK
+	if (fm != denise_bplfmode) {
+		if (!denise_bplfmode_max) {
+			if (fm < 2) {
+				for (int i = 0; i < MAX_PLANES; i++) {
+					if (fm == 1) {
+						bplxdat_64[i] = make6432(bplxdat[i]);
+						bplxdat2_64[i] = make6432(bplxdat2[i]);
+						bplxdat3_64[i] = make6432(bplxdat3[i]);
+					} else {
+						bplxdat_64[i] = make6416(bplxdat[i]);
+						bplxdat2_64[i] = make6416(bplxdat2[i]);
+						bplxdat3_64[i] = make6416(bplxdat3[i]);
+					}
+				}
+			}
+			lts_request = true;
+		}
+		denise_bplfmode_max = 2;
+	}
+#endif
 	v >>= 2;
 	denise_sprfmode = (v & 3) == 3 ? 2 : (v & 3) == 0 ? 0 : 1;
 	denise_sprfmode64 = denise_sprfmode == 2;
 	denise_bplfmode64 = denise_bplfmode == 2;
+#if FMODE64_HACK
+	if (denise_bplfmode_max) {
+		denise_bplfmode64 = true;
+	}
+#endif
 	update_fmode();
 	check_lts_request();
 }
@@ -3573,6 +3651,14 @@ static void hstart_new(void)
 		}
 #endif
 	}
+#if FMODE64_HACK
+	if (denise_bplfmode_max > 0) {
+		denise_bplfmode_max--;
+		if (!denise_bplfmode_max) {
+			select_lts();
+		}
+	}
+#endif
 }
 
 static void do_exthblankon_ecs(void)
@@ -3923,7 +4009,15 @@ static void expand_drga(struct denise_rga *rd)
 
 		case 0x110:
 		if (denise_bplfmode64) {
+#if FMODE64_HACK
+			if (denise_bplfmode < 2) {
+				bplxdat_64[0] = denise_bplfmode == 0 ? make6416(rd->v) : make6432(rd->v);
+			} else {
+				bplxdat_64[0] = rd->v64;
+			}
+#else
 			bplxdat_64[0] = rd->v64;
+#endif
 		} else {
 			bplxdat[0] = rd->v;
 		}
@@ -3941,10 +4035,21 @@ static void expand_drga(struct denise_rga *rd)
 		case 0x11a:
 		case 0x11c:
 		case 0x11e:
-		if (denise_bplfmode64) {
-			bplxdat_64[(rd->rga - 0x110) / 2] = rd->v64;
-		} else {
-			bplxdat[(rd->rga - 0x110) / 2] = rd->v;
+		{
+			int num = (rd->rga - 0x110) / 2;
+			if (denise_bplfmode64) {
+#if FMODE64_HACK
+				if (denise_bplfmode < 2) {
+					bplxdat_64[num] = denise_bplfmode == 0 ? make6416(rd->v) : make6432(rd->v);;
+				} else {
+					bplxdat_64[num] = rd->v64;
+				}
+#else
+				bplxdat_64[num] = rd->v64;
+#endif
+			} else {
+				bplxdat[num] = rd->v;
+			}
 		}
 		break;
 
@@ -5951,6 +6056,10 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 #include "linetoscr_aga_fm0.cpp"
 #include "linetoscr_aga_fm1.cpp"
 #include "linetoscr_aga_fm2.cpp"
+#if FMODE64_HACK
+#include "linetoscr_aga_fm0_64.cpp"
+#include "linetoscr_aga_fm1_64.cpp"
+#endif
 #include "linetoscr_aga_fm0_genlock.cpp"
 #include "linetoscr_aga_fm1_genlock.cpp"
 #include "linetoscr_aga_fm2_genlock.cpp"
@@ -6030,6 +6139,11 @@ static void select_lts(void)
 					lts = linetoscr_aga_funcs[idx];
 				}
 			} else {
+#if FMODE64_HACK
+				if (denise_bplfmode_max && bpldat_fmode < 2) {
+					idx += 3 * 2 * 5 * 4 * 2 * 3 * 3;
+				}
+#endif
 				lts = linetoscr_aga_funcs[idx];
 			}
 		}
@@ -6167,6 +6281,11 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 					aga_delayed_color_idx = -1;
 				}
 				bplmode = bplmode_new;
+#if 0
+				if (bplcon0_res_unalign) {
+					expand_bplcon0_unaligned();
+				}
+#endif
 
 			}
 			if (h) {
@@ -6313,6 +6432,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 				gpix = spix;
 			}
 		}
+
 		dtbuf[h][ipix] = dpix_val;
 		dtgbuf[h][ipix] = gpix;
 
@@ -6500,6 +6620,7 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 				gpix = spix;
 			}
 		}
+
 		dtbuf[h][ipix] = dpix_val;
 		dtgbuf[h][ipix] = gpix;
 
