@@ -1886,11 +1886,11 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 	}
 
 	if (currprefs.lightpen_crosshair && lightpen_active) {
-		for (int i = 0; i < LIGHTPEN_HEIGHT; i++) {
-			int line = lightpen_y[lpnum] + i - LIGHTPEN_HEIGHT / 2;
-			if (line >= 0 && line < max_ypos_thisframe1) {
-				if (lightpen_active & (1 << lpnum)) {
-					if (denise_lock()) {
+		if (denise_lock()) {
+			for (int i = 0; i < LIGHTPEN_HEIGHT; i++) {
+				int line = lightpen_y[lpnum] + i - LIGHTPEN_HEIGHT / 2;
+				if (line >= 0 && line < max_ypos_thisframe1) {
+					if (lightpen_active & (1 << lpnum)) {
 						draw_lightpen_cursor(vb->monitor_id, lightpen_x[lpnum], i, line, cx > 0, lpnum);
 					}
 				}
@@ -1929,7 +1929,7 @@ bool drawing_can_lineoptimizations(void)
 		currprefs.cs_color_burst || currprefs.gfx_grayscale || currprefs.monitoremu) {
 		return false;
 	}
-	if (lightpen_active || debug_dma >= 2 || debug_heatmap >= 2) {
+	if ((lightpen_active && currprefs.lightpen_crosshair) || debug_dma >= 2 || debug_heatmap >= 2) {
 		return false;
 	}
 	return true;

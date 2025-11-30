@@ -5414,6 +5414,7 @@ static void vsync_handler_post(void)
 
 	vsync_cycles = get_cycles();
 	vhposr_prev = 0xffffffff;
+	lineoptimizations_draw_always = drawing_can_lineoptimizations() == false;
 }
 
 static void copper_check(int n)
