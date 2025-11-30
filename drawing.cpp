@@ -112,6 +112,7 @@ static struct denise_rga_queue rga_queue[DENISE_RGA_SLOT_CHUNKS];
 static struct denise_rga_queue temp_line;
 static struct denise_rga_queue *this_line;
 static volatile bool thread_debug_lock;
+static bool full_line_draw;
 
 static void denise_handle_quick_strobe(uae_u16 strobe, int offset, int vpos);
 static void draw_denise_vsync(int);
@@ -166,7 +167,7 @@ static void read_denise_line_queue(void)
 	} else if (q->type == 1) {
 		draw_denise_bitplane_line_fast(q->gfx_ypos, q->how, q->ls);
 	} else if (q->type == 2) {
-		draw_denise_border_line_fast(q->gfx_ypos, q->how, q->ls);
+		draw_denise_border_line_fast(q->gfx_ypos, q->blanked, q->how, q->ls);
 	} else if (q->type == 3) {
 		quick_denise_rga(q->linecnt, q->startpos, q->endpos);
 	} else if (q->type == 4) {
@@ -5254,6 +5255,8 @@ void set_drawbuffer(void)
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 
 	if (!drawing_can_lineoptimizations()) {
+		// full line is drawn because overlay graphics can be drawn on top of border and blanking
+		full_line_draw = true;
 		vidinfo->inbuffer = &vidinfo->tempbuffer;
 		struct vidbuffer *vb = &vidinfo->tempbuffer;
 		if (!vb->outwidth || !vb->outheight) {
@@ -5271,6 +5274,7 @@ void set_drawbuffer(void)
 			vb->monitor_id = vb2->monitor_id;
 		}
 	} else {
+		full_line_draw = false;
 		vidinfo->inbuffer = &vidinfo->drawbuffer;
 	}
 }
@@ -6863,6 +6867,39 @@ static int l_shift(int v, int shift)
 	}
 }
 
+static void draw_blank_start(int len)
+{
+	if (len > 0 && buf1 < (uae_u32*)xlinebuffer_start) {
+		int d = (uae_u32*)xlinebuffer_start - buf1;
+		buf1 += d;
+		len -= d;
+	}
+	if (buf1 + len > (uae_u32*)xlinebuffer_end) {
+		len = (uae_u32*)xlinebuffer_end - buf1;
+	}
+	if (len > 0) {
+		memset(buf1, 0, len * sizeof(uae_u32));
+		if (buf2) {
+			memset(buf2, 0, len * sizeof(uae_u32));
+		}
+	}
+}
+static void draw_blank_end(void)
+{
+	if (buf1 < (uae_u32*)xlinebuffer_start) {
+		buf1 = (uae_u32*)xlinebuffer_start;
+	}
+	if (buf1 < (uae_u32*)xlinebuffer_end) {
+		int len = (uae_u32*)xlinebuffer_end - buf1;
+		if (len > 0) {
+			memset(buf1, 0, len * sizeof(uae_u32));
+			if (buf2) {
+				memset(buf2, 0, len * sizeof(uae_u32));
+			}
+		}
+	}
+}
+
 static void fill_border(int total, uae_u32 bgcol)
 {
 	if (buf2) {
@@ -6912,7 +6949,7 @@ static void fill_border(int total, uae_u32 bgcol)
 }
 
 // draw border from hb to hb
-void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls)
+void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, struct linestate *ls)
 {
 	if (ls->strlong_seen) {
 		set_strlong();
@@ -6920,7 +6957,7 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 
 	get_line(0, gfx_ypos, how, ls->lol_shift_prev);
 
-	if (!buf1 && !ls->blankedline && denise_planes > 0) {
+	if (!buf1 && !ls->blankedline && denise_planes > 0 && !blank) {
 		resolution_count[denise_res]++;
 	}
 	lines_count++;
@@ -6957,33 +6994,45 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 	buf1 = buf1p;
 	buf2 = buf2p;
 
-	int start = draw_startoffset;
-	if (start < hbstop_offset) {
-		int diff = hbstop_offset - start;
-		buf1 += diff;
+	if (blank)  {
+		memset(buf1, 0, xlinebuffer_end - (uae_u8*)buf1);
 		if (buf2) {
-			buf2 += diff;
+			memset(buf2, 0, xlinebuffer_end - (uae_u8 *)buf1);
 		}
-		if (gbufp) {
-			gbufp += diff;
+	} else {
+		if (full_line_draw) {
+			draw_blank_start(hbstop_offset);
 		}
-		start = hbstop_offset;
+		int start = draw_startoffset;
+		if (start < hbstop_offset) {
+			int diff = hbstop_offset - start;
+			buf1 += diff;
+			if (buf2) {
+				buf2 += diff;
+			}
+			if (gbufp) {
+				gbufp += diff;
+			}
+			start = hbstop_offset;
+		}
+		int end = draw_end > hbstrt_offset ? hbstrt_offset : draw_end;
+		int total = end - start;
+
+		fill_border(total, bgcol);
+		if (full_line_draw) {
+			draw_blank_end();
+		}
+
+		total = end - start;
+		if (need_genlock_data && gbuf && total) {
+			int max = addrdiff(xlinebuffer_genlock_end, gbufp);
+			total += GENLOCK_EXTRA_CLEAR;
+			if (total > max) {
+				total = max;
+			}
+			memset(gbufp, 0, total);
+		}
 	}
-	int end = draw_end > hbstrt_offset ? hbstrt_offset : draw_end;
-	int total = end - start;
-
-	fill_border(total, bgcol);
-
-	total = end - start;
-	if (need_genlock_data && gbuf && total) {
-		int max = addrdiff(xlinebuffer_genlock_end, gbufp);
-		total += GENLOCK_EXTRA_CLEAR;
-		if (total > max) {
-			total = max;
-		}
-		memset(gbufp, 0, total);
-	}
-
 }
 
 static int ltsf_init(int draw_start, int draw_startoffset, int *draw_end, int hbstrt_offset, int hbstop_offset, int bpl1dat_trigger_offset, uae_u8 *buf_end, uae_u32 *buf1)
@@ -7254,6 +7303,9 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 		buf1 = buf1p;
 		buf2 = buf2p;
 	}
+	if (full_line_draw) {
+		draw_blank_start(hbstop_offset);
+	}
 	int cnt = ltsf_init(draw_start, draw_startoffset, &draw_end, hbstrt_offset, hbstop_offset, bpl1dat_trigger_offset, xlinebuffer_end, buf1);
 	ltsf(cnt, draw_end, hbstrt_offset, hbstop_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset,
 		planecnt, bgcol, &cp, &cp2, 1 << cpadd, cpadds, 1 << bufadd, ls);
@@ -7279,6 +7331,10 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 				}
 			}
 		}
+	}
+
+	if (full_line_draw) {
+		draw_blank_end();
 	}
 
 	// clear some more bytes to clear possible lightpen cursor graphics
@@ -7495,7 +7551,7 @@ static void addtowritequeue(void)
 	uae_sem_post(&write_sem);
 }
 
-void draw_denise_border_line_fast_queue(int gfx_ypos, enum nln_how how, struct linestate *ls)
+void draw_denise_border_line_fast_queue(int gfx_ypos, bool blank, enum nln_how how, struct linestate *ls)
 {
 	if (MULTITHREADED_DENISE) {
 		
@@ -7505,6 +7561,7 @@ void draw_denise_border_line_fast_queue(int gfx_ypos, enum nln_how how, struct l
 
 		struct denise_rga_queue *q = &rga_queue[rga_queue_write & DENISE_RGA_SLOT_CHUNKS_MASK];
 		q->gfx_ypos = gfx_ypos;
+		q->blanked = blank;
 		q->how = how;
 		q->ls = ls;
 		q->type = 2;
@@ -7516,7 +7573,7 @@ void draw_denise_border_line_fast_queue(int gfx_ypos, enum nln_how how, struct l
 	} else {
 	
 		updatelinedata();
-		draw_denise_border_line_fast(gfx_ypos, how, ls);
+		draw_denise_border_line_fast(gfx_ypos, blank, how, ls);
 	
 	}
 }

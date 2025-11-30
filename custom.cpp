@@ -10771,6 +10771,18 @@ static int checkprevfieldlinestateequalbpl(struct linestate *l)
 	return 0;
 }
 
+// draw blanking line quickly (only if blanking can have overlay data, like lightpen crosshair)
+static bool draw_blank_fast(struct linestate *l, int ldv)
+{
+	if (l->hbstrt_offset < 0 || l->hbstop_offset < 0) {
+		return false;
+	}
+	start_draw_denise();
+	int dvp = calculate_linetype(ldv);
+	draw_denise_border_line_fast_queue(dvp, true, nextline_how, l);
+	return true;
+}
+
 // draw border line quickly (no copper, no sprites, no weird things, normal mode)
 static bool draw_border_fast(struct linestate *l, int ldv)
 {
@@ -10782,7 +10794,7 @@ static bool draw_border_fast(struct linestate *l, int ldv)
 	l->color0 = aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0];
 	l->brdblank = brdblank;
 	int dvp = calculate_linetype(ldv);
-	draw_denise_border_line_fast_queue(dvp, nextline_how, l);
+	draw_denise_border_line_fast_queue(dvp, false, nextline_how, l);
 	return true;
 }
 
@@ -10859,15 +10871,15 @@ static bool draw_line_fast(struct linestate *l, int ldv, uaecptr bplptp[8], bool
 	return true;
 }
 
-static bool draw_always(void)
+static int draw_always(void)
 {
 	if (nextline_how == nln_lower_black_always || nextline_how == nln_upper_black_always) {
-		return true;
+		return -1;
 	}
 	if (lineoptimizations_draw_always) {
-		return true;
+		return 1;
 	}
-	return false;
+	return 0;
 }
 
 static void resetlinestate(void)
@@ -10934,15 +10946,16 @@ static bool checkprevfieldlinestateequal(void)
 		return false;
 	}
 	bool ret = false;
-	bool always = draw_always();
+	int always = draw_always();
 	struct linestate *l = &lines[lvpos][lof_display];
 
 	int type = getlinetype();
 	if (type && type == l->type && displayresetcnt == l->cnt) {
 		if (type == LINETYPE_BLANK) {
-			if (1) {
-				ret = true;
+			if (always > 0) {
+				draw_blank_fast(l, linear_display_vpos + 1);
 			}
+			ret = true;
 		} else if (type == LINETYPE_BORDER) {
 			if (1) {
 				bool brdblank = (bplcon0 & 1) && (bplcon3 & 0x20);
@@ -11314,9 +11327,7 @@ static void start_sync_imm_handler(void)
 
 static void vsync_nosync(void)
 {
-	if (!nosignal_trigger) {
-		denise_clearbuffers();
-	}
+	denise_clearbuffers();
 	nosignal_trigger = true;
 	linear_vpos = 0;
 	vsync_handler_post();
