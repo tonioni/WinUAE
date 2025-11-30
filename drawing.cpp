@@ -6986,7 +6986,7 @@ void draw_denise_border_line_fast(int gfx_ypos, enum nln_how how, struct linesta
 
 }
 
-static int ltsf_init(int draw_start, int draw_startoffset, int *draw_end, int hbstrt_offset, int hbstop_offset, int bpl1dat_trigger_offset)
+static int ltsf_init(int draw_start, int draw_startoffset, int *draw_end, int hbstrt_offset, int hbstop_offset, int bpl1dat_trigger_offset, uae_u8 *buf_end, uae_u32 *buf1)
 {
 	int end = *draw_end;
 	if (end > hbstrt_offset) {
@@ -7002,7 +7002,7 @@ static int ltsf_init(int draw_start, int draw_startoffset, int *draw_end, int hb
 	if (cnt > bpl1dat_trigger_offset && bpl1dat_trigger_offset >= draw_start) {
 		cnt = bpl1dat_trigger_offset;
 	}
-	int max = addrdiff(xlinebuffer_end, (uae_u8*)buf1) / sizeof(uae_u32);
+	int max = addrdiff(buf_end, (uae_u8*)buf1) / sizeof(uae_u32);
 	int w = end - cnt;
 	if (w > max) {
 		end -= w - max;
@@ -7247,14 +7247,14 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 		buf1 = (uae_u32*)row_tmp8;
 		buf2 = (uae_u32*)row_tmp8;
 		int end = draw_startoffset;
-		int cnt = ltsf_init(draw_start, draw_startoffset, &end, hbstrt_offset, hbstop_offset, bpl1dat_trigger_offset);
+		int cnt = ltsf_init(draw_start, draw_startoffset, &end, hbstrt_offset, hbstop_offset, bpl1dat_trigger_offset, row_tmp8 + sizeof(row_tmp8), buf1);
 		ltsf(cnt, end, hbstrt_offset, hbstop_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset,
 			planecnt, bgcol, &cp, &cp2, 1 << cpadd, cpadds, 1 << bufadd, ls);
 		draw_start = draw_startoffset;
 		buf1 = buf1p;
 		buf2 = buf2p;
 	}
-	int cnt = ltsf_init(draw_start, draw_startoffset, &draw_end, hbstrt_offset, hbstop_offset, bpl1dat_trigger_offset);
+	int cnt = ltsf_init(draw_start, draw_startoffset, &draw_end, hbstrt_offset, hbstop_offset, bpl1dat_trigger_offset, xlinebuffer_end, buf1);
 	ltsf(cnt, draw_end, hbstrt_offset, hbstop_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset,
 		planecnt, bgcol, &cp, &cp2, 1 << cpadd, cpadds, 1 << bufadd, ls);
 
