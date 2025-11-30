@@ -1,4 +1,33 @@
 
+Beta 7:
+
+- Activating light pen on the fly (and other features that write on top of native screen) and fast drawing mode was possible: light pen left trails on non-modified parts of screen until display was reset (for example resize of windowed mode window). (v6)
+- Fixed lightpen crosshair trails (and other overlay graphics that can appear on top of blanking) in higher overscan modes if fast mode drawn.
+- Lightpen enabled but with crosshair cursor disabled could result in blank screen because it incorrectly enabled temp buffer mode but temp buffer was never selected because crosshair was disabled. It did work correctly if also some other feature required temp buffer, for example genlock.
+- Fixed bad buffer size validation when fast mode drawing under hblank/border (for example large enough overscan) to temp buffer. It used original buffer end for limit check. If temp buffer was earlier than display buffer in address space, temp buffer was detected as too small, skipping the temp buffer part completely, creating visible horizontal offset.
+- Added Warp Engine "ROM disabled" option.
+
+Beta 6:
+
+- DDFSTRT/DDFSTOP/HARDSTART/HARDEND/BPLSTART logic partially rewritten again, it still wasn't fully cycle-accurate. There is no DDFSTRT==DDFSTOP special case, it can't even exist. More details later. (ross tests(tm) are back, at least partially, and immediately something non-accurate was found)
+- Bitplane DMA disabling sprites didn't work correctly if bitplane DMA started after sprites and then bitplane DMA overrun over sprite cycles in next line. (This never happens normally because it is not possible to have this condition without refresh and other conflicts). This and above means really weird (and totally pointless) DDFSTRT/STOP combinations with BEAMCON0 HARDDIS=1 are now cycle-accurate.
+- Unaligned AGA FMODE>0 bitplane/sprite pointer/modulo adder behavior implemented again (another v6 rewrite missed feature)
+- Audio state transition from 1 to 5 didn't handle interrupt correctly (other state changes were already fixed some time ago)
+- FPS counter was not (usually) updated when any debugger breakpoint was active.
+- Clear display buffer also when in no signal state (invalid programmed mode configuration)
+- Debugger memory read and write commands end address off by one visual bug fixed.
+- Bitplane to bitplane collision do not require any CLXCON bitplane bits set. Empty odd plane can "collide" with empty even plane.
+- Sprites to sprites/bitplane collision detection activates 1 lores pixel early (1 pixel before border ends), sprite to bitplane collision is detected if sprite is under the border (last pixel of border) and bitplane collision bits are all zeroed ("Collides" to background color). OCS/ECS only. Fixed in AGA.
+- If JIT is enabled, do not unmap Z2 and Z3 autoconfig RAM boards during reset. JIT can crash randomly when reseting the system and JIT was executing code from Z3/Z2 RAM. This was default long time ago but was removed because it appeared to work fine. Apparently not 100%. Technically Z2/Z3 RAM should disappear at reset but AFAIK at least some real world CPU boards with internal Z2/Z3 RAM don't do that. (I'd recommend also using "Prosessor slot" RAM expansion.)
+- Added Processor slot RAM setting to main memory GUI (was previously only in Advanced Memory Settings dropdown menu) because in real world this is much more common accelerator RAM expansion than Z3 Fast RAM.
+- If Chip RAM size was increased to 1M or more, Agnus is OCS and emulation has not been started: set Agnus model to ECS. Hopefully makes it less easy to accidentally configure broken OCS Agnus + 1M+ Chip RAM configuration which appears to work fine until chip ram gets allocated above 512k border. OCS Agnus + >512k must be still configurable because this (broken) modification can be done in real world quite easily.
+- Fixed possible crash when switching native screen modes (Native screen mode = output buffer width/height changed, native mode lores/hires/shres change is not a mode change) (v6)
+- Fixed possible crash/out of bounds write when updating output display buffer (v6).
+- CD path pointing to non-existing image file caused "unitsem0 acquire mismatch" log message. (very old bug)
+- Fixed wrong S3 Virge PCI mapping that got broken when Matrox emulation was added.
+- Fixed S3 and S3 Virge PCI random crashes due to unsafe thread handling. It could happen when thread was started and then almost immediately killed.
+- Added 1176*664, 1440*1080, 1600*1000 and 1600*1024 to uaegfx static mode ID list.
+
 Beta 5
 
 - KS ROM genlock detection still could misdetect genlock in JIT mode causing guru when timer.device attempts TOD calibration and causing non-existing 80000000 guru due to a KS bug (At least KS 3.1, perhaps others too). (6.0)
