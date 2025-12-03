@@ -11242,10 +11242,18 @@ static int can_fast_custom(void)
 	if (!display_hstart_fastmode) {
 		return 0;
 	}
-	if (dmaen(DMA_SPRITE)) {
-		if (agnus_vb_active_end_line) {
+	if (agnus_vb_active_end_line) {
+		if (dmaen(DMA_SPRITE)) {
 			return 0;
 		}
+		for (int i = 0; i < MAX_SPRITES; i++) {
+			struct sprite *s = &spr[i];
+			if (s->dmastate) {
+				return 0;
+			}
+		}
+	}
+	if (dmaen(DMA_SPRITE)) {
 		int type = getlinetype();
 		if (type != LINETYPE_BLANK) {
 			for (int i = 0; i < MAX_SPRITES; i++) {
