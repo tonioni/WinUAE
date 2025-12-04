@@ -1383,7 +1383,10 @@ void compute_vsynctime(void)
 		vsynctimebase = (frame_time_t)(syncbase / fake_vblank_hz);
 	}
 	vsynctimebase_orig = vsynctimebase;
-	cputimebase = syncbase / ((uae_u32)(svpos * shpos));
+	cputimebase = 0;
+	if (svpos > 0 && shpos > 0) {
+		cputimebase = syncbase / ((uae_u32)(svpos * shpos));
+	}
 	if (cputimebase == 0) {
 		cputimebase = 1;
 	}
