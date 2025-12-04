@@ -1305,7 +1305,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	WAVEFORMATEX *pwfx = NULL;
 	WAVEFORMATEX *pwfx_saved = NULL;
 	WAVEFORMATEXTENSIBLE wavfmt;
-	int final, startchannel, chrounds;
+	int finalround, startchannel, chmask;
 	LPWSTR name = NULL;
 	int rn[4], rncnt;
 	AUDCLNT_SHAREMODE sharemode;
@@ -1318,7 +1318,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	UINT32 DefaultDevicePeriod;
 
 	startchannel = sd->channels;
-	chrounds = 0;
+	chmask = 0;
 retry:
 	sd->devicetype = exclusive ? SOUND_DEVICE_WASAPI_EXCLUSIVE : SOUND_DEVICE_WASAPI;
 	s->wasapiexclusive = exclusive;
@@ -1388,7 +1388,7 @@ retry:
 		goto error;
 	}
 
-	final = 0;
+	finalround = 0;
 	rncnt = 0;
 	for (;;) {
 
@@ -1418,13 +1418,15 @@ retry:
 		CoTaskMemFree (pwfx);
 		pwfx = NULL;
 		hr = s->pAudioClient->IsFormatSupported (sharemode, &wavfmt.Format, &pwfx);
+
+		write_log(_T("WASAPI: IsFormatSupported(CH=%d,FREQ=%d,BITS=%d,%08x) (CH=%d,FREQ=%d,BITS=%d) %08X %d %d\n"),
+			wavfmt.Format.nChannels, wavfmt.Format.nSamplesPerSec, wavfmt.Format.wBitsPerSample, rn[rncnt],
+			pwfx ? pwfx->nChannels : -1, pwfx ? pwfx->nSamplesPerSec : -1, pwfx ? pwfx->wBitsPerSample : -1,
+			hr, rncnt, finalround);
+
 		if (SUCCEEDED (hr) && hr != S_FALSE)
 			break;
-		write_log (_T("WASAPI: IsFormatSupported(%d,%08X,%d) (%d,%d) %08X\n"),
-			sd->channels, rn[rncnt], sd->freq,
-			pwfx ? pwfx->nChannels : -1, pwfx ? pwfx->nSamplesPerSec : -1,
-			hr);
-		if (final && SUCCEEDED (hr)) {
+		if (finalround && SUCCEEDED (hr)) {
 			if (pwfx_saved) {
 				sd->channels = pwfx_saved->nChannels;
 				sd->freq = pwfx_saved->nSamplesPerSec;
@@ -1449,24 +1451,30 @@ retry:
 		rncnt++;
 		if (rn[rncnt])
 			continue;
-		if (final)
+		if (finalround)
 			goto error;
 		rncnt = 0;
-		bool skip = false;
+		bool chmasked = chmask == 15;
 		if (sd->channels == 1 || sd->channels == 2) {
 			sd->channels = 8;
+			chmask |= 1;
 		} else if (sd->channels == 4) {
 			sd->channels = 2;
+			chmask |= 2;
+		} else if (sd->channels == 6) {
+			sd->channels = 4;
+			chmask |= 4;
 		} else if (sd->channels == 8) {
 			sd->channels = 6;
+			chmask |= 8;
 		} else {
-			skip = true;
+			chmask = 15;
+			chmasked = true;
 		}
-		chrounds++;
-		if (chrounds < 10 && !skip && sd->channels != startchannel) {
+		if (!chmasked && sd->channels != startchannel) {
 			continue;
 		}
-		chrounds = 0;
+		chmask = 0;
 		if (sd->freq < 44100) {
 			sd->freq = 44100;
 			continue;
@@ -1475,7 +1483,7 @@ retry:
 			sd->freq = 48000;
 			continue;
 		}
-		final = 1;
+		finalround = 1;
 		if (pwfx_saved == NULL)
 			goto error;
 		sd->channels = pwfx_saved->nChannels;
@@ -1508,6 +1516,7 @@ retry:
 			write_log(_T("WASAPI: GetSharedModeEnginePeriod() DPIF=%u FPIF=%u MinPIF=%u MaxPIF=%d\n"),
 				DefaultPeriodInFrames, FundamentalPeriodInFrames, MinPeriodInFrames, MaxPeriodInFrames);
 		}
+		CoTaskMemFree(outwfx);
 	}
 
 
