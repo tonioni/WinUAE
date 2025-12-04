@@ -287,6 +287,7 @@ static int resolution_count[RES_MAX + 1], lines_count;
 static int center_reset;
 static bool init_genlock_data;
 bool need_genlock_data;
+int video_recording_active;
 
 /* Lookup tables for dual playfields.  The dblpf_*1 versions are for the case
 that playfield 1 has the priority, dbplpf_*2 are used if playfield 2 has
@@ -1927,11 +1928,14 @@ static void refresh_indicator_init(void)
 
 bool drawing_can_lineoptimizations(void)
 {
-	if (currprefs.monitoremu || currprefs.cs_cd32fmv || ((currprefs.genlock || currprefs.genlock_effects) && currprefs.genlock_image) ||
+	if (currprefs.cs_cd32fmv || ((currprefs.genlock || currprefs.genlock_effects) && currprefs.genlock_image) ||
 		currprefs.cs_color_burst || currprefs.gfx_grayscale || currprefs.monitoremu) {
 		return false;
 	}
 	if ((lightpen_active && currprefs.lightpen_crosshair) || debug_dma >= 2 || debug_heatmap >= 2) {
+		return false;
+	}
+	if (video_recording_active) {
 		return false;
 	}
 	return true;
@@ -1957,6 +1961,9 @@ static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
 		if (inputdevice_get_lightpen_id() >= 0 && (lightpen_active & 2)) {
 			lightpen_update(vb, 1);
 		}
+	}
+	if (video_recording_active) {
+		denise_lock();
 	}
 }
 

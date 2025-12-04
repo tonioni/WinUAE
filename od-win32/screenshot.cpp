@@ -1235,8 +1235,10 @@ oops:
 
 	recursive--;
 
-	if (failed)
+	if (failed) {
 		screenshot_multi = 0;
+		video_recording_active &= ~2;
+	}
 
 	return failed == 0;
 }
@@ -1251,13 +1253,16 @@ void screenshot(int monid, int mode, int doprepare)
 
 	if (mode == 2) {
 		screenshot_multi = 10;
+		video_recording_active |= 2;
 		screenshot_prepare_multi();
 	} else if (mode == 3) {
 		screenshot_multi = -1;
 		screenshot_prepare_multi();
+		video_recording_active &= ~2;
 	} else if (mode == 4) {
 		screenshot_multi = 0;
 		filenumber = 0;
+		video_recording_active &= ~2;
 	} else {
 		screenshotf(monid, NULL, mode, doprepare, -1, NULL);
 	}

@@ -1399,6 +1399,7 @@ static void AVIOutput_End2(bool fullrestart)
 		fclose (wavfile);
 		wavfile = 0;
 	}
+	video_recording_active &= ~1;
 }
 
 void AVIOutput_End(void)
@@ -1603,6 +1604,7 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 	fps_in_use = avioutput_fps;
 	uae_start_thread(_T("aviworker"), AVIOutput_worker, NULL, NULL);
 	write_log(_T("AVIOutput enabled: monitor=%d video=%d audio=%d path='%s'\n"), aviout_monid, avioutput_video, avioutput_audio, avioutput_filename_inuse);
+	video_recording_active |= 1;
 	return;
 
 error:

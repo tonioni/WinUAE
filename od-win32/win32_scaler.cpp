@@ -789,7 +789,7 @@ void freefilterbuffer(int monid, uae_u8 *buf, bool unlock)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
-	struct vidbuffer *vb = avidinfo->outbuffer;
+	struct vidbuffer *vb = avidinfo->inbuffer;
 
 	if (!vb)
 		return;
@@ -802,7 +802,7 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
-	struct vidbuffer *vb = avidinfo->outbuffer;
+	struct vidbuffer *vb = avidinfo->inbuffer;
 	int w, h;
 
 	*widthp = 0;
