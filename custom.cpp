@@ -10290,7 +10290,7 @@ static void handle_dmal(void)
 	}
 
 	if (agnus_hpos & 1) {
-		if (!custom_disabled && !agnus_vb_active && !agnus_bsvb && (dmal_shifter & (DMAL_SPR0A | DMAL_SPR1A | DMAL_SPR2A | DMAL_SPR3A | DMAL_SPR4A | DMAL_SPR5A | DMAL_SPR6A | DMAL_SPR7A |
+		if (!custom_disabled && !agnus_vb_active && (dmal_shifter & (DMAL_SPR0A | DMAL_SPR1A | DMAL_SPR2A | DMAL_SPR3A | DMAL_SPR4A | DMAL_SPR5A | DMAL_SPR6A | DMAL_SPR7A |
 			DMAL_SPR0B | DMAL_SPR1B | DMAL_SPR2B | DMAL_SPR3B | DMAL_SPR4B | DMAL_SPR5B | DMAL_SPR6B | DMAL_SPR7B))) {
 			for (int nr = 0; nr < 8; nr++) {
 				if (dmal_shifter & (DMAL_SPR0A << (nr * 2))) {
