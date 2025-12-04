@@ -3696,9 +3696,12 @@ static void do_exthblankon_aga(void)
 // BPL1DAT allows sprites 1 lores pixel before bitplanes
 static void bpl1dat_enable_sprites(void)
 {
-	sprites_hidden2 &= ~2;
-	if (denise_hdiw) {
-		sprites_hidden2 &= ~1;
+	// A1000/OCS Denise: BPL1DAT won't enable sprites if BURST is active
+	if (ecs_denise || !denise_burst) {
+		sprites_hidden2 &= ~2;
+		if (denise_hdiw) {
+			sprites_hidden2 &= ~1;
+		}
 	}
 }
 static void bpl1dat_enable_bpls(void)
