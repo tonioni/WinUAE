@@ -3825,13 +3825,20 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 
 }
 
+static void expansion_init_cards(struct uae_prefs *p, bool log)
+{
+	if (savestate_state != STATE_RESTORE || restore_cardno == 0) {
+		expansion_add_autoconfig(p);
+		expansion_init_cards(p);
+		expansion_autoconfig_sort(p);
+	}
+	expansion_parse_cards(p, log);
+}
+
 void expansion_scan_autoconfig(struct uae_prefs *p, bool log)
 {
 	cfgfile_compatibility_romtype(p);
-	expansion_add_autoconfig(p);
-	expansion_init_cards(p);
-	expansion_autoconfig_sort(p);
-	expansion_parse_cards(p, log);
+	expansion_init_cards(p, log);
 }
 
 void expamem_reset (int hardreset)
@@ -3844,10 +3851,7 @@ void expamem_reset (int hardreset)
 	allocate_expamem ();
 	expamem_bank.name = _T("Autoconfig [reset]");
 
-	expansion_add_autoconfig(&currprefs);
-	expansion_init_cards(&currprefs);
-	expansion_autoconfig_sort(&currprefs);
-	expansion_parse_cards(&currprefs, true);
+	expansion_init_cards(&currprefs, true);
 
 	// this also resets all autoconfig devices
 	devices_reset_ext(hardreset);
@@ -4099,7 +4103,7 @@ uae_u8 *save_expansion_boards(size_t *len, uae_u8 *dstptr, int cardnum)
 	if (dstptr)
 		dst = dstbak = dstptr;
 	else
-		dstbak = dst = xmalloc(uae_u8, 1000);
+		dstbak = dst = xmalloc(uae_u8, 10000);
 	save_u32(3);
 	save_u32(0);
 	save_u32(cardnum);
@@ -4108,6 +4112,7 @@ uae_u8 *save_expansion_boards(size_t *len, uae_u8 *dstptr, int cardnum)
 	save_u32(ec->size);
 	save_u32(ec->flags);
 	save_string(ec->name);
+	//write_log(_T("%d %08x %08x %08x %s\n"), cardnum, ec->base, ec->size, ec->flags, ec->name);
 	for (int j = 0; j < 16; j++) {
 		save_u8(ec->aci.autoconfig_bytes[j]);
 	}
@@ -4148,8 +4153,8 @@ uae_u8 *restore_expansion_boards(uae_u8 *src)
 	ec->base = restore_u32();
 	ec->size = restore_u32();
 	ec->flags = restore_u32();
-	s = restore_string();
-	xfree(s);
+	ec->name = restore_string();
+
 	for (int j = 0; j < 16; j++) {
 		ec->aci.autoconfig_bytes[j] = restore_u8();
 	}
@@ -4169,10 +4174,10 @@ uae_u8 *restore_expansion_boards(uae_u8 *src)
 			currprefs.uaeboard = changed_prefs.uaeboard = 0;
 		}
 	}
-	uae_u32 dev_num = 0;
 	uae_u32 romtype = restore_u32();
+	//write_log(_T("%d %08x %08x %08x %08x %s\n"), cardnum, ec->base, ec->size, ec->flags, romtype, ec->name);
 	if (romtype != 0xffffffff) {
-		dev_num = restore_u32();
+		uae_u32 dev_num = restore_u32();
 		ec->aci.devnum = dev_num;
 		struct boardromconfig* brc = get_device_rom(&currprefs, romtype, dev_num, NULL);
 		if (!brc) {
@@ -4273,6 +4278,7 @@ void restore_expansion_finish(void)
 		ec->aci.prefs = &currprefs;
 		ec->aci.ert = ec->ert;
 		ec->aci.rc = rc;
+		//write_log(_T("%d %08x %08x %08x %08x %s\n"), i, ec->base, ec->size, ec->flags, _T(""), ec->name);
 		if (rc && ec->ert) {
 			_tcscpy(ec->aci.name, ec->ert->friendlyname);
 			if (ec->ert->init) {
