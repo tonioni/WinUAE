@@ -491,6 +491,7 @@ struct denise_spr
 static struct denise_spr dspr[MAX_SPRITES];
 static struct denise_spr *dprspt[MAX_SPRITES + 1], *dprspts[MAX_SPRITES + 1];
 static int denise_spr_nr_armed, denise_spr_nr_armeds;
+static int sprite_lts_selected;
 static uae_u16 bplcoltable[256];
 static uae_u16 sprcoltable[256];
 static uae_u16 sprbplcoltable[256];
@@ -2580,7 +2581,7 @@ static void spr_arm(struct denise_spr *s, int state)
 				}
 			}
 			denise_spr_nr_armed++;
-			if (denise_spr_nr_armed == 1) {
+			if (denise_spr_nr_armed == 1 && !sprite_lts_selected) {
 				select_lts();
 			}
 			s->armed = 1;
@@ -2602,7 +2603,7 @@ static void spr_arm(struct denise_spr *s, int state)
 		}
 		if (s->armed) {
 			denise_spr_nr_armed--;
-			if (denise_spr_nr_armed == 0) {
+			if (denise_spr_nr_armed == 0 && denise_spr_nr_armeds == 0 && sprite_lts_selected) {
 				select_lts();
 			}
 			s->armed = 0;
@@ -2651,6 +2652,9 @@ static void spr_arms(struct denise_spr *s, int state)
 		if (s->armeds) {
 			denise_spr_nr_armeds--;
 			s->armeds = 0;
+			if (denise_spr_nr_armeds == 0 && sprite_lts_selected) {
+				select_lts();
+			}
 		}
 	}
 }
@@ -5819,6 +5823,10 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		denise_linecnt = linecnt;
 		denise_hdelay = hdelay;
 		denise_startpos = startpos;
+
+		if (denise_spr_nr_armed == 0 && denise_spr_nr_armeds == 0 && sprite_lts_selected) {
+			select_lts();
+		}
 	}
 
 	denise_cck = startcycle;
@@ -6119,9 +6127,10 @@ static void select_lts(void)
 	if (aga_mode) {
 
 		int spr = 0;
-		if (denise_spr_nr_armed || samecycle) {
+		if (denise_spr_nr_armed || denise_spr_nr_armeds || samecycle) {
 			spr = 1;
 		}
+		sprite_lts_selected = spr;
 		if (need_genlock_data) {
 			int planes = denise_max_planes > 4 ? 1 : 0;
 			int oddeven = denise_max_odd_even ? 1 : 0;
@@ -6155,6 +6164,7 @@ static void select_lts(void)
 
 	} else if (ecs_denise && denise_res == RES_SUPERHIRES) {
 
+		sprite_lts_selected = 1;
 		if (hresolution == RES_LORES) {
 			lts = lts_null;
 		} else {
@@ -6177,9 +6187,10 @@ static void select_lts(void)
 	} else {
 
 		int spr = 0;
-		if (denise_spr_nr_armed || samecycle) {
+		if (denise_spr_nr_armed || denise_spr_nr_armeds || samecycle) {
 			spr = 1;
 		}
+		sprite_lts_selected = spr;
 		if (need_genlock_data) {
 			int oddeven = denise_max_odd_even;
 			int idx = (oddeven) + (bm * 2) + (spr * 2 * 4) + (denise_res * 2 * 4 * 2) + (hresolution * 2 * 4 * 2 * 2);
