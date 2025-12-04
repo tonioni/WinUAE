@@ -1196,9 +1196,9 @@ static int getFromBuffer(struct avientry *ae, int original)
 				d += 4;
 			} else if (avioutput_bits == 24) {
 				uae_u32 v = ((uae_u32*)s)[x];
+				*d++ = v >> 0;
 				*d++ = v >> 8;
 				*d++ = v >> 16;
-				*d++ = v >> 0;
 			}
 		}
 		src += spitch;
