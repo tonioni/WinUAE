@@ -1123,6 +1123,15 @@ static void setup_fmodes(uae_u16 con0)
 	fmode_inuse = fmode;
 }
 
+static void check_lineoptimizations(void)
+{
+	bool t = drawing_can_lineoptimizations() == false;
+	if (t != lineoptimizations_draw_always) {
+		lineoptimizations_draw_always = t;
+		write_log("Temp buffer mode = %d\n", t);
+	}
+}
+
 static void set_chipset_mode(bool imm)
 {
 	fmode = fmode_saved;
@@ -1232,7 +1241,7 @@ static void update_mirrors(void)
 	ddf_mask = ecs_agnus ? 0xfe : 0xfc;
 	set_chipset_mode(true);
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
-	lineoptimizations_draw_always = drawing_can_lineoptimizations() == false;
+	check_lineoptimizations();
 	color_table_changed = true;
 }
 
@@ -5417,7 +5426,7 @@ static void vsync_handler_post(void)
 
 	vsync_cycles = get_cycles();
 	vhposr_prev = 0xffffffff;
-	lineoptimizations_draw_always = drawing_can_lineoptimizations() == false;
+	check_lineoptimizations();
 }
 
 static void copper_check(int n)
