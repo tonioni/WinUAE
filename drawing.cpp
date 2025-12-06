@@ -40,6 +40,7 @@
 #include "gfxboard.h"
 
 #define ENABLE_MULTITHREADED_DENISE 1
+
 #define FMODE64_HACK 0
 
 extern int multithread_enabled;

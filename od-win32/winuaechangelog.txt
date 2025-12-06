@@ -1,4 +1,19 @@
 
+Beta 8:
+
+- If statefile is loaded and it contains expansion devices, ignore currently loaded configuration's expansion devices. Previously both got mixed and sorted using configuration's sort mode. Result was boards in wrong addresses after statefile was loaded if board configuration was not exactly same as in statefile.
+- Fix graphics corruption (stuck sprites) in fast drawing mode if sprites were used "strangely". (Castlevania AGA)
+- If sprite was armed, sprite shifter was activated, SPRxCTL was written, disarming the sprite: sprite stopped immediately due to too early switch to less complex bitplane-only drawing mode. Sprite output shifter should empty first.
+- Horizontally early BPL1DAT write in OCS Denise config activated sprites even if it was too early (broke in some early v6 betas)
+- Last line of frame and programmed mode: line was incorrectly detected as VB line when emulating sprites, even if programmed VB started later.
+- Very messed up programmed mode setup could have caused internal divide by zero crash due to number of scanlines being detected as zero.
+- Fixed AVI output swapped color components in "before filtering" mode. Again.
+- If AVI output or continuous screenshot is active: always use internal temporary display buffer mode because reading from VRAM is slow.
+- DMA debugger 64-bit (AGA FMODE=3) DMA transfer data digits was partially overwritten with other markers.
+- Some Matrox fixes from 86box.
+- D3D11 mode now clears allocated textures because they are not guaranteed to be cleared after allocation. Could have left garbage on screen when screen size/etc changed depending on GPU/drivers/etc.
+- Some (older?) sound drivers return invalid argument error code instead of unsupported format when querying 8 channel formats which stopped supported format enumeration early if GUI selected mode was not supported.
+
 Beta 7:
 
 - Activating light pen on the fly (and other features that write on top of native screen) and fast drawing mode was possible: light pen left trails on non-modified parts of screen until display was reset (for example resize of windowed mode window). (v6)

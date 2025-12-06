@@ -2285,9 +2285,6 @@ int check_prefs_changed_gfx(void)
 				} else {
 					c |= 16;
 					reset_drawing();
-#if 0
-					S2X_reset(mon->monitor_id);
-#endif
 				}
 			}
 			if (c & 1024) {
