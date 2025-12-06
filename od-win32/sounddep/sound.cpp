@@ -1424,8 +1424,9 @@ retry:
 			pwfx ? pwfx->nChannels : -1, pwfx ? pwfx->nSamplesPerSec : -1, pwfx ? pwfx->wBitsPerSample : -1,
 			hr, rncnt, finalround);
 
-		if (SUCCEEDED (hr) && hr != S_FALSE)
+		if (SUCCEEDED (hr) && hr != S_FALSE) {
 			break;
+		}
 		if (finalround && SUCCEEDED (hr)) {
 			if (pwfx_saved) {
 				sd->channels = pwfx_saved->nChannels;
@@ -1442,8 +1443,9 @@ retry:
 				goto retry;
 			}
 		}
-		if (hr != AUDCLNT_E_UNSUPPORTED_FORMAT && hr != S_FALSE)
+		if (hr != AUDCLNT_E_UNSUPPORTED_FORMAT && hr != E_INVALIDARG && hr != S_FALSE) {
 			goto error;
+		}
 		if (hr == S_FALSE && pwfx_saved == NULL) {
 			pwfx_saved = pwfx;
 			pwfx = NULL;
