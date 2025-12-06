@@ -1910,6 +1910,20 @@ static bool InitializeBuffers(struct d3d11struct *d3d, ID3D11Buffer **vertexBuff
 	return true;
 }
 
+static void erasetexture(struct d3d11struct *d3d, ID3D11Texture2D *t, D3D11_TEXTURE2D_DESC *d)
+{
+	D3D11_MAPPED_SUBRESOURCE map;
+	HRESULT hr = d3d->m_deviceContext->Map(t, 0, d->Usage == D3D11_USAGE_DYNAMIC ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &map);
+	if (SUCCEEDED(hr)) {
+		uae_u8 *p = (uae_u8*)map.pData;
+		for (int i = 0; i < d->Height; i++) {
+			memset(p, 0, d->Width * 4);
+			p += map.RowPitch;
+		}
+		d3d->m_deviceContext->Unmap(t, 0);
+	}
+}
+
 static void setsprite(struct d3d11struct *d3d, struct d3d11sprite *s, float x, float y)
 {
 	s->x = x;
@@ -1969,6 +1983,7 @@ static bool allocsprite(struct d3d11struct *d3d, struct d3d11sprite *s, int widt
 		write_log(_T("CreateTexture2D (%dx%d) failed: %08x\n"), width, height, hr);
 		goto err;
 	}
+	erasetexture(d3d, s->texture, &desc);
 
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
@@ -1988,21 +2003,6 @@ err:
 	freesprite(s);
 	return false;
 }
-
-#if 0
-static void erasetexture(struct d3d11struct *d3d)
-{
-	int pitch;
-	uae_u8 *p = D3D_locktexture(d3d->num, &pitch, NULL, true);
-	if (p) {
-		for (int i = 0; i < d3d->m_bitmapHeight; i++) {
-			memset(p, 255, d3d->m_bitmapWidth * d3d->texdepth / 8);
-			p += pitch;
-		}
-		D3D_unlocktexture(d3d->num, -1, -1);
-	}
-}
-#endif
 
 static bool CreateTexture(struct d3d11struct *d3d)
 {
@@ -2048,6 +2048,8 @@ static bool CreateTexture(struct d3d11struct *d3d)
 		write_log(_T("CreateTexture2D (staging) failed: %08x\n"), hr);
 		return false;
 	}
+	erasetexture(d3d, d3d->texture2dstaging, &desc);
+	d3d->m_deviceContext->CopyResource(d3d->texture2d, d3d->texture2dstaging);
 
 	desc.Width = d3d->m_bitmapWidth;
 	desc.Height = d3d->m_bitmapHeight;
