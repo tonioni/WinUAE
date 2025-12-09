@@ -1112,11 +1112,17 @@ static int getFromBuffer(struct avientry *ae, int original)
 	bool locked = false;
 	uae_u8 *src = NULL, *mem = NULL;
 	uae_u8 *dst = ae->lpVideo;
-	int spitch, dpitch;
+	int spitch, dpitch, dbpx;
 	int maxw, maxh;
 	int freed = 0;
 
 	dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
+	dbpx = avioutput_bits / 8;
+	int sbpx = avioutput_bits / 8;
+	if (sbpx == 3) {
+		sbpx = 4;
+	}
+
 	maxw = aviout_width_out;
 	maxh = aviout_height_out;
 	if (original || WIN32GFX_IsPicassoScreen(mon)) {
@@ -1140,17 +1146,23 @@ static int getFromBuffer(struct avientry *ae, int original)
 	int yoffset = currprefs.aviout_yoffset < 0 ? (aviout_height_out - avioutput_height) / 2 : -currprefs.aviout_yoffset;
 
 	dst += dpitch * aviout_height_out;
-	dst += (aviout_width_out - maxw) / 2;
-	dst -= (aviout_height_out - maxh) / 2;
+	if (aviout_width_out >= maxw) {
+		dst += ((aviout_width_out - maxw) / 2) * dbpx;
+	}
+	if (aviout_height_out >= maxh) {
+		dst -= ((aviout_height_out - maxh) / 2) * dpitch;
+	}
 
 	if (yoffset > 0) {
-		if (yoffset >= aviout_height_out - avioutput_height)
+		if (yoffset >= aviout_height_out - avioutput_height) {
 			yoffset = aviout_height_out - avioutput_height;
+		}
 		dst -= dpitch * yoffset;
 	} else if (yoffset < 0) {
 		yoffset = -yoffset;
-		if (yoffset >= avioutput_height - aviout_height_out)
+		if (yoffset >= avioutput_height - aviout_height_out) {
 			yoffset = avioutput_height - aviout_height_out;
+		}
 		src += spitch * yoffset;
 	}
 	int xoffset2 = 0;
@@ -1158,16 +1170,11 @@ static int getFromBuffer(struct avientry *ae, int original)
 		xoffset2 = -xoffset;
 		xoffset = 0;
 	}
-	int dbpx = avioutput_bits / 8;
-	int sbpx = avioutput_bits / 8;
-	if (sbpx == 3)
-		sbpx = 4;
 
 	for (y = 0; y < avioutput_height && y < maxh && y < aviout_height_out && y < aviout_height_in; y++) {
-		uae_u8 *s, *d;
 		dst -= dpitch;
-		d = dst;
-		s = src;
+		uae_u8 *d = dst;
+		uae_u8 *s = src;
 		if (xoffset > 0) {
 			d += xoffset * dbpx;
 		} else if (xoffset2 > 0) {
