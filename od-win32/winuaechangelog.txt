@@ -1,4 +1,13 @@
 
+Beta 9:
+
+- Fixed Matrox Millennium vblank start callback function. Display VRAM start address was not updated correctly if non-zero. Didn't affect other models.
+- Fixed AVI Output color components possibly randomly swapping if output and input width was different. (Pixel adjustment used byte size instead of pixel size)
+- Fixed possible AVI Output buffer overflow crash if video and output buffer dimensions were too different.
+- AVI Output and screenshot requested height from drawing code but it could return wrong results (usually few pixels too short) in fast drawing mode. Most visible side-effect was few pixel vertically jumping AVI recording.
+- SPRxPOS/CTL writes were 0.5CCK too late. (and another ross test works. AGA has more annoying 1 shres pixel offsets but they can wait for next version)
+- Line that force-starts sprites (PAL 25, NTSC 20, end of VB line) also prevents sprite DMA enable even if sprite start or end vertical would match this line. VB end line is the only line that has this special condition because it is line that resets sprite logic. Old forgotten hack was finally removed and correct behavior was implemented.
+
 Beta 8:
 
 - If statefile is loaded and it contains expansion devices, ignore currently loaded configuration's expansion devices. Previously both got mixed and sorted using configuration's sort mode. Result was boards in wrong addresses after statefile was loaded if board configuration was not exactly same as in statefile.

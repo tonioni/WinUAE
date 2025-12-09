@@ -68,8 +68,8 @@ extern int multithread_enabled;
 
 uae_u8 *xlinebuffer, *xlinebuffer2;
 uae_u8 *xlinebuffer_genlock;
-static uae_u8* xlinebuffer_start, * xlinebuffer_end;
-static uae_u8* xlinebuffer2_start, * xlinebuffer2_end;
+static uae_u8 *xlinebuffer_start, *xlinebuffer_end;
+static uae_u8 *xlinebuffer2_start, *xlinebuffer2_end;
 static uae_u8 *xlinebuffer_genlock_start, *xlinebuffer_genlock_end;
 
 static int *amiga2aspect_line_map, *native2amiga_line_map;
