@@ -458,6 +458,7 @@ static uae_u16 clxcon_bpl_match_55, clxcon_bpl_match_aa;
 static int aga_delayed_color_idx;
 static uae_u16 aga_delayed_color_val, aga_delayed_color_con2, aga_delayed_color_con3;
 static int aga_unalign0, aga_unalign1, bpl1dat_unalign, reswitch_unalign;
+static int spr_unalign_reg, spr_unalign_val;
 #if 0
 static int bplcon0_res_unalign, bplcon0_res_unalign_res;
 #endif
@@ -2708,10 +2709,10 @@ static void sprwrite(int reg, uae_u32 v)
 	bool dat = (reg & 4) != 0;
 	bool second = (reg & 2) != 0;
 
-	// If sprite X matches and sprite was already armed,
+	// If SPRxDATx is written and sprite X matches and sprite was already armed,
 	// old value matches and shifter copy is done first.
 	// (For example Hybris score board)
-	if (s->armed && s->xpos_lores == denise_hcounter) {
+	if (dat && s->armed && s->xpos_lores == denise_hcounter) {
 		s->dataas = s->dataa;
 		s->databs = s->datab;
 		s->dataas64 = s->dataa64;
@@ -2782,7 +2783,6 @@ static void sprwrite(int reg, uae_u32 v)
 			spr_nearest();
 		}
 	}
-
 }
 
 static void check_lts_request(void)
@@ -3530,6 +3530,11 @@ void denise_reset(bool hard)
 	denise_csync_blanken = false;
 	aga_delayed_color_idx = -1;
 	sprite_pixdata = 0;
+	aga_unalign0 = 0;
+	aga_unalign1 = 0;
+	spr_unalign_reg = 0;
+	bpl1dat_unalign = 0;
+	reswitch_unalign = 0;
 	for (int i = 0; i < 256; i++) {
 		uae_u16 v = 0;
 		if (i & (0x01 | 0x02)) { // 0/1
@@ -3812,6 +3817,18 @@ static void expand_drga_early(struct denise_rga *rd)
 
 	switch (rd->rga)
 	{
+		case 0x140: case 0x142:
+		case 0x148: case 0x14a:
+		case 0x150: case 0x152:
+		case 0x158: case 0x15a:
+		case 0x160: case 0x162:
+		case 0x168: case 0x16a:
+		case 0x170: case 0x172:
+		case 0x178: case 0x17a:
+			spr_unalign_reg = rd->rga;
+			spr_unalign_val = rd->v;
+			break;
+
 		case 0x144: case 0x146:
 		case 0x14c: case 0x14e:
 		case 0x154: case 0x156:
@@ -4009,18 +4026,6 @@ static void expand_drga(struct denise_rga *rd)
 		case 0x03e: // STRLONG
 		set_strlong();
 		break;
-
-		case 0x140: case 0x142:
-		case 0x148: case 0x14a:
-		case 0x150: case 0x152:
-		case 0x158: case 0x15a:
-		case 0x160: case 0x162:
-		case 0x168: case 0x16a:
-		case 0x170: case 0x172:
-		case 0x178: case 0x17a:
-		sprwrite(rd->rga - 0x140, rd->v);
-		break;
-
 		case 0x110:
 		if (denise_bplfmode64) {
 #if FMODE64_HACK
@@ -4999,6 +5004,8 @@ static void burst_disable(void)
 
 static void lts_unaligned_ecs(int, int, int);
 static void lts_unaligned_aga(int, int, int);
+static void matchsprites2(int cnt);
+static void matchsprites2_aga(int cnt);
 
 static bool checkhorizontal1_ecs(int cnt, int cnt_next, int h)
 {
@@ -5024,6 +5031,13 @@ static bool checkhorizontal1_ecs(int cnt, int cnt_next, int h)
 	}
 #if DEBUG_ALWAYS_UNALIGNED_DRAWING
 	lts_unaligned_ecs(cnt, cnt_next, h);
+#endif
+	if (h && spr_unalign_reg) {
+		matchsprites2(cnt << 2);
+		sprwrite(spr_unalign_reg - 0x140, spr_unalign_val);
+		spr_unalign_reg = 0;
+	}
+#if DEBUG_ALWAYS_UNALIGNED_DRAWING
 	return true;
 #endif
 	if (cnt == denise_hstrt_lores) {
@@ -5066,6 +5080,10 @@ static bool checkhorizontal1_aga(int cnt, int cnt_next, int h)
 	lts_unaligned_aga(cnt, cnt_next, h);
 	return true;
 #endif
+	if (h && spr_unalign_reg) {
+		lts_unaligned_aga(cnt, cnt_next, h);
+		return true;
+	}
 	if (aga_unalign0 > 0 && !h) {
 		aga_unalign0--;
 		lts_unaligned_aga(cnt, cnt_next, h);
@@ -5146,8 +5164,8 @@ static void matchsprites2(int cnt)
 					sp->dataas = sp->dataa;
 					sp->databs = sp->datab;
 
-					// ECS Denise + hires sprite bit and not superhires: leftmost pixel is missing
-					if (ecs_denise_only && denise_res < RES_SUPERHIRES && (sp->ctl & 0x10)) {
+					// ECS Denise + hires sprite bit and hires: leftmost pixel is missing
+					if (ecs_denise_only && denise_res == RES_HIRES && (sp->ctl & 0x10)) {
 						sp->dataas &= 0x7fffffff;
 						sp->databs &= 0x7fffffff;
 					}
@@ -5203,38 +5221,43 @@ static void matchsprites(int cnt)
 	}
 }
 
-static void matchsprites_aga(int cnt)
+static void matchsprites2_aga(int cnt)
 {
-	denise_spr_nearestcnt--;
-	if (denise_spr_nearestcnt < 0 && denise_spr_nearestcnt >= SPRITE_NEAREST_MIN) {
-		int sidx = 0;
-		while (dprspt[sidx]) {
-			struct denise_spr *sp = dprspt[sidx];
-			if (sp->armed) {
-				if ((cnt & denise_xposmask) == (sp->xpos & denise_xposmask)) {
-					if (sp->shiftercopydone) {
-						sp->shiftercopydone = false;
+	int sidx = 0;
+	while (dprspt[sidx]) {
+		struct denise_spr *sp = dprspt[sidx];
+		if (sp->armed) {
+			if ((cnt & denise_xposmask) == (sp->xpos & denise_xposmask)) {
+				if (sp->shiftercopydone) {
+					sp->shiftercopydone = false;
+				} else {
+					if (denise_sprfmode64) {
+						sp->dataas64 = sp->dataa64;
+						sp->databs64 = sp->datab64;
+						if (sp->dataas64 || sp->databs64) {
+							spr_arms(sp, 1);
+							sp->fmode = denise_sprfmode;
+						}
 					} else {
-						if (denise_sprfmode64) {
-							sp->dataas64 = sp->dataa64;
-							sp->databs64 = sp->datab64;
-							if (sp->dataas64 || sp->databs64) {
-								spr_arms(sp, 1);
-								sp->fmode = denise_sprfmode;
-							}
-						} else {
-							sp->dataas = sp->dataa;
-							sp->databs = sp->datab;
-							if (sp->dataas || sp->databs) {
-								spr_arms(sp, 1);
-								sp->fmode = denise_sprfmode;
-							}
+						sp->dataas = sp->dataa;
+						sp->databs = sp->datab;
+						if (sp->dataas || sp->databs) {
+							spr_arms(sp, 1);
+							sp->fmode = denise_sprfmode;
 						}
 					}
 				}
 			}
-			sidx++;
 		}
+		sidx++;
+	}
+}
+
+static void matchsprites_aga(int cnt)
+{
+	denise_spr_nearestcnt--;
+	if (denise_spr_nearestcnt < 0 && denise_spr_nearestcnt >= SPRITE_NEAREST_MIN) {
+		matchsprites2_aga(cnt);
 		spr_nearest();
 	}
 }
@@ -6322,6 +6345,11 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 					bpl1dat_unalign = false;
 				}
 
+				if (spr_unalign_reg) {
+					matchsprites2_aga(cnt);
+					sprwrite(spr_unalign_reg - 0x140, spr_unalign_val);
+					spr_unalign_reg = 0;
+				}
 			}
 
 		}
