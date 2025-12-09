@@ -4130,7 +4130,8 @@ static void sprstartstop(struct sprite *s)
 	if (vpos == s->vstart) {
 		s->dmastate = 1;
 	}
-	if (vpos == s->vstop) {
+	// DMA can't get enabled during last line of VB (sprite reset line)
+	if (vpos == s->vstop || agnus_vb_active_end_line) {
 		s->dmastate = 0;
 		s->dmacycle = 0;
 	}
@@ -4165,20 +4166,7 @@ static void SPRxCTL(uae_u16 v, int num)
 	SPRxCTLPOS(num);
 	sprstartstop(s);
 }
-static void SPRxCTL_DMA(uae_u16 v, int num)
-{
-	struct sprite *s = &spr[num];
 
-	s->ctl = v;
-	sprstartstop(s);
-	SPRxCTLPOS(num);
-	// This is needed to disarm previous field's sprite.
-	// It can be seen on OCS Agnus + ECS Denise combination where
-	// this cycle is disabled due to weird DDFTSTR=$18 copper list
-	// which causes corrupted sprite to "wrap around" the display.
-	s->dmastate = 0;
-	sprstartstop(s);
-}
 static void SPRxPOS(uae_u16 v, int num)
 {
 	struct sprite *s = &spr[num];
@@ -12153,7 +12141,7 @@ static void handle_rga_out(void)
 
 			if (!dmastate) {
 				if (slot) {
-					SPRxCTL_DMA(sdat, num);
+					SPRxCTL(sdat, num);
 				} else {
 					SPRxPOS(sdat, num);
 				}
