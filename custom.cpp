@@ -12390,6 +12390,17 @@ static void do_cck(bool docycles)
 
 }
 
+static uae_u16 quick_strobe(void)
+{
+	uae_u16 str = get_strobe_reg(0);
+	write_drga_strobe(str);
+	if (prev_strobe == 0x3c && str != 0x3c) {
+		INTREQ_INT(5, 0);
+	}
+	prev_strobe = str;
+	return str;
+}
+
 // horizontal sync callback when line not changed + fast cpu
 static void sync_equalline_handler(void)
 {
@@ -12405,12 +12416,7 @@ static void sync_equalline_handler(void)
 	rga_denise_cycle += rdc_offset;
 	rga_denise_cycle &= DENISE_RGA_SLOT_MASK;
 
-	uae_u16 str = get_strobe_reg(0);
-	write_drga_strobe(str);
-	if (prev_strobe == 0x3c && str != 0x3c) {
-		INTREQ_INT(5, 0);
-	}
-	prev_strobe = str;
+	uae_u16 str = quick_strobe();
 
 	int diff = display_hstart_fastmode - hpos_delta;
 	linear_hpos += diff;
@@ -12458,6 +12464,8 @@ static void sync_equalline_handler(void)
 	} else {
 		custom_fastmode = -1;
 		custom_fastmode_exit = 1;
+		str = quick_strobe();
+		denise_handle_quick_strobe_queue(str, display_hstart_fastmode, rga_denise_cycle);
 	}
 }
 
