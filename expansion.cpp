@@ -5407,7 +5407,7 @@ const struct expansionromtype expansionroms[] = {
 	},
 #endif
 	{
-		_T("a1000wom512k"), _T("A1000 512k WOM"), _T("Jörg Huth"),
+		_T("a1000wom512k"), _T("A1000 512k WOM"), _T("J\x00f6rg Huth"),
 		NULL, NULL, NULL, NULL, ROMTYPE_512KWOM | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_INTERNAL
