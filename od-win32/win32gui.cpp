@@ -20718,8 +20718,8 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 		yrange1 = xrange1;
 		yrange2 = xrange2;
 	} else {
-		xrange1 = -9999;
-		xrange2 = 9999;
+		xrange1 = -MANUAL_FILTER_MAX_RANGE;
+		xrange2 = MANUAL_FILTER_MAX_RANGE;
 		yrange1 = xrange1;
 		yrange2 = xrange2;
 	}
@@ -21324,41 +21324,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			struct gfx_filterdata *fd = &currprefs.gf[filter_nativertg];
 			int val;
 
-			if (fdwp->gfx_filter_autoscale == AUTOSCALE_MANUAL) {
-				if (h == hz && getdlgnumber(hz, &val, -1, 1900)) {
-					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
-					xSendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, val);
-				}
-				if (h == vz && getdlgnumber(vz, &val, -1, 1900)) {
-					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
-					xSendDlgItemMessage(hDlg, IDC_FILTERVZV, TBM_SETPOS, TRUE, val);
-				}
-				if (h == ho && getdlgnumber(ho, &val, -1, 700)) {
-					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
-					xSendDlgItemMessage(hDlg, IDC_FILTERHOV, TBM_SETPOS, TRUE, val);
-				}
-				if (h == vo && getdlgnumber(vo, &val, -1, 700)) {
-					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
-					xSendDlgItemMessage(hDlg, IDC_FILTERVOV, TBM_SETPOS, TRUE, val);
-				}
-			} else if (fdwp->gfx_filter_autoscale == AUTOSCALE_OVERSCAN_BLANK) {
-				if (h == hz && getdlgnumber(hz, &val, -1, 1900)) {
-					fd->gfx_filter_left_border = fdwp->gfx_filter_left_border = val;
-					xSendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, val);
-				}
-				if (h == vz && getdlgnumber(vz, &val, 0, 1900)) {
-					fd->gfx_filter_right_border = fdwp->gfx_filter_right_border = val;
-					xSendDlgItemMessage(hDlg, IDC_FILTERVZV, TBM_SETPOS, TRUE, val);
-				}
-				if (h == vo && getdlgnumber(vo, &val, -1, 700)) {
-					fd->gfx_filter_top_border = fdwp->gfx_filter_top_border = val;
-					xSendDlgItemMessage(hDlg, IDC_FILTERHOV, TBM_SETPOS, TRUE, val);
-				}
-				if (h == vo && getdlgnumber(vo, &val, 0, 700)) {
-					fd->gfx_filter_bottom_border = fdwp->gfx_filter_bottom_border = val;
-					xSendDlgItemMessage(hDlg, IDC_FILTERVOV, TBM_SETPOS, TRUE, val);
-				}
-			} else {
+			if (fdwp->gfx_filter_autoscale == AUTOSCALE_INTEGER || fdwp->gfx_filter_autoscale == AUTOSCALE_INTEGER_AUTOSCALE) {
 				if (h == hz) {
 					if (getdlgnumber(hz, &val, -99, 99)) {
 						fd->gfx_filter_horiz_zoom = (float)val;
@@ -21390,6 +21356,46 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				}
 				fd->gfx_filter_horiz_offset = fdwp->gfx_filter_horiz_offset;
 				fd->gfx_filter_vert_offset = fdwp->gfx_filter_vert_offset;
+			} else if (fdwp->gfx_filter_autoscale == AUTOSCALE_OVERSCAN_BLANK) {
+				if (h == hz && getdlgnumber(hz, &val, -1, MANUAL_SCALE_MAX_RANGE - 1)) {
+					fd->gfx_filter_left_border = fdwp->gfx_filter_left_border = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, val);
+				}
+				if (h == vz && getdlgnumber(vz, &val, 0, MANUAL_SCALE_MAX_RANGE - 1)) {
+					fd->gfx_filter_right_border = fdwp->gfx_filter_right_border = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERVZV, TBM_SETPOS, TRUE, val);
+				}
+				if (h == ho && getdlgnumber(ho, &val, -1, 700)) {
+					fd->gfx_filter_top_border = fdwp->gfx_filter_top_border = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERHOV, TBM_SETPOS, TRUE, val);
+				}
+				if (h == vo && getdlgnumber(vo, &val, 0, 700)) {
+					fd->gfx_filter_bottom_border = fdwp->gfx_filter_bottom_border = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERVOV, TBM_SETPOS, TRUE, val);
+				}
+			} else {
+				int maxh = MANUAL_FILTER_MAX_RANGE;
+				int minh = -MANUAL_FILTER_MAX_RANGE;
+				if (fdwp->gfx_filter_autoscale == AUTOSCALE_MANUAL) {
+					maxh = MANUAL_SCALE_MAX_RANGE;
+					minh = -MANUAL_SCALE_MAX_RANGE;
+				}
+				if (h == hz && getdlgnumber(hz, &val, minh, maxh)) {
+					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, val);
+				}
+				if (h == vz && getdlgnumber(vz, &val, minh, maxh)) {
+					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERVZV, TBM_SETPOS, TRUE, val);
+				}
+				if (h == ho && getdlgnumber(ho, &val, minh, maxh)) {
+					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERHOV, TBM_SETPOS, TRUE, val);
+				}
+				if (h == vo && getdlgnumber(vo, &val, minh, maxh)) {
+					currprefs.gfx_xcenter_size = workprefs.gfx_xcenter_size = val;
+					xSendDlgItemMessage(hDlg, IDC_FILTERVOV, TBM_SETPOS, TRUE, val);
+				}
 			}
 			if (!full_property_sheet) {
 				init_colors(0);
