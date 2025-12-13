@@ -120,6 +120,9 @@ static void draw_denise_vsync(int);
 static void denise_update_reg(uae_u16 reg, uae_u16 v, uae_u32 linecnt);
 static void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls);
 
+static void sprwrite(int reg, uae_u32 v);
+static int spr_unalign_reg, spr_unalign_val;
+
 static void quick_denise_rga(uae_u32 linecnt, int startpos, int endpos)
 {
 	int pos = startpos;
@@ -129,6 +132,9 @@ static void quick_denise_rga(uae_u32 linecnt, int startpos, int endpos)
 		struct denise_rga *rd = &rga_denise[pos];
 		if (rd->line == linecnt && rd->rga != 0x1fe && (rd->rga < 0x38 || rd->rga >= 0x40)) {
 			denise_update_reg(rd->rga, rd->v, linecnt);
+			if (spr_unalign_reg) {
+				sprwrite(spr_unalign_reg - 0x140, spr_unalign_val);
+			}
 		}
 		pos++;
 		pos &= DENISE_RGA_SLOT_MASK;
@@ -459,7 +465,6 @@ static uae_u16 clxcon_bpl_match_55, clxcon_bpl_match_aa;
 static int aga_delayed_color_idx;
 static uae_u16 aga_delayed_color_val, aga_delayed_color_con2, aga_delayed_color_con3;
 static int aga_unalign0, aga_unalign1, bpl1dat_unalign, reswitch_unalign;
-static int spr_unalign_reg, spr_unalign_val;
 #if 0
 static int bplcon0_res_unalign, bplcon0_res_unalign_res;
 #endif
@@ -3813,6 +3818,7 @@ static void expand_drga_early(struct denise_rga *rd)
 
 	switch (rd->rga)
 	{
+		// SPRxPOS/SPRxCTL
 		case 0x140: case 0x142:
 		case 0x148: case 0x14a:
 		case 0x150: case 0x152:
@@ -3825,6 +3831,7 @@ static void expand_drga_early(struct denise_rga *rd)
 			spr_unalign_val = rd->v;
 			break;
 
+		// SPRxDATA/SPRxDATB
 		case 0x144: case 0x146:
 		case 0x14c: case 0x14e:
 		case 0x154: case 0x156:
@@ -5076,10 +5083,6 @@ static bool checkhorizontal1_aga(int cnt, int cnt_next, int h)
 	lts_unaligned_aga(cnt, cnt_next, h);
 	return true;
 #endif
-	if (h && spr_unalign_reg) {
-		lts_unaligned_aga(cnt, cnt_next, h);
-		return true;
-	}
 	if (aga_unalign0 > 0 && !h) {
 		aga_unalign0--;
 		lts_unaligned_aga(cnt, cnt_next, h);
@@ -5141,6 +5144,10 @@ static bool checkhorizontal1_aga(int cnt, int cnt_next, int h)
 			lts_unaligned_aga(cnt, cnt_next, h);
 			return true;
 		}
+	}
+	if (h && spr_unalign_reg) {
+		lts_unaligned_aga(cnt, cnt_next, h);
+		return true;
 	}
 	return false;
 }
