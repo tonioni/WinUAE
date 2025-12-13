@@ -1,4 +1,11 @@
 
+Beta 10:
+
+- Filter panel new numeric text controls had wrong min and max values for most filter modes.
+- When pausing emulation, release any pressed Amiga keys before pausing because key events are ignored when paused. Fixes stuck left ALT when using ALT-TAB and when active and mouse uncaptured = pause emulation. (Old bug)
+- Added lightpen_offset_gfx=x,y that only adds offset to crosshair (host side) coordinates. Previously implemented lightpen_offset adds offset to Amiga side oordinates.
+- Fast mode chunky line buffer could have contained partial data from previous line. It is now cleared. (Relic / Nerve Axis initial screen. Yet again.)
+
 Beta 9:
 
 - Fixed Matrox Millennium vblank start callback function. Display VRAM start address was not updated correctly if non-zero. Didn't affect other models.
