@@ -623,7 +623,7 @@ struct uae_prefs {
 	int lightboost_strobo_ratio;
 	bool gfx_grayscale;
 	bool lightpen_crosshair;
-	int lightpen_offset[2];
+	int lightpen_offset[2][2];
 	int gfx_display_sections;
 	int gfx_variable_sync;
 	bool gfx_windowed_resize;

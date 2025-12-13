@@ -1691,8 +1691,6 @@ static void init_drawing_frame(void)
 	thisframe_last_drawn_line = -1;
 }
 
-static int lightpen_y1[2], lightpen_y2[2];
-
 void putpixel(uae_u8 *buf, uae_u8 *genlockbuf, int x, xcolnr c8)
 {
 	if (x <= 0)
@@ -1808,12 +1806,12 @@ static const char *lightpen_cursor = {
 	"------.....------"
 	"------.xxx.------"
 	"------.xxx.------"
-	"------.xxx.------"
-	".......xxx......."
-	".xxxxxxxxxxxxxxx."
-	".xxxxxxxxxxxxxxx."
-	".......xxx......."
-	"------.xxx.------"
+	"-------.x.-------"
+	"......-----......"
+	".xxxx-------xxxx."
+	".xxxx-------xxxx."
+	"......-----......"
+	"-------.x.-------"
 	"------.xxx.------"
 	"------.xxx.------"
 	"------.....------"
@@ -1874,8 +1872,8 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 	cy >>= linedbl;
 	cy += minfirstline;
 
-	cx += currprefs.lightpen_offset[0];
-	cy += currprefs.lightpen_offset[1];
+	cx += currprefs.lightpen_offset[0][0];
+	cy += currprefs.lightpen_offset[0][1];
 
 	if (cx <= 0x18 - 1) {
 		cx = 0x18 - 1;
@@ -1893,21 +1891,20 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 	if (currprefs.lightpen_crosshair && lightpen_active) {
 		if (denise_lock()) {
 			for (int i = 0; i < LIGHTPEN_HEIGHT; i++) {
-				int line = lightpen_y[lpnum] + i - LIGHTPEN_HEIGHT / 2;
+				int line = lightpen_y[lpnum] + i - LIGHTPEN_HEIGHT / 2 + currprefs.lightpen_offset[1][1];
 				if (line >= 0 && line < max_ypos_thisframe1) {
 					if (lightpen_active & (1 << lpnum)) {
-						draw_lightpen_cursor(vb->monitor_id, lightpen_x[lpnum], i, line, cx > 0, lpnum);
+						draw_lightpen_cursor(vb->monitor_id, lightpen_x[lpnum] + currprefs.lightpen_offset[1][0], i, line, cx > 0, lpnum);
 					}
 				}
 			}
 		}
 	}
 
-	lightpen_y1[lpnum] = lightpen_y[lpnum] - LIGHTPEN_HEIGHT / 2 - 1 + (thisframe_y_adjust_real >> linedbl);
-	lightpen_y2[lpnum] = lightpen_y1[lpnum] + LIGHTPEN_HEIGHT + 1 + (thisframe_y_adjust_real >> linedbl);
-
 	lightpen_cx[lpnum] = out ? -1 : cx;
 	lightpen_cy[lpnum] = out ? -1 : cy;
+
+	//write_log("%03d*%03d\n", cx, cy);
 }
 
 static void refresh_indicator_init(void)
@@ -2371,8 +2368,6 @@ void reset_drawing(void)
 	init_drawing_frame();
 
 	frame_res_cnt = currprefs.gfx_autoresolution_delay;
-	lightpen_y1[0] = lightpen_y2[0] = -1;
-	lightpen_y1[1] = lightpen_y2[1] = -1;
 
 	reset_custom_limits();
 
