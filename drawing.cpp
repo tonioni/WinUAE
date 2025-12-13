@@ -313,6 +313,7 @@ static int sprite_offs[256];
 /* OCS/ECS color lookup table. */
 xcolnr xcolors[4096];
 
+static int chunky_out_prev_len;
 static uae_u32 chunky_out[4096], dpf_chunky_out[4096];
 
 #ifdef AGA
@@ -6863,7 +6864,6 @@ static void pfield_doline_8(int planecnt, int wordcount, uae_u8 *datap, struct l
 	uae_u32 *data = (uae_u32 *)datap;
 	switch (planecnt) {
 		default: break;
-		case 0: memset(data, 0, wordcount * 32); break;
 		case 1: pfield_doline32_n1_8(data, wordcount, real_bplpt); break;
 		case 2: pfield_doline32_n2_8(data, wordcount, real_bplpt); break;
 		case 3: pfield_doline32_n3_8(data, wordcount, real_bplpt); break;
@@ -7182,8 +7182,17 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	}
 
 	uae_u32 *cstart = chunky_out + 1024;
-	int len = (ls->bpllen + 3) / 4;
-	pfield_doline_8(planecnt, len, (uae_u8*)cstart, ls);
+	int len = 0;
+	if (planecnt > 0) {
+		len = (ls->bpllen + 3) / 4;
+		pfield_doline_8(planecnt, len, (uae_u8*)cstart, ls);
+	}
+	int byteoutlen = len * 8 * 4;
+	// if previous line was longer: clear the unused part
+	if (chunky_out_prev_len > byteoutlen) {
+		memset((uae_u8*)cstart + byteoutlen, 0, chunky_out_prev_len - byteoutlen);
+	}
+	chunky_out_prev_len = byteoutlen;
 
 	bool ecsena = ecs_denise && (ls->bplcon0 & 1) != 0;
 	bool brdblank = (ls->bplcon3 & 0x20) && ecsena;
