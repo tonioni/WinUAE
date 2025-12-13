@@ -6864,6 +6864,7 @@ static void pfield_doline_8(int planecnt, int wordcount, uae_u8 *datap, struct l
 	uae_u32 *data = (uae_u32 *)datap;
 	switch (planecnt) {
 		default: break;
+		case 0: memset(data, 0, wordcount * 32); break;
 		case 1: pfield_doline32_n1_8(data, wordcount, real_bplpt); break;
 		case 2: pfield_doline32_n2_8(data, wordcount, real_bplpt); break;
 		case 3: pfield_doline32_n3_8(data, wordcount, real_bplpt); break;
@@ -6913,12 +6914,12 @@ static int l_shift(int v, int shift)
 static void draw_blank_start(int len)
 {
 	if (len > 0 && buf1 < (uae_u32*)xlinebuffer_start) {
-		int d = (uae_u32*)xlinebuffer_start - buf1;
+		int d = addrdiff((uae_u32*)xlinebuffer_start, buf1);
 		buf1 += d;
 		len -= d;
 	}
 	if (buf1 + len > (uae_u32*)xlinebuffer_end) {
-		len = (uae_u32*)xlinebuffer_end - buf1;
+		len = addrdiff((uae_u32*)xlinebuffer_end, buf1);
 	}
 	if (len > 0) {
 		memset(buf1, 0, len * sizeof(uae_u32));
@@ -6933,7 +6934,7 @@ static void draw_blank_end(void)
 		buf1 = (uae_u32*)xlinebuffer_start;
 	}
 	if (buf1 < (uae_u32*)xlinebuffer_end) {
-		int len = (uae_u32*)xlinebuffer_end - buf1;
+		int len = addrdiff((uae_u32*)xlinebuffer_end, buf1);
 		if (len > 0) {
 			memset(buf1, 0, len * sizeof(uae_u32));
 			if (buf2) {
@@ -7182,12 +7183,9 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	}
 
 	uae_u32 *cstart = chunky_out + 1024;
-	int len = 0;
-	if (planecnt > 0) {
-		len = (ls->bpllen + 3) / 4;
-		pfield_doline_8(planecnt, len, (uae_u8*)cstart, ls);
-	}
+	int len = (ls->bpllen + 3) / 4;
 	int byteoutlen = len * 8 * 4;
+	pfield_doline_8(planecnt, len, (uae_u8*)cstart, ls);
 	// if previous line was longer: clear the unused part
 	if (chunky_out_prev_len > byteoutlen) {
 		memset((uae_u8*)cstart + byteoutlen, 0, chunky_out_prev_len - byteoutlen);
