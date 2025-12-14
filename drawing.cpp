@@ -7074,8 +7074,7 @@ void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, st
 			draw_blank_end();
 		}
 
-		total = end - start;
-		if (need_genlock_data && gbuf && total) {
+		if (need_genlock_data && gbuf && total > 0) {
 			int max = addrdiff(xlinebuffer_genlock_end, gbufp);
 			total += GENLOCK_EXTRA_CLEAR;
 			if (total > max) {
