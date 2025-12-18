@@ -7046,9 +7046,12 @@ void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, st
 	buf2 = buf2p;
 
 	if (blank)  {
-		memset(buf1, 0, xlinebuffer_end - (uae_u8*)buf1);
-		if (buf2) {
-			memset(buf2, 0, xlinebuffer_end - (uae_u8 *)buf1);
+		int len = addrdiff(xlinebuffer_end, (uae_u8*)buf1);
+		if (len > 0) {
+			memset(buf1, 0, len);
+			if (buf2) {
+				memset(buf2, 0, len);
+			}
 		}
 	} else {
 		if (full_line_draw) {

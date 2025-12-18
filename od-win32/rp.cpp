@@ -925,8 +925,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		else
 			fs = 1;
 	}
-	p->gf[0].gfx_filter_left_border = 0;
-	p->gf[0].gfx_filter_top_border = 0;
+	p->gf[0].gfx_filter_left_border = -1;
+	p->gf[0].gfx_filter_top_border = -1;
 	p->gf[0].gfx_filter_right_border = 0;
 	p->gf[0].gfx_filter_bottom_border = 0;
 	p->gf[0].gfx_filter_autoscale = AUTOSCALE_CENTER;
@@ -1167,6 +1167,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 			gfx_height_original = gm->gfx_size_win.height;
 
+			ntsc_extended = false;
 			if ((p->gfx_xcenter_pos >= MANUAL_SCALE_MIN_RANGE && p->gfx_ycenter_pos >= MANUAL_SCALE_MIN_RANGE) || (p->gfx_xcenter_size > 0 && p->gfx_ycenter_size > 0)) {
 				p->gf[0].gfx_filter_autoscale = AUTOSCALE_MANUAL;
 				if ((sm->dwScreenMode & RP_SCREENMODE_PIXEL_ORIGINAL_RATIO) && currprefs.ntscmode) {
@@ -1183,16 +1184,15 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 							ll = palh;
 						}
 						gm->gfx_size_win.height = (int)(gm->gfx_size_win.height * palh / ll + 0.5f);
-						p->gfx_ntscpixels = true;
 						ntsc_extended = true;
 					}
 				}
 			}
 		}
 
+		p->gfx_ntscpixels = (sm->dwScreenMode & RP_SCREENMODE_PIXEL_ORIGINAL_RATIO) != 0;
 		if (keepaspect) {
-			//bool type = p->gf[0].gfx_filter_autoscale == AUTOSCALE_MANUAL && ntsc_extended;
-			p->gf[0].gfx_filter_aspect = -1;
+			p->gf[0].gfx_filter_aspect = ntsc_extended ? 0 : -1;
 			p->gf[0].gfx_filter_keep_autoscale_aspect = ntsc_extended || fs ? 0 : 1;
 			p->gf[0].gfx_filter_keep_aspect = 1;
 		} else {
@@ -1893,6 +1893,8 @@ void rp_fixup_options (struct uae_prefs *p)
 	rp_filter_default = rp_filter = currprefs.gf[0].gfx_filter;
 
 	fixup_size (p);
+	currprefs.gfx_ntscpixels = changed_prefs.gfx_ntscpixels = (rp_screenmode & RP_SCREENMODE_PIXEL_ORIGINAL_RATIO) != 0;
+	currprefs.gf[0].gfx_filter_bilinear = changed_prefs.gf[0].gfx_filter_bilinear = (rp_screenmode & RP_SCREENMODE_INTERPOLATION) != 0;
 	get_screenmode (&sm, p, false);
 	sm.dwScreenMode &= ~RP_SCREENMODE_SCALEMASK;
 	sm.dwScreenMode |= rp_screenmode;
