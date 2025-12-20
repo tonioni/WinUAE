@@ -616,6 +616,11 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 				filteroffsetx = (float)-ds->xoffset / ds->scale;
 				filteroffsety = (float)-ds->yoffset / ds->scale;
+
+				diff = ds->outwidth;
+				filterxmult = ((float)ds->dstwidth * ds->scale) / diff;
+				diff = ds->outheight;
+				filterymult = ((float)ds->dstheight * ds->scale) / diff;
 				goto end;
 			}
 
@@ -758,8 +763,9 @@ cont:
 
 	filterxmult = xmult;
 	filterymult = ymult;
-	filteroffsetx += (ds->dstwidth - ds->srcwidth * filterxmult) / 2;
-	filteroffsety += (ds->dstheight - ds->srcheight * filterymult) / 2;
+
+	filteroffsetx = (float)-ds->xoffset / ds->scale;
+	filteroffsety = (float)-ds->yoffset / ds->scale;
 
 end:
 
