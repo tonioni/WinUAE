@@ -868,7 +868,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 		sm->dwScreenMode |= RP_SCREENMODE_SCALE_MAX;
 	} else if ((storeflags & RP_SCREENMODE_SCALEMASK) == RP_SCREENMODE_SCALE_TARGET) {
 		sm->dwScreenMode &= ~RP_SCREENMODE_SCALEMASK;
-		sm->dwScreenMode = RP_SCREENMODE_SCALE_TARGET;
+		sm->dwScreenMode |= RP_SCREENMODE_SCALE_TARGET;
 		sm->lTargetWidth = gm->gfx_size_win.width;
 		sm->lTargetHeight = ntsc_extended && p->gfx_ntscpixels ? gfx_height_original : gm->gfx_size_win.height;
 	}
@@ -1194,7 +1194,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		if (keepaspect) {
 			p->gf[0].gfx_filter_aspect = ntsc_extended ? 0 : -1;
 			p->gf[0].gfx_filter_keep_autoscale_aspect = ntsc_extended || fs ? 0 : 1;
-			p->gf[0].gfx_filter_keep_aspect = 1;
+			p->gf[0].gfx_filter_keep_aspect = 0;
 		} else {
 			p->gf[0].gfx_filter_aspect = 0;
 			p->gf[0].gfx_filter_keep_autoscale_aspect = 0;

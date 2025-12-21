@@ -1,4 +1,15 @@
 
+Beta 12:
+
+- Only some filter numeric edit boxes adjusted the sliders correctly.
+- Magic mouse positioning had offset in some filter modes (v6).
+- uaehf.device thread syncronization fixed when device is opened when current opener count is zero and closed when opener count becomes zero. Happened only if device was repeatedly opened and closed quickly. Probably has existed since uaehf.device was introduced.
+
+Beta 11:
+
+- Genlock mode in some ECS/AGA configurations crashed at boot.
+- Reverted beta 8 statefile expansion update, full expansion restore is not yet complete enough. Old method requires config file that matches statefile expansions but at least it works if they match.
+
 Beta 10:
 
 - Filter panel new numeric text controls had wrong min and max values for most filter modes.
