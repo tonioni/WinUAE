@@ -1,4 +1,6 @@
 
+6.0.2:
+
 Beta 12:
 
 - Only some filter numeric edit boxes adjusted the sliders correctly.
