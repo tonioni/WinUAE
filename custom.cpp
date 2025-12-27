@@ -722,51 +722,30 @@ static int copper_access;
 uae_u16 clxdat;
 static uae_u16 clxcon, clxcon2;
 
-enum copper_states {
-	COP_stop,
-	COP_waitforever,
-	COP_read1,
-	COP_read2,
-	COP_bltwait,
-	COP_bltwait2,
-	COP_wait_in2,
-	COP_skip_in2,
-	COP_wait1,
-	COP_wait,
-	COP_skip,
-	COP_skip1,
-	COP_strobe_vbl_delay,
-	COP_strobe_vbl_delay2,
-	COP_strobe_vbl_delay_nodma,
-	COP_strobe_vbl_extra_delay1,
-	COP_strobe_vbl_extra_delay2,
-	COP_strobe_vbl_extra_delay3,
-	COP_strobe_delay_start,
-	COP_strobe_delay_start_odd,
-	COP_strobe_delay1,
-	COP_strobe_delay1_odd,
-	COP_strobe_delay2,
-	COP_strobe_extra // just to skip current cycle when CPU wrote to COPJMP
-};
+#define COP_INS_MOVE 0
+#define COP_INS_WAIT 1
+#define COP_INS_SKIP 2
 
 struct copper {
 	/* The current instruction words.  */
 	uae_u16 ir[2];
-	enum copper_states state, state_prev;
 	/* Instruction pointer.  */
 	uaecptr ip;
-	uaecptr strobeip;
-	// following move does not enable COPRS
-	int ignore_next;
 	int vcmp, hcmp;
-
-	int strobe; /* COPJMP1 / COPJMP2 accessed */
-	int strobetype;
-	enum copper_states strobe_next;
-	int moveaddr, movedata, movedelay;
-	uaecptr moveptr;
 	uaecptr vblankip;
-	evt_t strobe_cycles;
+
+	int strobe;
+	int inst;
+	bool load1;
+	bool load2;
+	bool skiplatch;
+	int start;
+	int irload1;
+	int irload2;
+	uae_u32 startstrobe;
+	bool blitwait;
+	bool cycle_alloc;
+	bool validmove;
 };
 
 static struct copper cop_state;
@@ -2944,8 +2923,9 @@ static int test_copper_dangerous(uae_u16 reg, bool testonly)
 	int addr = reg & 0x01fe;
 	if (addr < ((copcon & 2) ? (ecs_agnus ? 0 : 0x40) : 0x80)) {
 		if (!testonly) {
-			cop_state.state = COP_stop;
 			copper_enabled_thisline = 0;
+			cop_state.start = cop_state.irload1 = cop_state.irload2 = 0;
+			cop_state.inst = COP_INS_WAIT;
 		}
 		return 1;
 	}
@@ -2975,7 +2955,6 @@ static void immediate_copper(int num)
 	int pos = 0;
 	int oldpos = 0;
 
-	cop_state.state = COP_stop;
 	cop_state.ip = num == 1 ? cop1lc : cop2lc;
 
 	while (pos < (maxvpos << 5)) {
@@ -3016,23 +2995,25 @@ static void immediate_copper(int num)
 			}
 		}
 	}
-	cop_state.state = COP_stop;
 }
 
 STATIC_INLINE void COP1LCH(uae_u16 v)
 {
 	cop1lc = (cop1lc & 0xffff) | ((uae_u32)v << 16);
 
+#if 0
 	if (agnus_hpos == 2 && vpos == 0 && safecpu() && !copper_access && is_copper_dma(false)) {
 		if (cop_state.state == COP_strobe_vbl_delay) {
 			cop_state.strobeip = cop1lc | ((regs.chipset_latch_rw & 0xffff) << 16);
 		}
 	}
+#endif
 }
 STATIC_INLINE void COP1LCL(uae_u16 v)
 {
 	cop1lc = (cop1lc & ~0xffff) | (v & 0xfffe);
 
+#if 0
 	// really strange chipset bug: if COP1LCL is written exactly at cycle 2, vpos 0,
 	// vblank triggered COP1JMP loads to internal COPPTR COP1LC OR last data in chip bus!
 	if (agnus_hpos == 2 && vpos == 0 && safecpu() && !copper_access && is_copper_dma(true)) {
@@ -3040,6 +3021,7 @@ STATIC_INLINE void COP1LCL(uae_u16 v)
 			cop_state.strobeip = cop1lc | (regs.chipset_latch_rw & 0xfffe);
 		}
 	}
+#endif
 }
 STATIC_INLINE void COP2LCH(uae_u16 v)
 {
@@ -3061,101 +3043,17 @@ static uaecptr getstrobecopip(void)
 	} else {
 		return cop1lc;
 	}
-
-}
-static void setstrobecopip(void)
-{
-	cop_state.ip = getstrobecopip();
-	cop_state.strobe = 0;
 }
 
-static struct rgabuf *generate_copper_cycle_if_free(uae_u16 v)
+static void COPJMP(int num, bool bsce)
 {
-	if (is_copper_dma(true) && check_rga_free_slot_in()) {
-		struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_COPPER, 0x8c, &cop_state.ip);
-		rga->copdat = v;
-		return rga;
-	}
-	return NULL;
-}
-
-// normal COPJMP write: takes 2 more cycles
-static void COPJMP(int num, int vblank)
-{
-	cop_state.strobe_next = COP_stop;
-
-	if (!cop_state.strobe) {
-		cop_state.state_prev = cop_state.state;
-	}
-	cop_state.strobetype = 0;
-	if ((cop_state.state == COP_wait1 || cop_state.state == COP_waitforever || cop_state.state == COP_stop ||
-		(cop_state.state == COP_read2 && ((cop_state.ir[0] & 1) || test_copper_dangerous(cop_state.ir[0], true))) ||
-		cop_state.state == COP_wait_in2 || cop_state.state == COP_skip_in2) &&
-		!vblank && is_copper_dma(false)) {
-		// no copper request for next copper cycle
-		if (blt_info.blit_main) {
-			static int warned = 100;
-			if (warned > 0) {
-				write_log(_T("Potential buggy copper cycle conflict with blitter PC=%08x, COP=%08x\n"), M68K_GETPC, cop_state.ip);
-				warned--;
-				//activate_debugger();
-			}
-		}
-		int hp = current_hpos();
-		if ((hp & 1) && safecpu()) {
-			// CPU unaligned COPJMP while waiting
-			cop_state.strobe_next = COP_strobe_delay_start_odd;
-			cop_state.strobetype = -1;
-		} else {
-			cop_state.state = COP_strobe_delay_start;
-		}
-		cop_state.strobeip = 0xffffffff;
+	cop_state.startstrobe = 0;
+	cop_state.startstrobe |= 8 << 0;
+	cop_state.startstrobe |= num << 4;
+	if (!bsce) {
+		cop_state.startstrobe <<= 4;
 	} else {
-		// copper request done for next cycle
-		if (vblank) {
-			if (!is_copper_dma(false)) {
-				cop_state.state = COP_strobe_vbl_delay_nodma;
-			} else {
-				cop_state.state = COP_strobe_vbl_delay;
-				cop_state.strobeip = cop1lc;
-				cop_state.strobe = 0;
-				struct rgabuf *r = read_rga_in();
-				r->type |= CYCLE_COPPER;
-				r->copdat = 0;
-				if (!r->alloc) {
-					r->alloc = -1;
-				}
-#if 1
-				switch (cop_state.state_prev)
-				{
-					case copper_states::COP_read1:
-						// Wake up is delayed by 1 copper cycle if copper is currently loading words
-						cop_state.state = COP_strobe_vbl_extra_delay1;
-						break;
-					case copper_states::COP_read2:
-						// Wake up is delayed by 1 copper cycle if copper is currently loading words
-						cop_state.state = COP_strobe_vbl_extra_delay2;
-						break;
-				}
-#endif
-			}
-		} else {
-			if (copper_access) {
-				cop_state.state = COP_strobe_delay1;
-			} else {
-				cop_state.strobe_next = COP_strobe_delay1;
-			}
-			cop_state.strobetype = 1;
-			if (cop_state.state == COP_read2 && !(cop_state.ir[0] & 1)) {
-				cop_state.strobetype = 2;
-			}
-		}
-	}
-	cop_state.vblankip = cop1lc;
-	cop_state.strobe_cycles = get_cycles() + CYCLE_UNIT;
-
-	if (!vblank) {
-		cop_state.strobe |= num;
+		cop_state.vblankip = cop1lc;
 	}
 
 	if (custom_disabled) {
@@ -3165,33 +3063,16 @@ static void COPJMP(int num, int vblank)
 	}
 
 	compute_spcflag_copper();
-}
+}		
 
 STATIC_INLINE void COPCON(uae_u16 a)
 {
 	copcon = a;
 }
 
-static void check_copper_stop(void)
-{
-	if (copper_enabled_thisline < 0 && !is_copper_dma(false)) {
-		copper_enabled_thisline = 0;
-	}
-}
-
-static void copper_stop(void)
-{
-	copper_enabled_thisline = 0;
-}
-
 static void bitplane_dma_change(uae_u32 v)
 {
 	dmacon_bpl = (v & DMA_BITPLANE) && (v & DMA_MASTER);
-}
-
-static void compute_spcflag_copper_delayed(uae_u32 v)
-{
-	compute_spcflag_copper();
 }
 
 static void DMACON(int hpos, uae_u16 v)
@@ -4481,25 +4362,10 @@ static void bprun_start(int hpos)
 	bpl_autoscale();
 }
 
-/*
-	CPU write COPJMP wakeup sequence when copper is waiting:
-	- Idle cycle (can be used by other DMA channel)
-	- Read word from current copper pointer (next word after wait instruction) to 1FE
-	  This cycle can conflict with blitter DMA.
-	Normal copper cycles resume
-	- Write word from new copper pointer to 8C
-*/
-
-static int coppercomp(int hpos, bool blitwait)
+static int coppercomp(int hpos)
 {
 	int hpos_cmp = hpos;
 	int vpos_cmp = vpos;
-
-	// If waiting for last cycle of line and last cycle is even cycle:
-	// Horizontal counter has already wrapped around to zero.
-	if (hpos_cmp == maxhposm1 && maxhposeven == COPPER_CYCLE_POLARITY) {
-		hpos_cmp = 0;
-	}
 
 	int vp = vpos_cmp & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
 	int hp = hpos_cmp & (cop_state.ir[1] & 0xFE);
@@ -4508,19 +4374,11 @@ static int coppercomp(int hpos, bool blitwait)
 		return -1;
 	}
 
-	// Cycle 0: copper can't wake up
-	if (hpos == 0) {
-		return 1;
-	}
-
 	if ((cop_state.ir[1] & 0x8000) == 0) {
 		if (blit_busy(false)) {
-			if (blitwait) {
-				/* We need to wait for the blitter.  */
-				cop_state.state = COP_bltwait;
-				return -2;
-			}
-			return 1;
+			/* We need to wait for the blitter. */
+			cop_state.blitwait = true;
+			return -2;
 		}
 	}
 
@@ -4536,15 +4394,30 @@ static int coppercomp(int hpos, bool blitwait)
 
 static void compute_spcflag_copper(void)
 {
-	copper_enabled_thisline = 0;
-	if (cop_state.strobe_next == COP_stop) {
-		if (!is_copper_dma(true) || (cop_state.state == COP_stop || cop_state.state == COP_waitforever || cop_state.state == COP_bltwait || cop_state.state == COP_bltwait2) || custom_disabled)
+	if (cop_state.startstrobe) {
+		copper_enabled_thisline = 1;
+		return;
+	}
+	if (!is_copper_dma(true)) {
+		copper_enabled_thisline = 0;
+		return;
+	}
+	bool idle = !cop_state.start && !cop_state.irload1 && !cop_state.irload2 && !cop_state.strobe;
+	if (!idle) {
+		copper_enabled_thisline = 1;
+		return;
+	}
+	if (cop_state.inst != COP_INS_WAIT) {
+		copper_enabled_thisline = 1;
+		return;
+	}
+
+	bool waiting = cop_state.inst == COP_INS_WAIT && idle;
+	if (waiting) {
+		int vp = vpos & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
+		if (vp < cop_state.vcmp) {
+			copper_enabled_thisline = 0;
 			return;
-		if (cop_state.state == COP_wait1 && is_copper_dma(false)) {
-			int vp = vpos & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
-			if (vp < cop_state.vcmp) {
-				return;
-			}
 		}
 	}
 	copper_enabled_thisline = 1;
@@ -4552,10 +4425,10 @@ static void compute_spcflag_copper(void)
 
 void blitter_done_notify(void)
 {
-	if (cop_state.state != COP_bltwait) {
+	if (!cop_state.blitwait) {
 		return;
 	}
-	cop_state.state = COP_wait1;
+	cop_state.blitwait = false;
 	compute_spcflag_copper();
 #ifdef DEBUGGER
 	if (copper_enabled_thisline) {
@@ -5415,18 +5288,6 @@ static void vsync_handler_post(void)
 	vsync_cycles = get_cycles();
 	vhposr_prev = 0xffffffff;
 	check_lineoptimizations();
-}
-
-static void copper_check(int n)
-{
-	if (cop_state.state == COP_wait) {
-		int vp = vpos & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
-		if (vp < cop_state.vcmp) {
-			if (copper_enabled_thisline) {
-				write_log(_T("COPPER BUG %d: vp=%d vpos=%d vcmp=%d thisline=%d\n"), n, vp, vpos, cop_state.vcmp, copper_enabled_thisline);
-			}
-		}
-	}
 }
 
 static void dmal_emu_disk(struct rgabuf *rga, int slot, bool w)
@@ -6546,9 +6407,6 @@ static void hsync_handler_post(bool onvsync)
 
 	rethink_uae_int();
 
-	/* See if there's a chance of a copper wait ending this line.  */
-	compute_spcflag_copper();
-
 	// check reset and process it immediately, don't wait for vsync
 	if (quit_program == -UAE_RESET || quit_program == -UAE_RESET_KEYBOARD || quit_program == -UAE_RESET_HARD) {
 		quit_program = -quit_program;
@@ -6969,10 +6827,8 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	init_hz_reset();
 
 	audio_reset();
-	cop_state.strobe_next = COP_stop;
 	if (!isrestore()) {
 		memset(&cop_state, 0, sizeof(cop_state));
-		cop_state.state = COP_stop;
 		/* must be called after audio_reset */
 		adkcon = 0;
 #ifdef SERIAL_PORT
@@ -7234,8 +7090,8 @@ static uae_u32 REGPARAM2 custom_wget_1(int hpos, uaecptr addr, int noput, bool i
 		v = HHPOSR();
 		break;
 
-	case 0x088: COPJMP(1, 0); break;
-	case 0x08a: COPJMP(2, 0); break;
+	case 0x088: COPJMP(1, false); break;
+	case 0x08a: COPJMP(2, false); break;
 
 #ifdef AGA
 	case 0x180: case 0x182: case 0x184: case 0x186: case 0x188: case 0x18A:
@@ -7455,8 +7311,8 @@ static int custom_wput_agnus(int addr, uae_u32 value, int noget)
 	case 0x084: COP2LCH(value); break;
 	case 0x086: COP2LCL(value); break;
 
-	case 0x088: COPJMP(1, 0); break;
-	case 0x08A: COPJMP(2, 0); break;
+	case 0x088: COPJMP(1, false); break;
+	case 0x08A: COPJMP(2, false); break;
 
 	case 0x08E: DIWSTRT(value); break;
 	case 0x090: DIWSTOP(value); break;
@@ -7819,7 +7675,6 @@ void restore_custom_finish(void)
 void restore_custom_start(void)
 {
 	memset(&cop_state, 0, sizeof(cop_state));
-	cop_state.state = COP_stop;
 	denise_reset(true);
 	rga_slot_first_offset = 0;
 	rga_slot_in_offset = 1;
@@ -8560,11 +8415,11 @@ uae_u8 *save_custom_slots(size_t *len, uae_u8 *dstptr)
 
 	uae_u32 v = 1 | 8;
 	// copper final MOVE pending?
-	if (cop_state.state == COP_read1) {
-		v |= 2;
-	} else if (cop_state.state == COP_read2) {
-		v |= 4;
-	}
+//	if (cop_state.state == COP_read1) {
+//		v |= 2;
+//	} else if (cop_state.state == COP_read2) {
+//		v |= 4;
+//	}
 	save_u32(v);
 	save_u32(cop_state.ip);
 	save_u16(cop_state.ir[0]);
@@ -8590,7 +8445,7 @@ uae_u8 *save_custom_slots(size_t *len, uae_u8 *dstptr)
 		save_u32(r->auddat);
 		save_u32(r->refdat);
 		save_u32(r->dskdat);
-		save_u32(r->copdat);
+		save_u32(0);
 		save_u16(r->bplmod);
 		save_u16(r->bltmod);
 		regidx = getregfrompt(r->p);
@@ -8614,12 +8469,14 @@ uae_u8 *restore_custom_slots(uae_u8 *src)
 	cop_state.ip = restore_u32();
 	cop_state.ir[0] = restore_u16();
 	cop_state.ir[1] = restore_u16();
+#if 0
 	cop_state.state = COP_stop;
 	if (v & 2) {
 		cop_state.state = COP_read1;
 	} else if (v & 4) {
 		cop_state.state = COP_read2;
 	}
+#endif
 
 	for (int i = 0; i < 4; i++) {
 		//cycle_line_pipe[i] = restore_u16();
@@ -8644,7 +8501,7 @@ uae_u8 *restore_custom_slots(uae_u8 *src)
 			r->auddat = restore_u32();
 			r->refdat = restore_u32();
 			r->dskdat = restore_u32();
-			r->copdat = restore_u32();
+			restore_u32();
 			r->bplmod = restore_u16();
 			r->bltmod = restore_u16();
 			regidx = restore_u16();
@@ -9056,695 +8913,259 @@ static uae_u64 fetch64(struct rgabuf *r)
 	return v;
 }
 
-
 static void process_copper(struct rgabuf *r)
 {
-	uae_u16 id = r->copdat;
-	int hpos = agnus_hpos;
+	int hp = agnus_hpos;
 
-	if ((id & 0xf) == 0xf) {
-		// last cycle was even: cycle 1 got allocated which is unusable for copper
-		// reads from address zero!
 #ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read(0x1fe, 0, DMARECORD_COPPER, 7);
-		}
-#endif
-		uae_u16 tmp = chipmem_wget_indirect(0);
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read_value(tmp);
-			record_dma_event(DMA_EVENT_COPPERUSE);
-		}
-#endif
-		regs.chipset_latch_rw = tmp;
-		return;
-	}
-
-	switch (cop_state.state)
-	{
-
-	case COP_stop:
-		break;
-	case COP_strobe_vbl_delay:
-	{
-		cop_state.state = COP_strobe_vbl_delay2;
-		cop_state.strobeip = getstrobecopip();
-		cop_state.strobe = 0;
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_event(DMA_EVENT_COPPERUSE);
-		}
-#endif
-	}
-	break;
-	case COP_strobe_vbl_delay2:
-	{
-	// fake MOVE phase 2
-#ifdef DEBUGGER
-		// inhibited $8c access
-		if (debug_dma) {
-			record_dma_read(0x1fe, cop_state.ip, DMARECORD_COPPER, 6);
-		}
-#endif
-		cop_state.ir[1] = chipmem_wget_indirect(cop_state.ip);
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read_value(cop_state.ir[1]);
-			record_dma_event(DMA_EVENT_COPPERUSE);
-		}
-#endif
-		cop_state.ip = cop_state.strobeip;
-		cop_state.state = COP_read1;
-		regs.chipset_latch_rw = cop_state.ir[1];
-	}
-	break;
-	case COP_strobe_vbl_delay_nodma:
-		cop_state.ip = getstrobecopip();
-		cop_state.state = COP_read1;
-		break;
-
-	case COP_strobe_vbl_extra_delay1:
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read(0x8c, cop_state.ip, DMARECORD_COPPER, 6);
-		}
+	uae_u16 reg = r->reg;
+	if (debug_dma) {
 		if (memwatch_enabled) {
-			debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x8c);
-		}
-#endif
-		cop_state.ir[0] = regs.chipset_latch_rw = last_custom_value = chipmem_wget_indirect(cop_state.ip);
-		cop_state.ip = cop_state.strobeip;
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read_value(cop_state.ir[0]);
-		}
-#endif
-		cop_state.state = COP_read1;
-	break;
-	case COP_strobe_vbl_extra_delay2:
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read(0x8c, cop_state.ip, DMARECORD_COPPER, 6);
-		}
-		if (memwatch_enabled) {
-			debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x8c);
-		}
-#endif
-		cop_state.ir[0] = regs.chipset_latch_rw = last_custom_value = chipmem_wget_indirect(cop_state.ip);
-		cop_state.ip += 2;
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read_value(cop_state.ir[0]);
-		}
-#endif
-		cop_state.state = COP_strobe_vbl_extra_delay3;
-	break;
-	case COP_strobe_vbl_extra_delay3:
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read(0x1fe, cop_state.ip, DMARECORD_COPPER, 6);
-		}
-#endif
-		cop_state.ir[1] = regs.chipset_latch_rw = last_custom_value = chipmem_wget_indirect(cop_state.ip);
-		cop_state.ip = cop_state.strobeip;
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read_value(cop_state.ir[1]);
-		}
-#endif
-		cop_state.state = COP_read1;
-	break;
-
-	// cycle after odd strobe write is normal IR2
-	case COP_strobe_delay_start_odd:
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read(r->reg, cop_state.ip, DMARECORD_COPPER, 6);
-		}
-#endif
-		cop_state.ir[1] = regs.chipset_latch_rw = last_custom_value = chipmem_wget_indirect(cop_state.ip);
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read_value(cop_state.ir[1]);
-		}
-#endif
-		cop_state.ip += 2;
-		cop_state.strobeip = getstrobecopip();
-		cop_state.strobe = 0;
-		cop_state.state = COP_strobe_delay1_odd;
-		cop_state.ignore_next = 0;
-	break;
-
-	case COP_strobe_delay1_odd:
-	{
-		// odd cycle strobe blitter conflict possibility
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_event(DMA_EVENT_COPPERUSE);
-		}
-#endif
-		// conflict with blitter: blitter pointer becomes old copper pointer OR blitter pointer
-		// after the blit cycle, blitter pointer becomes new copper pointer. This is done in blitter emulation.
-		// copper pointer is not affected by this.
-		if (r->type & CYCLE_BLITTER) {
-			r->conflict = r->p;
-			r->conflictaddr = cop_state.strobeip;
-			r->p = &dummyrgaaddr;
-			r->pv |= cop_state.ip;
-			cop_state.strobeip |= r->bltmod;
-		}
-		cop_state.ip = cop_state.strobeip;
-		cop_state.state = COP_read1;
-	}
-	break;
-
-	case COP_strobe_delay1:
-	{
-		if (cop_state.strobetype >= 0) {
-			uae_u16 reg = cop_state.ir[0] & 0x1FE;
-			// fake MOVE phase 1
-#ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_read(r->reg, cop_state.ip, DMARECORD_COPPER, 6);
-			}
-			if (memwatch_enabled) {
-				debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, r->reg);
-			}
-#endif
-			cop_state.ir[0] = regs.chipset_latch_rw = last_custom_value = chipmem_wget_indirect(cop_state.ip);
-			if (cop_state.strobetype == 0) {
-				cop_state.ip = cop_state.strobeip;
-				cop_state.state = COP_read1;
-			} else {
-				cop_state.ip += 2;
-				cop_state.strobeip = getstrobecopip();
-				cop_state.strobe = 0;
-				cop_state.state = COP_strobe_delay2;
-				if (cop_state.strobetype >= 2) {
-					if (!test_copper_dangerous(reg, true) && !cop_state.ignore_next) {
-						custom_wput_copper(cop_state.ip, reg, cop_state.ir[0], 0);
-					}
-				}
-				cop_state.ignore_next = 0;
-			}
-#ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_read_value(cop_state.ir[0]);
-			}
-			if (memwatch_enabled) {
-				debug_getpeekdma_value(cop_state.ir[0]);
-			}
-#endif
-		} else {
-			// fake and hidden MOVE phase 1
-			cop_state.ip = cop_state.strobeip;
-			cop_state.state = COP_read1;
+			debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, reg);
 		}
 	}
-	break;
-	case COP_strobe_delay2:
-	{
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read(r->reg, cop_state.ip, DMARECORD_COPPER, 6);
-		}
 #endif
-		cop_state.ir[1] = chipmem_wget_indirect(cop_state.ip);
-		regs.chipset_latch_rw = cop_state.ir[1];
+
+	uae_u16 data = chipmem_wget_indirect(cop_state.ip);
+
 #ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read_value(cop_state.ir[1]);
+	if (debug_dma) {
+		int m = !(cop_state.ir[0] & 1) ? 1 : ((cop_state.ir[1] & 1) ? 3 : 2);
+		if (cop_state.irload2 && !(cop_state.ir[0] & 1)) {
+			m = 1;
+			if (!cop_state.skiplatch) {
+				reg = cop_state.ir[0];
+			}
 		}
-#endif
-		if (cop_state.strobetype >= 1) {
-			cop_state.ip = cop_state.strobeip;
-		} else {
-			cop_state.ip += 2;
+		if (cop_state.load1) {
+			m = 5;
 		}
-		cop_state.state = COP_read1;
+		if (cop_state.strobe & 3) {
+			m = 6;
+		}
+		record_dma_read(reg, cop_state.ip, DMARECORD_COPPER, m);
 	}
-	break;
-
-	case COP_strobe_delay_start:
-	{
-		cop_state.state = COP_strobe_delay1_odd;
+	if (debug_dma) {
+		record_dma_read_value(data);
 	}
-	break;
+	if (memwatch_enabled) {
+		debug_getpeekdma_value(data);
+	}
+#endif
 
-	case COP_read1:
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read(0x8c, cop_state.ip, DMARECORD_COPPER, 5);
-		}
-		if (memwatch_enabled) {
-			debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x8c);
-		}
-#endif
-		cop_state.ir[0] = regs.chipset_latch_rw = last_custom_value = chipmem_wget_indirect(cop_state.ip);
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read_value(cop_state.ir[0]);
-		}
-		if (memwatch_enabled) {
-			debug_getpeekdma_value(cop_state.ir[0]);
-		}
-#endif
-		cop_state.ip += 2;
-		cop_state.state = COP_read2;
-		break;
-	case COP_read2:
-		if (cop_state.ir[0] & 1) {
-			// WAIT or SKIP
-#ifdef DEBUGGER
-			if (memwatch_enabled) {
-				debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x8c);
-			}
-#endif
-			cop_state.ir[1] = chipmem_wget_indirect(cop_state.ip);
-#ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_read(0x8c, cop_state.ip, DMARECORD_COPPER, (cop_state.ir[1] & 1) ? 3 : 2);
-				record_dma_read_value(cop_state.ir[1]);
-			}
-			if (memwatch_enabled) {
-				debug_getpeekdma_value(cop_state.ir[1]);
-			}
-#endif
-			cop_state.ip += 2;
+	if (cop_state.load2) {
+		cop_state.ir[1] = data;
+		cop_state.load2 = false;
+		//write_log("%08x %04x %04x\n", cop_state.ip, cop_state.ir[0], cop_state.ir[1]);
+	}
+	if (cop_state.load1) {
+		cop_state.ir[0] = data;
+		cop_state.load1 = false;
+	}
 
-#ifdef DEBUGGER
-			uaecptr debugip = cop_state.ip;
-#endif
-			cop_state.ignore_next = 0;
-			if (cop_state.ir[1] & 1) {
-				cop_state.state = COP_skip_in2;
-			} else {
-				cop_state.state = COP_wait_in2;
-			}
+	cop_state.inst = !(cop_state.ir[0] & 1) ? COP_INS_MOVE : ((cop_state.ir[1] & 1) ? COP_INS_SKIP : COP_INS_WAIT);
+	cop_state.ip += 2;
 
+	if (cop_state.irload2) {
+
+		if (cop_state.inst != COP_INS_MOVE) {
 			cop_state.vcmp = (cop_state.ir[0] & (cop_state.ir[1] | 0x8000)) >> 8;
 			cop_state.hcmp = (cop_state.ir[0] & cop_state.ir[1] & 0xFE);
+			cop_state.validmove = false;
+		}
 
+		// MOVE write
+		if (cop_state.validmove && !cop_state.skiplatch) {
+			custom_wput_copper(cop_state.ip, cop_state.ir[0], cop_state.ir[1], 0);
+		}
+		cop_state.skiplatch = false;
+
+#ifdef DEBUGGER
+		if (debug_copper && cop_state.irload2) {
+			record_copper(cop_state.ip - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], hp, vpos);
+		}
+#endif
+	}
+
+	if (cop_state.strobe) {
+		int strobe = cop_state.strobe & 3;
+		if (strobe) {
+#ifdef DEBUGGER
+			uaecptr previp = cop_state.ip;
+#endif
+			cop_state.strobe = strobe;
+			cop_state.ip = getstrobecopip();
+			cop_state.strobe = 0;
 #ifdef DEBUGGER
 			if (debug_copper) {
-				record_copper(debugip - 4, debugip, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
+				record_copper(previp - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], hp, vpos);
 			}
 #endif
-
 		} else {
-			// MOVE
-			uae_u16 reg = cop_state.ir[0] & 0x1FE;
-
 #ifdef DEBUGGER
-			if (memwatch_enabled) {
-				debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x8c);
+			if (debug_copper && cop_state.irload2) {
+				record_copper(cop_state.ip - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], hp, vpos);
 			}
-#endif
-			cop_state.ir[1] = chipmem_wget_indirect(cop_state.ip);
-
-			uae_u16 data = cop_state.ir[1];
-			cop_state.state = COP_read1;
-
-			uae_u16 preg = reg;
-
-			// Previous instruction was SKIP that skipped
-			if (cop_state.ignore_next > 0) {
-				reg = 0x08c;
-			}
-
-			bool dang = test_copper_dangerous(preg, false);
-
-#ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_read(reg, cop_state.ip, DMARECORD_COPPER, dang ? 4 : 1);
-				record_dma_read_value(cop_state.ir[1]);
-			}
-			if (memwatch_enabled) {
-				debug_getpeekdma_value(cop_state.ir[1]);
-			}
-#endif
-			cop_state.ip += 2;
-
-#ifdef DEBUGGER
-			uaecptr debugip = cop_state.ip;
-#endif
-			// was "dangerous" register -> copper stopped
-			if (dang) {
-				return;
-			}
-
-			if (reg == 0x100) {
-				// BPLCON0 new value is needed early
-				//bplcon0_denise_change_early(hpos, data);
-#if 0
-				cop_state.moveaddr = reg;
-				cop_state.movedata = data;
-				cop_state.movedelay = 1;
-				cop_state.moveptr = cop_state.ip;
-#else
-				custom_wput_copper(cop_state.ip, reg, data, 0);
-#endif
-			} else {
-				custom_wput_copper(cop_state.ip, reg, data, 0);
-			}
-#ifdef DEBUGGER
-			if (debug_copper && cop_state.ignore_next <= 0) {
-				uaecptr next = 0xffffffff;
-				if (reg == 0x88) {
-					next = cop1lc;
-				} else if (reg == 0x8a) {
-					next = cop2lc;
-				}
-				record_copper(debugip - 4, next, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
-			}
-#endif
-			cop_state.ignore_next = 0;
-		}
-		regs.chipset_latch_rw = last_custom_value = cop_state.ir[1];
-		check_copper_stop();
-		break;
-
-	case COP_strobe_extra:
-		// do nothing, happens if CPU wrote to COPxJMP but copper had already requested DMA cycle
-		// Cycle will complete but nothing will happen because COPxJMP write resets copper state.
-#ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read(0x8c, cop_state.ip, DMARECORD_COPPER, 0);
-		}
-		if (memwatch_enabled) {
-			debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x8c);
 		}
 #endif
-		break;
-	default:
-		write_log(_T("copper_fetch invalid state %d! %02x\n"), cop_state.state, id);
-		break;
+	}
+
+}
+
+static void alloc_copper_cycle(void)
+{
+	struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_COPPER, 0x8c, &cop_state.ip);
+	if (!cop_state.cycle_alloc) {
+		// If cycle was not marked as copper allocated 1 CCK earlier,
+		// mark copper allocated cycle as not actually allocated. Conflict possible!
+		rga->alloc = -1;
 	}
 }
 
 static void generate_copper(void)
 {
-	int hpos = agnus_hpos;
-
-	if ((hpos & 1) != COPPER_CYCLE_POLARITY) {
-		// copper does not advance if hpos bit 0 didn't toggle
-		if ((hpos & 1) == (agnus_hpos_prev & 1)) {
-			switch (cop_state.state)
-			{
-				case COP_read1:
-				case COP_read2:
-				case COP_wait:
-				case COP_skip:
-				case COP_strobe_delay1:
-				{
-					generate_copper_cycle_if_free(CYCLE_PIPE_COPPER | 0xf);
-				}
-				break;
-			}
-		}
-		return;
-	}
-
-	if ((hpos & 1) == (agnus_hpos_prev & 1)) {
-		return;
-	}
-
+	int hp = agnus_hpos;
 	bool bus_allocated = !check_rga_free_slot_in();
+	bool dma = is_copper_dma(true);
+	bool ena_odd = !bus_allocated && (hp & 1) == COPPER_CYCLE_POLARITY && dma;
+	bool act_even = (hp & 1) != COPPER_CYCLE_POLARITY && dma;
+	bool idle = !cop_state.irload1 && !cop_state.irload2 && !cop_state.start;
+	bool allocated = false;
 
-	switch (cop_state.state)
-	{
-		case COP_strobe_vbl_delay_nodma:
-		generate_copper_cycle_if_free(CYCLE_PIPE_COPPER);
-		break;
-		case COP_strobe_vbl_delay2:
-		// Second cycle after COPJMP does basically skipped MOVE (MOVE to 1FE)
-		// Cycle is used and needs to be free.
-		generate_copper_cycle_if_free(CYCLE_PIPE_COPPER);
-		break;
+	if (ena_odd) {
 
-		case COP_strobe_delay_start_odd:
-		{
-			cop_state.strobeip = getstrobecopip();
-			cop_state.strobe = 0;
-			cop_state.ignore_next = 0;
-			if (hpos == 1 && !bus_allocated) {
-				// if COP_strobe_delay2 crossed scanlines, it will be skipped!
-				struct rgabuf *rga = generate_copper_cycle_if_free(CYCLE_PIPE_COPPER);
-				rga->reg = 0x1fe;
-				cop_state.state = COP_strobe_delay1;
-				cop_state.strobetype = 0;
-			} else {
-				cop_state.state = COP_strobe_delay1_odd;
-				// not allocated
-				struct rgabuf *rga = read_rga_in();
-				if (rga) {
-					rga->type |= CYCLE_COPPER;
-					rga->copdat = 0;
-					if (!rga->alloc) {
-						rga->alloc = -1;
-					}
-				}
-			}
+		if (cop_state.start == 1) {
+			cop_state.start = 2;
 		}
-		break;
 
-		case COP_strobe_delay1_odd:
-		{
-			cop_state.state = COP_strobe_delay1_odd;
-			if (cop_state.strobe) {
-				cop_state.strobeip = getstrobecopip();
-				cop_state.strobe = 0;
-				cop_state.ignore_next = 0;
-			}
-			// not allocated
-			struct rgabuf *rga = read_rga_in();
-			if (rga) {
-				rga->type |= CYCLE_COPPER;
-				rga->copdat = 0;
-				if (!rga->alloc) {
-					rga->alloc = -1;
-				}
-			}
+		if (cop_state.irload1 == 1) {
+			cop_state.irload1 = 2;
 		}
-		break;
 
-		case COP_strobe_delay_start:
-		if (hpos == 1 && get_cycles() > cop_state.strobe_cycles) {
-			cop_state.state = COP_strobe_delay1_odd;
-			cop_state.strobeip = getstrobecopip();
-			cop_state.strobe = 0;
-			cop_state.ignore_next = 0;
-			// not allocated
-			struct rgabuf *rga = read_rga_in();
-			if (rga) {
-				rga->type |= CYCLE_COPPER;
-				rga->copdat = 0;
-				if (!rga->alloc) {
-					rga->alloc = -1;
-				}
-			}
-		} else {
-			cop_state.state = COP_strobe_delay1;
+		if (cop_state.irload2 == 1) {
+			cop_state.irload2 = 2;
 		}
-		break;
 
-		case COP_strobe_delay1:
-		// First cycle after COPJMP. This is the strange one.
-		// This cycle does not need to be free
-		// But it still gets allocated by copper if it is free = CPU and blitter can't use it.
-		if (bus_allocated) {
-			cop_state.state = COP_strobe_delay2;
-			if (cop_state.strobeip == 0xffffffff) {
-				cop_state.strobetype = 1;
-			}
-			cop_state.strobeip = getstrobecopip();
-			cop_state.strobe = 0;
-			cop_state.ignore_next = 0;
-		} else {
-			if (hpos == 1 && get_cycles() > cop_state.strobe_cycles) {
-				// if COP_strobe_delay2 crossed scanlines, it will be skipped!
-				cop_state.strobetype = 0;
-			}
-			if (cop_state.strobetype == 0) {
-				cop_state.strobeip = getstrobecopip();
-				cop_state.strobe = 0;
-				cop_state.ignore_next = 0;
-			}
-			cop_state.state = COP_strobe_delay1;
-			// allocated and $1fe, not $08c
-			struct rgabuf *rga = generate_copper_cycle_if_free(0x08);
-			if (cop_state.strobetype == 0) {
-				if (rga) {
-					rga->reg = 0x1fe;
-				}
-			}
+		// SKIP copper restart condition
+		if (cop_state.inst == COP_INS_SKIP && idle) {
+			cop_state.start = 1;
 		}
-		break;
-		case COP_strobe_delay2:
-		{
-			struct rgabuf *rga = generate_copper_cycle_if_free(CYCLE_PIPE_COPPER);
-			if (cop_state.strobe && cop_state.strobetype >= 1) {
-				cop_state.strobe = 0;
-				if (rga) {
-					rga->reg = 0x1fe;
+
+		// WAIT copper restart condition
+		if (cop_state.inst == COP_INS_WAIT && idle) {
+			int comp = coppercomp(hp);
+			if (comp < 0) {
+				if (!cop_state.strobe && !cop_state.startstrobe) {
+					copper_enabled_thisline = 0;
 				}
-			}
-		}
-		break;
-
-		case COP_strobe_vbl_extra_delay3:
-		{
-			struct rgabuf *rga = generate_copper_cycle_if_free(CYCLE_PIPE_COPPER);
-			if (cop_state.strobe && cop_state.strobetype >= 1) {
-				cop_state.strobe = 0;
-				if (rga) {
-					rga->reg = 0x1fe;
-				}
-			}
-		}
-		break;
-
-			// Request IR1
-		case COP_read1:
-			generate_copper_cycle_if_free(CYCLE_PIPE_COPPER | 0x02);
-			break;
-
-			// Request IR2
-		case COP_read2:
-			generate_copper_cycle_if_free(CYCLE_PIPE_COPPER | 0x03);
-			break;
-
-			// WAIT: Got IR2, first idle cycle.
-			// Need free cycle, cycle not allocated.
-		case COP_wait_in2:
-			{
-				if (bus_allocated) {
-					break;
-				}
-				cop_state.state = COP_wait1;
-			}
-			break;
-
-			// WAIT: Second idle cycle. Wait until comparison matches.
-			// Need free cycle, cycle not allocated.
-		case COP_wait1:
-			{
-				int comp = coppercomp(hpos, true);
-				if (comp < 0) {
-					// If we need to wait for later scanline or blitter: no need to emulate copper cycle-by-cycle
-					if (cop_state.ir[0] == 0xFFFF && cop_state.ir[1] == 0xFFFE && maxhpos < 250) {
-						cop_state.state = COP_waitforever;
-					}
-					if (cop_state.strobe_next == COP_stop) {
-						copper_enabled_thisline = 0;
-					}
-#ifdef DEBUGGER
-					if (debug_dma && comp == -2) {
-						record_dma_event(DMA_EVENT_COPPERWAKE2);
-					}
-#endif
-					break;
-				}
-
-				if (comp) {
-					break;
-				}
-
+			} else if (!comp) {
+				cop_state.start = 1;
 #ifdef DEBUGGER
 				if (debug_dma) {
 					record_dma_event(DMA_EVENT_COPPERWAKE2);
 					record_dma_event(DMA_EVENT_COPPERWAKE);
 				}
 #endif
-				if (bus_allocated) {
-					break;
-				}
-
-				cop_state.state = COP_wait;
 			}
-			break;
-
-			// Wait finished, request IR1.
-		case COP_wait:
-			{
-				if (!generate_copper_cycle_if_free(CYCLE_PIPE_COPPER | 0x04)) {
-					break;
-				}
 #ifdef DEBUGGER
-				if (debug_dma) {
-					record_dma_event(DMA_EVENT_COPPERWAKE);
-				}
-				if (debug_copper) {
-					record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
-				}
+			if (debug_dma && comp == -2) {
+				record_dma_event(DMA_EVENT_COPPERWAKE2);
+			}
 #endif
-				cop_state.state = COP_read1;
+		}
+
+		if (cop_state.irload2 == 2) {
+			cop_state.irload2 = 0;
+
+			// If MOVE: IR1 state
+			if (cop_state.validmove && !cop_state.irload1) {
+				alloc_copper_cycle();
+				cop_state.load1 = true;
+				allocated = true;
+				cop_state.irload1 = 1;
 			}
-			break;
+		}
 
-			// SKIP: Got IR2. First idle cycle.
-			// Free cycle needed, cycle not allocated.
-		case COP_skip_in2:
+		if (cop_state.irload1 == 2) {
+			alloc_copper_cycle();
+			cop_state.load2 = true;
+			allocated = true;
+			cop_state.irload1 = 0;
+			cop_state.irload2 = 1;
+			cop_state.validmove = cop_state.inst == COP_INS_MOVE && !test_copper_dangerous(cop_state.ir[0], true);
+		}
 
-			if (bus_allocated) {
-				break;
-			}
-			cop_state.state = COP_skip1;
-			break;
+		if (cop_state.start == 2) {
+			alloc_copper_cycle();
+			cop_state.strobe = 0;
+			cop_state.load1 = true;
+			allocated = true;
+			cop_state.start = 0;
+			cop_state.irload1 = 1;
 
-			// SKIP: Second idle cycle. Do nothing.
-			// Free cycle needed, cycle not allocated.
-		case COP_skip1:
-
-			if (bus_allocated) {
-				break;
-			}
-
-			cop_state.state = COP_skip;
-			break;
-
-			// Check comparison. SKIP finished. Request IR1.
-		case COP_skip:
-			if (!generate_copper_cycle_if_free(CYCLE_PIPE_COPPER | 0x005)) {
-				break;
-			}
-
-			if (!coppercomp(hpos, false)) {
-				cop_state.ignore_next = 1;
-			} else {
-				cop_state.ignore_next = -1;
+			// If SKIP: latch current comparison state
+			if (cop_state.inst == COP_INS_SKIP) {
+				cop_state.skiplatch = coppercomp(hp) == 0;
 			}
 
 #ifdef DEBUGGER
 			if (debug_dma) {
-				if (cop_state.ignore_next > 0) {
+				if (cop_state.skiplatch) {
 					record_dma_event(DMA_EVENT_COPPERSKIP);
 				} else {
 					record_dma_event(DMA_EVENT_COPPERWAKE2);
 				}
 			}
-			if (debug_copper) {
-				record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
-			}
 #endif
 
-			cop_state.state = COP_read1;
-			break;
-
-		case COP_strobe_extra:
-			// Wait 1 copper cycle doing nothing
-			cop_state.state = COP_strobe_delay1;
-			break;
-
-		default:
-			break;
 		}
 
-		if (cop_state.strobe_next != COP_stop) {
-			cop_state.state = cop_state.strobe_next;
-			cop_state.strobe_next = COP_stop;
+	}
+
+	if (cop_state.startstrobe) {
+		// Copper state machine restart after COPxJMP strobe
+		if (cop_state.startstrobe & 8) {
+			cop_state.irload1 = 0;
+			cop_state.irload2 = 0;
+			cop_state.ir[1] &= ~1;
+			cop_state.start = 0;
+			cop_state.skiplatch = false;
+			cop_state.startstrobe &= ~8;
 		}
+		if (cop_state.startstrobe & 15) {
+			cop_state.strobe = cop_state.startstrobe;
+		}
+		cop_state.startstrobe >>= 4;
+	}
+
+	if (cop_state.strobe) {
+		// Initial DMA request after COPxJMP strobe
+		if (ena_odd) {
+			if (!allocated) {
+				alloc_copper_cycle();
+			}
+			cop_state.start = 1;
+		}
+	}
+
+	// Copper cycle allocation to CPU/Blitter priority logic is selected 1 CCK earlier
+	cop_state.cycle_alloc = false;
+	if (act_even) {
+		if (cop_state.strobe || (cop_state.startstrobe & 15)) {
+			cop_state.cycle_alloc = true;
+		}
+		if (cop_state.start == 1) {
+			cop_state.cycle_alloc = true;
+		}
+		if (cop_state.irload1 == 1) {
+			cop_state.cycle_alloc = true;
+		}
+		bool validmove = cop_state.inst == COP_INS_MOVE && !test_copper_dangerous(cop_state.ir[0], true);
+		if (cop_state.irload2 == 1 && validmove && !cop_state.irload1) {
+			cop_state.cycle_alloc = true;
+		}
+	}
+
 }
 
 // Because BPL and SPR DMA is decided 1 CCK earlier than others
@@ -11391,6 +10812,9 @@ static void custom_trigger_start(void)
 		}
 	}
 
+	/* See if there's a chance of a copper wait ending this line.  */
+	compute_spcflag_copper();
+
 	if (linear_vpos < MAX_SCANDOUBLED_LINES) {
 		current_line_state = &lines[linear_vpos][lof_display];
 	}
@@ -11417,7 +10841,7 @@ static void custom_trigger_start(void)
 		vsync_handler_post();
 
 		vsync_counter++;
-		COPJMP(1, 1);
+		COPJMP(1, true);
 
 		if (bplcon0 & 4) {
 			lof_store = lof_store ? 0 : 1;

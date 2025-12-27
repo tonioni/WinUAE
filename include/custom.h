@@ -309,7 +309,7 @@ struct rgabuf {
 	bool write;
 	uae_u32 *conflict;
 	uaecptr conflictaddr;
-	uae_u32 bpldat, sprdat, bltdat, auddat, refdat, dskdat, copdat;
+	uae_u32 bpldat, sprdat, bltdat, auddat, refdat, dskdat;
 	uae_s16 bplmod, bltmod, bltadd;
 };
 
