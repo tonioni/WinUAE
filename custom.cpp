@@ -9926,7 +9926,7 @@ static void decide_bpl(int hpos)
 		}
 
 		// DDFSTRT (odd cycle)
-		if ((hpos == ddfstrt_val && cyc > ddfstrt_cycle) || (hpos == ddfstrt_val_old && cyc <= ddfstrt_cycle)) {
+		if ((hpos == ddfstrt_val && cyc > ddfstrt_cycle) || (hpos == ddfstrt_val_old && cyc < ddfstrt_cycle)) {
 			ddf_enable_on = 1;
 			if (currprefs.gfx_scandoubler && linear_vpos < MAX_SCANDOUBLED_LINES) {
 				update_bpl_scandoubler();
@@ -10071,7 +10071,7 @@ static void decide_bpl(int hpos)
 		}
 
 		// DDFSTRT
-		if ((hpos == ddfstrt_val && cyc > ddfstrt_cycle) || (hpos == ddfstrt_val_old && cyc <= ddfstrt_cycle)) {
+		if ((hpos == ddfstrt_val && cyc > ddfstrt_cycle) || (hpos == ddfstrt_val_old && cyc < ddfstrt_cycle)) {
 			ddfstrt_match = true;
 			if (currprefs.gfx_scandoubler && linear_vpos < MAX_SCANDOUBLED_LINES) {
 				update_bpl_scandoubler();
