@@ -3047,12 +3047,14 @@ static uaecptr getstrobecopip(void)
 
 static void COPJMP(int num, bool bsce)
 {
-	cop_state.startstrobe = 0;
-	cop_state.startstrobe |= 8 << 0;
-	cop_state.startstrobe |= num << 4;
+	uae_u32 st = 0;
+	
+	st |= 8 << 0;
+	st |= num << 4;
 	if (!bsce) {
-		cop_state.startstrobe <<= 4;
+		cop_state.startstrobe |= st << 4;
 	} else {
+		cop_state.startstrobe |= st << 0;
 		cop_state.vblankip = cop1lc;
 	}
 
