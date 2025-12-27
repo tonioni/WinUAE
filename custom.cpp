@@ -4364,9 +4364,9 @@ static void bprun_start(int hpos)
 	bpl_autoscale();
 }
 
-static int coppercomp(int hpos)
+static int coppercomp(void)
 {
-	int hpos_cmp = hpos;
+	int hpos_cmp = agnus_hpos;
 	int vpos_cmp = vpos;
 
 	int vp = vpos_cmp & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
@@ -8917,8 +8917,6 @@ static uae_u64 fetch64(struct rgabuf *r)
 
 static void process_copper(struct rgabuf *r)
 {
-	int hp = agnus_hpos;
-
 #ifdef DEBUGGER
 	uae_u16 reg = r->reg;
 	if (debug_dma) {
@@ -8984,7 +8982,7 @@ static void process_copper(struct rgabuf *r)
 
 #ifdef DEBUGGER
 		if (debug_copper && cop_state.irload2) {
-			record_copper(cop_state.ip - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], hp, vpos);
+			record_copper(cop_state.ip - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], agnus_hpos, vpos);
 		}
 #endif
 	}
@@ -9000,13 +8998,13 @@ static void process_copper(struct rgabuf *r)
 			cop_state.strobe = 0;
 #ifdef DEBUGGER
 			if (debug_copper) {
-				record_copper(previp - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], hp, vpos);
+				record_copper(previp - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], agnus_hpos, vpos);
 			}
 #endif
 		} else {
 #ifdef DEBUGGER
 			if (debug_copper && cop_state.irload2) {
-				record_copper(cop_state.ip - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], hp, vpos);
+				record_copper(cop_state.ip - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], agnus_hpos, vpos);
 			}
 		}
 #endif
@@ -9026,11 +9024,10 @@ static void alloc_copper_cycle(void)
 
 static void generate_copper(void)
 {
-	int hp = agnus_hpos;
 	bool bus_allocated = !check_rga_free_slot_in();
 	bool dma = is_copper_dma(true);
-	bool ena_odd = !bus_allocated && (hp & 1) == COPPER_CYCLE_POLARITY && dma;
-	bool act_even = (hp & 1) != COPPER_CYCLE_POLARITY && dma;
+	bool ena_odd = !bus_allocated && (agnus_hpos & 1) == COPPER_CYCLE_POLARITY && dma;
+	bool act_even = (agnus_hpos & 1) != COPPER_CYCLE_POLARITY && dma;
 	bool idle = !cop_state.irload1 && !cop_state.irload2 && !cop_state.start;
 	bool allocated = false;
 
@@ -9055,7 +9052,7 @@ static void generate_copper(void)
 
 		// WAIT copper restart condition
 		if (cop_state.inst == COP_INS_WAIT && idle) {
-			int comp = coppercomp(hp);
+			int comp = coppercomp();
 			if (comp < 0) {
 				if (!cop_state.strobe && !cop_state.startstrobe) {
 					copper_enabled_thisline = 0;
@@ -9107,7 +9104,7 @@ static void generate_copper(void)
 
 			// If SKIP: latch current comparison state
 			if (cop_state.inst == COP_INS_SKIP) {
-				cop_state.skiplatch = coppercomp(hp) == 0;
+				cop_state.skiplatch = coppercomp() == 0;
 			}
 
 #ifdef DEBUGGER
