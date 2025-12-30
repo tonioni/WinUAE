@@ -20,7 +20,9 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2.0.0
+      uses: microsoft/setup-msbuild@v2
+      with:
+        vs-version: '[18.0)'
 
     # Running roughly step 4 of README.md
     - name: Download WinUAE includes and libs
@@ -67,7 +69,9 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2.0.0
+      uses: microsoft/setup-msbuild@v2
+      with:
+        vs-version: '[18.0)'
 
     # Running roughly step 4 of README.md
     - name: Download WinUAE includes and libs
