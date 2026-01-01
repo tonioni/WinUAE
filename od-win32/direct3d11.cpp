@@ -1821,14 +1821,6 @@ static void FreeTextures(struct d3d11struct *d3d)
 	}
 	freesprite(&d3d->mask2textureled_power_dim);
 	freesprite(&d3d->blanksprite);
-	struct d3doverlay *ov = d3d->extoverlays;
-	while (ov) {
-		struct d3doverlay *next = ov->next;
-		freesprite(&ov->s);
-		xfree(ov);
-		ov = next;
-	}
-	d3d->extoverlays = NULL;
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		freeshaderdata(&d3d->shaders[i]);
 	}
@@ -3987,6 +3979,18 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	return ret;
 }
 
+static void FreeOverlays(struct d3d11struct *d3d)
+{
+	struct d3doverlay *ov = d3d->extoverlays;
+	while (ov) {
+		struct d3doverlay *next = ov->next;
+		freesprite(&ov->s);
+		xfree(ov);
+		ov = next;
+	}
+	d3d->extoverlays = NULL;
+}
+
 static void freed3d(struct d3d11struct *d3d)
 {
 	write_log(_T("D3D11 freed3d start\n"));
@@ -4069,6 +4073,7 @@ static void freed3d(struct d3d11struct *d3d)
 	FreeTextures(d3d);
 	FreeTexture2D(&d3d->sltexture, &d3d->sltexturerv);
 	FreeShaderTex(&d3d->lpPostTempTexture);
+	FreeOverlays(d3d);
 
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		struct shaderdata11 *s = &d3d->shaders[i];
@@ -4972,6 +4977,7 @@ static bool xD3D11_quit(struct d3d11struct *d3d)
 	if (d3d->m_swapChain && (!d3d->invalidmode || d3d->fsmode > 0)) {
 		d3d->m_swapChain->SetFullscreenState(FALSE, NULL);
 		FreeTextures(d3d);
+		FreeOverlays(d3d);
 	}
 	d3d->fsmode = 0;
 	d3d->invalidmode = true;

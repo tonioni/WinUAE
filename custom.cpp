@@ -1534,7 +1534,7 @@ static bool changed_chipset_refresh(void)
 
 void resetfulllinestate(void)
 {
-	displayreset_delayed |= 4 | 2 | 1;
+	displayreset_delayed |= 16 | 8 | 4 | 2;
 }
 
 void compute_framesync(void)
@@ -10895,6 +10895,7 @@ static void custom_trigger_start(void)
 			custom_fastmode = 0;
 			start_sync_imm_handler();
 			write_log("Chipset emulation inactive\n");
+			resetfulllinestate();
 		}
 		linear_hpos_prev[2] = linear_hpos_prev[1];
 		linear_hpos_prev[1] = linear_hpos_prev[0];
