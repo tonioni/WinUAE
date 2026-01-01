@@ -1555,7 +1555,7 @@ static bool changed_chipset_refresh(void)
 
 void resetfulllinestate(void)
 {
-	displayreset_delayed |= 4 | 2 | 1;
+	displayreset_delayed |= 16 | 8 | 4 | 2;
 }
 
 void compute_framesync(void)
