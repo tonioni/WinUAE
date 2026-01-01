@@ -11472,6 +11472,7 @@ static void custom_trigger_start(void)
 			custom_fastmode = 0;
 			start_sync_imm_handler();
 			write_log("Chipset emulation inactive\n");
+			resetfulllinestate();
 		}
 		linear_hpos_prev[2] = linear_hpos_prev[1];
 		linear_hpos_prev[1] = linear_hpos_prev[0];
