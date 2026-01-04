@@ -108,7 +108,7 @@ struct denise_rga_queue
 };
 
 static volatile uae_atomic rga_queue_read, rga_queue_write;
-static int denise_thread_state;
+static volatile int denise_thread_state;
 static struct denise_rga_queue rga_queue[DENISE_RGA_SLOT_CHUNKS];
 static struct denise_rga_queue temp_line;
 static struct denise_rga_queue *this_line;
@@ -155,6 +155,9 @@ static void read_denise_line_queue(void)
 
 	while (rga_queue_read == rga_queue_write) {
 		uae_sem_wait(&write_sem);
+		if (denise_thread_state != 1) {
+			return;
+		}
 	}
 
 	struct denise_rga_queue *q = &rga_queue[rga_queue_read & DENISE_RGA_SLOT_CHUNKS_MASK];
@@ -223,7 +226,7 @@ static void read_denise_line_queue(void)
 static void denise_thread(void *v)
 {
 	denise_thread_state = 1;
-	while(denise_thread_state) {
+	while(denise_thread_state == 1) {
 		read_denise_line_queue();
 	}
 	denise_thread_state = -1;
@@ -2402,6 +2405,21 @@ static void gen_direct_drawing_table(void)
 		direct_colors_for_drawing_bypass.acolors[i] = CONVERT_RGB(v);
 	}
 #endif
+}
+
+void drawing_free(void)
+{
+	if (denise_thread_state == 1) {
+		denise_thread_state = 2;
+		uae_sem_post(&write_sem);
+		while (denise_thread_state > 0) {
+			sleep_millis(10);
+			uae_sem_post(&write_sem);
+		}
+		denise_thread_state = 0;
+		uae_sem_destroy(&read_sem);
+		uae_sem_destroy(&write_sem);
+	}
 }
 
 void drawing_init(void)
@@ -7610,9 +7628,14 @@ static void addtowritequeue(void)
 	uae_sem_post(&write_sem);
 }
 
+static bool multithread_denise_active(void)
+{
+	return MULTITHREADED_DENISE && denise_thread_state == 1;
+}
+
 void draw_denise_border_line_fast_queue(int gfx_ypos, bool blank, enum nln_how how, struct linestate *ls)
 {
-	if (MULTITHREADED_DENISE) {
+	if (multithread_denise_active()) {
 		
 		if (!waitqueue(2)) {
 			return;
@@ -7639,7 +7662,7 @@ void draw_denise_border_line_fast_queue(int gfx_ypos, bool blank, enum nln_how h
 
 void draw_denise_bitplane_line_fast_queue(int gfx_ypos, enum nln_how how, struct linestate *ls)
 {
-	if (MULTITHREADED_DENISE) {
+	if (multithread_denise_active()) {
 		
 		if (!waitqueue(1)) {
 			return;
@@ -7665,7 +7688,7 @@ void draw_denise_bitplane_line_fast_queue(int gfx_ypos, enum nln_how how, struct
 
 void quick_denise_rga_queue(uae_u32 linecnt, int startpos, int endpos)
 {
-	if (MULTITHREADED_DENISE) {
+	if (multithread_denise_active()) {
 
 		if (!waitqueue(3)) {
 			return;
@@ -7691,7 +7714,7 @@ void quick_denise_rga_queue(uae_u32 linecnt, int startpos, int endpos)
 
 void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos)
 {
-	if (MULTITHREADED_DENISE) {
+	if (multithread_denise_active()) {
 
 		if (!waitqueue_nolock()) {
 			return;
@@ -7718,7 +7741,7 @@ void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos
 
 void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int endpos, int startcycle, int endcycle, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lof, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls)
 {
-	if (MULTITHREADED_DENISE) {
+	if (multithread_denise_active()) {
 
 		if (!waitqueue(0)) {
 			return;
@@ -7762,7 +7785,7 @@ void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int star
 
 void draw_denise_vsync_queue(int erase)
 {
-	if (MULTITHREADED_DENISE) {
+	if (multithread_denise_active()) {
 
 		if (!waitqueue_nolock()) {
 			return;
@@ -7785,7 +7808,7 @@ void draw_denise_vsync_queue(int erase)
 
 void denise_update_reg_queue(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
 {
-	if (MULTITHREADED_DENISE) {
+	if (multithread_denise_active()) {
 
 		if (!waitqueue_nolock()) {
 			return;
@@ -7810,7 +7833,7 @@ void denise_update_reg_queue(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
 
 void denise_store_restore_registers_queue(bool store, uae_u32 linecnt)
 {
-	if (MULTITHREADED_DENISE) {
+	if (multithread_denise_active()) {
 
 		if (!waitqueue(7)) {
 			return;
@@ -7837,7 +7860,7 @@ void denise_store_restore_registers_queue(bool store, uae_u32 linecnt)
 
 void draw_denise_line_queue_flush(void)
 {
-	if (MULTITHREADED_DENISE) {
+	if (multithread_denise_active()) {
 
 		for (;;) {
 			if (rga_queue_read == rga_queue_write) {
