@@ -379,6 +379,7 @@ void virtualdevice_free(void)
 #endif
 	ethernet_enumerate_free();
 	rtarea_free();
+	drawing_free();
 #ifdef WITH_DRACO
 	draco_free();
 #endif
