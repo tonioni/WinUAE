@@ -36,6 +36,7 @@
 #include "debug.h"
 #include "sana2.h"
 #include "devices.h"
+#include "idecontrollers.h"
 
 #include "qemuuaeglue.h"
 #include "queue.h"
@@ -1609,6 +1610,7 @@ static uae_u8 isapnp_read_data(struct isapnp *pnp)
 
 static int toariadne2(struct ne2000_s *ne, uaecptr addr, uae_u32 *vp, int size, bool *bs)
 {
+	uaecptr orgaddr = addr;
 	addr &= 0xffff;
 	*bs = false;
 	uae_u32 v = *vp;
@@ -1694,14 +1696,20 @@ static int toariadne2(struct ne2000_s *ne, uaecptr addr, uae_u32 *vp, int size, 
 			return addr;
 		}
 	} else if (ne->ne2000_romtype == ROMTYPE_XSURF) {
-		if (addr == 0x7e && size == -1) {
-			ne->flags &= ~1;
-			ne->flags |= (v & 0x80) ? 1 : 0;
+		if ((addr & 0x80ff) == 0x007e) {
+			if (size == -1) {
+				ne->flags &= ~1;
+				ne->flags |= (v & 0x80) ? 1 : 0;
+			} else if (size == 1) {
+				*vp = xsurf_ide_read(orgaddr, size);
+			} else if (size == 2) {
+				*vp = xsurf_ide_read(orgaddr, 1) << 8;
+			}
 		} else if (addr == 0xf00) {
 			// driver uses this (undocumented) address to detect if X-Surf or X-Surf 100!
 			*vp = 0xff;
 			return -1;
-		} else if (addr >= 0x40 && addr < 0x8000) {
+		} else if ((addr & 0x80ff) == 0x0040) {
 			*vp = ne->ariadne2_irq ? ((1 << 5) | (1 << 7)) : 0;
 			return -1;
 		}
@@ -1722,6 +1730,14 @@ static int toariadne2(struct ne2000_s *ne, uaecptr addr, uae_u32 *vp, int size, 
 				isa_addr >>= 1;
 				return isa_addr;
 			}
+		}
+		if ((addr >= 0xb000 && addr < 0xc000) || (addr >= 0xd000 && addr < 0xe000)) {
+			if (size > 0) {
+				*vp = xsurf_ide_read(orgaddr, size);
+			} else {
+				xsurf_ide_write(orgaddr, -size, *vp);
+			}
+			return -1;
 		}
 	} else if (ne->ne2000_romtype == ROMTYPE_XSURF100Z2 || ne->ne2000_romtype == ROMTYPE_XSURF100Z3) {
 		int bank = addr >> 8;
