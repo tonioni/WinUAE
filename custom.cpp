@@ -746,6 +746,7 @@ struct copper {
 	bool blitwait;
 	bool cycle_alloc;
 	bool validmove;
+	uaecptr dummyip;
 };
 
 static struct copper cop_state;
@@ -8917,16 +8918,30 @@ static uae_u64 fetch64(struct rgabuf *r)
 
 static void process_copper(struct rgabuf *r)
 {
+	uaecptr ip = cop_state.ip;
+	bool brokencycle = false;
+
 #ifdef DEBUGGER
 	uae_u16 reg = r->reg;
+#endif
+
+	if (r->alloc == -2 || r->alloc == 2) {
+		ip = 0;
+		brokencycle = true;
+#ifdef DEBUGGER
+		reg = 0x1fe;
+#endif
+	}
+
+#ifdef DEBUGGER
 	if (debug_dma) {
 		if (memwatch_enabled) {
-			debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, reg);
+			debug_getpeekdma_chipram(ip, MW_MASK_COPPER, reg);
 		}
 	}
 #endif
 
-	uae_u16 data = chipmem_wget_indirect(cop_state.ip);
+	uae_u16 data = chipmem_wget_indirect(ip);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -8943,7 +8958,10 @@ static void process_copper(struct rgabuf *r)
 		if (cop_state.strobe & 3) {
 			m = 6;
 		}
-		record_dma_read(reg, cop_state.ip, DMARECORD_COPPER, m);
+		if (brokencycle) {
+			m = 7;
+		}
+		record_dma_read(reg, ip, DMARECORD_COPPER, m);
 	}
 	if (debug_dma) {
 		record_dma_read_value(data);
@@ -8952,6 +8970,10 @@ static void process_copper(struct rgabuf *r)
 		debug_getpeekdma_value(data);
 	}
 #endif
+
+	if (brokencycle) {
+		return;
+	}
 
 	if (cop_state.load2) {
 		cop_state.ir[1] = data;
@@ -9012,7 +9034,7 @@ static void process_copper(struct rgabuf *r)
 
 }
 
-static void alloc_copper_cycle(void)
+static struct rgabuf *alloc_copper_cycle(void)
 {
 	struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_COPPER, 0x8c, &cop_state.ip);
 	if (!cop_state.cycle_alloc) {
@@ -9020,6 +9042,19 @@ static void alloc_copper_cycle(void)
 		// mark copper allocated cycle as not actually allocated. Conflict possible!
 		rga->alloc = -1;
 	}
+	return rga;
+}
+// Address zero broken dma copper request
+static struct rgabuf *alloc_copper_cycle_dummy(void)
+{
+	cop_state.dummyip = 0;
+	struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_COPPER, 0x8c, &cop_state.dummyip);
+	if (!cop_state.cycle_alloc) {
+		rga->alloc = -2;
+	} else {
+		rga->alloc = 2;
+	}
+	return rga;
 }
 
 static void generate_copper(void)
@@ -9029,7 +9064,7 @@ static void generate_copper(void)
 	bool ena_odd = !bus_allocated && (agnus_hpos & 1) == COPPER_CYCLE_POLARITY && dma;
 	bool act_even = (agnus_hpos & 1) != COPPER_CYCLE_POLARITY && dma;
 	bool idle = !cop_state.irload1 && !cop_state.irload2 && !cop_state.start;
-	bool allocated = false;
+	struct rgabuf *rga = NULL;
 
 	if (ena_odd) {
 
@@ -9078,27 +9113,24 @@ static void generate_copper(void)
 
 			// If MOVE: IR1 state
 			if (cop_state.validmove && !cop_state.irload1) {
-				alloc_copper_cycle();
+				rga = alloc_copper_cycle();
 				cop_state.load1 = true;
-				allocated = true;
 				cop_state.irload1 = 1;
 			}
 		}
 
 		if (cop_state.irload1 == 2) {
-			alloc_copper_cycle();
+			rga = alloc_copper_cycle();
 			cop_state.load2 = true;
-			allocated = true;
 			cop_state.irload1 = 0;
 			cop_state.irload2 = 1;
 			cop_state.validmove = cop_state.inst == COP_INS_MOVE && !test_copper_dangerous(cop_state.ir[0], true);
 		}
 
 		if (cop_state.start == 2) {
-			alloc_copper_cycle();
+			rga = alloc_copper_cycle();
 			cop_state.strobe = 0;
 			cop_state.load1 = true;
-			allocated = true;
 			cop_state.start = 0;
 			cop_state.irload1 = 1;
 
@@ -9116,9 +9148,25 @@ static void generate_copper(void)
 				}
 			}
 #endif
-
 		}
 
+	}
+
+	// Copper bug: even to even line horizontal position condition (PAL 226 to 0, VHPOSW tricks)
+	// triggers condition that enables copper DMA request output (if activated previously)
+	// This DMA request is not fully working and does not select copper pointer
+	// causing it to do DMA from address 0.
+	// I assume it happens because there is very short even->odd transition in
+	// horizontal counter bit 0 before new even value is loaded.
+	if (!(agnus_hpos & 1) && !(agnus_hpos_prev & 1)) {
+		if (!rga) {
+			if (cop_state.irload1 == 1 || cop_state.start == 1) {
+				rga = alloc_copper_cycle_dummy();
+			}
+			if (cop_state.irload2 == 1 && cop_state.validmove && !cop_state.irload1) {
+				rga = alloc_copper_cycle_dummy();
+			}
+		}
 	}
 
 	if (cop_state.startstrobe) {
@@ -9140,8 +9188,8 @@ static void generate_copper(void)
 	if (cop_state.strobe) {
 		// Initial DMA request after COPxJMP strobe
 		if (ena_odd) {
-			if (!allocated) {
-				alloc_copper_cycle();
+			if (!rga) {
+				rga = alloc_copper_cycle();
 			}
 			cop_state.start = 1;
 		}
