@@ -130,6 +130,7 @@ static struct newresource *panelresource;
 int dialog_inhibit;
 static HMODULE hHtmlHelp;
 pathtype path_type;
+static int harddisk_dlg_cd_num;
 
 int externaldialogactive;
 
@@ -264,7 +265,7 @@ static bool firstautoloadconfig = false;
 static void addfloppytype (HWND hDlg, int n);
 static void addfloppyhistory (HWND hDlg);
 static void addhistorymenu (HWND hDlg, const TCHAR*, int f_text, int type, bool manglepath, int num);
-static void addcdtype (HWND hDlg, int id);
+static void addcdtype (HWND hDlg, int id, int cdnum);
 static void getfloppyname (HWND hDlg, int n, int cd, int f_text);
 
 static int C_PAGES;
@@ -2538,17 +2539,17 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 
 static void eject_cd (void)
 {
-	workprefs.cdslots[0].name[0] = 0;
+	workprefs.cdslots[harddisk_dlg_cd_num].name[0] = 0;
 	if (full_property_sheet)
-		workprefs.cdslots[0].type = SCSI_UNIT_DEFAULT;
+		workprefs.cdslots[harddisk_dlg_cd_num].type = SCSI_UNIT_DEFAULT;
 	quickstart_cddrive[0] = 0;
-	workprefs.cdslots[0].inuse = false;
+	workprefs.cdslots[harddisk_dlg_cd_num].inuse = false;
 	if (full_property_sheet) {
 		quickstart_cdtype = 0;
 	} else {
 		if (quickstart_cdtype > 0) {
 			quickstart_cdtype = 1;
-			workprefs.cdslots[0].inuse = true;
+			workprefs.cdslots[harddisk_dlg_cd_num].inuse = true;
 		}
 	}
 }
@@ -2696,11 +2697,14 @@ static void ejectfloppy (int n)
 static void selectcd (struct uae_prefs *prefs, HWND hDlg, int num, int id, const TCHAR *full_path)
 {
 	SetDlgItemText (hDlg, id, full_path);
-	if (quickstart_cddrive[0])
+	if (quickstart_cddrive[harddisk_dlg_cd_num])
 		eject_cd ();
-	_tcscpy (prefs->cdslots[0].name, full_path);
-	fullpath (prefs->cdslots[0].name, sizeof prefs->cdslots[0].name / sizeof (TCHAR));
-	DISK_history_add (prefs->cdslots[0].name, -1, HISTORY_CD, 0);
+	_tcscpy (prefs->cdslots[harddisk_dlg_cd_num].name, full_path);
+	if (full_property_sheet && workprefs.cdslots[harddisk_dlg_cd_num].type == SCSI_UNIT_DISABLED) {
+		workprefs.cdslots[harddisk_dlg_cd_num].type = SCSI_UNIT_DEFAULT;
+	}
+	fullpath (prefs->cdslots[harddisk_dlg_cd_num].name, sizeof prefs->cdslots[harddisk_dlg_cd_num].name / sizeof (TCHAR));
+	DISK_history_add (prefs->cdslots[harddisk_dlg_cd_num].name, -1, HISTORY_CD, 0);
 }
 
 static void selectdisk (struct uae_prefs *prefs, HWND hDlg, int num, int id, const TCHAR *full_path)
@@ -5411,7 +5415,6 @@ static void InitializeListView (HWND hDlg)
 			width = MulDiv(ListView_GetStringWidth(list, cds->name), dpi, 72) + listpadding;
 			if (width > listview_column_width[2])
 				listview_column_width[2] = width;
-			break;
 		}
 
 	} else if (lv_type == LV_HARDDISK) {
@@ -15462,6 +15465,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		inithdcontroller(hDlg, current_cddlg.ci.controller_type, current_cddlg.ci.controller_type_unit, UAEDEV_CD, current_cddlg.ci.rootdir[0] != 0);
 		xSendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_unit, 0);
 		InitializeListView (hDlg);
+		ListView_SetItemState(cachedlist, current_cddlg.ci.device_emu_unit, LVIS_SELECTED, LVIS_SELECTED);
 		recursive--;
 		customDlgType = IDD_CDDRIVE;
 		customDlg = hDlg;
@@ -15469,7 +15473,11 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 	case WM_NOTIFY:
 		if (((LPNMHDR) lParam)->idFrom == IDC_CDLIST) {
 			NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
+			if (nmlistview->hdr.code == NM_CLICK) {
+				current_cddlg.ci.device_emu_unit = nmlistview->iItem;
+			}
 			if (nmlistview->hdr.code == NM_DBLCLK) {
+				current_cddlg.ci.device_emu_unit = nmlistview->iItem;
 				CustomDialogClose(hDlg, -1);
 				return TRUE;
 			}
@@ -16101,9 +16109,9 @@ static void new_filesys (HWND hDlg, int entry)
 static void new_cddrive (HWND hDlg, int entry)
 {
 	struct uaedev_config_info ci = { 0 };
-	ci.device_emu_unit = 0;
 	ci.controller_type = current_cddlg.ci.controller_type;
 	ci.controller_unit = current_cddlg.ci.controller_unit;
+	ci.device_emu_unit = current_cddlg.ci.device_emu_unit;
 	ci.type = UAEDEV_CD;
 	ci.readonly = true;
 	ci.blocksize = 2048;
@@ -16250,15 +16258,15 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 	case IDC_CD_SELECT:
 		DiskSelection (hDlg, wParam, 17, &workprefs, NULL, NULL);
 		quickstart_cdtype = 1;
-		workprefs.cdslots[0].inuse = true;
-		addcdtype (hDlg, IDC_CD_TYPE);
+		workprefs.cdslots[harddisk_dlg_cd_num].inuse = true;
+		addcdtype (hDlg, IDC_CD_TYPE, 0);
 		InitializeListView (hDlg);
 		hilitehd (hDlg);
 		break;
 	case IDC_CD_EJECT:
 		eject_cd ();
 		SetDlgItemText (hDlg, IDC_CD_TEXT, _T(""));
-		addcdtype (hDlg, IDC_CD_TYPE);
+		addcdtype (hDlg, IDC_CD_TYPE, 0);
 		InitializeListView (hDlg);
 		hilitehd (hDlg);
 		break;
@@ -16397,6 +16405,8 @@ static void harddiskdlg_volume_notify (HWND hDlg, NM_LISTVIEW *nmlistview)
 static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	bool handled;
+	TCHAR tmp[256];
+
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
 		return vv;
@@ -16421,8 +16431,14 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		CheckDlgButton (hDlg, IDC_CD_SPEED, workprefs.cd_speed == 0);
 		InitializeListView (hDlg);
 		setautocomplete (hDlg, IDC_CD_TEXT);
-		addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true, -1);
-		addcdtype (hDlg, IDC_CD_TYPE);
+		addhistorymenu (hDlg, workprefs.cdslots[harddisk_dlg_cd_num].name, IDC_CD_TEXT, HISTORY_CD, true, -1);
+		xSendDlgItemMessage(hDlg, IDC_CD_NUMBER, CB_RESETCONTENT, 0, 0);
+		for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++)  {
+			_stprintf(tmp, _T("%d"), i + 1);
+			xSendDlgItemMessage(hDlg, IDC_CD_NUMBER, CB_ADDSTRING, 0, (LPARAM)tmp);
+		}
+		xSendDlgItemMessage(hDlg, IDC_CD_NUMBER, CB_SETCURSEL, harddisk_dlg_cd_num, 0);
+		addcdtype (hDlg, IDC_CD_TYPE, harddisk_dlg_cd_num);
 		hilitehd (hDlg);
 		break;
 
@@ -16444,49 +16460,65 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		}
 
 	case WM_COMMAND:
+
 		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 			switch (LOWORD (wParam))
 			{
-			case IDC_CD_TEXT:
-			getfloppyname (hDlg, 0, 1, IDC_CD_TEXT);
-			quickstart_cdtype = 1;
-			workprefs.cdslots[0].inuse = true;
-			if (full_property_sheet)
-				workprefs.cdslots[0].type = SCSI_UNIT_DEFAULT;
-			addcdtype (hDlg, IDC_CD_TYPE);
-			addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true, -1);
-			InitializeListView (hDlg);
-			hilitehd (hDlg);
+			case IDC_CD_NUMBER:
+			{
+				int val = xSendDlgItemMessage(hDlg, IDC_CD_NUMBER, CB_GETCURSEL, 0, 0);
+				if (val != CB_ERR) {
+					harddisk_dlg_cd_num = val;
+					addcdtype(hDlg, IDC_CD_TYPE, harddisk_dlg_cd_num);
+					addhistorymenu(hDlg, workprefs.cdslots[harddisk_dlg_cd_num].name, IDC_CD_TEXT, HISTORY_CD, true, -1);
+				}
+			}
 			break;
-			case IDC_CD_TYPE:
-			int val = xSendDlgItemMessage (hDlg, IDC_CD_TYPE, CB_GETCURSEL, 0, 0);
-			if (val != CB_ERR) {
-				quickstart_cdtype = val;
-				if (full_property_sheet)
-					workprefs.cdslots[0].type = SCSI_UNIT_DEFAULT;
-				if (quickstart_cdtype >= 2) {
-					int len = sizeof quickstart_cddrive / sizeof (TCHAR);
-					quickstart_cdtype = 2;
-					workprefs.cdslots[0].inuse = true;
-					xSendDlgItemMessage (hDlg, IDC_CD_TYPE, WM_GETTEXT, (WPARAM)len, (LPARAM)quickstart_cddrive);
-					_tcscpy (workprefs.cdslots[0].name, quickstart_cddrive);
-				} else {
-					eject_cd ();
-					quickstart_cdtype = val;
-					if (val > 0)
-						workprefs.cdslots[0].inuse = true;
-
-				}
+			case IDC_CD_TEXT:
+			{
+				getfloppyname (hDlg, 0, 1, IDC_CD_TEXT);
+				quickstart_cdtype = 1;
+				workprefs.cdslots[harddisk_dlg_cd_num].inuse = true;
 				if (full_property_sheet) {
-					for (int i = 1; i < MAX_TOTAL_SCSI_DEVICES; i++) {
-						if (workprefs.cdslots[i].inuse == false)
-							workprefs.cdslots[i].type = SCSI_UNIT_DISABLED;
-					}
+					workprefs.cdslots[harddisk_dlg_cd_num].type = SCSI_UNIT_DEFAULT;
 				}
-				addcdtype (hDlg, IDC_CD_TYPE);
-				addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true, -1);
+				addcdtype (hDlg, IDC_CD_TYPE, harddisk_dlg_cd_num);
+				addhistorymenu (hDlg, workprefs.cdslots[harddisk_dlg_cd_num].name, IDC_CD_TEXT, HISTORY_CD, true, -1);
 				InitializeListView (hDlg);
 				hilitehd (hDlg);
+			}
+			break;
+			case IDC_CD_TYPE:
+			{
+				int val = xSendDlgItemMessage (hDlg, IDC_CD_TYPE, CB_GETCURSEL, 0, 0);
+				if (val != CB_ERR) {
+					quickstart_cdtype = val;
+					if (full_property_sheet)
+						workprefs.cdslots[harddisk_dlg_cd_num].type = SCSI_UNIT_DEFAULT;
+					if (quickstart_cdtype >= 2) {
+						int len = sizeof quickstart_cddrive / sizeof (TCHAR);
+						quickstart_cdtype = 2;
+						workprefs.cdslots[0].inuse = true;
+						xSendDlgItemMessage (hDlg, IDC_CD_TYPE, WM_GETTEXT, (WPARAM)len, (LPARAM)quickstart_cddrive);
+						_tcscpy (workprefs.cdslots[harddisk_dlg_cd_num].name, quickstart_cddrive);
+					} else {
+						eject_cd ();
+						quickstart_cdtype = val;
+						if (val > 0)
+							workprefs.cdslots[harddisk_dlg_cd_num].inuse = true;
+
+					}
+					if (full_property_sheet) {
+						for (int i = 1; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+							if (workprefs.cdslots[i].inuse == false)
+								workprefs.cdslots[i].type = SCSI_UNIT_DISABLED;
+						}
+					}
+					addcdtype (hDlg, IDC_CD_TYPE, harddisk_dlg_cd_num);
+					addhistorymenu (hDlg, workprefs.cdslots[harddisk_dlg_cd_num].name, IDC_CD_TEXT, HISTORY_CD, true, -1);
+					InitializeListView (hDlg);
+					hilitehd (hDlg);
+				}
 			}
 			break;
 			}
@@ -16674,13 +16706,13 @@ static void addfloppyhistory (HWND hDlg)
 		if (f_text >= 0) {
 			TCHAR *name = workprefs.floppyslots[n].df;
 			if (iscd(n))
-				name = workprefs.cdslots[0].name;
+				name = workprefs.cdslots[harddisk_dlg_cd_num].name;
 			addhistorymenu(hDlg, name, f_text, iscd(n) ? HISTORY_CD : HISTORY_FLOPPY, true, n);
 		}
 	}
 }
 
-static void addcdtype (HWND hDlg, int id)
+static void addcdtype(HWND hDlg, int id, int cdnum)
 {
 	TCHAR tmp[MAX_DPATH];
 	xSendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
@@ -16690,7 +16722,7 @@ static void addcdtype (HWND hDlg, int id)
 	xSendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 	int cdtype = quickstart_cdtype;
 	if (currentpage != QUICKSTART_ID) {
-		if (full_property_sheet && !workprefs.cdslots[0].inuse && !workprefs.cdslots[0].name[0])
+		if (full_property_sheet && !workprefs.cdslots[cdnum].inuse && !workprefs.cdslots[cdnum].name[0])
 			cdtype = 0;
 	}
 	int cnt = 2;
@@ -16702,7 +16734,7 @@ static void addcdtype (HWND hDlg, int id)
 			xSendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)vol);
 			if (!_tcsicmp (vol, quickstart_cddrive)) {
 				cdtype = quickstart_cdtype = cnt;
-				_tcscpy (workprefs.cdslots[0].name, vol);
+				_tcscpy (workprefs.cdslots[cdnum].name, vol);
 			}
 			cnt++;
 		}
@@ -16741,6 +16773,7 @@ static void addfloppytype (HWND hDlg, int n)
 		f_si = -1;
 		f_enable = floppybuttonsq[n][7];
 		f_info = floppybuttonsq[n][8];
+		harddisk_dlg_cd_num = 0;
 		if (iscd (n))
 			showcd = 1;
 		if (showcd) {
@@ -16752,7 +16785,7 @@ static void addfloppytype (HWND hDlg, int n)
 			ew (hDlg, f_enable, FALSE);
 			WIN32GUI_LoadUIString (IDS_QS_CD, tmp, sizeof tmp / sizeof (TCHAR));
 			SetWindowText (GetDlgItem (hDlg, f_enable), tmp);
-			addcdtype (hDlg, IDC_CD0Q_TYPE);
+			addcdtype (hDlg, IDC_CD0Q_TYPE, 0);
 			hide(hDlg, IDC_CD0Q_TYPE, 0);
 			text = workprefs.cdslots[0].name;
 			regsetstr (NULL, _T("QuickStartCDDrive"), quickstart_cdtype >= 2 ? quickstart_cddrive : _T(""));
@@ -17062,7 +17095,7 @@ static void getfloppyname (HWND hDlg, int n, int cd, int f_text)
 		} else {
 			if (quickstart_cddrive[0])
 				eject_cd ();
-			_tcscpy (workprefs.cdslots[0].name, tmp);
+			_tcscpy (workprefs.cdslots[harddisk_dlg_cd_num].name, tmp);
 		}
 	}
 }
