@@ -9061,7 +9061,8 @@ static void generate_copper(void)
 {
 	bool bus_allocated = !check_rga_free_slot_in();
 	bool dma = is_copper_dma(true);
-	bool ena_odd = !bus_allocated && (agnus_hpos & 1) == COPPER_CYCLE_POLARITY && dma;
+	bool enable = !bus_allocated && dma;
+	bool ena_odd = (agnus_hpos & 1) == COPPER_CYCLE_POLARITY && enable;
 	bool act_even = (agnus_hpos & 1) != COPPER_CYCLE_POLARITY && dma;
 	bool idle = !cop_state.irload1 && !cop_state.irload2 && !cop_state.start;
 	struct rgabuf *rga = NULL;
@@ -9158,13 +9159,11 @@ static void generate_copper(void)
 	// causing it to do DMA from address 0.
 	// I assume it happens because there is very short even->odd transition in
 	// horizontal counter bit 0 before new even value is loaded.
-	if (!(agnus_hpos & 1) && !(agnus_hpos_prev & 1)) {
+	if (enable && !(agnus_hpos & 1) && !(agnus_hpos_prev & 1)) {
 		if (!rga) {
-			if (cop_state.irload1 == 1 || cop_state.start == 1) {
-				rga = alloc_copper_cycle_dummy();
-			}
-			if (cop_state.irload2 == 1 && cop_state.validmove && !cop_state.irload1) {
-				rga = alloc_copper_cycle_dummy();
+			if (cop_state.irload1 == 1 || cop_state.start == 1 ||
+				(cop_state.irload2 == 1 && cop_state.validmove && !cop_state.irload1)) {
+				alloc_copper_cycle_dummy();
 			}
 		}
 	}
