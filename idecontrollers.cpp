@@ -523,10 +523,10 @@ static int get_xsurf_reg(uaecptr addr, struct ide_board *board, int *portnum)
 {
 	int reg = -1;
 	if ((addr & 0xf000) == 0xb000) {
-		*portnum = 0;
+		*portnum = 1;
 		reg = (addr >> 2) & 7;
 	} else if ((addr & 0xf000) == 0xd000) {
-		*portnum = 1;
+		*portnum = 0;
 		reg = (addr >> 2) & 7;
 	}
 	return reg;
