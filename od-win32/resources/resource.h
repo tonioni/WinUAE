@@ -1285,6 +1285,7 @@
 #define IDC_CD_TEXT                     1805
 #define IDC_CD_TYPE                     1806
 #define IDC_CD_SELECT                   1807
+#define IDC_CD_NUMBER                   1808
 #define IDC_RTG_DISPLAYSELECT           1809
 #define IDC_FASTMEMAUTOCONFIGUSE        1809
 #define IDC_MISCLIST                    1810
