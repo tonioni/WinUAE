@@ -2292,8 +2292,8 @@ emptyreal:
 		}
 	}
 	if (hfd->handle_valid || hfd->drive_empty) {
-		hfd_log (_T("HDF '%s' %p opened, size=%dK mode=%d empty=%d\n"),
-			name, hfd, (int)(hfd->physsize / 1024), hfd->handle_valid, hfd->drive_empty);
+		hfd_log (_T("HDF '%s' %p opened, size=%dK (0x%llx) mode=%d empty=%d\n"),
+			name, hfd, (int)(hfd->physsize / 1024), hfd->physsize, hfd->handle_valid, hfd->drive_empty);
 		return 1;
 	}
 end:
