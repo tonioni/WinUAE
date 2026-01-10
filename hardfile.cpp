@@ -1148,21 +1148,14 @@ static int hdf_read2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 
 static int hdf_write2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
 {
-	if (len > INT_MAX)
+	if (len > INT_MAX) {
 		return 0;
-	int ret = 0, extra = 0;
-	// writes to virtual RDB are ignored
+	}
+	int ret = 0;
+	// writes to virtual RDB return write protected
 	if (offset < hfd->virtual_size) {
-		uae_s64 len2 = offset + len <= hfd->virtual_size ? len : hfd->virtual_size - offset;
-		if (len2 > INT_MAX) {
-			return 0;
-		}
-		len -= (int)len2;
-		if (len <= 0)
-			return (int)len2;
-		offset += len2;
-		buffer = (uae_u8*)buffer + len2;
-		extra = (int)len2;
+		*error = 28;
+		return 0;
 	}
 	offset -= hfd->virtual_size;
 
@@ -1198,7 +1191,6 @@ static int hdf_write2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, in
 
 	if (ret <= 0)
 		return ret;
-	ret += extra;
 	return ret;
 }
 
@@ -1282,8 +1274,9 @@ int hdf_read(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, ua
 		v = hdf_cache_read(hfd, buffer, offset, len, error);
 		adide_decode(buffer, len);
 	}
-	if (hfd->byteswap)
+	if (hfd->byteswap) {
 		hdf_byteswap(buffer, len);
+	}
 	return v;
 }
 
@@ -1302,8 +1295,9 @@ int hdf_write(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, u
 	hf_log3(_T("cmd_write: %p %04x-%08x (%d) %08x (%d)\n"),
 		buffer, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)(offset / hfd->ci.blocksize), (uae_u32)len, (uae_u32)(len / hfd->ci.blocksize));
 
-	if (hfd->byteswap)
+	if (hfd->byteswap) {
 		hdf_byteswap(buffer, len);
+	}
 	if (!hfd->adide) {
 		v = hdf_cache_write(hfd, buffer, offset, len, error);
 	} else {
@@ -1312,8 +1306,9 @@ int hdf_write(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, u
 		v = hdf_cache_write(hfd, buffer, offset, len, error);
 		adide_decode(buffer, len);
 	}
-	if (hfd->byteswap)
+	if (hfd->byteswap) {
 		hdf_byteswap(buffer, len);
+	}
 	return v;
 }
 
