@@ -5485,7 +5485,8 @@ static void show_exec_lists (TCHAR *t)
 						console_out_f (_T("   %s:%d %08x\n"), unitname, get_long_debug(fssm), get_long_debug(fssm + 8));
 						uaecptr de = get_long_debug(fssm + 8) << 2;
 						if (de) {
-							console_out_f (_T("    TableSize       %u\n"), get_long_debug(de + 0));
+							int size = get_long_debug(de + 0);
+							console_out_f (_T("    TableSize       %u\n"), size);
 							console_out_f (_T("    SizeBlock       %u\n"), get_long_debug(de + 4));
 							console_out_f (_T("    SecOrg          %u\n"), get_long_debug(de + 8));
 							console_out_f (_T("    Surfaces        %u\n"), get_long_debug(de + 12));
@@ -5502,6 +5503,15 @@ static void show_exec_lists (TCHAR *t)
 							console_out_f (_T("    Mask            0x%08x\n"), get_long_debug(de + 56));
 							console_out_f (_T("    BootPri         %d\n"), get_long_debug(de + 60));
 							console_out_f (_T("    DosType         0x%08x\n"), get_long_debug(de + 64));
+							if (size >= 17) {
+								console_out_f (_T("    Baud            0x%08x\n"), get_long_debug(de + 68));
+								if (size >= 18) {
+									console_out_f (_T("    Control         0x%08x\n"), get_long_debug(de + 72));
+									if (size >= 19) {
+										console_out_f (_T("    BootBlocks      0x%08x\n"), get_long_debug(de + 76));
+									}
+								}
+							}
 						}
 						xfree(unitname);
 					}
