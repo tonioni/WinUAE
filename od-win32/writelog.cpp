@@ -88,7 +88,7 @@ static HWND myGetConsoleWindow (void)
 	return GetConsoleWindow ();
 }
 
-static void set_console_input_mode(int line)
+void set_console_input_mode(int line)
 {
 	if (console_input_linemode < 0)
 		return;
