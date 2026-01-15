@@ -14,7 +14,7 @@ env:
 
 jobs:
   Build-WinUAE-32bit-binary:
-    runs-on: windows-2026
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -32,8 +32,6 @@ jobs:
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
-        with:
-          vs-version: '18.0'
 
       - name: Diagnostics (MSBuild)
         shell: powershell
@@ -80,7 +78,7 @@ jobs:
           path: D:\\Amiga
 
   Build-WinUAE-64bit-binary:
-    runs-on: windows-2026
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -98,8 +96,6 @@ jobs:
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
-        with:
-          vs-version: '18.0'
 
       - name: Diagnostics (MSBuild)
         shell: powershell
