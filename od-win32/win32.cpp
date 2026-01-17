@@ -236,6 +236,13 @@ static GETDPIFORMONITOR pGetDpiForMonitor;
 typedef UINT(CALLBACK* GETDPIFORWINDOW)(HWND);
 static GETDPIFORWINDOW pGetDpiForWindow;
 
+BOOL xSetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags)
+{
+	if (!rp_isactive()) {
+		return SetWindowPos(hWnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
+	}
+}
+
 int getdpiformonitor(HMONITOR mon)
 {
 	if (mon) {
@@ -2070,7 +2077,7 @@ static void CustomResizeMouseMove(AmigaMonitor *mon, HWND hWindow)
 			r2.right = x + w;
 			r2.bottom = y + h;
 			doresizing(mon, nSizingEdge, &r2);
-			SetWindowPos(hWindow, NULL, r2.left, r2.top, r2.right - r2.left, r2.bottom - r2.top, 0);
+			xSetWindowPos(hWindow, NULL, r2.left, r2.top, r2.right - r2.left, r2.bottom - r2.top, 0);
 		}
 		ptResizePos.x = pt.x;
 		ptResizePos.y = pt.y;
@@ -2082,7 +2089,7 @@ static void EndCustomResize(HWND hWindow, BOOL bCanceled)
 	inresizing = false;
 	ReleaseCapture();
 	if (bCanceled) {
-		SetWindowPos(hWindow, NULL, rcResizeStartWindowRect.left, rcResizeStartWindowRect.top,
+		xSetWindowPos(hWindow, NULL, rcResizeStartWindowRect.left, rcResizeStartWindowRect.top,
 			rcResizeStartWindowRect.right - rcResizeStartWindowRect.left, rcResizeStartWindowRect.bottom - rcResizeStartWindowRect.top,
 			SWP_NOZORDER | SWP_NOACTIVATE);
 	}
@@ -3005,7 +3012,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	{
 		if (isfullscreen() == 0) {
 			RECT* const r = (RECT*)lParam;
-			SetWindowPos(hWnd, NULL, r->left, r->top, r->right - r->left, r->bottom - r->top, SWP_NOZORDER | SWP_NOACTIVATE);
+			xSetWindowPos(hWnd, NULL, r->left, r->top, r->right - r->left, r->bottom - r->top, SWP_NOZORDER | SWP_NOACTIVATE);
 			return 0;
 		}
 		break;

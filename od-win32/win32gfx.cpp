@@ -3458,12 +3458,12 @@ static int create_windows(struct AmigaMonitor *mon)
 #endif
 				x = r.left;
 				y = r.top;
-				SetWindowPos(mon->hMainWnd, HWND_TOP, x, y, w + mon->window_extra_width, h + mon->window_extra_height,
+				xSetWindowPos(mon->hMainWnd, HWND_TOP, x, y, w + mon->window_extra_width, h + mon->window_extra_height,
 					SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING | SWP_NOZORDER);
 				x = gap;
 				y = gap;
 			}
-			SetWindowPos(mon->hAmigaWnd, HWND_TOP, x, y, w, h,
+			xSetWindowPos(mon->hAmigaWnd, HWND_TOP, x, y, w, h,
 				SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING | SWP_NOZORDER);
 			mon->in_sizemove--;
 			mon->dpi = dpi;
