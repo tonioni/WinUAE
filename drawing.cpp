@@ -121,7 +121,10 @@ static void denise_update_reg(uae_u16 reg, uae_u16 v, uae_u32 linecnt);
 static void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls);
 
 static void sprwrite(int reg, uae_u32 v);
+static void sprwrite_64(int reg, uae_u64 v);
 static int spr_unalign_reg, spr_unalign_val;
+static uae_u64 spr_unalign_val64;
+static bool denise_sprfmode64, denise_bplfmode64;
 
 static void quick_denise_rga(uae_u32 linecnt, int startpos, int endpos)
 {
@@ -133,7 +136,17 @@ static void quick_denise_rga(uae_u32 linecnt, int startpos, int endpos)
 		if (rd->line == linecnt && rd->rga != 0x1fe && (rd->rga < 0x38 || rd->rga >= 0x40)) {
 			denise_update_reg(rd->rga, rd->v, linecnt);
 			if (spr_unalign_reg) {
-				sprwrite(spr_unalign_reg - 0x140, spr_unalign_val);
+				int sreg = spr_unalign_reg - 0x140;
+				bool datx = (sreg & 4) != 0;
+				if (datx) {
+					if (denise_sprfmode64) {
+						sprwrite_64(sreg, spr_unalign_val64);
+					} else {
+						sprwrite(sreg, spr_unalign_val);
+					}
+				} else {
+					sprwrite(sreg, spr_unalign_val);
+				}
 			}
 		}
 		pos++;
@@ -423,13 +436,14 @@ static int denise_phbstrt, denise_phbstop, denise_phbstrt_lores, denise_phbstop_
 static int linear_denise_vbstrt, linear_denise_vbstop;
 static int linear_denise_hbstrt, linear_denise_hbstop;
 static int linear_denise_frame_hbstrt, linear_denise_frame_hbstop;
+static int linear_denise_frame_hbstrt_tmp, linear_denise_frame_hbstop_tmp;
+static int linear_denise_frame_hbstrt_sel, linear_denise_frame_hbstop_sel;
 static int denise_visible_lines, denise_visible_lines_counted;
 static uae_u16 hbstrt_denise_reg, hbstop_denise_reg;
 static uae_u16 fmode_denise, denise_bplfmode, denise_sprfmode;
 #if FMODE64_HACK
 static int denise_bplfmode_max;
 #endif
-static bool denise_sprfmode64, denise_bplfmode64;
 static int bpldat_fmode;
 static int fetchmode_size_denise, fetchmode_mask_denise;
 static int delayed_vblank_ecs, delayed_pvblank_aga;
@@ -520,6 +534,9 @@ static uae_u8 *gbuf;
 static uae_u8 pixx0, pixx1, pixx2, pixx3;
 static uae_u32 debug_buf[256 * 2 * 4], debug_bufx[256 * 2 * 4];
 static int hbstrt_offset, hbstop_offset;
+static int denise_hsync_offset;
+static int denise_hblen;
+static int denise_hbstrt_relative_cnt;
 static int hstrt_offset, hstop_offset;
 static int bpl1dat_trigger_offset;
 static int internal_pixel_cnt, internal_pixel_start_cnt;
@@ -1752,7 +1769,7 @@ static void setxlinebuffer(int monid, int line)
 {
 	struct vidbuf_description* vidinfo = &adisplays[monid].gfxvidinfo;
 
-	line += thisframe_y_adjust_real;
+	//line += thisframe_y_adjust_real;
 	if (line < 0 || line >= max_uae_height) {
 		xlinebuffer = get_row(monid, -1);
 		xlinebuffer_genlock = NULL;
@@ -2498,8 +2515,8 @@ void get_mode_blanking_limits(int *phbstop, int *phbstrt, int *pvbstop, int *pvb
 {
 	*pvbstop = linear_denise_vbstrt;
 	*pvbstrt = linear_denise_vbstop;
-	*phbstop = linear_denise_frame_hbstop;
-	*phbstrt = linear_denise_frame_hbstrt;
+	*phbstop = linear_denise_frame_hbstop & ~15;
+	*phbstrt = linear_denise_frame_hbstrt & ~15;
 }
 
 static void setup_brdblank(void)
@@ -3806,10 +3823,34 @@ static void bpldat_docopy(void)
 
 static void expand_drga_early2x(struct denise_rga *rd)
 {
+	if (!aga_mode) {
+		return;
+	}
+
 	switch (rd->rga)
 	{
+		// BPLCON4 sprite
 		case 0x10c:
 		expand_bplcon4_spr(rd->v);
+		break;
+
+		// SPRxDATA/SPRxDATB
+		case 0x144: case 0x146:
+		case 0x14c: case 0x14e:
+		case 0x154: case 0x156:
+		case 0x15c: case 0x15e:
+		case 0x164: case 0x166:
+		case 0x16c: case 0x16e:
+		case 0x174: case 0x176:
+		case 0x17c: case 0x17e:
+		{
+			int sreg = rd->rga - 0x140;
+			int num = sreg / 8;
+			struct denise_spr *s = &dspr[num];
+			spr_unalign_reg = rd->rga;
+			spr_unalign_val = rd->v;
+			spr_unalign_val64 = rd->v64;
+		}
 		break;
 	}
 }
@@ -3849,7 +3890,7 @@ static void expand_drga_early(struct denise_rga *rd)
 			spr_unalign_val = rd->v;
 			break;
 
-		// SPRxDATA/SPRxDATB
+			// SPRxDATA/SPRxDATB
 		case 0x144: case 0x146:
 		case 0x14c: case 0x14e:
 		case 0x154: case 0x156:
@@ -3858,10 +3899,11 @@ static void expand_drga_early(struct denise_rga *rd)
 		case 0x16c: case 0x16e:
 		case 0x174: case 0x176:
 		case 0x17c: case 0x17e:
-		if (denise_sprfmode64) {
-			sprwrite_64(rd->rga - 0x140, rd->v64);
-		} else {
-			sprwrite(rd->rga - 0x140, rd->v);
+		{
+			if (!aga_mode) {
+				int sreg = rd->rga - 0x140;
+				sprwrite(sreg, rd->v);
+			}
 		}
 		break;
 
@@ -3991,9 +4033,13 @@ static void expand_drga(struct denise_rga *rd)
 {
 	if (rd->flags) {
 		if (rd->flags & DENISE_RGA_FLAG_SYNC) {
+			bool hs = denise_hsync;
 			denise_csync = (rd->flags & DENISE_RGA_FLAG_CSYNC) != 0;
 			denise_vsync = (rd->flags & DENISE_RGA_FLAG_VSYNC) != 0;
 			denise_hsync = (rd->flags & DENISE_RGA_FLAG_HSYNC) != 0;
+			if (!hs && denise_hsync) {
+				denise_hsync_offset = internal_pixel_cnt;
+			}
 		}
 		if (rd->flags & DENISE_RGA_FLAG_LOL) {
 			agnus_lol = (rd->flags & DENISE_RGA_FLAG_LOL_ON) != 0;
@@ -5652,6 +5698,10 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 	buf_d = debug_bufx;
 	gbuf = xlinebuffer_genlock;
 
+	if ((denise_pixtotal_max << (1 + hresolution)) > vb->inwidth) {
+		denise_pixtotal_max = vb->inwidth >> (1 + hresolution);
+	}
+
 	if (buf1) {
 		for (int i = 0; i < lol_shift_prev; i++) {
 			if (buf1 >= (uae_u32*)xlinebuffer_start && buf1 < (uae_u32*)xlinebuffer_end) {
@@ -5670,11 +5720,9 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 				}
 			}
 		}
+		denise_pixtotal_max--;
 	}
 	
-	if ((denise_pixtotal_max << (1 + hresolution)) > vb->inwidth) {
-		denise_pixtotal_max = vb->inwidth >> (1 + hresolution);
-	}
 	if (xshift > 0) {
 		denise_pixtotal_max -= xshift;
 	}
@@ -6050,8 +6098,26 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 	}
 
 	if (linear_denise_hbstrt >= 0 && linear_denise_hbstop >= 0 && !denise_vblank_active) {
-		linear_denise_frame_hbstrt = linear_denise_hbstrt & ~15;
-		linear_denise_frame_hbstop = linear_denise_hbstop & ~15;
+		linear_denise_frame_hbstrt = linear_denise_hbstrt;
+		linear_denise_frame_hbstop = linear_denise_hbstop;
+
+		if (linear_denise_frame_hbstrt == linear_denise_frame_hbstrt_tmp && linear_denise_frame_hbstop == linear_denise_frame_hbstop_tmp) {
+			denise_hbstrt_relative_cnt++;
+			if (denise_hbstrt_relative_cnt > 30) {
+				linear_denise_frame_hbstrt_sel = linear_denise_frame_hbstrt_tmp;
+				linear_denise_frame_hbstop_sel = linear_denise_frame_hbstop_tmp;
+				if (abs(linear_denise_frame_hbstrt_sel - linear_denise_frame_hbstop_sel) < internal_pixel_cnt / 2) {
+					denise_hblen = linear_denise_frame_hbstop_sel - linear_denise_frame_hbstrt_sel;
+				} else {
+					denise_hblen = internal_pixel_cnt - linear_denise_frame_hbstrt_sel + linear_denise_frame_hbstop_sel;
+				}
+				denise_hbstrt_relative_cnt = 0;
+			}
+		} else {
+			linear_denise_frame_hbstrt_tmp = linear_denise_frame_hbstrt;
+			linear_denise_frame_hbstop_tmp = linear_denise_frame_hbstop;
+			denise_hbstrt_relative_cnt = 0;
+		}
 	}
 
 	if (refresh_indicator_buffer && buf1t) {
@@ -6110,6 +6176,30 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		resolution_count[denise_res]++;
 	}
 	lines_count++;
+}
+
+bool denise_get_hboffsets(int *hbs, int *hbe, int *hblen)
+{
+	if (linear_denise_frame_hbstrt_sel >= 0 && linear_denise_frame_hbstop_sel) {
+		*hbs = linear_denise_frame_hbstrt_sel;
+		*hbe = linear_denise_frame_hbstop_sel;
+		*hblen = denise_hblen;
+		return true;
+	}
+	// hardwired defaults (hardcoded to allow correct positioning immediate after reset)
+	if (!exthblanken) {
+		if (!ecs_denise) {
+			*hbs = 1728;
+			*hbe = 224;
+			*hblen = 312;
+		} else {
+			*hbs = 1732;
+			*hbe = 224;
+			*hblen = 308;
+		}
+		return true;
+	}
+	return false;
 }
 
 // optimized drawing routines
@@ -6355,8 +6445,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 				}
 #endif
 
-			}
-			if (h) {
+			} else if (h) {
 				bplcon4_denise_xor_val = bplcon4_denise_xor_val2;
 				sbasecol[0] = sbasecol2[0];
 				sbasecol[1] = sbasecol2[1];
@@ -6367,8 +6456,18 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 				}
 
 				if (spr_unalign_reg) {
-					matchsprites2_aga(cnt);
-					sprwrite(spr_unalign_reg - 0x140, spr_unalign_val);
+					int sreg = spr_unalign_reg - 0x140;
+					bool datx = (sreg & 4) != 0;
+					if (datx) {
+						if (denise_sprfmode64) {
+							sprwrite_64(sreg, spr_unalign_val64);
+						} else {
+							sprwrite(sreg, spr_unalign_val);
+						}
+					} else {
+						matchsprites2_aga(cnt);
+						sprwrite(sreg, spr_unalign_val);
+					}
 					spr_unalign_reg = 0;
 				}
 			}
