@@ -3422,8 +3422,10 @@ void remove_brkhandler (void)
 
 static void WIN32_UnregisterClasses (void)
 {
-	systray (hHiddenWnd, TRUE);
-	DestroyWindow (hHiddenWnd);
+	if (hHiddenWnd) {
+		systray (hHiddenWnd, TRUE);
+		DestroyWindow (hHiddenWnd);
+	}
 }
 
 static int WIN32_RegisterClasses (void)
@@ -3847,7 +3849,7 @@ void logging_init (void)
 		}
 	}
 
-	write_log (_T("\n%s (%d.%d.%d %s%s[%d])"), VersionStr,
+	write_log (_T("%s (%d.%d.%d %s%s[%d])"), VersionStr,
 		osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.dwBuildNumber, osVersion.szCSDVersion,
 		_tcslen (osVersion.szCSDVersion) > 0 ? _T(" ") : _T(""), os_admin);
 	write_log (_T(" %d-bit %X.%X.%X %d %s %d"),
@@ -7452,6 +7454,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	HANDLE hMutex;
 	TCHAR **argv = NULL, **argv2 = NULL, **argv3;
 	int argc, i;
+	int versiononly = 0;
 
 	if (!osdetect ())
 		return 0;
@@ -7473,101 +7476,106 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	argv2 = WIN32_InitRegistry (argv);
 
 	if (regqueryint (NULL, _T("log_disabled"), &i)) {
-		if (i)
+		if (i) {
 			logging_disabled = true;
+		}
 	}
 
 	getstartpaths ();
 	makeverstr (VersionStr);
 
 	logging_init ();
-	if (_tcslen (lpCmdLine) > 0)
+
+	if (_tcslen (lpCmdLine) > 0) {
 		write_log (_T("'%s'\n"), lpCmdLine);
+	}
 	if (argv3 && argv3[0]) {
 		write_log (_T("params:\n"));
-		for (i = 0; argv3[i]; i++)
+		for (i = 0; argv3[i]; i++) {
 			write_log (_T("%d: '%s'\n"), i + 1, argv3[i]);
+			if (!_tcsicmp(argv3[i], _T("-version"))) {
+				versiononly = 1;
+			}
+			if (!_tcsicmp(argv3[i], _T("-bootlogonly"))) {
+				versiononly = -1;
+			}
+		}
 	}
 	if (argv2) {
 		write_log (_T("extra params:\n"));
-		for (i = 0; argv2[i]; i++)
+		for (i = 0; argv2[i]; i++) {
 			write_log (_T("%d: '%s'\n"), i + 1, argv2[i]);
+		}
 	}
-	if (preinit_shm () && WIN32_RegisterClasses () && WIN32_InitLibraries ()) {
-		DWORD i;
+
+	if (versiononly <= 0) {
+		if (preinit_shm () && WIN32_RegisterClasses () && WIN32_InitLibraries ()) {
+			DWORD i;
 
 #ifdef RETROPLATFORM
-		if (rp_param != NULL) {
-			if (FAILED (rp_init ()))
-				goto end;
-		}
+			if (rp_param != NULL) {
+				if (FAILED (rp_init ()))
+					goto end;
+			}
 #endif
-		WIN32_HandleRegistryStuff ();
-		write_log (_T("Enumerating display devices.. \n"));
-		enumeratedisplays ();
-		write_log (_T("Sorting devices and modes..\n"));
-		sortdisplays ();
-		enumerate_sound_devices ();
-		for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
-			int type = sound_devices[i]->type;
-			write_log (_T("%d:%s: %s\n"), i, type == SOUND_DEVICE_XAUDIO2 ? _T("XA") : (type == SOUND_DEVICE_DS ? _T("DS") : (type == SOUND_DEVICE_AL ? _T("AL") : (type == SOUND_DEVICE_WASAPI ? _T("WA") : (type == SOUND_DEVICE_WASAPI_EXCLUSIVE ? _T("WX") : _T("PA"))))), sound_devices[i]->name);
-		}
-		write_log (_T("Enumerating recording devices:\n"));
-		for (i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
-			int type = record_devices[i]->type;
-			write_log (_T("%d:%s: %s\n"), i,  type == SOUND_DEVICE_XAUDIO2 ? _T("XA") : (type == SOUND_DEVICE_DS ? _T("DS") : (type == SOUND_DEVICE_AL ? _T("AL") : (type == SOUND_DEVICE_WASAPI ? _T("WA") : (type == SOUND_DEVICE_WASAPI_EXCLUSIVE ? _T("WX") : _T("PA"))))), record_devices[i]->name);
-		}
-		write_log (_T("done\n"));
-#if 0
-		DEVMODE devmode;
-		memset (&devmode, 0, sizeof (devmode));
-		devmode.dmSize = sizeof (DEVMODE);
-		if (EnumDisplaySettings (NULL, ENUM_CURRENT_SETTINGS, &devmode)) {
-			default_freq = devmode.dmDisplayFrequency;
-			if (default_freq >= 70)
-				default_freq = 70;
-			else
-				default_freq = 60;
-		}
-#endif
-		WIN32_InitLang ();
-		unicode_init ();
-		can_D3D11(false);
-		if (betamessage ()) {
-			keyboard_settrans ();
+			WIN32_HandleRegistryStuff ();
+			write_log (_T("Enumerating display devices.. \n"));
+			enumeratedisplays ();
+			write_log (_T("Sorting devices and modes..\n"));
+			sortdisplays ();
+			enumerate_sound_devices ();
+			for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
+				int type = sound_devices[i]->type;
+				write_log (_T("%d:%s: %s\n"), i, type == SOUND_DEVICE_XAUDIO2 ? _T("XA") : (type == SOUND_DEVICE_DS ? _T("DS") : (type == SOUND_DEVICE_AL ? _T("AL") : (type == SOUND_DEVICE_WASAPI ? _T("WA") : (type == SOUND_DEVICE_WASAPI_EXCLUSIVE ? _T("WX") : _T("PA"))))), sound_devices[i]->name);
+			}
+			write_log (_T("Enumerating recording devices:\n"));
+			for (i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
+				int type = record_devices[i]->type;
+				write_log (_T("%d:%s: %s\n"), i,  type == SOUND_DEVICE_XAUDIO2 ? _T("XA") : (type == SOUND_DEVICE_DS ? _T("DS") : (type == SOUND_DEVICE_AL ? _T("AL") : (type == SOUND_DEVICE_WASAPI ? _T("WA") : (type == SOUND_DEVICE_WASAPI_EXCLUSIVE ? _T("WX") : _T("PA"))))), record_devices[i]->name);
+			}
+			write_log (_T("done\n"));
+			WIN32_InitLang ();
+			unicode_init ();
+			can_D3D11(false);
+			if (betamessage ()) {
+				keyboard_settrans ();
 #ifdef CATWEASEL
-			catweasel_init ();
+				catweasel_init ();
 #endif
 #ifdef PARALLEL_PORT
-			paraport_mask = paraport_init ();
+				paraport_mask = paraport_init ();
 #endif
-			globalipc = createIPC (_T("WinUAE"), 0);
-			shmem_serial_create();
-			enumserialports ();
-			enummidiports ();
-			real_main (argc, argv);
+				globalipc = createIPC (_T("WinUAE"), 0);
+				shmem_serial_create();
+				enumserialports ();
+				enummidiports ();
+				if (!versiononly) {
+					real_main (argc, argv);
+				}
+			}
 		}
-	}
-end:
-	closeIPC (globalipc);
-	shmem_serial_delete();
-	write_disk_history ();
-	target_save_debugger_config();
-	timeend ();
+	end:
+		closeIPC (globalipc);
+		shmem_serial_delete();
+		write_disk_history ();
+		target_save_debugger_config();
+		timeend ();
 #ifdef AVIOUTPUT
-	AVIOutput_Release ();
+		AVIOutput_Release ();
 #endif
 #ifdef AHI
-	ahi_close_sound ();
+		ahi_close_sound ();
 #endif
 #ifdef PARALLEL_PORT
-	paraport_free ();
-	closeprinter ();
+		paraport_free ();
+		closeprinter ();
 #endif
-	create_afnewdir (1);
+		create_afnewdir (1);
 #ifdef RETROPLATFORM
-	rp_free ();
+		rp_free ();
 #endif
+	}
+
 	CloseHandle (hMutex);
 	WIN32_CleanupLibraries ();
 	WIN32_UnregisterClasses ();
