@@ -1616,7 +1616,7 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 			} else if (addr == 0xc1) {
 				board->userdata &= ~0x100;
 			} else if (addr == 1) {
-				board->userdata = 0;
+				board->userdata &= 0x0100;
 				board->flashenabled = false;
 			}
 

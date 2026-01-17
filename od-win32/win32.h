@@ -81,6 +81,7 @@ extern bool setpaused (int priority);
 extern void unsetminimized (int monid);
 extern void setminimized(int monid);
 extern int getfocusedmonitor(void);
+BOOL xSetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags);
 
 void finishjob(void);
 void init_colors(int monid);

@@ -2292,8 +2292,8 @@ emptyreal:
 		}
 	}
 	if (hfd->handle_valid || hfd->drive_empty) {
-		hfd_log (_T("HDF '%s' %p opened, size=%dK mode=%d empty=%d\n"),
-			name, hfd, (int)(hfd->physsize / 1024), hfd->handle_valid, hfd->drive_empty);
+		hfd_log (_T("HDF '%s' %p opened, size=%dK (0x%llx) mode=%d empty=%d\n"),
+			name, hfd, (int)(hfd->physsize / 1024), hfd->physsize, hfd->handle_valid, hfd->drive_empty);
 		return 1;
 	}
 end:
@@ -2379,9 +2379,7 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset, bool write)
 		abort();
 	}
 	if (hfd->physsize) {
-		if (offset >= hfd->physsize - hfd->virtual_size) {
-			if (hfd->virtual_rdb)
-				return -1;
+		if (offset >= hfd->physsize) {
 			if (write) {
 				gui_message (_T("hd: tried to seek out of bounds! (%I64X >= %I64X - %I64X)\n"), offset, hfd->physsize, hfd->virtual_size);
 				abort ();
@@ -2405,15 +2403,16 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset, bool write)
 		LARGE_INTEGER fppos;
 		fppos.QuadPart = offset;
 		ret = SetFilePointer(hfd->handle->h, fppos.LowPart, &fppos.HighPart, FILE_BEGIN);
-		if (ret == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
+		if (ret == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
 			return -1;
+		}
 	} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
 		zfile_fseek (hfd->handle->zf, (long)offset, SEEK_SET);
 	}
 	return 0;
 }
 
-static void poscheck (struct hardfiledata *hfd, int len)
+static void poscheck(struct hardfiledata *hfd, int len)
 {
 	DWORD err;
 	uae_s64 pos = -1;
@@ -2421,35 +2420,35 @@ static void poscheck (struct hardfiledata *hfd, int len)
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
 		LARGE_INTEGER fppos;
 		fppos.QuadPart = 0;
-		fppos.LowPart = SetFilePointer (hfd->handle->h, 0, &fppos.HighPart, FILE_CURRENT);
+		fppos.LowPart = SetFilePointer(hfd->handle->h, 0, &fppos.HighPart, FILE_CURRENT);
 		if (fppos.LowPart == INVALID_SET_FILE_POINTER) {
-			err = GetLastError ();
+			err = GetLastError();
 			if (err != NO_ERROR) {
-				gui_message (_T("hd: poscheck failed. seek failure, error %d"), err);
-				abort ();
+				gui_message(_T("hd: poscheck failed. seek failure, error %d"), err);
+				abort();
 			}
 		}
 		pos = fppos.QuadPart;
 	} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
-		pos = zfile_ftell (hfd->handle->zf);
+		pos = zfile_ftell(hfd->handle->zf);
 	} else if (hfd->handle_valid == HDF_HANDLE_WIN32_CHS) {
 		pos = 0;
 	}
 	if (len < 0) {
-		gui_message (_T("hd: poscheck failed, negative length! (%d)"), len);
-		abort ();
+		gui_message(_T("hd: poscheck failed, negative length! (%d)"), len);
+		abort();
 	}
 	if (pos < hfd->offset) {
-		gui_message (_T("hd: poscheck failed, offset out of bounds! (%I64d < %I64d)"), pos, hfd->offset);
-		abort ();
+		gui_message(_T("hd: poscheck failed, offset out of bounds! (%I64d < %I64d)"), pos, hfd->offset);
+		abort();
 	}
-	if (pos >= hfd->offset + hfd->physsize - hfd->virtual_size || pos >= hfd->offset + hfd->physsize + len - hfd->virtual_size) {
-		gui_message (_T("hd: poscheck failed, offset out of bounds! (%I64d >= %I64d, LEN=%d)"), pos, hfd->offset + hfd->physsize, len);
-		abort ();
+	if (pos >= hfd->offset + hfd->physsize) {
+		gui_message(_T("hd: poscheck failed, offset out of bounds! (%I64d >= %I64d, LEN=%d)"), pos, hfd->offset + hfd->physsize, len);
+		abort();
 	}
 	if (pos & (hfd->ci.blocksize - 1)) {
-		gui_message (_T("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X\n"), pos, hfd->ci.blocksize, pos & hfd->ci.blocksize);
-		abort ();
+		gui_message(_T("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X\n"), pos, hfd->ci.blocksize, pos & hfd->ci.blocksize);
+		abort();
 	}
 }
 
@@ -2585,8 +2584,9 @@ static int hdf_read_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, in
 		return len;
 	}
 	hfd->cache_offset = offset;
-	if (offset + CACHE_SIZE > hfd->offset + (hfd->physsize - hfd->virtual_size))
-		hfd->cache_offset = hfd->offset + (hfd->physsize - hfd->virtual_size) - CACHE_SIZE;
+	if (offset + CACHE_SIZE > hfd->offset + hfd->physsize) {
+		hfd->cache_offset = hfd->offset + hfd->physsize - CACHE_SIZE;
+	}
 	if (hdf_seek(hfd, hfd->cache_offset, false)) {
 		*error = 45;
 		return 0;
