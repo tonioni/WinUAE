@@ -54,6 +54,7 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 
 	v = currprefs.gfx_xcenter_size;
 	if (v <= 0) {
+#if 0
 		if (programmedmode && native) {
 			cw = maxhpos_display << (RES_MAX + (doublescan == 1));
 		} else {
@@ -64,13 +65,16 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 				cw = native ? maxhpos_display << RES_MAX : avidinfo->outbuffer->outwidth << 1;
 			}
 		}
-	} else {
+#endif
+		cw = avidinfo->outbuffer->outwidth << 1;
+	} else {	
 		cw = v;
 	}
 	cw >>= (RES_MAX - currprefs.gfx_resolution);
 
 	v = currprefs.gfx_ycenter_size;
 	if (v <= 0) {
+#if 0
 		if (programmedmode && native) {
 			ch = (current_linear_vpos - minfirstline) << (VRES_MAX - (doublescan == 1 && !interlace_seen));
 		} else if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
@@ -79,6 +83,8 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 		} else {
 			ch = native ? (current_linear_vpos - minfirstline) << VRES_MAX : avidinfo->outbuffer->outheight;
 		}
+#endif
+		ch = avidinfo->outbuffer->outheight;
 	} else {
 		ch = v;
 	}
@@ -278,7 +284,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 	if (!specialmode && scalemode == AUTOSCALE_STATIC_AUTO) {
 		filter_aspect = 0;
 		keep_aspect = 0;
-		if (ds->dstwidth >= 640 && ds->dstwidth <= 800 && ds->dstheight >= 480 && ds->dstheight <= 600 && !programmedmode) {
+		if (ds->dstwidth >= 640 && ds->dstwidth <= 800 && ds->dstheight >= 480 && ds->dstheight <= 600) {
 			autoselect = 1;
 			scalemode = AUTOSCALE_NONE;
 			int m = 1;
@@ -327,13 +333,6 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL ||
 			scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
-
-			if (scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_MAX) {
-				// do not default/TV scale programmed modes
-				if (programmedmode) {
-					goto skipcont;
-				}
-			}
 
 			if (specialmode) {
 				cx = 0;

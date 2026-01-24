@@ -76,7 +76,8 @@ extern uae_u32 hsync_counter, vsync_counter;
 extern uae_u16 dmacon;
 extern uae_u16 intena, intreq, intreqr;
 
-extern int vpos, linear_vpos;
+extern int vpos, linear_display_vpos;
+extern int linear_vpos_vb_start, linear_vpos_vb_end;
 extern uae_u8 agnus_hpos;
 extern bool lof_store, lof_display;
 extern int scandoubled_line;
@@ -129,6 +130,8 @@ extern uae_u16 INTREQR(void);
 #define VSYNC_ENDLINE_NTSC 6
 #define EQU_ENDLINE_PAL 8
 #define EQU_ENDLINE_NTSC 9
+
+#define LINES_AFTER_VSYNC 3
 
 #define OCS_DENISE_HBLANK_DISABLE_HPOS 0x2e
 

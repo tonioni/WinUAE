@@ -85,7 +85,10 @@ static uae_sem_t write_sem, read_sem;
 struct denise_rga_queue
 {
 	int type;
-	int vpos, linear_vpos;
+	int vpos;
+	int linear_vpos;
+	int linear_vpos_vb_start;
+	int linear_vpos_vb_end;
 	int gfx_ypos;
 	nln_how how;
 	uae_u32 linecnt;
@@ -118,7 +121,8 @@ static bool full_line_draw;
 static void denise_handle_quick_strobe(uae_u16 strobe, int offset, int vpos);
 static void draw_denise_vsync(int);
 static void denise_update_reg(uae_u16 reg, uae_u16 v, uae_u32 linecnt);
-static void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls);
+static void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip, int skip2, int dtotal,
+	int calib_start, int calib_len, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls);
 
 static void sprwrite(int reg, uae_u32 v);
 static void sprwrite_64(int reg, uae_u64 v);
@@ -185,7 +189,8 @@ static void read_denise_line_queue(void)
 
 
 	if (q->type == 0) {
-		draw_denise_line(q->gfx_ypos, q->how, q->linecnt, q->startpos, q->startcycle, q->endcycle, q->skip, q->skip2, q->dtotal, q->calib_start, q->calib_len, q->lol, q->hdelay, q->blanked, q->finalseg, q->ls);
+		draw_denise_line(q->gfx_ypos, q->how, q->linecnt, q->startpos, q->startcycle, q->endcycle, q->skip, q->skip2, q->dtotal,
+			q->calib_start, q->calib_len, q->lol, q->hdelay, q->blanked, q->finalseg, q->ls);
 		next = q->finalseg;
 	} else if (q->type == 1) {
 		draw_denise_bitplane_line_fast(q->gfx_ypos, q->how, q->ls);
@@ -544,6 +549,7 @@ static bool no_denise_lol, denise_strlong_seen;
 #define STRLONG_SEEN_DELAY 2
 static int denise_strlong_seen_delay;
 static bool denise_vsync_bpl_detect;
+static int linear_vb_offset;
 
 void set_inhibit_frame(int monid, int bit)
 {
@@ -785,9 +791,9 @@ void check_custom_limits(void)
 	if (doublescan == 1 && vshift > 0) {
 		vshift--;
 	}
-	int ydiff = minfirstline - minfirstline_linear;
-	denise_vblank_extra_top = (visible_top_start - ydiff) >> vshift;
-	denise_vblank_extra_bottom = (visible_bottom_stop - ydiff) >> vshift;
+
+	denise_vblank_extra_top = visible_top_start >> vshift;
+	denise_vblank_extra_bottom = visible_bottom_stop >> vshift;
 	denise_hblank_extra_left = visible_left_start;
 	denise_hblank_extra_right = visible_right_stop;
 
@@ -860,19 +866,15 @@ void set_custom_limits (int w, int h, int dx, int dy, bool blank)
 		visible_top_start = 0;
 		visible_bottom_stop = MAX_STOP;
 	} else {
-		int startypos = min_ypos_for_screen;
+		int startypos = linear_vpos_vb_end << vshift;
 		visible_top_start = startypos + dy;
 		visible_bottom_stop = startypos + dy + h;
-		if (currprefs.gfx_overscanmode >= OVERSCANMODE_BROADCAST) {
-			visible_top_start -= 1 << currprefs.gfx_resolution;
-			visible_bottom_stop += 1 << currprefs.gfx_resolution;
+		if (currprefs.gfx_overscanmode < OVERSCANMODE_BROADCAST) {
+			visible_top_start += 1 << vshift;
+			visible_bottom_stop -= 1 << vshift;
 		}
-		if (visible_top_start < hhadd + startypos) {
-			visible_top_start = hhadd + startypos;
-		}
-		if ((current_linear_vpos << currprefs.gfx_vresolution) - hhadd2 < visible_bottom_stop) {
-			visible_bottom_stop = (current_linear_vpos << currprefs.gfx_vresolution) - hhadd2;
-		}
+		visible_top_start += hhadd;
+		visible_bottom_stop -= hhadd;
 	}
 
 	check_custom_limits();
@@ -5617,7 +5619,6 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
 	struct vidbuffer *vb = vidinfo->inbuffer;
 	int eraselines = 0;
-	int yadjust = currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA ? minfirstline_linear << currprefs.gfx_vresolution : 0;
 	int xshift = 0;
 
 	xlinebuffer = NULL;
@@ -5643,8 +5644,6 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 		}
 		erase_next_draw = false;
 	}
-
-	gfx_ypos -= yadjust;
 
 	if (how == nln_none) {
 		return;
@@ -5823,7 +5822,7 @@ static void edgeblanking(int hbstrt_offset, int hbstop_offset, int internal_pixe
 		}
 	}
 	int right = strlong_seen ? denise_hblank_extra_right - (1 << currprefs.gfx_resolution) : denise_hblank_extra_right;
-	if (!programmedmode && (denise_hblank_extra_left > visible_left_border || visible_right_border > right) && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
+	if ((denise_hblank_extra_left > visible_left_border || visible_right_border > right) && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
 		int ww1 = denise_hblank_extra_left > visible_left_border ? (denise_hblank_extra_left - visible_left_border) << 0 : 0;
 		int ww2 = visible_right_border > right ? (visible_right_border - right) << 0 : 0;
 		for (int i = 0; i < 4; i++) {
@@ -5912,7 +5911,8 @@ static void edgeblanking(int hbstrt_offset, int hbstop_offset, int internal_pixe
 	}
 }
 
-static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls)
+static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip, int skip2, int dtotal,
+	int calib_start, int calib_len, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls)
 {
 	bool fullline = false;
 
@@ -5960,10 +5960,10 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		bufg = gbuf;
 	}
 
-	bool blankedline = (this_line->linear_vpos >= denise_vblank_extra_bottom || this_line->linear_vpos < denise_vblank_extra_top) && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME && !programmedmode;
 	bool line_is_blanked = false;
+	bool hidden = this_line->linear_vpos >= denise_vblank_extra_bottom || this_line->linear_vpos < denise_vblank_extra_top;
 
-	if ((denise_pixtotal_max == -0x7fffffff && denise_vsync_bpl_detect) || blankedline || blanked) {
+	if ((denise_pixtotal_max == -0x7fffffff && denise_vsync_bpl_detect) || blanked) {
 
 		// don't draw vertical blanking if not ultra extreme overscan
 		internal_pixel_cnt = -1;
@@ -6058,6 +6058,18 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 			return;
 		}
 
+		if (hidden) {
+			if (xlinebuffer) {
+				memset(xlinebuffer_start, DEBUG_TVOVERSCAN_V_GRAYSCALE, xlinebuffer_end - xlinebuffer_start);
+				if (xlinebuffer2 && xlinebuffer != xlinebuffer2) {
+					memset(xlinebuffer2_start, DEBUG_TVOVERSCAN_V_GRAYSCALE, xlinebuffer2_end - xlinebuffer2_start);
+				}
+				if (xlinebuffer_genlock) {
+					memset(xlinebuffer_genlock_start, 0, xlinebuffer_genlock_end - xlinebuffer_genlock_start);
+				}
+			}
+		}
+
 #if 0
 		static int testtoggle[1000];
 		testtoggle[gfx_ypos]++;
@@ -6090,7 +6102,7 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		ls->bpl1dat_trigger_offset = bpl1dat_trigger_offset;
 		ls->internal_pixel_cnt = internal_pixel_cnt;
 		ls->internal_pixel_start_cnt = internal_pixel_start_cnt;
-		ls->blankedline = blankedline;
+		ls->blankedline = 0;
 		ls->strlong_seen = denise_strlong_seen;
 		ls->lol_shift_prev = denise_lol_shift_prev;
 		ls->vb = denise_vblank_active;
@@ -7004,7 +7016,7 @@ static void pfield_doline_8(int planecnt, int wordcount, uae_u8 *datap, struct l
 
 static void tvadjust(int *hbstrt_offset, int *hbstop_offset, struct linestate *ls)
 {
-	if (!programmedmode && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
+	if (currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
 		int right = denise_strlong_seen ? denise_hblank_extra_right - (1 << currprefs.gfx_resolution) : denise_hblank_extra_right;
 		int ww1 = denise_hblank_extra_left > visible_left_border ? (denise_hblank_extra_left - visible_left_border) << 0 : 0;
 		int ww2 = visible_right_border > right ? (visible_right_border - right) << 0 : 0;
@@ -7245,12 +7257,13 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	}
 	lines_count++;
 
-
 	if (!buf1) {
 		return;
 	}
 
-	if (ls->blankedline) {
+	bool hidden = this_line->linear_vpos >= denise_vblank_extra_bottom || this_line->linear_vpos < denise_vblank_extra_top;
+
+	if (ls->blankedline || hidden) {
 		return;
 	}
 
@@ -7495,7 +7508,7 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 
 	edgeblanking(ls->hbstrt_offset, ls->hbstop_offset, ls->internal_pixel_start_cnt, ls->strlong_seen, ls->lol, ls->lol_shift_prev);
 
-	if (!programmedmode && ham) {
+	if (ham) {
 		int ww1 = visible_left_start > visible_left_border ? (visible_left_start - visible_left_border) << 0 : 0;
 		if (ww1 > 0) {
 			hbstop_offset += ww1;
@@ -7698,7 +7711,9 @@ static void updatelinedata(void)
 	this_line = &temp_line;
 	this_line->vpos = vpos;
 	this_line->lof = lof_store;
-	this_line->linear_vpos = linear_vpos;
+	this_line->linear_vpos = linear_display_vpos;
+	this_line->linear_vpos_vb_start = linear_vpos_vb_start;
+	this_line->linear_vpos_vb_end = linear_vpos_vb_end;
 }
 
 static bool waitqueue_nolock(void)
@@ -7747,7 +7762,9 @@ void draw_denise_border_line_fast_queue(int gfx_ypos, bool blank, enum nln_how h
 		q->ls = ls;
 		q->type = 2;
 		q->vpos = vpos;
-		q->linear_vpos = linear_vpos;
+		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos_vb_start = linear_vpos_vb_start;
+		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
 		addtowritequeue();
 
@@ -7773,7 +7790,9 @@ void draw_denise_bitplane_line_fast_queue(int gfx_ypos, enum nln_how how, struct
 		q->ls = ls;
 		q->type = 1;
 		q->vpos = vpos;
-		q->linear_vpos = linear_vpos;
+		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos_vb_start = linear_vpos_vb_start;
+		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
 		addtowritequeue();
 
@@ -7799,7 +7818,9 @@ void quick_denise_rga_queue(uae_u32 linecnt, int startpos, int endpos)
 		q->endpos = endpos;
 		q->type = 3;
 		q->vpos = vpos;
-		q->linear_vpos = linear_vpos;
+		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos_vb_start = linear_vpos_vb_start;
+		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
 		addtowritequeue();
 	
@@ -7825,7 +7846,9 @@ void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos
 		q->endpos = endpos;
 		q->type = 4;
 		q->vpos = vpos;
-		q->linear_vpos = linear_vpos;
+		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos_vb_start = linear_vpos_vb_start;
+		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
 		addtowritequeue();
 
@@ -7838,7 +7861,8 @@ void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos
 	}
 }
 
-void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int endpos, int startcycle, int endcycle, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lof, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls)
+void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int endpos, int startcycle, int endcycle, int skip, int skip2, int dtotal,
+	int calib_start, int calib_len, bool lof, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls)
 {
 	if (multithread_denise_active()) {
 
@@ -7867,7 +7891,9 @@ void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int star
 		q->hdelay = hdelay;
 		q->blanked = blanked;
 		q->finalseg = finalseg;
-		q->linear_vpos = linear_vpos;
+		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos_vb_start = linear_vpos_vb_start;
+		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
 		addtowritequeue();
 
@@ -7893,7 +7919,9 @@ void draw_denise_vsync_queue(int erase)
 		q->type = 5;
 		q->erase = erase;
 		q->vpos = vpos;
-		q->linear_vpos = linear_vpos;
+		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos_vb_start = linear_vpos_vb_start;
+		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
 		addtowritequeue();
 
@@ -7915,7 +7943,9 @@ void denise_update_reg_queue(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
 		struct denise_rga_queue *q = &rga_queue[rga_queue_write & DENISE_RGA_SLOT_CHUNKS_MASK];
 		q->type = 6;
 		q->vpos = vpos;
-		q->linear_vpos = linear_vpos;
+		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos_vb_start = linear_vpos_vb_start;
+		q->linear_vpos_vb_end = linear_vpos_vb_end;
 		q->reg = reg;
 		q->val = v;
 		q->linecnt = linecnt;
@@ -7940,7 +7970,9 @@ void denise_store_restore_registers_queue(bool store, uae_u32 linecnt)
 		struct denise_rga_queue *q = &rga_queue[rga_queue_write & DENISE_RGA_SLOT_CHUNKS_MASK];
 		q->type = 7;
 		q->vpos = vpos;
-		q->linear_vpos = linear_vpos;
+		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos_vb_start = linear_vpos_vb_start;
+		q->linear_vpos_vb_end = linear_vpos_vb_end;
 		q->val = store ? 1 : 0;
 		q->linecnt = linecnt;
 

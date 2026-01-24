@@ -570,7 +570,7 @@ TCHAR *write_log_get_ts(void)
 	_stprintf (p, _T("%03d"), tb.millitm);
 	p += _tcslen (p);
 	if (vsync_counter != 0xffffffff)
-		_stprintf (p, _T(" [%d %03d%s%03d/%03d]"), vsync_counter, current_hpos_safe(), lof_store ? _T("-") : _T("="), vpos, linear_vpos);
+		_stprintf (p, _T(" [%d %03d%s%03d/%03d]"), vsync_counter, current_hpos_safe(), lof_store ? _T("-") : _T("="), vpos, linear_display_vpos);
 	_tcscat (p, _T(": "));
 	return out;
 }
