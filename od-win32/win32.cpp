@@ -238,9 +238,10 @@ static GETDPIFORWINDOW pGetDpiForWindow;
 
 BOOL xSetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags)
 {
-	if (!rp_isactive()) {
-		return SetWindowPos(hWnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
+	if (rp_isactive()) {
+		uFlags |= SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER;
 	}
+	return SetWindowPos(hWnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
 }
 
 int getdpiformonitor(HMONITOR mon)
