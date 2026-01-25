@@ -10267,28 +10267,47 @@ static void setmax32bitram (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_MAX32RAM, tmp);
 }
 
+static void copycpuboardmem(bool tomem)
+{
+	int maxmem = cpuboard_maxmemory(&workprefs);
+
+	if (tomem) {
+		if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_Z2) {
+			workprefs.cpuboardmem1.size = workprefs.fastmem[0].size;
+		}
+		if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_25BITMEM) {
+			workprefs.cpuboardmem1.size = workprefs.mem25bit.size;
+		}
+		if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_HIGHMEM) {
+			workprefs.cpuboardmem1.size = workprefs.mbresmem_high.size;
+		}
+		if (workprefs.cpuboardmem1.size > maxmem) {
+			workprefs.cpuboardmem1.size = maxmem;
+		}
+	} else {
+		if (workprefs.cpuboardmem1.size > maxmem) {
+			workprefs.cpuboardmem1.size = maxmem;
+		}
+		if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_Z2) {
+			workprefs.fastmem[0].size = workprefs.cpuboardmem1.size;
+		}
+		if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_25BITMEM) {
+			workprefs.mem25bit.size = workprefs.cpuboardmem1.size;
+		}
+		if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_HIGHMEM) {
+			workprefs.mbresmem_high.size = workprefs.cpuboardmem1.size;
+		}
+		if (workprefs.cpuboard_type == 0) {
+			workprefs.mem25bit.size = 0;
+		}
+	}
+}
+
 static void setcpuboardmemsize(HWND hDlg)
 {
-	if (workprefs.cpuboardmem1.size > cpuboard_maxmemory(&workprefs))
-		workprefs.cpuboardmem1.size = cpuboard_maxmemory(&workprefs);
-
-	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_Z2) {
-		workprefs.fastmem[0].size = workprefs.cpuboardmem1.size;
-	}
-	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_25BITMEM) {
-		workprefs.mem25bit.size = workprefs.cpuboardmem1.size;
-	}
-	if (workprefs.cpuboard_type == 0) {
-		workprefs.mem25bit.size = 0;
-	}
-
-	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_HIGHMEM)
-		workprefs.mbresmem_high.size = workprefs.cpuboardmem1.size;
+	copycpuboardmem(false);
 
 	int maxmem = cpuboard_maxmemory(&workprefs);
-	if (workprefs.cpuboardmem1.size > maxmem) {
-		workprefs.cpuboardmem1.size = maxmem;
-	}
 	if (maxmem <= 8 * 1024 * 1024)
 		xSendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CB_MEM, MAX_CB_MEM_Z2));
 	else if (maxmem <= 16 * 1024 * 1024)
@@ -10471,6 +10490,7 @@ static void values_to_memorydlg (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_CPUSLOTRAM, memsize_names[msi_cpuboard[mem_size]]);
 
 	setmax32bitram (hDlg);
+	copycpuboardmem(true);
 }
 
 static void fix_values_memorydlg (void)
