@@ -961,7 +961,13 @@ int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hr
 	int ddffirst = ddffirstword_total << (RES_MAX + 1);
 	int ddflast = ddflastword_total << (RES_MAX + 1);
 
-	if (doublescan <= 0 && !programmedmode) {
+	// if HDIW end or start is missing
+	if (!diwfirstword_total || !diwlastword_total) {
+		diwfirst = ddffirst;
+		diwlast = ddflast;
+	}
+
+	if (doublescan <= 0 && !programmedmode && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
 		int min = 92 << RES_MAX;
 		int max = 460 << RES_MAX;
 		if (diwfirst < min)
@@ -1041,17 +1047,19 @@ int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hr
 			dx += (w - (MIN_DISPLAY_W << currprefs.gfx_resolution)) / 2;
 			w = MIN_DISPLAY_W << currprefs.gfx_resolution;
 		}
-		if ((h >> dbl1) < MIN_DISPLAY_H) {
-			dy += (h - (MIN_DISPLAY_H << dbl1)) / 2;
-			h = MIN_DISPLAY_H << dbl1;
-		}
 		if ((w >> currprefs.gfx_resolution) > MAX_DISPLAY_W) {
 			dx += (w - (MAX_DISPLAY_W << currprefs.gfx_resolution)) / 2;
 			w = MAX_DISPLAY_W << currprefs.gfx_resolution;
 		}
-		if ((h >> dbl1) > MAX_DISPLAY_H) {
-			dy += (h - (MAX_DISPLAY_H << dbl1)) / 2;
-			h = MAX_DISPLAY_H << dbl1;
+		if (currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
+			if ((h >> dbl1) < MIN_DISPLAY_H) {
+				dy += (h - (MIN_DISPLAY_H << dbl1)) / 2;
+				h = MIN_DISPLAY_H << dbl1;
+			}
+			if ((h >> dbl1) > MAX_DISPLAY_H) {
+				dy += (h - (MAX_DISPLAY_H << dbl1)) / 2;
+				h = MAX_DISPLAY_H << dbl1;
+			}
 		}
 	}
 #endif
