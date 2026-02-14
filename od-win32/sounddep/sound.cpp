@@ -2737,8 +2737,9 @@ bool audio_is_event_frame_possible(int ms)
 int audio_is_pull(void)
 {
 	int type = sdp->devicetype;
-	if (sdp->reset)
+	if (sdp->reset) {
 		return 0;
+	}
 	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE || type == SOUND_DEVICE_PA) {
 		struct sound_dp *s = sdp->data;
 		if (s && s->pullmode) {
@@ -2753,15 +2754,17 @@ int audio_pull_buffer(void)
 	int cnt = 0;
 	int type = sdp->devicetype;
 	
-	if (sdp->paused || sdp->deactive || sdp->reset)
+	if (sdp->paused || sdp->deactive || sdp->reset) {
 		return 0;
+	}
 	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE || type == SOUND_DEVICE_PA) {
 		struct sound_dp *s = sdp->data;
 		if (s->pullbufferlen > 0) {
 			cnt++;
 			int size = (int)((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer);
-			if (size > sdp->sndbufsize * 2 / 3)
+			if (size > sdp->sndbufsize * 2 / 3) {
 				cnt++;
+			}
 		}
 	}
 	return cnt;
@@ -2770,8 +2773,9 @@ int audio_pull_buffer(void)
 bool audio_is_pull_event(void)
 {
 	int type = sdp->devicetype;
-	if (sdp->paused || sdp->deactive || sdp->reset)
+	if (sdp->paused || sdp->deactive || sdp->reset) {
 		return false;
+	}
 	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE || type == SOUND_DEVICE_PA) {
 		struct sound_dp *s = sdp->data;
 		if (s->pullmode) {
@@ -2793,9 +2797,11 @@ bool audio_finish_pull(void)
 	int type = sdp->devicetype;
 	if (sdp->paused || sdp->deactive || sdp->reset)
 		return false;
-	if (type != SOUND_DEVICE_WASAPI && type != SOUND_DEVICE_WASAPI_EXCLUSIVE && type != SOUND_DEVICE_PA)
+	if (type != SOUND_DEVICE_WASAPI && type != SOUND_DEVICE_WASAPI_EXCLUSIVE && type != SOUND_DEVICE_PA) {
 		return false;
-	if (audio_pull_buffer() && audio_is_pull_event()) {
+	}
+	int apb = audio_pull_buffer();
+	if (apb >= 2 || (apb = 1 && audio_is_pull_event())) {
 		return send_sound_do(sdp);
 	}
 	return false;

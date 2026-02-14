@@ -38,7 +38,6 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
 	int v, cx, cy, cw, ch;
 	bool native = isnativevidbuf(monid);
-	int hres = gethresolution();
 
 	cx = *cxp;
 	cy = *cyp;
@@ -321,7 +320,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 	if (scalemode) {
 		int cw, ch, cx, cy, cv = 0, crealh = 0;
-		int hres = currprefs.gfx_resolution;
+		int hres = gethresolution();
 		int vres = currprefs.gfx_vresolution;
 		static int oxmult, oymult;
 

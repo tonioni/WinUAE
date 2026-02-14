@@ -172,6 +172,11 @@ static void open_console_window (void)
 	reopen_console ();
 }
 
+bool is_interactive_console(void)
+{
+	return !logtostdoutput;
+}
+
 static void openconsole (void)
 {
 	if (realconsole) {
