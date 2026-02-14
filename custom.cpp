@@ -9980,6 +9980,9 @@ STATIC_INLINE void vsync_mark(void)
 
 static void check_vsyncs_fast(void)
 {
+	bool pal = beamcon0_pal;
+	bool realpal = pal && !agnusa1000;
+
 	if (agnus_vb == 2) {
 		agnus_vb = 1;
 		update_agnus_vb();
@@ -10000,31 +10003,38 @@ static void check_vsyncs_fast(void)
 	if ((vpos == 9 && lof_store && !beamcon0_pal) || (vpos == 8) || (vpos == 7 && lof_store && beamcon0_pal) || agnus_equdis) {
 		agnus_ve = false;
 	}
+
 	// VSYNC
-	if (vpos == 3 && lof_store) {
-		agnus_vsync = true;
-		if (!beamcon0_has_vsync) {
-			vsync_mark();
+	if (realpal) {
+		// PAL
+		if (vpos == 3 && lof_store) {
+			agnus_vsync = true;
+			lof_detect = 1;
+			update_lof_detect();
 		}
-		lof_detect = 0;
-		update_lof_detect();
-	}
-	// VSYNC (HCENTER)
-	if (vpos == 3 && !lof_store) {
-		agnus_vsync = true;
-		lof_detect = 0;
-		update_lof_detect();
-	}
-	if (vpos == 2 && !lof_store) {
-		agnus_vsync = true;
-		if (!beamcon0_has_vsync) {
-			vsync_mark();
+		if (vpos == 2 && !lof_store) {
+			agnus_vsync = true;
+			lof_detect = 0;
+			update_lof_detect();
 		}
-		lof_detect = 1;
-		update_lof_detect();
-	}
-	if (vpos == 5) {
-		agnus_vsync = false;
+		if (vpos == 5 && lof_store) {
+			agnus_vsync = false;
+		}
+	} else {
+		// NTSC
+		if (vpos == 3 && lof_store) {
+			agnus_vsync = true;
+			lof_detect = 1;
+			update_lof_detect();
+		}
+		if (vpos == 3 && !lof_store) {
+			agnus_vsync = true;
+			lof_detect = 0;
+			update_lof_detect();
+		}
+		if (vpos == 6) {
+			agnus_vsync = false;
+		}
 	}
 
 	// Programmed VSYNC
