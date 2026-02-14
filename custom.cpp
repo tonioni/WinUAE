@@ -10445,9 +10445,6 @@ static void check_vsyncs_fast(void)
 		lof_detect = 0;
 		update_lof_detect();
 	}
-	if (vpos == 5 && !lof_store) {
-		agnus_vsync = false;
-	}
 	if (vpos == 2 && !lof_store) {
 		agnus_vsync = true;
 		lof_detect = 0;
