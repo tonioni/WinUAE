@@ -10008,26 +10008,38 @@ static void check_vsyncs_fast(void)
 	if (realpal) {
 		// PAL
 		if (vpos == 3 && lof_store) {
+			if (!agnus_vsync && !beamcon0_has_vsync) {
+				vsync_mark();
+			}
 			agnus_vsync = true;
 			lof_detect = 1;
 			update_lof_detect();
 		}
 		if (vpos == 2 && !lof_store) {
+			if (!agnus_vsync && !beamcon0_has_vsync) {
+				vsync_mark();
+			}
 			agnus_vsync = true;
 			lof_detect = 0;
 			update_lof_detect();
 		}
-		if (vpos == 5 && lof_store) {
+		if (vpos == 5) {
 			agnus_vsync = false;
 		}
 	} else {
 		// NTSC
 		if (vpos == 3 && lof_store) {
+			if (!agnus_vsync && !beamcon0_has_vsync) {
+				vsync_mark();
+			}
 			agnus_vsync = true;
 			lof_detect = 1;
 			update_lof_detect();
 		}
 		if (vpos == 3 && !lof_store) {
+			if (!agnus_vsync && !beamcon0_has_vsync) {
+				vsync_mark();
+			}
 			agnus_vsync = true;
 			lof_detect = 0;
 			update_lof_detect();
@@ -10040,20 +10052,20 @@ static void check_vsyncs_fast(void)
 	// Programmed VSYNC
 	if (programmed_register_accessed_v) {
 		if (!lof_store && vpos == vsstrt) {
-			agnus_pvsync = true;
-			if (beamcon0_has_vsync) {
+			if (!agnus_pvsync && beamcon0_has_vsync) {
 				vsync_mark();
 			}
+			agnus_pvsync = true;
 			lof_pdetect = 1;
 		}
 		if (!lof_store && vpos == vsstop) {
 			agnus_pvsync = false;
 		}
 		if (lof_store && vpos == vsstrt) {
-			agnus_pvsync = true;
-			if (beamcon0_has_vsync) {
+			if (!agnus_pvsync && beamcon0_has_vsync) {
 				vsync_mark();
 			}
+			agnus_pvsync = true;
 			lof_pdetect = 0;
 		}
 		if (lof_store && vpos == vsstop) {
@@ -10081,10 +10093,10 @@ static void check_vsyncs_fast(void)
 	if (programmed_register_accessed_h) {
 		if (hcenter < maxhpos) {
 			if (lof_store && vpos == vsstrt) {
-				agnus_pvsync = true;
-				if (beamcon0_has_vsync) {
+				if (!agnus_pvsync && beamcon0_has_vsync) {
 					vsync_mark();
 				}
+				agnus_pvsync = true;
 				lof_pdetect = 0;
 			}
 			if (lof_store && vpos == vsstop) {
@@ -11349,11 +11361,11 @@ static void check_hsyncs_hardwired(void)
 		// Vertical SYNC
 		if (is_shs) { // SHS
 			if (vpos == 3 && lof_store) {
-				agnus_vsync = true;
-				if (!beamcon0_has_vsync) {
+				if (!agnus_vsync && !beamcon0_has_vsync) {
 					vsync_mark();
 				}
-				lof_detect = 0;
+				agnus_vsync = true;
+				lof_detect = 1;
 				update_lof_detect();
 #ifdef DEBUGGER
 				if (debug_dma) {
@@ -11373,11 +11385,11 @@ static void check_hsyncs_hardwired(void)
 		}
 		if (is_cen) { // HCENTER
 			if (vpos == 2 && !lof_store) {
-				agnus_vsync = true;
-				if (!beamcon0_has_vsync) {
+				if (!agnus_vsync && !beamcon0_has_vsync) {
 					vsync_mark();
 				}
-				lof_detect = 1;
+				agnus_vsync = true;
+				lof_detect = 0;
 				update_lof_detect();
 #ifdef DEBUGGER
 				if (debug_dma) {
@@ -11401,11 +11413,11 @@ static void check_hsyncs_hardwired(void)
 		// Vertical SYNC
 		if (is_shs) { // SHS
 			if (vpos == 3 && lof_store) {
-				agnus_vsync = true;
-				if (!beamcon0_has_vsync) {
+				if (!agnus_vsync && !beamcon0_has_vsync) {
 					vsync_mark();
 				}
-				lof_detect = 0;
+				agnus_vsync = true;
+				lof_detect = 1;
 				update_lof_detect();
 #ifdef DEBUGGER
 				if (debug_dma) {
@@ -11425,11 +11437,11 @@ static void check_hsyncs_hardwired(void)
 		}
 		if (is_cen) { // HCENTER
 			if (vpos == 3 && !lof_store) {
-				agnus_vsync = true;
-				if (!beamcon0_has_vsync) {
+				if (!agnus_vsync && !beamcon0_has_vsync) {
 					vsync_mark();
 				}
-				lof_detect = 1;
+				agnus_vsync = true;
+				lof_detect = 0;
 				update_lof_detect();
 #ifdef DEBUGGER
 				if (debug_dma) {
