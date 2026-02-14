@@ -12105,11 +12105,9 @@ static void sync_equalline_handler(void)
 	agnus_hsync_start += diff;
 
 	fast_lines_cnt++;
+	vsync_linecnt++;
 
 	custom_trigger_start();
-
-	check_vsyncs_fast();
-	vsync_linecnt++;
 
 	if (eventtab[ev_sync].active) {
 		check_vsyncs_fast();
