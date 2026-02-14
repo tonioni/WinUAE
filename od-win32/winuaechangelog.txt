@@ -1,4 +1,43 @@
 
+6.1.0:
+
+Development:
+
+- Copper emulation rewritten to match lower level logic (Relatively simple 3 stage state machine based on Alice schematics). This is needed to support nasty VHPOSW write special cases. Emulation code is also now much shorter and simpler, all COPxJMP special case hacks are gone.
+- Unified native and programmed mode display positioning. For example positioning in native PAL and programmed mode that sets matching PAL parameters is identical now. This also includes overscan setting, previously programmed modes ignored TV mode settings.
+- Display positioning now only uses Agnus/Alice generated sync and optionally using blank signals (like real displays work), this enables correct positioning even if mode is very strange. Previously positioning used hardwired PAL/NTSC sync/blank positions or programmed mode sync/blank register contents. Only first method works correctly if mode is weird enough.
+- Lines that TV overscan setting blanked also skipped collision detection.
+
+Unified native/programmed mode can break existing configurations that have manually adjusted programmed modes. Only native PAL/NTSC mode normal overscan+ or smaller filter configuration positioning and size will be kept compatible with old config files. Autoscale and other similar filters should now work much better when mode is very weird.
+
+6.0.3:
+
+Beta 1:
+
+6.0.x fixes:
+
+- Fixed DDFSTRT being modified while previous value matched condition, it was not correctly updated when DDFSTRT/STOP logic was rewritten (6020b6). (Display corruption in Back in Bizness / 2000AD, Sly Spy, probably others too)
+- Bottom right OCS Denise blanking bug was not visible in Overscan+ mode.
+- In some situations fast mode drawing mode generated VB interrupt 1 line too early and also could toggle between correct and incorrect in interlaced modes.
+- HIGHGFX SuperHires + interlace screen mode was broken when screen was dragged down 1 more or more pixels in fast drawing modes.
+- Display drawing could overflow output buffer by drawing 1 pixel more than fits in the buffer and causing random crashes.
+- Switch from RTG to native + fast mode: garbage was randomly possible in right border.
+- GUI operations that update the display in realtime (for example Display panel brightness/etc adjustments) caused hang if done before starting. Operations waited for free Denise drawing queue slot without running Denise drawing thread.
+
+Other:
+
+- It is now possible to connect multiple emulated CD drives and use multiple CD images simultaneously. Internally support was mostly done years and years ago but it was never finished.
+- Directory filesystem ACTION_CHANGE_MODE responded with ERROR_OBJECT_IN_USE if it was used to change already shared mode file handle or file lock to shared mode.
+- Plain HDF with virtual RDB (Plain HDF mounted to emulated HD controller) didn't allow access to last 256k of HDF (wrong virtual HDF offset calculation). Bug probably since virtual RDB support was added. Also return write protected error if trying to write to virtual RDB. Previously writes to virtual RDB were ignored completely.
+- If RAM panel memory range is adjusted that is also used for accelerator board RAM: adjust also accelerator RAM size. Expansion panel accelerator RAM to RAM panel copy was already implemented.
+- Integer scaling now uses correct aspect ratio when "VGA mode resolution autoswitch" is active.
+- If standard output is redirected ("winuae.exe >path/somewhile.txt"), all logging will get redirected. Log console is disabled if redirection is used, redirected output is in utf-8 format.
+- -version command line only outputs winuaebootlog.txt "header" lines and then exits.
+- If 1G of 32-bit chip ram is enabled: always use UAE Z3 mapping. Hardware info panel before starting emulation now shows correct Z3 board start.
+- Internal sound buffer overflowed if WASAPI sound buffer was set to max and channel amount was 6 or more.
+- Original X-Surf IDE ports emulated.
+- Added Buddha v103.17 ROM to ROM scanner.
+
 6.0.2:
 
 Beta 12:
