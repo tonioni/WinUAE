@@ -4217,7 +4217,6 @@ static uae_u16 CLXDAT(void)
 	// draw line up to current horizontal position to get accurate collision state
 	if (currprefs.cpu_memory_cycle_exact && currprefs.m68k_speed >= 0 && !doflickerfix_active()) {
 		int ldvpos = linear_display_vpos + draw_line_next_line;
-		ldvpos -= linear_vb_offset;
 		draw_line(ldvpos, false);
 	}
 	draw_denise_line_queue_flush();
@@ -4553,7 +4552,7 @@ static void cursorsprite(struct sprite *s)
 
 static int calculate_linetype(int vp)
 {
-	int lineno = vp;
+	int lineno = vp - linear_vb_offset;
 	nextline_how = nln_normal;
 	if (doflickerfix_active()) {
 		lineno *= 2;
@@ -10012,7 +10011,7 @@ static void check_vsyncs_fast(void)
 				vsync_mark();
 			}
 			agnus_vsync = true;
-			lof_detect = 1;
+			lof_detect = 0;
 			update_lof_detect();
 		}
 		if (vpos == 2 && !lof_store) {
@@ -10020,7 +10019,7 @@ static void check_vsyncs_fast(void)
 				vsync_mark();
 			}
 			agnus_vsync = true;
-			lof_detect = 0;
+			lof_detect = 1;
 			update_lof_detect();
 		}
 		if (vpos == 5) {
@@ -10056,17 +10055,10 @@ static void check_vsyncs_fast(void)
 				vsync_mark();
 			}
 			agnus_pvsync = true;
-			lof_pdetect = 1;
+			lof_pdetect = 0;
 		}
 		if (!lof_store && vpos == vsstop) {
 			agnus_pvsync = false;
-		}
-		if (lof_store && vpos == vsstrt) {
-			if (!agnus_pvsync && beamcon0_has_vsync) {
-				vsync_mark();
-			}
-			agnus_pvsync = true;
-			lof_pdetect = 0;
 		}
 		if (lof_store && vpos == vsstop) {
 			agnus_pvsync = false;
@@ -10090,14 +10082,14 @@ static void check_vsyncs_fast(void)
 		}
 	}
 
-	if (programmed_register_accessed_h) {
+	if (programmed_register_accessed_v && programmed_register_accessed_h) {
 		if (hcenter < maxhpos) {
 			if (lof_store && vpos == vsstrt) {
 				if (!agnus_pvsync && beamcon0_has_vsync) {
 					vsync_mark();
 				}
 				agnus_pvsync = true;
-				lof_pdetect = 0;
+				lof_pdetect = 1;
 			}
 			if (lof_store && vpos == vsstop) {
 				agnus_pvsync = false;
@@ -10386,7 +10378,6 @@ static bool draw_blank_fast(struct linestate *l, int ldv)
 	}
 	start_draw_denise();
 	int dvp = calculate_linetype(ldv);
-	dvp -= linear_vb_offset;
 	draw_denise_border_line_fast_queue(dvp, true, nextline_how, l);
 	return true;
 }
@@ -10402,7 +10393,6 @@ static bool draw_border_fast(struct linestate *l, int ldv)
 	l->color0 = aga_mode ? agnus_colors.color_regs_aga[0] : agnus_colors.color_regs_ecs[0];
 	l->brdblank = brdblank;
 	int dvp = calculate_linetype(ldv);
-	dvp -= linear_vb_offset;
 	draw_denise_border_line_fast_queue(dvp, false, nextline_how, l);
 	return true;
 }
@@ -10468,7 +10458,6 @@ static bool draw_line_fast(struct linestate *l, int ldv, uaecptr bplptp[8], bool
 	l->bplcon1 = bplcon1 & bc1mask;
 	l->fetchmode_size = fetchmode_size;
 	l->fetchstart_mask = fetchstart_mask;
-	dvp -= linear_vb_offset;
 	draw_denise_bitplane_line_fast_queue(dvp, nextline_how, l);
 	if (addbpl) {
 		// advance bpl pointers
@@ -10658,7 +10647,6 @@ static void draw_line(int ldvpos, bool finalseg)
 
 	int cs = 0;// (beamcon0 & BEAMCON0_VARHSYEN) ? agnus_phsync_end - agnus_phsync_start : agnus_hsync_end - agnus_hsync_start;
 	int cslen = 10;
-	dvp -= linear_vb_offset;
 	draw_denise_line_queue(dvp, nextline_how, rga_denise_cycle_line, rga_denise_cycle_start, rga_denise_cycle, rga_denise_cycle_count_start, rga_denise_cycle_count_end,
 		display_hstart_cyclewait_skip, display_hstart_cyclewait_skip2,
 		wclks, cs, cslen, lof_store, lol, display_hstart_fastmode - display_hstart_cyclewait, nosignal_status != 0, finalseg, l);
@@ -11000,8 +10988,7 @@ static void custom_trigger_start(void)
 	linear_vpos_vsync++;
 
 	if (linear_display_vpos == linear_vpos_vb_end) {
-		int dvp = calculate_linetype(linear_display_vpos);
-		linear_vb_offset = dvp;
+		linear_vb_offset = linear_display_vpos;
 	}
 
 #if 1
@@ -11365,7 +11352,7 @@ static void check_hsyncs_hardwired(void)
 					vsync_mark();
 				}
 				agnus_vsync = true;
-				lof_detect = 1;
+				lof_detect = 0;
 				update_lof_detect();
 #ifdef DEBUGGER
 				if (debug_dma) {
@@ -11389,7 +11376,7 @@ static void check_hsyncs_hardwired(void)
 					vsync_mark();
 				}
 				agnus_vsync = true;
-				lof_detect = 0;
+				lof_detect = 1;
 				update_lof_detect();
 #ifdef DEBUGGER
 				if (debug_dma) {
@@ -11542,7 +11529,7 @@ static void check_hsyncs_programmed(void)
 			if (beamcon0_has_vsync) {
 				vsync_mark();
 			}
-			lof_pdetect = 1;
+			lof_pdetect = 0;
 #ifdef DEBUGGER
 			if (debug_dma) {
 				record_dma_event_agnus(AGNUS_EVENT_PRG_VS, true);
@@ -11637,7 +11624,7 @@ static void check_hsyncs_programmed(void)
 				vsync_mark();
 			}
 			agnus_pvsync = true;
-			lof_pdetect = 0;
+			lof_pdetect = 1;
 #ifdef DEBUGGER
 			if (debug_dma) {
 				record_dma_event_agnus(AGNUS_EVENT_PRG_VS, true);
