@@ -132,6 +132,7 @@ extern uae_u16 INTREQR(void);
 #define EQU_ENDLINE_NTSC 9
 
 #define LINES_AFTER_VSYNC 3
+#define CCKS_AFTER_HSYNC 4
 
 #define OCS_DENISE_HBLANK_DISABLE_HPOS 0x2e
 

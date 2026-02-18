@@ -177,7 +177,7 @@ struct linestate
 };
 
 extern struct color_entry denise_colors;
-void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int endpos, int startcycle, int endcycle, int skip, int skip2, int dtotal,
+void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int endpos, int startcycle, int endcycle, int skip_start, int skip_end, int dtotal,
 	int calib_start, int calib_len, bool lof, bool lol, int hdelay, bool blanked, bool finalseg, struct linestate *ls);
 void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct linestate *ls);
 void draw_denise_bitplane_line_fast_queue(int gfx_ypos, enum nln_how how, struct linestate *ls);
@@ -202,6 +202,6 @@ void denise_store_restore_registers_queue(bool store, uae_u32 linecnt);
 void denise_clearbuffers(void);
 uae_u8 *get_row_genlock(int monid, int line);
 void drawing_free(void);
-bool denise_get_hboffsets(int *hbs, int *hbe, int *hblen);
+bool denise_get_hboffsets(int *hbs, int *hbe, int *hblen, int *total);
 
 #endif /* UAE_DRAWING_H */
