@@ -779,7 +779,7 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,23,150,10
     CONTROL         "Wait for Blitter [] Compatibility hack for programs that don't wait for the blitter correctly, causing graphics corruption if CPU is too fast.",IDC_BLITWAIT,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,35,150,10
-    LTEXT           "Monitor sync source:",IDC_STATIC,242,96,101,9
+    LTEXT           "Monitor sync / positioning mode:",IDC_STATIC,242,96,101,9
     COMBOBOX        IDC_CS_HVCSYNC,237,108,147,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Video port display hardware:",IDC_STATIC,241,123,117,15,SS_CENTERIMAGE
     COMBOBOX        IDC_MONITOREMU,237,141,147,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -2216,9 +2216,12 @@ BEGIN
     IDS_SCREEN_NATIVELACE   "Native (Interlaced)"
     IDS_PORT_AUTOFIRE_TOGGLENOAF "No autofire (toggle)"
     IDS_DEFAULT_WINUAECUSTOM "Custom"
-    IDS_SYNCMODE_COMBINED   "Combined"
-    IDS_SYNCMODE_CSYNC      "Composite Sync"
-    IDS_SYNCMODE_HVSYNC     "H/V Sync"
+    IDS_SYNCMODE_COMBINED   "Combined + Blanking"
+    IDS_SYNCMODE_CSYNC      "Composite Sync + Blanking"
+    IDS_SYNCMODE_HVSYNC     "H/V Sync + Blanking"
+    IDS_SYNCMODE_COMBINED2  "Combined + Sync"
+    IDS_SYNCMODE_CSYNC2     "Composite Sync + Sync"
+    IDS_SYNCMODE_HVSYNC2    "H/V Sync + Sync"
     IDS_MEMINFO             "Configured 32-bit address space: %dM, reserved: %dM, Z3 available: %dM (UAE), %dM (Real)"
     IDS_INPUTINVERT         "Invert"
     IDS_BOARDTYPE           "Type"

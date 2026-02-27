@@ -1682,10 +1682,11 @@ void compute_framesync(void)
 	if (currprefs.gfx_extraheight > 0) {
 		vb->extraheight = currprefs.gfx_extraheight << vres2;
 	}
-	if (currprefs.gfx_overscanmode >= OVERSCANMODE_EXTREME) {
-		vb->extrawidth = -1;
+	int vblines = current_linear_vblank_lines;
+	if (currprefs.cs_hvcsync >= HVSYNC_SYNCPOS) {
+		vblines = LINES_AFTER_VSYNC;
 	}
-	int maxv = current_linear_vpos - (current_linear_vblank_lines - display_vblankstart_skip) + display_vblankend_skip + 1;
+	int maxv = current_linear_vpos - (vblines - display_vblankstart_skip) + display_vblankend_skip + 1;
 	linear_vpos_vb_end = current_linear_vpos_vb_end - display_vblankstart_skip - 1;
 	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
 		maxv = current_linear_vpos;
@@ -1794,10 +1795,10 @@ static void init_beamcon0(void)
 	}
 	beamcon0_pal = !isntsc;
 
-	if (currprefs.cs_hvcsync == 0) {
+	if (currprefs.cs_hvcsync == HVSYNC_COMBINED || currprefs.cs_hvcsync == HVSYNC_COMBINED_SYNC) {
 		bemcon0_hsync_mask = BEAMCON0_VARHSYEN | BEAMCON0_VARCSYEN;
 		bemcon0_vsync_mask = BEAMCON0_VARVSYEN | BEAMCON0_VARCSYEN;
-	} else if (currprefs.cs_hvcsync == 1) {
+	} else if (currprefs.cs_hvcsync == HVSYNC_CSYNC || currprefs.cs_hvcsync == HVSYNC_CSYNC_SYNC) {
 		bemcon0_hsync_mask = BEAMCON0_VARCSYEN;
 		bemcon0_vsync_mask = BEAMCON0_VARCSYEN;
 	} else {
@@ -1904,14 +1905,16 @@ static void init_beamcon0(void)
 	maxvpos_nom = maxvpos;
 	maxvpos_display = vsync_lines;
 
-	// get hblank start and end (relative to HSYNC start)
-	int hbs = 0, hbe = 0, hblen = 0, total = 0;
-	denise_get_hboffsets(&hbs, &hbe, &hblen, &total);
-	// convert to lores pixels
-	hblen /= 4;
-	hbs /= 4;
-	hbe /= 4;
-	total /= 4;
+	int hbs = -1, hbe = -1, hblen = 0, total = 0;
+	if (currprefs.cs_hvcsync < HVSYNC_SYNCPOS && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
+		// get hblank start and end (relative to HSYNC start)
+		denise_get_hboffsets(&hbs, &hbe, &hblen, &total);
+		// convert to lores pixels
+		hblen /= 4;
+		hbs /= 4;
+		hbe /= 4;
+		total /= 4;
+	}
 	int hsylen = current_agnus_hslen_cck;
 	hsylen += CCKS_AFTER_HSYNC;
 	hsylen *= 2;
@@ -1937,18 +1940,6 @@ static void init_beamcon0(void)
 		} else {
 			maxvpos_display--;
 		}
-	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_EXTREME) {
-		int ev = 42;
-		int l = 0;
-		if (hbe > ev) {
-			l = hbe - ev;
-			hbe = ev;
-			hblen -= l;
-		}
-		maxhpos_display = hsync_ccks * 2 - hblen;
-		hbs += 6 * 2;
-		display_hstart_cyclewait_start = hbe / 2;
-		display_hstart_cyclewait_end = -hbs / 2;
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_BROADCAST) {
 		maxhpos_display += 7;
 	} else if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
@@ -2107,7 +2098,13 @@ static void init_beamcon0(void)
 		minfirstline = 0;
 	}
 
-	minfirstline_linear = linear_vpos_vblank_end;
+	int vbstart = linear_vpos_vblank_end;
+	if (currprefs.cs_hvcsync >= HVSYNC_SYNCPOS) {
+		vbstart = LINES_AFTER_VSYNC;
+		minfirstline = vbstart;
+	}
+
+	minfirstline_linear = vbstart;
 	maxvpos_display_vsync = 0;
 	display_vblankstart_skip = 0;
 	display_vblankend_skip = 0;
@@ -2120,7 +2117,7 @@ static void init_beamcon0(void)
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_EXTREME) {
 		minfirstline_linear -= EXTRAHEIGHT_EXTREME / 2;
 		minfirstline -= EXTRAHEIGHT_EXTREME / 2;
-		display_vblankstart_skip = linear_vpos_vblank_end;
+		display_vblankstart_skip = vbstart;
 		display_vblankend_skip = 3;
 		maxvpos_display_vsync += 2;
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_BROADCAST) {
@@ -4566,7 +4563,7 @@ static void cursorsprite(struct sprite *s)
 
 static int calculate_linetype(int vp)
 {
-	int lineno = vp - linear_vb_offset;
+	int lineno = vp - (currprefs.cs_hvcsync >= HVSYNC_SYNCPOS ? LINES_AFTER_VSYNC : linear_vb_offset);
 	nextline_how = nln_normal;
 	if (doflickerfix_active()) {
 		lineno *= 2;
@@ -5289,14 +5286,14 @@ static void check_no_signal(void)
 		nosignal_trigger = true;
 	}
 	// Inverted CSYNC
-	if ((beamcon0 & BEAMCON0_CSYTRUE) && currprefs.cs_hvcsync == 1) {
+	if ((beamcon0 & BEAMCON0_CSYTRUE) && (currprefs.cs_hvcsync == HVSYNC_CSYNC || currprefs.cs_hvcsync == HVSYNC_CSYNC_SYNC)) {
 		nosignal_trigger = true;
 	}
 	// BLANKEN set: horizontal blanking is merged with CSYNC
-	if ((beamcon0 & BEAMCON0_BLANKEN) && currprefs.cs_hvcsync == 1) {
+	if ((beamcon0 & BEAMCON0_BLANKEN) && (currprefs.cs_hvcsync == HVSYNC_CSYNC || currprefs.cs_hvcsync == HVSYNC_CSYNC_SYNC)) {
 		nosignal_trigger = true;
 	}
-	if ((beamcon0 & BEAMCON0_CSCBEN) && currprefs.cs_hvcsync == 2) {
+	if ((beamcon0 & BEAMCON0_CSCBEN) && (currprefs.cs_hvcsync == HVSYNC_HVSYNC || currprefs.cs_hvcsync == HVSYNC_HVSYNC_SYNC)) {
 		nosignal_trigger = true;
 	}
 	if (beamcon0 & BEAMCON0_VARBEAMEN) {
@@ -5308,7 +5305,7 @@ static void check_no_signal(void)
 		}
 		// CSY output is invalid (no vsync part included) if HTOTAL is too small + hardwired CSYNC.
 		int csyh = (beamcon0 & 0x20) ? 0x8c : 0x8d;
-		if (htotal < csyh && !(beamcon0 & BEAMCON0_VARCSYEN) && currprefs.cs_hvcsync == 1) {
+		if (htotal < csyh && !(beamcon0 & BEAMCON0_VARCSYEN) && (currprefs.cs_hvcsync == HVSYNC_CSYNC || currprefs.cs_hvcsync == HVSYNC_CSYNC_SYNC)) {
 			nosignal_trigger = true;
 		}
 	}
@@ -6613,19 +6610,19 @@ static void hsync_handler(bool vs)
 		inputdevice_read_msg(true);
 		vsync_display_render();
 		vsync_display_rendered = false;
-		if (currprefs.cs_hvcsync == 0) {
+		if ((currprefs.cs_hvcsync == HVSYNC_COMBINED || currprefs.cs_hvcsync == HVSYNC_COMBINED_SYNC)) {
 			if (beamcon0 & (BEAMCON0_VARVSYEN | BEAMCON0_VARCSYEN)) {
 				lof_display = lof_pdetect;
 			} else {
 				lof_display = lof_detect;
 			}
-		} else if (currprefs.cs_hvcsync == 1) {
+		} else if (currprefs.cs_hvcsync == HVSYNC_CSYNC || currprefs.cs_hvcsync == HVSYNC_CSYNC_SYNC) {
 			if (beamcon0 & BEAMCON0_VARCSYEN) {
 				lof_display = lof_pdetect;
 			} else {
 				lof_display = lof_detect;
 			}
-		} else if (currprefs.cs_hvcsync == 2) {
+		} else if (currprefs.cs_hvcsync == HVSYNC_HVSYNC || currprefs.cs_hvcsync == HVSYNC_HVSYNC_SYNC) {
 			if (beamcon0 & BEAMCON0_VARVSYEN) {
 				lof_display = lof_pdetect;
 			} else {
