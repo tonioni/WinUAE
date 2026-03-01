@@ -5,12 +5,20 @@ Development:
 
 - Copper emulation rewritten to match lower level logic (Relatively simple 3 stage state machine based on Alice schematics). This is needed to support nasty VHPOSW write special cases. Emulation code is also now much shorter and simpler, all COPxJMP special case hacks are gone.
 - Unified native and programmed mode display positioning. For example positioning in native PAL and programmed mode that sets matching PAL parameters is identical now. This also includes overscan setting, previously programmed modes ignored TV mode settings.
-- Display positioning now only uses Agnus/Alice generated sync and optionally using blank signals (like real displays work), this enables correct positioning even if mode is very strange. Previously positioning used hardwired PAL/NTSC sync/blank positions or programmed mode sync/blank register contents. Only first method works correctly if mode is weird enough.
-- Lines that TV overscan setting blanked also skipped collision detection.
+- Display positioning now only uses Agnus/Alice generated sync and optionally using blank signals (like real displays work), this enables correct positioning even if mode is very strange. Previously positioning used hardwired PAL/NTSC sync/blank positions or programmed mode sync/blank register contents, this mode can only work mode is not too weird.
+- Display height is from vertical blanking end to start. If vertical blanking is completely missing (It isn't required in real world, only need black in VB area to not confuse display's black level calibration), whole vertical (minus few lines after vsync start) are shown. Horizontal width uses horizontal blanking (or if missing, from hsync + few CCKs to start of next hsync).
+- Chipset panel Monitor Sync Source option renamed to Monitor sync / positioning mode. First 3 options select blanking based positioning/size mode (default, same options as in previous versions), new 3 options select sync based positioning/size mode. This is basically how CRTs originally worked, later models had digital control logic and could also use blanking for positioning.
+- Extreme overscan mode now equals selecting sync based positioning/size mode.
+- Lines that TV overscan setting blanked also skipped bitplane/sprite collision detection.
+
 
 Unified native/programmed mode can break existing configurations that have manually adjusted programmed modes. Only native PAL/NTSC mode normal overscan+ or smaller filter configuration positioning and size will be kept compatible with old config files. Autoscale and other similar filters should now work much better when mode is very weird.
 
 6.0.3:
+
+Beta 2:
+
+- Fast drawing mode had unreliable long/short field detection in some programmed interlaced modes.
 
 Beta 1:
 
