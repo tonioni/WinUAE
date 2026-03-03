@@ -5453,18 +5453,15 @@ static uae_u8 blc_prev[3];
 static void emulate_black_level_calibration(uae_u32 *b1, uae_u32 *b2, uae_u32 *db, int dtotal, int cstart, int clen)
 {
 	int shift = hresolution + 1;
-	int off;
+	int off = cstart << shift;
 
-	if (cstart < 0) {
-		off = dtotal + cstart;
-	} else {
-		off = cstart;
-	}
+	off -= denise_pixtotalskip_start << shift;
+
 	uae_u32 vv[3] = { 0 };
 	int cnt = 0;
-	for (int i = 0; i < clen; i++) {
-		for (int ii = 0; ii  < (1 << shift); ii++) {
-			int j = (off << shift) + (i << shift) + ii;
+	for (int i = 0; i < (clen << shift); i++) {
+		int j = off + i;
+		if (j >= 0) {
 			uae_u32 v = db[j];
 			uae_u8 vi;
 			vi = (v >> 16) & 0xff;
@@ -5476,8 +5473,18 @@ static void emulate_black_level_calibration(uae_u32 *b1, uae_u32 *b2, uae_u32 *d
 			cnt++;
 		}
 	}
-	db[off << shift] = 0xff0000;
-	db[(off << shift) + (clen << shift) - 1] = 0xff0000;
+	if (!cnt) {
+		return;
+
+	}
+
+#if 1
+	db[off] = 0xff0000;
+	db[off + (clen << shift) - 1] = 0xff0000;
+
+	b1[off] = 0xff0000;
+	b1[off + (clen << shift) - 1] = 0xff0000;
+#endif
 
 	int outc[3];
 	for (int i = 0; i < 3; i++) {
@@ -5487,9 +5494,10 @@ static void emulate_black_level_calibration(uae_u32 *b1, uae_u32 *b2, uae_u32 *d
 //	if (outc[0] > 10 || outc[1] > 10 || outc[2] > 10)
 //		write_log("%02x %02x %02x\n", outc[0], outc[1], outc[2]);
 
+	bool useb2 = b1 != b2 && b2;
 	if (outc[0] <= 3 && outc[1] <= 3 && outc[2] <= 3) {
 		memcpy(b1, db, (dtotal * sizeof(uae_u32)) << shift);
-		if (b1 != b2) {
+		if (useb2) {
 			memcpy(b2, db, (dtotal * sizeof(uae_u32)) << shift);
 		}
 	} else {
@@ -5505,14 +5513,20 @@ static void emulate_black_level_calibration(uae_u32 *b1, uae_u32 *b2, uae_u32 *d
 						if (c[j] <= outc[j]) {
 							c[j] = 0;
 						} else {
-							c[j] = (c[j] - outc[j]) * 256 / outc[j];
+							int cc = c[j] + outc[j];
+							if (cc >= 256) {
+								cc = 255;
+							}
+							c[j] = cc;
 						}
 					}
 				}
 				v = (c[0] << 16) | (c[1] << 8) | (c[2] << 0);
 			}
 			*b1++ = v;
-			*b2++ = v;
+			if (useb2) {
+				*b2++ = v;
+			}
 		}
 	}
 }

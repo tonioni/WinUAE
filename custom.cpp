@@ -577,7 +577,7 @@ static int current_linear_hs_hb_dist;
 static uae_u32 agnus_hsstrt_cck, agnus_hsstop_cck;
 static int agnus_hslen_cck, agnus_hslen_cck_prev, agnus_hslen_cck_cnt, current_agnus_hslen_cck;
 static uae_u32 agnus_phsstrt_cck, agnus_phsstop_cck;
-static uae_u32 agnus_pchsstrt_cck, agnus_pchsstop_cck;;
+static uae_u32 agnus_pchsstrt_cck, agnus_pchsstop_cck;
 static bool agnus_pvsync, agnus_pcsync, agnus_csync;
 static int agnus_vb, agnus_pvb;
 static bool agnus_vb_active;
@@ -10709,11 +10709,11 @@ static void draw_line(int ldvpos, bool finalseg)
 		l = &lines[linear_vpos][lof_display];
 	}
 
-	int cs = 0;// (beamcon0 & BEAMCON0_VARHSYEN) ? agnus_phsync_end - agnus_phsync_start : agnus_hsync_end - agnus_hsync_start;
-	int cslen = 10;
+	int calib_start = current_agnus_hslen_cck;
+	int calib_len = 2;
 	draw_denise_line_queue(dvp, nextline_how, rga_denise_cycle_line, rga_denise_cycle_start, rga_denise_cycle, rga_denise_cycle_count_start, rga_denise_cycle_count_end,
 		display_hstart_cyclewait_skip_start, display_hstart_cyclewait_skip_end,
-		wclks, cs, cslen, lof_store, lol, display_hstart_fastmode - display_hstart_cyclewait_start, nosignal_status != 0, finalseg, l);
+		wclks, calib_start, calib_len, lof_store, lol, display_hstart_fastmode - display_hstart_cyclewait_start, nosignal_status != 0, finalseg, l);
 	rga_denise_cycle_count_start = rga_denise_cycle_count_end;
 }
 
