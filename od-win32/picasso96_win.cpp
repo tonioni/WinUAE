@@ -1718,6 +1718,17 @@ static uae_u32 REGPARAM2 picasso_SetSpritePosition (TrapContext *ctx)
 	return 1;
 }
 
+static void updatesprcolors(void)
+{
+	for (int i = 0; i < 4; i++) {
+		uae_u32 v = cursorrgb[i];
+		if (i > 0)
+			v |= 0xff000000;
+		else
+			v &= 0x00ffffff;
+		cursorrgbn[i] = v;
+	}
+}
 
 /*
 SetSpriteColor:
@@ -1747,36 +1758,11 @@ static uae_u32 REGPARAM2 picasso_SetSpriteColor (TrapContext *ctx)
 	uae_u32 oc = cursorrgb[idx];
 	cursorrgb[idx] = (red << 16) | (green << 8) | (blue << 0);
 	if (oc != cursorrgb[idx]) {
+		updatesprcolors();
 		setupcursor_needed = 1;
 	}
 	P96TRACE_SPR ((_T("SetSpriteColor(%08x,%d:%02X%02X%02X). %x\n"), bi, idx, red, green, blue, bi + PSSO_BoardInfo_MousePens));
 	return 1;
-}
-
-STATIC_INLINE uae_u16 rgb32torgb16pc (uae_u32 rgb)
-{
-	return (((rgb >> (16 + 3)) & 0x1f) << 11) | (((rgb >> (8 + 2)) & 0x3f) << 5) | (((rgb >> (0 + 3)) & 0x1f) << 0);
-}
-
-static void updatesprcolors (int bpp)
-{
-	int i;
-	for (i = 0; i < 4; i++) {
-		uae_u32 v = cursorrgb[i];
-		switch (bpp)
-		{
-		case 2:
-			cursorrgbn[i] = rgb32torgb16pc (v);
-			break;
-		case 4:
-			if (i > 0)
-				v |= 0xff000000;
-			else
-				v &= 0x00ffffff;
-			cursorrgbn[i] = v;
-			break;
-		}
-	}
 }
 
 static void putwinmousepixel(HDC andDC, HDC xorDC, int x, int y, int c, uae_u32 *ct)
@@ -2015,7 +2001,7 @@ static uae_u32 setspriteimage(TrapContext *ctx, uaecptr bi)
 		hiressprite = 2;
 	if (flags & BIF_BIGSPRITE)
 		doubledsprite = 1;
-	updatesprcolors (bpp);
+	updatesprcolors();
 
 	P96TRACE_SPR ((_T("SetSpriteImage(%08x,%08x,w=%d,h=%d,%d/%d,%08x)\n"),
 		bi, trap_get_long(ctx, bi + PSSO_BoardInfo_MouseImage), w, h,
@@ -6545,8 +6531,9 @@ uae_u8 *restore_p96 (uae_u8 *src)
 	uaegfx_base = restore_u32 ();
 	uaegfx_rom = restore_u32 ();
 	boardinfo = restore_u32 ();
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 4; i++) {
 		cursorrgb[i] = restore_u32 ();
+	}
 	if (flags & 64) {
 		for (i = 0; i < 256; i++) {
 			state->CLUT[i].Red = restore_u8 ();
@@ -6585,6 +6572,7 @@ uae_u8 *restore_p96 (uae_u8 *src)
 	state->HostAddress = NULL;
 	state->HLineDBL = 1;
 	state->VLineDBL = 1;
+	updatesprcolors();
 	picasso_SetPanningInit(state);
 	state->Extent = state->Address + state->BytesPerRow * state->VirtualHeight;
 	return src;
