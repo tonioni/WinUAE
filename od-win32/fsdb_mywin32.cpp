@@ -331,6 +331,18 @@ DWORD GetFileAttributesSafe (const TCHAR *name)
 	return attr;
 }
 
+bool my_existsfiledir(const TCHAR *name)
+{
+	DWORD attr = GetFileAttributesSafe(name);
+	if (attr != INVALID_FILE_ATTRIBUTES)
+		return true;
+	DWORD err = GetLastError();
+	if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND) {
+		return false;
+	}
+	return true;
+}
+
 int my_existsfile (const TCHAR *name)
 {
 	DWORD attr;
