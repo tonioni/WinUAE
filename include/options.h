@@ -515,6 +515,14 @@ struct monconfig
 #define DISPLAY_OPTIMIZATIONS_PARTIAL 1
 #define DISPLAY_OPTIMIZATIONS_NONE 2
 
+#define HVSYNC_COMBINED 0
+#define HVSYNC_CSYNC 1
+#define HVSYNC_HVSYNC 2
+#define HVSYNC_SYNCPOS 3
+#define HVSYNC_COMBINED_SYNC 3
+#define HVSYNC_CSYNC_SYNC 4
+#define HVSYNC_HVSYNC_SYNC 5
+
 struct uae_prefs {
 
 	struct strlist *all_lines;

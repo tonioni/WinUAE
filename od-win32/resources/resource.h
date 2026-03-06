@@ -444,6 +444,9 @@
 #define IDS_DISPLAY_OPTIMIZATION_NONE   450
 #define IDS_KEYBOARD_DISCONNECTED       451
 #define IDS_KEYBOARD_HIGHLEVEL          452
+#define IDS_SYNCMODE_COMBINED2          453
+#define IDS_SYNCMODE_CSYNC2             454
+#define IDS_SYNCMODE_HVSYNC2            455
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002

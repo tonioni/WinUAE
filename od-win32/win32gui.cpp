@@ -9465,6 +9465,12 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)buffer);
 		WIN32GUI_LoadUIString(IDS_SYNCMODE_HVSYNC, buffer, sizeof buffer / sizeof(TCHAR));
 		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)buffer);
+		WIN32GUI_LoadUIString(IDS_SYNCMODE_COMBINED2, buffer, sizeof buffer / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)buffer);
+		WIN32GUI_LoadUIString(IDS_SYNCMODE_CSYNC2, buffer, sizeof buffer / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)buffer);
+		WIN32GUI_LoadUIString(IDS_SYNCMODE_HVSYNC2, buffer, sizeof buffer / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)buffer);
 
 #ifndef	AGA
 		ew(hDlg, IDC_AGA, FALSE);

@@ -258,7 +258,7 @@ static const TCHAR *cycleexact[] = { _T("false"), _T("memory"), _T("true"), 0  }
 static const TCHAR *unmapped[] = { _T("floating"), _T("zero"), _T("one"), 0 };
 static const TCHAR *ciatype[] = { _T("default"), _T("391078-01"), 0 };
 static const TCHAR *debugfeatures[] = { _T("segtracker"), _T("fsdebug"), 0 };
-static const TCHAR *hvcsync[] = { _T("hvcsync"), _T("csync"), _T("hvsync"), 0 };
+static const TCHAR *hvcsync[] = { _T("hvcsync"), _T("csync"), _T("hvsync"), _T("hvcsync_s"), _T("csync_s"), _T("hvsync_s"), 0 };
 static const TCHAR *eclocksync[] = { _T("default"), _T("68000"), _T("Gayle"), _T("68000_opt"), 0 };
 static const TCHAR *agnusmodel[] = { _T("default"), _T("velvet"), _T("a1000"), _T("ocs"), _T("ecs"), _T("aga"), 0 };
 static const TCHAR *agnussize[] = { _T("default"), _T("512k"), _T("1m"), _T("2m"), 0 };
@@ -8629,7 +8629,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->cs_ciatodbug = false;
 	p->cs_unmapped_space = 0;
 	p->cs_color_burst = false;
-	p->cs_hvcsync = false;
+	p->cs_hvcsync = 0;
 	p->cs_ciatype[0] = 0;
 	p->cs_ciatype[1] = 0;
 	p->cs_memorypatternfill = true;
