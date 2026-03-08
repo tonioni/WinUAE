@@ -2787,7 +2787,8 @@ static int modeswitchneeded(struct AmigaMonitor *mon, struct winuae_currentmode 
 		/* fullscreen to fullscreen */
 		if (mon->screen_is_picasso) {
 			if (state->Width < wc->current_width && state->Height < wc->current_height) {
-				if (currprefs.gf[GF_RTG].gfx_filter_autoscale == 1 || (currprefs.gf[GF_RTG].gfx_filter_autoscale == 2 && currprefs.win32_rtgallowscaling))
+				int mode = currprefs.gf[GF_RTG].gfx_filter_autoscale;
+				if (mode == AUTOSCALE_STATIC_AUTO || (mode == AUTOSCALE_STATIC_NOMINAL && currprefs.win32_rtgallowscaling))
 					return 0;
 			}
 			if (state->Width != wc->current_width ||
@@ -2809,7 +2810,8 @@ static int modeswitchneeded(struct AmigaMonitor *mon, struct winuae_currentmode 
 	} else {
 		/* fullwindow to fullwindow */
 		if (mon->screen_is_picasso) {
-			if (currprefs.gf[GF_RTG].gfx_filter_autoscale && ((wc->native_width > state->Width && wc->native_height >= state->Height) || (wc->native_height > state->Height && wc->native_width >= state->Width)))
+			int mode = currprefs.gf[GF_RTG].gfx_filter_autoscale;
+			if (mode && ((wc->native_width > state->Width && wc->native_height >= state->Height) || (wc->native_height > state->Height && wc->native_width >= state->Width)))
 				return -1;
 			if (currprefs.win32_rtgallowscaling && (state->Width != wc->native_width || state->Height != wc->native_height))
 				return -1;
