@@ -65,7 +65,7 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 			}
 		}
 #endif
-		cw = avidinfo->outbuffer->outwidth << 1;
+		cw = avidinfo->outbuffer->outwidth << (RES_MAX - currprefs.gfx_resolution);
 	} else {	
 		cw = v;
 	}
@@ -83,7 +83,7 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 			ch = native ? (current_linear_vpos - minfirstline) << VRES_MAX : avidinfo->outbuffer->outheight;
 		}
 #endif
-		ch = avidinfo->outbuffer->outheight;
+		ch = avidinfo->outbuffer->outheight << (VRES_MAX - currprefs.gfx_vresolution);
 	} else {
 		ch = v;
 	}
@@ -284,10 +284,11 @@ void getfilterdata(int monid, struct displayscale *ds)
 		filter_aspect = 0;
 		keep_aspect = 0;
 		if (ds->dstwidth >= 640 && ds->dstwidth <= 800 && ds->dstheight >= 480 && ds->dstheight <= 600) {
+			int hres = currprefs.gfx_resolution + doublescan2x;
 			autoselect = 1;
 			scalemode = AUTOSCALE_NONE;
 			int m = 1;
-			int w = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
+			int w = AMIGA_WIDTH_MAX << hres;
 			int h = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
 			for (;;) {
 				if (w * (m * 2) > ds->dstwidth || h * (m * 2) > ds->dstheight) {
@@ -321,7 +322,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 	if (scalemode) {
 		int cw, ch, cx, cy, cv = 0, crealh = 0;
 		int hres = gethresolution();
-		int vres = currprefs.gfx_vresolution;
+		int vres = getvresolution();
 		static int oxmult, oymult;
 
 		filterxmult = (float)ds->scale;
@@ -526,16 +527,23 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 			if (scalemode == AUTOSCALE_CENTER) {
 
-				int scalex = ds->scale;
-				int scaley = ds->scale;
+				float scalex = ds->scale;
+				float scaley = ds->scale;
+				float scale2x = 1.0;
+				float scale2y = 1.0;
+				if (doublescan2x > 0) {
+					scale2x = 0.5 / doublescan2x;
+				} else if (doublescan2x < 0) {
+					scale2y = 0.5 / (-doublescan2x);
+				}
 
 				int ww = cw * scalex;
 				int hh = ch * scaley;
 
-				ds->outwidth = ds->dstwidth * ds->scale;
-				ds->outheight = ds->dstheight * ds->scale;
-				ds->xoffset += cx * ds->scale - (ds->dstwidth - ww) / 2;
-				ds->yoffset += cy * ds->scale - (ds->dstheight - hh) / 2;
+				ds->outwidth = ds->dstwidth * scalex * scale2x;
+				ds->outheight = ds->dstheight * scaley * scale2y;
+				ds->xoffset += cx * scalex - (ds->outwidth - ww) / 2;
+				ds->yoffset += cy * scaley - (ds->outheight - hh) / 2;
 
 				goto cont;
 
@@ -585,6 +593,12 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 				float palntscratio = getpalntscratio(dstratio, keep_aspect, palntscadjust);
 				scaley = scaley * palntscratio / dstratio;
+
+				if (doublescan2x > 0) {
+					scalex *= 2.0 * doublescan2x;
+				} else if (doublescan2x < 0) {
+					scaley *= 2.0 * (-doublescan2x);
+				}
 
 				ds->outwidth = (int)(cw * ds->scale);
 				ds->outheight = (int)(ch * ds->scale);
@@ -674,10 +688,18 @@ void getfilterdata(int monid, struct displayscale *ds)
 		int ch = avidinfo->drawbuffer.inheight;
 		set_custom_limits(cw, ch, 0, 0, true);
 
-		ds->outwidth = ds->dstwidth;
-		ds->outheight = ds->dstheight;
-		ds->xoffset = (ds->srcwidth - ds->dstwidth) / 2;
-		ds->yoffset = (ds->srcheight - ds->dstheight) / 2;
+		int dw = ds->dstwidth;
+		int dh = ds->dstheight;
+		if (doublescan2x > 0) {
+			dw >>= doublescan2x;
+		} else if (doublescan2x < 0) {
+			dh >>= -doublescan2x;
+		}
+
+		ds->outwidth = dw;
+		ds->outheight = dh;
+		ds->xoffset = (ds->srcwidth - dw) / 2;
+		ds->yoffset = (ds->srcheight - dh) / 2;
 
 	}
 cont:

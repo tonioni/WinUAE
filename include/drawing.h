@@ -197,6 +197,7 @@ void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos
 bool drawing_can_lineoptimizations(void);
 void set_drawbuffer(void);
 int gethresolution(void);
+int getvresolution(void);
 void denise_update_reg_queue(uae_u16 reg, uae_u16 v, uae_u32 linecnt);
 void denise_store_restore_registers_queue(bool store, uae_u32 linecnt);
 void denise_clearbuffers(void);

@@ -619,7 +619,7 @@ float hblank_hz;
 static float vblank_hz_lof, vblank_hz_shf, vblank_hz_lace;
 static int vblank_hz_mult, vblank_hz_state;
 static struct chipset_refresh *stored_chipset_refresh;
-int doublescan;
+int doublescan, doublescan2x;
 int programmedmode;
 frame_time_t syncbase;
 static int fmode_saved, fmode, fmode_inuse;
@@ -1775,6 +1775,23 @@ void compute_framesync(void)
 	resetfulllinestate();
 }
 
+static bool line_is_doubled(void)
+{
+	if (doflickerfix_active()) {
+		return true;
+	}
+	if (!interlace_seen && doublescan <= 0 && currprefs.gfx_vresolution && currprefs.gfx_pscanlines > 1) {
+		return true;
+	}
+	if ((doublescan <= 0 || interlace_seen > 0) && currprefs.gfx_vresolution && currprefs.gfx_iscanlines) {
+		return true;
+	}
+	if (currprefs.gfx_vresolution && (doublescan <= 0 || interlace_seen > 0)) {
+		return true;
+	}
+	return false;
+}
+
 /* set PAL/NTSC or custom timing variables */
 static void init_beamcon0(void)
 {
@@ -1785,6 +1802,7 @@ static void init_beamcon0(void)
 	beamcon0 = new_beamcon0;
 
 	doublescan = 0;
+	doublescan2x = 0;
 	programmedmode = 0;
 	lines_after_beamcon_change = 5;
 
@@ -2191,13 +2209,30 @@ static void init_beamcon0(void)
 		maxvpos_display = vsync_lines;
 
 		programmedmode = 2;
-		if ((hsync_ccks < 226 || hsync_ccks > 229) || (vsync_lines < 256 || vsync_lines > 320)) {
-			doublescan = hsync_ccks <= 164 && vsync_lines >= 350 ? 1 : 0;
-			// if superhires and wide enough: not doublescan
-			if (doublescan && hsync_ccks >= 140 && (bplcon0 & 0x0040))
-				doublescan = 0;
+	}
+
+	int hpixels = maxhpos_display * 2;
+	int vpixels = vsync_lines - minfirstline;
+	int hpixelsd = hpixels * 80 / 100;
+	if (hpixelsd < vpixels) {
+		doublescan = 1;
+		if (programmedmode == 2) {
 			programmedmode = 1;
 		}
+		hpixelsd *= 2;
+	}
+	bool dbl = line_is_doubled();
+	if (dbl) {
+		vpixels *= 2;
+	}
+	if (hpixelsd < vpixels) {
+		doublescan2x = 1;
+		hpixelsd *= 2;
+		if (hpixelsd < vpixels) {
+			doublescan2x = 2;
+		}
+	} else if (hpixelsd > vpixels * 2) {
+		doublescan2x = -1;
 	}
 
 	if (maxvpos_nom >= MAXVPOS) {

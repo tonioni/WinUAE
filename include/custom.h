@@ -143,7 +143,7 @@ extern int hsyncstartpos_hw, hsyncendpos_hw;
 extern int minfirstline, minfirstline_linear, vblank_endline, numscrlines, minfirstline_linear;
 extern float vblank_hz, fake_vblank_hz;
 extern float hblank_hz;
-extern int vblank_skip, doublescan;
+extern int vblank_skip, doublescan, doublescan2x;
 extern int programmedmode;
 extern int display_reset;
 
@@ -190,6 +190,7 @@ extern int xbluecolor_s, xbluecolor_b, xbluecolor_m;
 #define RES_HIRES 1
 #define RES_SUPERHIRES 2
 #define RES_MAX 2
+#define RES_MAX2X 3
 #define VRES_NONDOUBLE 0
 #define VRES_DOUBLE 1
 #define VRES_QUAD 2

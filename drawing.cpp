@@ -407,6 +407,7 @@ static bool ecs_genlock_features_active;
 static uae_u8 ecs_genlock_features_mask;
 static bool ecs_genlock_features_colorkey;
 static bool aga_genlock_features_zdclken;
+static int doublescan2xx;
 
 uae_sem_t gui_sem;
 
@@ -1393,8 +1394,9 @@ static void center_image(void)
 		visible_left_border = maxdiw - w;
 		visible_left_border &= ~((xshift(1, 0)) - 1);
 
+		int hresdb = hresolution_inv + (doublescan == 1 ? 1 : 0);
 		int ww = (diwlastword_total - diwfirstword_total) >> hresolution_inv;
-		int wx = ((diwfirstword_total) >> hresolution_inv) - (((hdisplay_left_border - 1) * 4) >> (hresolution_inv + (doublescan == 1 ? 1 : 0)));
+		int wx = ((diwfirstword_total) >> hresdb) - (((hdisplay_left_border - 1) * 4) >> hresdb);
 
 		if (ww < w && currprefs.gfx_xcenter == 2) {
 			/* Try to center. */
@@ -3233,9 +3235,24 @@ static void expand_bplcon1(uae_u16 v)
 	check_lts_request();
 }
 
+int getvresolution(void)
+{
+	int v = currprefs.gfx_vresolution;
+	if (v < 0) {
+		return 0;
+	}
+	return v;
+}
+
 int gethresolution(void)
 {
-	int h = currprefs.gfx_resolution;
+	int h = currprefs.gfx_resolution - doublescan2x - doublescan2xx;
+	if (h < 0) {
+		h = 0;
+	}
+	if (h > RES_MAX2X) { 
+		h = RES_MAX2X;
+	}
 	if (autoswitch_old_resolution == RES_HIRES && currprefs.gfx_resolution == RES_SUPERHIRES) {
 		h--;
 	}
@@ -3245,10 +3262,12 @@ int gethresolution(void)
 static void sethresolution(void)
 {
 	hresolution = currprefs.gfx_resolution;
+	doublescan2xx = 0;
 	if (doublescan == 1) {
 		hresolution++;
 		if (hresolution > RES_SUPERHIRES) {
 			hresolution = RES_SUPERHIRES;
+			doublescan2xx = 1;
 		}
 	}
 	hresolution_inv = RES_MAX - hresolution;
