@@ -1912,11 +1912,11 @@ static void init_beamcon0(void)
 	}
 
 	// after vsync, it seems earlier possible visible line is vsync+3.
-	vsync_startline = LINES_AFTER_VSYNC;
+	vsync_startline = currprefs.cs_vsyncadjust / 2;
 	if ((beamcon0 & BEAMCON0_VARVBEN) && (beamcon0 & bemcon0_vsync_mask)) {
 		vsync_startline += vsstrt;
 		if (vsync_startline >= vsync_lines / 2) {
-			vsync_startline = LINES_AFTER_VSYNC;
+			vsync_startline = currprefs.cs_vsyncadjust / 2;
 		}
 	}
 
@@ -1934,8 +1934,8 @@ static void init_beamcon0(void)
 		total /= 4;
 	}
 	int hsylen = current_agnus_hslen_cck;
-	hsylen += CCKS_AFTER_HSYNC;
 	hsylen *= 2;
+	hsylen += currprefs.cs_hsyncadjust / 4;
 	//hsstop_detect = hbe;
 	if (hbe < hsylen) {
 		hbe = hsylen;
@@ -1958,8 +1958,6 @@ static void init_beamcon0(void)
 		} else {
 			maxvpos_display--;
 		}
-	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_BROADCAST) {
-		maxhpos_display += 7;
 	} else if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
 		maxhpos_display = hsync_ccks * 2;
 		display_hstart_cyclewait_start = 0;

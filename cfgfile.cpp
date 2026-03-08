@@ -2779,6 +2779,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool(f, _T("1mchipjumper"), p->cs_1mchipjumper);
 	cfgfile_dwrite_bool(f, _T("color_burst"), p->cs_color_burst);
 	cfgfile_dwrite_strarr(f, _T("hvcsync"), hvcsync, p->cs_hvcsync);
+	cfgfile_dwrite(f, _T("hsyncadjust"), _T("%d"), p->cs_hsyncadjust);
+	cfgfile_dwrite(f, _T("vsyncadjust"), _T("%d"), p->cs_vsyncadjust);
 	cfgfile_dwrite_bool(f, _T("toshiba_gary"), p->cs_toshibagary);
 	cfgfile_dwrite_bool(f, _T("rom_is_slow"), p->cs_romisslow);
 	cfgfile_dwrite_strarr(f, _T("ciaa_type"), ciatype, p->cs_ciatype[0]);
@@ -6086,6 +6088,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval(option, value, _T("keyboard_handshake"), &p->cs_kbhandshake, 1)
 		|| cfgfile_intval(option, value, _T("eclockphase"), &p->cs_eclockphase, 1)
 		|| cfgfile_intval(option, value, _T("chipset_rtc_adjust"), &p->cs_rtc_adjust, 1)
+		|| cfgfile_intval(option, value, _T("hsyncadjust"), &p->cs_hsyncadjust, 1)
+		|| cfgfile_intval(option, value, _T("vsyncadjust"), &p->cs_vsyncadjust, 1)
 		|| cfgfile_intval(option, value, _T("rndseed"), &p->seed, 1))
 		return 1;
 
@@ -8630,6 +8634,8 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->cs_unmapped_space = 0;
 	p->cs_color_burst = false;
 	p->cs_hvcsync = 0;
+	p->cs_hsyncadjust = CCKS_AFTER_HSYNC * 2 * 4;
+	p->cs_vsyncadjust = LINES_AFTER_VSYNC * 2;
 	p->cs_ciatype[0] = 0;
 	p->cs_ciatype[1] = 0;
 	p->cs_memorypatternfill = true;

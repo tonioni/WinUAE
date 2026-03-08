@@ -758,6 +758,8 @@ struct uae_prefs {
 	int cs_ciatype[2];
 	int cs_kbhandshake;
 	int cs_hvcsync;
+	int cs_hsyncadjust;
+	int cs_vsyncadjust;
 	int cs_eclockphase;
 	int cs_eclocksync;
 	int cs_agnusmodel;

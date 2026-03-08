@@ -790,8 +790,9 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 #endif
 	}
 #endif
-	if (p->gfx_framerate < 1)
+	if (p->gfx_framerate < 1) {
 		p->gfx_framerate = 1;
+	}
 	if (p->gfx_display_sections < 1) {
 		p->gfx_display_sections = 1;
 	} else if (p->gfx_display_sections > 99) {
@@ -808,12 +809,27 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		p->maprom = 0;
 	}
 
-	if (p->tod_hack && p->cs_ciaatod == 0)
+	if (p->tod_hack && p->cs_ciaatod == 0) {
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
+	}
 
 	// PCem does not support max speed.
-	if (p->x86_speed_throttle < 0)
+	if (p->x86_speed_throttle < 0) {
 		p->x86_speed_throttle = 0;
+	}
+
+	if (p->cs_hsyncadjust < 2 * 4 * 2) {
+		p->cs_hsyncadjust = 2 * 4 * 2;
+	}
+	if (p->cs_hsyncadjust > 20 * 4 * 2) {
+		p->cs_hsyncadjust = 20 * 4 * 2;
+	}
+	if (p->cs_vsyncadjust < 0) {
+		p->cs_vsyncadjust = 0;
+	}
+	if (p->cs_vsyncadjust > 20 * 2) {
+		p->cs_vsyncadjust = 20 * 2;
+	}
 
 	built_in_chipset_prefs (p);
 	blkdev_fix_prefs (p);
