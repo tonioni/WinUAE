@@ -5504,13 +5504,13 @@ static void emulate_black_level_calibration(uae_u32 *b1, uae_u32 *b2, uae_u32 *d
 		return;
 	}
 
-#if 1
-	db[off] = 0xff0000;
-	db[off + (clen << shift) - 1] = 0xff0000;
+	if (currprefs.display_calibration > 1) {
+		db[off] = 0xff0000;
+		db[off + (clen << shift) - 1] = 0xff0000;
 
-	b1[off] = 0xff0000;
-	b1[off + (clen << shift) - 1] = 0xff0000;
-#endif
+		b1[off] = 0xff0000;
+		b1[off + (clen << shift) - 1] = 0xff0000;
+	}
 
 	int outc[3];
 	for (int i = 0; i < 3; i++) {
