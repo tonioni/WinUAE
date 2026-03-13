@@ -6671,6 +6671,8 @@ static void hsync_handler(bool vs)
 			}
 		}
 		reset_autoscale();
+		virtual_vsync_check();
+		last_vsync_evt = get_cycles() + (maxvpos * maxhpos * 3) * CYCLE_UNIT;
 		display_vsync_counter++;
 		maxvpos_display_vsync_next = true;
 		display_hsync_counter = 0;
@@ -11256,13 +11258,6 @@ static void custom_trigger_start(void)
 		custom_fastmode = 0;
 	} else {
 		check_vsyncs_fast();
-	}
-
-	if (vpos == vsync_startline) {
-
-		virtual_vsync_check();
-
-		last_vsync_evt = get_cycles() + (maxvpos * maxhpos * 3) * CYCLE_UNIT;
 	}
 
 #if 0
