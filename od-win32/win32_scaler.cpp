@@ -272,6 +272,22 @@ void getfilterdata(int monid, struct displayscale *ds)
 	float xmult = filter_horiz_zoom_mult;
 	float ymult = filter_vert_zoom_mult;
 
+	if (doublescan2x > 0) {
+		float ds = 2.0f * doublescan2x;
+		if (ymult >= ds) {
+			ymult /= ds;
+		} else {
+			xmult *= ds;
+		}
+	} else if (doublescan2x < 0) {
+		float ds = 2.0f * (-doublescan2x);
+		if (xmult >= ds) {
+			xmult /= ds;
+		} else {
+			ymult *= ds;
+		}
+	}
+
 	int scalemode = currprefs.gf[idx].gfx_filter_autoscale;
 	int oscalemode = changed_prefs.gf[idx].gfx_filter_autoscale;
 	if (scalemode == AUTOSCALE_OVERSCAN_BLANK) {
@@ -414,6 +430,9 @@ void getfilterdata(int monid, struct displayscale *ds)
 				}
 #endif
 
+				vres = 2 + (doublescan2x > 0 ? doublescan2x : 0);
+				hres = 2 + (doublescan2x < 0 ? -doublescan2x : 0);
+
 				int cw2 = cw + (int)(cw * filter_horiz_zoom);
 				int ch2 = ch + (int)(ch * filter_vert_zoom);
 				int adjw = cw2 * 5 / 100;
@@ -529,19 +548,12 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 				float scalex = ds->scale;
 				float scaley = ds->scale;
-				float scale2x = 1.0;
-				float scale2y = 1.0;
-				if (doublescan2x > 0) {
-					scale2x = 0.5 / doublescan2x;
-				} else if (doublescan2x < 0) {
-					scale2y = 0.5 / (-doublescan2x);
-				}
 
 				int ww = cw * scalex;
 				int hh = ch * scaley;
 
-				ds->outwidth = ds->dstwidth * scalex * scale2x;
-				ds->outheight = ds->dstheight * scaley * scale2y;
+				ds->outwidth = ds->dstwidth * scalex;
+				ds->outheight = ds->dstheight * scaley;
 				ds->xoffset += cx * scalex - (ds->outwidth - ww) / 2;
 				ds->yoffset += cy * scaley - (ds->outheight - hh) / 2;
 
@@ -690,11 +702,6 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 		int dw = ds->dstwidth;
 		int dh = ds->dstheight;
-		if (doublescan2x > 0) {
-			dw >>= doublescan2x;
-		} else if (doublescan2x < 0) {
-			dh >>= -doublescan2x;
-		}
 
 		ds->outwidth = dw;
 		ds->outheight = dh;

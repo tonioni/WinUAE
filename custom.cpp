@@ -2210,6 +2210,11 @@ static void init_beamcon0(void)
 	}
 
 	int hpixels = maxhpos_display * 2;
+	if (currprefs.gfx_resolution == RES_LORES) {
+		hpixels /= 2;
+	} else if (currprefs.gfx_resolution == RES_SUPERHIRES) {
+		hpixels *= 2;
+	}
 	int vpixels = vsync_lines - minfirstline;
 	int hpixelsd = hpixels * 80 / 100;
 	if (hpixelsd < vpixels) {
@@ -2231,6 +2236,9 @@ static void init_beamcon0(void)
 		}
 	} else if (hpixelsd > vpixels * 2) {
 		doublescan2x = -1;
+		if (hpixelsd > vpixels * 4) {
+			doublescan2x = -2;
+		}
 	}
 
 	if (maxvpos_nom >= MAXVPOS) {

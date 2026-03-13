@@ -3246,7 +3246,7 @@ int getvresolution(void)
 
 int gethresolution(void)
 {
-	int h = currprefs.gfx_resolution - doublescan2x - doublescan2xx;
+	int h = currprefs.gfx_resolution - doublescan2xx;
 	if (h < 0) {
 		h = 0;
 	}
