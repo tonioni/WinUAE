@@ -445,6 +445,7 @@ static int linear_denise_hbstrt, linear_denise_hbstop;
 static int linear_denise_frame_hbstrt, linear_denise_frame_hbstop;
 static int linear_denise_frame_hbstrt_tmp, linear_denise_frame_hbstop_tmp;
 static int linear_denise_frame_hbstrt_sel, linear_denise_frame_hbstop_sel;
+static bool denise_blanking_changed;
 static int linear_denise_strobe_offset;
 static int denise_visible_lines, denise_visible_lines_counted;
 static uae_u16 hbstrt_denise_reg, hbstop_denise_reg;
@@ -1016,6 +1017,7 @@ int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hr
 
 	h = y2 - y1 + 1;
 	dy = y1 - minfirstline_linear;
+	dy--;
 
 	if (plffirstline_total >= 30000) {
 		// no planes enabled during frame
@@ -1027,8 +1029,12 @@ int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hr
 		dx = 58;
 	}
 
-	if (dx < 0)
+	if (dx < 0) {
 		dx = 0;
+	}
+	if (dy < 0) {
+		dy = 0;
+	}
 
 	*prealh = -1;
 	if (programmedmode != 1 && plffirstline_total < 30000) {
@@ -4995,6 +5001,7 @@ static void denise_handle_quick_strobe(uae_u16 strobe, int offset, int vpos)
 {
 	struct denise_rga rd = { 0 };
 	rd.rga = strobe;
+	rd.v = 2;
 	denise_hcounter_new += maxhpos * 2;
 	denise_hcounter_new &= 511;
 	denise_hcounter = denise_hcounter_new;
@@ -6204,6 +6211,7 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 
 	frame_internal_pixel_cnt = internal_pixel_cnt;
 
+	// detect horizontal blanking
 	if (!denise_vblank_active) {
 		linear_denise_frame_hbstrt = linear_denise_hbstrt;
 		linear_denise_frame_hbstop = linear_denise_hbstop;
@@ -6211,7 +6219,9 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 
 		if (linear_denise_frame_hbstrt == linear_denise_frame_hbstrt_tmp && linear_denise_frame_hbstop == linear_denise_frame_hbstop_tmp) {
 			denise_hbstrt_relative_cnt++;
-			if (denise_hbstrt_relative_cnt > 30) {
+			if (denise_hbstrt_relative_cnt > maxvpos_display / 2) {
+				int ss = linear_denise_frame_hbstrt_sel;
+				int ee = linear_denise_frame_hbstop_sel;
 				linear_denise_frame_hbstrt_sel = linear_denise_frame_hbstrt_tmp;
 				linear_denise_frame_hbstop_sel = linear_denise_frame_hbstop_tmp;
 				if (linear_denise_frame_hbstrt_sel < 0 || linear_denise_frame_hbstop_sel < 0) {
@@ -6222,10 +6232,12 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 						linear_denise_frame_hbstrt_sel -= internal_pixel_cnt;
 					}
 				}
-				linear_denise_strobe_offset += 2 * 8;
-				linear_denise_frame_hbstrt_sel += linear_denise_strobe_offset;
-				linear_denise_frame_hbstop_sel += linear_denise_strobe_offset;
+				linear_denise_frame_hbstrt_sel += linear_denise_strobe_offset + 2 * 8;
+				linear_denise_frame_hbstop_sel += linear_denise_strobe_offset + 2 * 8;
 				denise_hbstrt_relative_cnt = 0;
+				if (ss != linear_denise_frame_hbstrt_sel || ee != linear_denise_frame_hbstop_sel) {
+					denise_blanking_changed = true;
+				}
 			}
 		} else {
 			linear_denise_frame_hbstrt_tmp = linear_denise_frame_hbstrt;
@@ -6290,6 +6302,15 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		resolution_count[denise_res]++;
 	}
 	lines_count++;
+}
+
+bool denise_get_hbstate(bool clear)
+{
+	bool v = denise_blanking_changed;
+	if (clear) {
+		denise_blanking_changed = false;
+	}
+	return v;
 }
 
 bool denise_get_hboffsets(int *hbs, int *hbe, int *hblen, int *total)

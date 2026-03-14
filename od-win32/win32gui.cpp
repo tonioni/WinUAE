@@ -8149,6 +8149,7 @@ static void enable_for_displaydlg (HWND hDlg)
 	ew(hDlg, IDC_SCREENMODE_RTG2, rtg);
 	ew(hDlg, IDC_XCENTER, workprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN);
 	ew(hDlg, IDC_YCENTER, workprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN);
+	ew(hDlg, IDC_RLMASPECT, TRUE);
 	ew(hDlg, IDC_FRAMERATE, !workprefs.cpu_memory_cycle_exact);
 	ew(hDlg, IDC_LORES, !workprefs.gfx_autoresolution);
 	ew(hDlg, IDC_OVERSCANMODE, TRUE);
@@ -8710,8 +8711,9 @@ static void values_to_displaydlg (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_GRAYSCALE, workprefs.gfx_grayscale);
 	CheckDlgButton(hDlg, IDC_RESYNCBLANK, workprefs.gfx_monitorblankdelay > 0);
 
-	CheckDlgButton (hDlg, IDC_XCENTER, workprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN ? workprefs.gfx_xcenter : FALSE);
-	CheckDlgButton (hDlg, IDC_YCENTER, workprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN ? workprefs.gfx_ycenter : FALSE);
+	CheckDlgButton(hDlg, IDC_XCENTER, workprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN ? workprefs.gfx_xcenter : FALSE);
+	CheckDlgButton(hDlg, IDC_YCENTER, workprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN ? workprefs.gfx_ycenter : FALSE);
+	CheckDlgButton(hDlg, IDC_RLMASPECT, workprefs.gfx_keep_aspect);
 
 	xSendDlgItemMessage(hDlg, IDC_DISPLAY_BUFFERCNT, CB_RESETCONTENT, 0, 0);
 #if 0
@@ -8972,9 +8974,11 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	}
 
 	if (workprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
-		workprefs.gfx_xcenter = ischecked (hDlg, IDC_XCENTER) ? 2 : 0; /* Smart centering */
-		workprefs.gfx_ycenter = ischecked (hDlg, IDC_YCENTER) ? 2 : 0; /* Smart centering */
+		/* Smart centering */
+		workprefs.gfx_xcenter = ischecked (hDlg, IDC_XCENTER) ? 2 : 0;
+		workprefs.gfx_ycenter = ischecked (hDlg, IDC_YCENTER) ? 2 : 0;
 	}
+	workprefs.gfx_keep_aspect = ischecked(hDlg, IDC_RLMASPECT);
 	workprefs.gfx_variable_sync = ischecked(hDlg, IDC_DISPLAY_VARSYNC) ? 1 : 0;
 	workprefs.gfx_windowed_resize = ischecked(hDlg, IDC_DISPLAY_RESIZE);
 

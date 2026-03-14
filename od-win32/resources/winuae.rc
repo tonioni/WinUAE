@@ -202,20 +202,22 @@ BEGIN
     CONTROL         "",IDC_DA_SLIDER,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,96,276,96,20
     EDITTEXT        IDC_DA_TEXT,205,280,56,12,ES_AUTOHSCROLL | ES_READONLY
     PUSHBUTTON      "Reset to defaults",IDC_DA_RESET,156,298,106,14
-    GROUPBOX        "Centering",IDC_STATIC,289,90,105,46
+    GROUPBOX        "Centering",IDC_STATIC,289,90,105,41
     CONTROL         "Horizontal",IDC_XCENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,300,104,90,10
-    CONTROL         "Vertical",IDC_YCENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,300,120,90,10
-    GROUPBOX        "Line mode",IDC_STATIC,290,138,104,81
-    CONTROL         "Single",IDC_LM_NORMAL,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,299,152,90,10
-    CONTROL         "Double",IDC_LM_DOUBLED,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,165,90,10
-    CONTROL         "Scanlines",IDC_LM_SCANLINES,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,178,90,10
-    CONTROL         "Double, fields",IDC_LM_PDOUBLED2,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,191,90,10
-    CONTROL         "Double, fields+",IDC_LM_PDOUBLED3,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,204,90,10
-    GROUPBOX        "Interlaced line mode",IDC_STATIC,290,226,104,70
-    CONTROL         "Single",IDC_LM_INORMAL,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,299,242,90,10
-    CONTROL         "Double, frames",IDC_LM_IDOUBLED,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,255,90,10
-    CONTROL         "Double, fields",IDC_LM_IDOUBLED2,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,268,90,10
-    CONTROL         "Double, fields+",IDC_LM_IDOUBLED3,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,281,90,10
+    CONTROL         "Vertical",IDC_YCENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,300,117,90,10
+    GROUPBOX        "Line mode",IDC_STATIC,290,159,104,81
+    CONTROL         "Single",IDC_LM_NORMAL,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,299,173,90,10
+    CONTROL         "Double",IDC_LM_DOUBLED,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,186,90,10
+    CONTROL         "Scanlines",IDC_LM_SCANLINES,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,199,90,10
+    CONTROL         "Double, fields",IDC_LM_PDOUBLED2,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,212,90,10
+    CONTROL         "Double, fields+",IDC_LM_PDOUBLED3,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,225,90,10
+    GROUPBOX        "Interlaced line mode",IDC_STATIC,290,242,104,70
+    CONTROL         "Single",IDC_LM_INORMAL,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,299,258,90,10
+    CONTROL         "Double, frames",IDC_LM_IDOUBLED,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,271,90,10
+    CONTROL         "Double, fields",IDC_LM_IDOUBLED2,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,284,90,10
+    CONTROL         "Double, fields+",IDC_LM_IDOUBLED3,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,299,297,90,10
+    GROUPBOX        "Aspect ratio",IDC_STATIC,289,132,105,26
+    CONTROL         "Automatic integer scaling",IDC_RLMASPECT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,298,143,88,10
 END
 
 IDD_MEMORY DIALOGEX 0, 0, 396, 304
@@ -2219,13 +2221,22 @@ BEGIN
     IDS_SYNCMODE_COMBINED   "Combined + Blanking"
     IDS_SYNCMODE_CSYNC      "Composite Sync + Blanking"
     IDS_SYNCMODE_HVSYNC     "H/V Sync + Blanking"
-    IDS_SYNCMODE_COMBINED2  "Combined + Sync"
-    IDS_SYNCMODE_CSYNC2     "Composite Sync + Sync"
-    IDS_SYNCMODE_HVSYNC2    "H/V Sync + Sync"
     IDS_MEMINFO             "Configured 32-bit address space: %dM, reserved: %dM, Z3 available: %dM (UAE), %dM (Real)"
     IDS_INPUTINVERT         "Invert"
     IDS_BOARDTYPE           "Type"
     IDS_BOARDNAME           "Name"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_DISPLAY_OPTIMIZATION_FULL "Full"
+    IDS_DISPLAY_OPTIMIZATION_PARTIAL "Partial"
+    IDS_DISPLAY_OPTIMIZATION_NONE "None"
+    IDS_KEYBOARD_DISCONNECTED "Keyboard disconnected"
+    IDS_KEYBOARD_HIGHLEVEL  "UAE High level emulation"
+    IDS_SYNCMODE_COMBINED2  "Combined + Sync"
+    IDS_SYNCMODE_CSYNC2     "Composite Sync + Sync"
+    IDS_SYNCMODE_HVSYNC2    "H/V Sync + Sync"
 END
 
 STRINGTABLE
@@ -2262,15 +2273,6 @@ BEGIN
     IDS_MISCLISTITEMS6      "Force hard reset if CPU halted\nA600/A1200/A4000 IDE scsi.device disable\nWarp mode reset\nGUI gamepad control\nDefault on screen keyboard (Pad button 4)\n"
     IDS_CHOOSE_AUDIO_CODEC  "Choose Audio Codec"
     IDS_CHOOSE_VIDEO_CODEC  "Choose Video Codec"
-END
-
-STRINGTABLE
-BEGIN
-    IDS_DISPLAY_OPTIMIZATION_FULL "Full"
-    IDS_DISPLAY_OPTIMIZATION_PARTIAL "Partial"
-    IDS_DISPLAY_OPTIMIZATION_NONE "None"
-    IDS_KEYBOARD_DISCONNECTED "Keyboard disconnected"
-    IDS_KEYBOARD_HIGHLEVEL  "UAE High level emulation"
 END
 
 #endif    // English (United Kingdom) resources

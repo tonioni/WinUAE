@@ -816,6 +816,7 @@
 #define IDC_ECS_AGNUS                   1521
 #define IDC_DISPLAY_RESIZE              1521
 #define IDC_ECS_DENISE                  1522
+#define IDC_RLMASPECT                   1522
 #define IDC_ECS                         1523
 #define IDC_AGA                         1524
 #define IDC_OCSA1000                    1525
