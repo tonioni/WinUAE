@@ -5965,7 +5965,7 @@ static void edgeblanking(int hbstrt_offset, int hbstop_offset, int internal_pixe
 					if (p1 + w > ptrs && p1 < ptre) {
 						int wxadd = 0;
 						if (p1 < ptrs) {
-							wxadd = addrdiff(p1, ptrs);
+							wxadd = addrdiff(ptrs, p1);
 							w -= wxadd;
 							p1 += wxadd;
 						}
