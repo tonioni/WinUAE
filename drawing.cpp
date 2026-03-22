@@ -7105,17 +7105,19 @@ static void pfield_doline_8(int planecnt, int wordcount, uae_u8 *datap, struct l
 	}
 }
 
-static void tvadjust(int *hbstrt_offset, int *hbstop_offset, struct linestate *ls)
+static void tvadjust(int *hbstrt_offset, int *hbstop_offset, int rshift, struct linestate *ls)
 {
-	if (currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
-		int right = denise_strlong_seen ? denise_hblank_extra_right - (1 << currprefs.gfx_resolution) : denise_hblank_extra_right;
+	if (currprefs.gfx_overscanmode < OVERSCANMODE_OVERSCAN) {
+
+		int hbstop_left = (ls->hbstop_offset - ls->internal_pixel_start_cnt) >> rshift;
+		int hbstop_right = hbstop_left + denise_hblank_extra_right - visible_left_border;
+
 		int ww1 = denise_hblank_extra_left > visible_left_border ? (denise_hblank_extra_left - visible_left_border) << 0 : 0;
-		int ww2 = visible_right_border > right ? (visible_right_border - right) << 0 : 0;
-	
+		int ww2 = visible_right_border > denise_hblank_extra_right ? (visible_right_border - denise_hblank_extra_right) << 0 : 0;
+
 		if (hbstrt_offset && ww2 > 0) {
 			*hbstrt_offset -= ww2;
 		}
-		int hbstop_left = *hbstop_offset - ls->internal_pixel_start_cnt;
 		if (hbstop_left > 0) {
 			ww1 -= hbstop_left;
 		}
@@ -7259,7 +7261,7 @@ void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, st
 	int hbstrt_offset = ls->hbstrt_offset >> rshift;
 	int hbstop_offset = ls->hbstop_offset >> rshift;
 
-	tvadjust(&hbstrt_offset, &hbstop_offset, ls);
+	tvadjust(&hbstrt_offset, &hbstop_offset, rshift, ls);
 
 	int draw_end = ls->internal_pixel_cnt >> rshift;
 	int draw_startoffset = ls->internal_pixel_start_cnt >> rshift;
@@ -7509,7 +7511,7 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	}
 
 	// if HAM: need to clear left hblank after line has been drawn
-	tvadjust(&hbstrt_offset, ham ? NULL : &hbstop_offset, ls);
+	tvadjust(&hbstrt_offset, ham ? NULL : &hbstop_offset, rshift, ls);
 
 	// negative checks are needed to handle always-on HDIW
 	int hstop_offset_adjusted = ls->hstop_offset;
