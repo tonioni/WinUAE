@@ -1968,8 +1968,9 @@ static void refresh_indicator_init(void)
 
 bool drawing_can_lineoptimizations(void)
 {
-	if (currprefs.cs_cd32fmv || ((currprefs.genlock || currprefs.genlock_effects) && currprefs.genlock_image) ||
-		currprefs.cs_color_burst || currprefs.gfx_grayscale || currprefs.monitoremu) {
+	if (currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA &&
+		(currprefs.cs_cd32fmv || ((currprefs.genlock || currprefs.genlock_effects) && currprefs.genlock_image) ||
+		currprefs.cs_color_burst || currprefs.gfx_grayscale || currprefs.monitoremu)) {
 		return false;
 	}
 	if ((lightpen_active && currprefs.lightpen_crosshair) || debug_dma >= 3 || debug_heatmap >= 2) {
@@ -2062,7 +2063,7 @@ static void finish_drawing_frame(bool drawlines)
 
 #ifdef WITH_SPECIALMONITORS
 	// video port adapters
-	if (currprefs.monitoremu) {
+	if (currprefs.monitoremu && currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
 		if (!denise_lock()) {
 			return;
 		}
@@ -2111,7 +2112,8 @@ static void finish_drawing_frame(bool drawlines)
 	}
 
 	// genlock
-	if (currprefs.genlock_image && (currprefs.genlock || currprefs.genlock_effects) && !currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated) {
+	if (currprefs.genlock_image && (currprefs.genlock || currprefs.genlock_effects) && !currprefs.monitoremu &&
+		vidinfo->tempbuffer.bufmem_allocated && currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
 		if (!denise_lock()) {
 			return;
 		}
@@ -2131,7 +2133,7 @@ static void finish_drawing_frame(bool drawlines)
 
 #ifdef CD32
 	// cd32 fmv
-	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated && currprefs.cs_cd32fmv) {
+	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated && currprefs.cs_cd32fmv && currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
 		if (!denise_lock()) {
 			return;
 		}
@@ -2147,7 +2149,7 @@ static void finish_drawing_frame(bool drawlines)
 
 	// grayscale
 #ifdef WITH_SPECIALMONITORS
-	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated &&
+	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated && currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA &&
 		((!currprefs.genlock && (!bplcolorburst_field && currprefs.cs_color_burst)) || currprefs.gfx_grayscale)) {
 		if (!denise_lock()) {
 			return;
