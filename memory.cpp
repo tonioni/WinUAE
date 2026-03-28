@@ -3758,7 +3758,6 @@ bool validate_banks_z3(addrbank *bank, int start, int size)
 {
 	if (start < 0x1000 || size <= 0) {
 		error_log(_T("Z3 invalid map_banks(%s) start=%08x size=%08x\n"), bank->name, start << 16, size << 16);
-		cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
 		return false;
 	}
 	if (size > 0x4000 || start + size > 0xf000) {
@@ -3775,36 +3774,34 @@ bool validate_banks_z3(addrbank *bank, int start, int size)
 	return true;
 }
 
-void map_banks_z3(addrbank *bank, int start, int size)
+bool map_banks_z3(addrbank *bank, int start, int size)
 {
-	if (!validate_banks_z3(bank, start, size))
-		return;
+	if (!validate_banks_z3(bank, start, size)) {
+		return false;
+	}
 	map_banks(bank, start, size, 0);
+	return true;
 }
 
 bool validate_banks_z2(addrbank *bank, int start, int size)
 {
 	if (start < 0x20 || (start >= 0xa0 && start < 0xe9) || start >= 0xf0) {
 		error_log(_T("Z2 map_banks(%s) with invalid start address %08X\n"), bank->name, start << 16);
-		cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
 		return false;
 	}
 	if (start >= 0xe9) {
 		if (start + size > 0xf0) {
 			error_log(_T("Z2 map_banks(%s) with invalid region %08x - %08X\n"), bank->name, start << 16, (start + size) << 16);
-			cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
 			return false;
 		}
 	} else {
 		if (start + size > 0xa0) {
 			error_log(_T("Z2 map_banks(%s) with invalid region %08x - %08X\n"), bank->name, start << 16, (start + size) << 16);
-			cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
 			return false;
 		}
 	}
 	if (size <= 0 || size > 0x80) {
 		error_log(_T("Z2 map_banks(%s) with invalid size %08x\n"), bank->name, size);
-		cpu_halt(CPU_HALT_AUTOCONFIG_CONFLICT);
 		return false;
 	}
 	for (int i = start; i < start + size; i++) {
@@ -3818,11 +3815,13 @@ bool validate_banks_z2(addrbank *bank, int start, int size)
 }
 
 
-void map_banks_z2 (addrbank *bank, int start, int size)
+bool map_banks_z2 (addrbank *bank, int start, int size)
 {
-	if (!validate_banks_z2(bank, start, size))
-		return;
+	if (!validate_banks_z2(bank, start, size)) {
+		return false;
+	}
 	map_banks (bank, start, size, 0);
+	return true;
 }
 
 uae_u32 map_banks_z2_autosize(addrbank *bank, int start)

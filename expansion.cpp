@@ -1430,11 +1430,12 @@ static addrbank *expamem_map_uaeboard(struct autoconfig_info *aci)
 	uaeboard_base = expamem_board_pointer;
 	uaeboard_ram_start = UAEBOARD_WRITEOFFSET;
 	uaeboard_bank.start = uaeboard_base;
-	map_banks_z2(&uaeboard_bank, uaeboard_base >> 16, 1);
-	if (currprefs.uaeboard > 1) {
-		rtarea_bank.start = uaeboard_base + 65536;
-		map_banks_z2(&rtarea_bank, (uaeboard_base + 65536) >> 16, 1);
-		ce_cachable[(uaeboard_base + 65536) >> 16] = CACHE_DISABLE_ALLOCATE;
+	if (map_banks_z2(&uaeboard_bank, uaeboard_base >> 16, 1)) {
+		if (currprefs.uaeboard > 1) {
+			rtarea_bank.start = uaeboard_base + 65536;
+			map_banks_z2(&rtarea_bank, (uaeboard_base + 65536) >> 16, 1);
+			ce_cachable[(uaeboard_base + 65536) >> 16] = CACHE_DISABLE_ALLOCATE;
+		}
 	}
 	return &uaeboard_bank;
 }
@@ -1622,8 +1623,9 @@ static addrbank *expamem_map_fastcard(struct autoconfig_info *aci)
 	uae_u32 size = ab->allocated_size;
 	ab->start = start;
 	if (ab->start && size) {
-		map_banks_z2(ab, ab->start >> 16, size >> 16);
-		initramboard(ab, &currprefs.fastmem[devnum]);
+		if (map_banks_z2(ab, ab->start >> 16, size >> 16)) {
+			initramboard(ab, &currprefs.fastmem[devnum]);
+		}
 	}
 	return ab;
 }
@@ -1896,8 +1898,9 @@ static addrbank *expamem_map_filesys (struct autoconfig_info *aci)
 	mapped_malloc(&filesys_bank);
 	memcpy (filesys_bank.baseaddr, expamem, 0x3000);
 	uaeboard_ram_start = UAEBOARD_WRITEOFFSET;
-	map_banks_z2(&filesys_bank, filesys_bank.start >> 16, 1);
-	expamem_map_filesys_update();
+	if (map_banks_z2(&filesys_bank, filesys_bank.start >> 16, 1)) {
+		expamem_map_filesys_update();
+	}
 	return &filesys_bank;
 }
 
@@ -2068,8 +2071,9 @@ static addrbank *expamem_map_z3fastmem (struct autoconfig_info *aci)
 	uae_u32 size = currprefs.z3fastmem[devnum].size;
 
 	if (ab->allocated_size) {
-		map_banks_z3(ab, z3fs >> 16, size >> 16);
-		initramboard(ab, &currprefs.z3fastmem[devnum]);
+		if (map_banks_z3(ab, z3fs >> 16, size >> 16)) {
+			initramboard(ab, &currprefs.z3fastmem[devnum]);
+		}
 	}
 	return ab;
 }
@@ -3997,12 +4001,12 @@ void expansion_map(void)
 		filesys_bank.start = 0xe90000;
 		mapped_free(&filesys_bank);
 		mapped_malloc(&filesys_bank);
-		map_banks_z2(&filesys_bank, filesys_bank.start >> 16, 1);
-		expamem_init_filesys(NULL);
-		expamem_map_filesys_update();
+		if (map_banks_z2(&filesys_bank, filesys_bank.start >> 16, 1)) {
+			expamem_init_filesys(NULL);
+			expamem_map_filesys_update();
+		}
 	}
 }
-
 static void clear_bank (addrbank *ab)
 {
 	if (!ab->baseaddr || !ab->allocated_size)
