@@ -1529,7 +1529,7 @@ static void center_image(void)
 	}
 
 	vidinfo->inbuffer->xoffset = visible_left_border << (RES_MAX - currprefs.gfx_resolution);
-	vidinfo->inbuffer->yoffset = thisframe_y_adjust << VRES_MAX;
+	vidinfo->inbuffer->yoffset = (-vsync_start_offset) << VRES_MAX;
 
 	int linedbl = currprefs.gfx_vresolution;
 	if (doublescan > 0 && interlace_seen <= 0) {
@@ -2029,6 +2029,8 @@ static void setspecialmonitorpos(struct vidbuffer *vb)
 	vb->yoffset = vidinfo->inbuffer->yoffset;
 	vb->inxoffset = vidinfo->inbuffer->inxoffset;
 	vb->inyoffset = vidinfo->inbuffer->inyoffset;
+	vb->outwidth = vidinfo->inbuffer->outwidth;
+	vb->outheight = vidinfo->inbuffer->outheight;
 }
 
 static void vbcopy(struct vidbuffer *vbout, struct vidbuffer *vbin)
