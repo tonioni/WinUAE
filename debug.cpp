@@ -249,7 +249,7 @@ static const TCHAR help[] = {
 	_T("                        v [-2 to -5] = enable visual DMA debugger.\n")
 	_T("  vh [<ratio> <lines>]  \"Heat map\"\n")
 	_T("  I <custom event>      Send custom event string\n")
-	_T("  ?<value>              Hex ($, 0x)/Bin (%)/Dec (!) converter and calculator. Prefix floats with f.\n")
+	_T("  ?<value>              Hex ($, 0x)/Bin (%)/Dec (!) converter and calculator. Floating point is partially supported.\n")
 #ifdef _WIN32
 	_T("  x                     Close debugger.\n")
 	_T("  xx                    Switch between console and GUI debugger.\n")
@@ -783,6 +783,29 @@ static bool checkisneg(TCHAR **c)
 	return false;
 }
 
+static double f80todouble(floatx80 v)
+{
+	float_status st = { 0 };
+	union {
+		double d;
+		uae_u32 u[2];
+	} fval;
+	float64 v64 = floatx80_to_float64(v, &st);
+	fval.u[1] = v64 >> 32;
+	fval.u[0] = v64 >> 0;
+	return fval.d;
+}
+static floatx80 doubletof80(double d)
+{
+	float_status st = { 0 };
+	union {
+		double d;
+		uae_u32 u[2];
+	} fval;
+	fval.d = d;
+	return float64_to_floatx80(((uae_u64)fval.u[1] << 32) | (fval.u[0]), &st);
+}
+
 #define NUMTYTPE_S 5
 #define NUMTYTPE_D 6
 #define NUMTYTPE_X 7
@@ -839,6 +862,32 @@ static bool readhexx (TCHAR **c, uae_u32 *valp)
 	}
 	*valp = val * (negative ? -1 : 1);
 	return true;
+}
+
+static bool iscfloat(TCHAR **c)
+{
+	int cnt = 0;
+	for (;;) {
+		TCHAR nc = (*c)[cnt];
+		if (!nc) {
+			break;
+		}
+		if (nc == ' ' || nc == '\t') {
+			break;
+		}
+		if (nc == '.') {
+			TCHAR nc2 = (*c)[cnt + 1];
+			if (isdigit(nc2)) {
+				return true;
+			}
+			break;
+		}
+		if (nc != '-' && nc != '+' && !isdigit(nc)) {
+			break;
+		}
+		cnt++;
+	}
+	return false;
 }
 
 static bool readintx (TCHAR **c, uae_u32 *valp)
@@ -935,16 +984,14 @@ static int checkvaltype2(TCHAR **c, uae_u32 *val, floatx80 *valx80, TCHAR def)
 		(*c)++;
 		return readbinx(c, val) ? 1: 0;
 	}
-	if (nc == 'F') {
-		union {
-			double d;
-			uae_u32 u[2];
-		} val;
-		(*c)++;
+	if (iscfloat(c)) {
 		float_status st = { 0 };
-		double dval = _wtof(*c);
-		val.d = dval;
-		*valx80 = float64_to_floatx80(((uae_u64)val.u[1] << 32) | (val.u[0]), &st);
+		double dval = 0;
+		int cnt = 0;
+		if (swscanf_s(*c, _T("%lf%n"), &dval,&cnt) >= 1) {
+			(*c) += cnt;
+		}
+		*valx80 = doubletof80(dval);
 		return 2;
 	}
 	if (nc >= 'A' && nc <= 'Z' && nc != 'A' && nc != 'D') {
@@ -1010,10 +1057,12 @@ static int checkvaltype(TCHAR **cp, uae_u32 *val, floatx80 *valx80, int *size, T
 	int sizetype = -1;
 	TCHAR *startp = NULL;
 	floatx80 vx80 = { 0 };
+	int outret = 1;
 
 	form[0] = 0;
-	if (size)
+	if (size) {
 		*size = 0;
+	}
 	p = form;
 	for (;;) {
 		uae_u32 v;
@@ -1029,13 +1078,14 @@ static int checkvaltype(TCHAR **cp, uae_u32 *val, floatx80 *valx80, int *size, T
 			// stupid but works!
 			_stprintf(p, _T("%u"), v);
 		} else {
+			float_status st = { 0 };
 			*val = 0;
 			*valx80 = vx80;
-			*p = 0;
+			_stprintf(p, _T("%f"), f80todouble(vx80));
 			if (size) {
 				*size = NUMTYTPE_X;
 			}
-			return -1;
+			outret = -1;
 		}
 		p += _tcslen (p);
 		*p = 0;
@@ -1066,7 +1116,7 @@ static int checkvaltype(TCHAR **cp, uae_u32 *val, floatx80 *valx80, int *size, T
 				*size = 1;
 			}
 		}
-		return 1;
+		return outret;
 	}
 docalc:
 	while (more_params2(cp)) {
@@ -1091,7 +1141,7 @@ docalc:
 				*size = 1;
 			}
 		}
-		return 1;
+		return outret;
 	} else if (v < 0) {
 		console_out_f(_T("String returned: '%s'\n"), tmp);
 	}
@@ -1215,7 +1265,9 @@ static void converter(TCHAR **c)
 	uae_u32 v = 0;
 	floatx80 xf = { 0 };
 
-	if (_totupper(peekchar(c)) == 'F') {
+	bool isfloat = iscfloat(c);
+	// NOTE: output decimal value is currently always double, even if input was extended.
+	if (isfloat) {
 		float_status st = { 0 };
 		struct numdata nd;
 		int size;
@@ -1238,14 +1290,6 @@ static void converter(TCHAR **c)
 	uae_u64 df = floatx80_to_float64(xf, &st);
 	uae_u32 sf = floatx80_to_float32(xf, &st);
 
-	// NOTE: output decimal value is currently always double, even if input was extended.
-	union {
-		double d;
-		uae_u32 u[2];
-	} val;
-	val.u[1] = df >> 32;
-	val.u[0] = df >> 0;
-
 	int i, j;
 	for (i = 0, j = 0; i < 32; i++) {
 		s[j++] = (v & (1 << (31 - i))) ? '1' : '0';
@@ -1256,7 +1300,7 @@ static void converter(TCHAR **c)
 	s[j] = 0;
 	console_out_f(_T("$%08X = %%%s = %u = %d ($%08X.S = $%08X%08X.D = $%04X.%08X%08X.X = %f)\n"), v, s, v, (uae_s32)v,
 		sf, (uae_u32)(df >> 32), (uae_u32)df, (uae_u32)(xf.high), (uae_u32)(xf.low >> 32), (uae_u32)xf.low,
-		val.d);
+		f80todouble(xf));
 }
 
 static bool isrom(uaecptr addr)
