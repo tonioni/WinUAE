@@ -684,6 +684,8 @@ STATIC_INLINE void *get_pointer (uaecptr addr)
 # endif
 #endif
 
+void dma_put_long(uaecptr addr, uae_u32 v);
+uae_u32 dma_get_long(uaecptr addr);
 void dma_put_word(uaecptr addr, uae_u16 v);
 uae_u16 dma_get_word(uaecptr addr);
 void dma_put_byte(uaecptr addr, uae_u8 v);
