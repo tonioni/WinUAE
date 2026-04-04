@@ -2204,7 +2204,7 @@ static void init_beamcon0(void)
 		hpixels *= 2;
 	}
 	int vpixels = vsync_lines - minfirstline;
-	int hpixelsd = hpixels * 80 / 100;
+	int hpixelsd = hpixels * 85 / 100;
 	if (hpixelsd < vpixels) {
 		doublescan = 1;
 		if (programmedmode == 2) {
