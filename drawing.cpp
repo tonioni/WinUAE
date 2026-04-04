@@ -608,7 +608,7 @@ int coord_native_to_amiga_x(int x)
 
 int coord_native_to_amiga_y(int y)
 {
-	y += min_ypos_for_screen;
+	y += (minfirstline_linear + LINES_AFTER_VSYNC) << linedbl;
 	y >>= linedbl;
 	return y;
 }
