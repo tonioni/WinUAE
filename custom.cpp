@@ -75,8 +75,6 @@
 
 #define SPRBORDER 0
 
-#define EXTRAHEIGHT_EXTREME 28
-
 #define LORES_TO_SHRES_SHIFT 2
 
 #ifdef SERIAL_PORT
@@ -393,7 +391,6 @@ static int next_lineno;
 int linear_vpos, linear_vpos_vb_start, linear_vpos_vb_end, linear_hpos, linear_vpos_prev[3], linear_hpos_prev[3];
 static int linear_vb_offset;
 static int linear_vpos_vsync;
-int vsync_start_offset;
 int linear_display_vpos;
 int current_linear_vpos, current_linear_hpos;
 static int current_linear_hblen, current_linear_hblen_temp;
@@ -613,8 +610,8 @@ int hdisplay_left_border;
 
 int denisehtotal;
 static int maxvpos_total = 511;
-int minfirstline = VBLANK_ENDLINE_PAL;
-int minfirstline_linear = VBLANK_ENDLINE_PAL;
+int minfirstline;
+int minfirstline_linear;
 float vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_hz_stored, vblank_hz_nom;
 float hblank_hz;
 static float vblank_hz_lof, vblank_hz_shf, vblank_hz_lace;
@@ -1691,6 +1688,8 @@ void compute_framesync(void)
 	int hiddenbottomv = display_vblankend_skip;
 	int maxv = current_linear_vpos - (hiddentopv + hiddenbottomv) + 1;
 	linear_vpos_vb_end = current_linear_vpos_vb_end - display_vblankstart_skip - 1;
+	minfirstline = vblines - (display_vblankstart_skip > 0 ? display_vblankstart_skip : 0) - 1;
+	minfirstline_linear = minfirstline - LINES_AFTER_VSYNC;
 	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
 		maxv = current_linear_vpos;
 		linear_vpos_vb_end = 0;
@@ -1842,12 +1841,12 @@ static void init_beamcon0(void)
 	if (!isntsc) {
 		maxvpos = MAXVPOS_PAL;
 		maxhpos = MAXHPOS_PAL;
-		minfirstline = VBLANK_STOP_PAL;
+		//minfirstline = VBLANK_STOP_PAL;
 		vblank_hz_nom = vblank_hz = CHIPSET_CLOCK_PAL / ((float)display_maxvpos * display_maxhpos);
 	} else {
 		maxvpos = MAXVPOS_NTSC;
 		maxhpos = MAXHPOS_NTSC;
-		minfirstline = VBLANK_STOP_NTSC;
+		//minfirstline = VBLANK_STOP_NTSC;
 		vblank_hz_nom = vblank_hz = CHIPSET_CLOCK_NTSC / ((float)display_maxvpos * display_maxhpos);
 		halfhpos = (beamcon0 & BEAMCON0_LOLDIS) ? 0 : 0.5f;
 	}
@@ -1965,7 +1964,7 @@ static void init_beamcon0(void)
 		maxhpos_display = hsync_ccks * 2;
 		display_hstart_cyclewait_start = 0;
 		display_hstart_cyclewait_end = 0;
-		minfirstline = 0;
+		//minfirstline = 0;
 	}
 
 	if (display_hstart_cyclewait_start < 0) {
@@ -2110,37 +2109,23 @@ static void init_beamcon0(void)
 		maxhpos_display += currprefs.gfx_extrawidth;
 	}
 
-	//if (hsstop_detect < 0) {
-	//	hsstop_detect = 0;
-	//}
-	if (minfirstline < 0) {
-		minfirstline = 0;
-	}
-
 	int vbstart = linear_vpos_vblank_end;
 	if (currprefs.cs_hvcsync >= HVSYNC_SYNCPOS) {
 		vbstart = LINES_AFTER_VSYNC;
-		minfirstline = vbstart;
 	}
 
-	minfirstline_linear = vbstart;
 	maxvpos_display_vsync = 0;
 	display_vblankstart_skip = 0;
 	display_vblankend_skip = 0;
 	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
 		vsync_startline = LINES_AFTER_VSYNC;
-		minfirstline = 0;
-		minfirstline_linear = 0;
 		maxvpos_display_vsync = vsync_startline;
 		display_vblankstart_skip = -3000;
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_EXTREME) {
-		minfirstline_linear -= EXTRAHEIGHT_EXTREME / 2;
-		minfirstline -= EXTRAHEIGHT_EXTREME / 2;
 		display_vblankstart_skip = vbstart;
 		display_vblankend_skip = 3;
 		maxvpos_display_vsync += 2;
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_BROADCAST) {
-		minfirstline_linear -= 0;
 		maxvpos_display_vsync++;
 		display_vblankstart_skip = -1;
 		display_vblankend_skip = 2;
@@ -2150,10 +2135,8 @@ static void init_beamcon0(void)
 		display_vblankstart_skip = -1;
 		display_vblankend_skip = 2;
 	}
-	if (minfirstline_linear < 0) {
-		minfirstline_linear += current_linear_vpos_nom;
-	}
 
+#if 0
 	if ((beamcon0 & BEAMCON0_VARVBEN) && (beamcon0 & bemcon0_vsync_mask)) {
 		if (minfirstline < vsync_startline) {
 			minfirstline = vsync_startline;
@@ -2171,6 +2154,7 @@ static void init_beamcon0(void)
 			}
 		}
 	}
+#endif
 	if (beamcon0 & (BEAMCON0_VARVBEN | bemcon0_vsync_mask)) {
 		programmedmode = 2;
 	}
@@ -2188,19 +2172,17 @@ static void init_beamcon0(void)
 		display_hstart_cyclewait_end = 0;
 	}
 
-	if (minfirstline < vsync_startline) {
-		minfirstline = vsync_startline;
-	}
-
-	if (minfirstline >= vsync_lines) {
-		minfirstline = vsync_lines - 1;
-	}
-
-	if (beamcon0 & bemcon0_vsync_mask) {
-		if (minfirstline < vsync_startline) {
-			minfirstline = vsync_startline;
-		}
-	}
+//	if (minfirstline < vsync_startline) {
+//		minfirstline = vsync_startline;
+//	}
+//	if (minfirstline >= vsync_lines) {
+//		minfirstline = vsync_lines - 1;
+//	}
+//	if (beamcon0 & bemcon0_vsync_mask) {
+//		if (minfirstline < vsync_startline) {
+//			minfirstline = vsync_startline;
+//		}
+//	}
 
 	if (beamcon0 & BEAMCON0_VARBEAMEN) {
 		float half = (beamcon0 & BEAMCON0_PAL) ? 0: ((beamcon0 & BEAMCON0_LOLDIS) ? 0 : 0.5f);
@@ -10103,10 +10085,8 @@ static void vsync_mark(void)
 		}
 		vb_end_detect = false;
 		linear_vpos = 0;
-
 		int off = currprefs.cs_hvcsync >= HVSYNC_SYNCPOS ? LINES_AFTER_VSYNC : linear_vb_offset;
-		vsync_start_offset = -off;
-
+		minfirstline_linear = off;
 	}
 }
 
