@@ -265,6 +265,7 @@ extern bool savestate_restore_finish(void);
 extern void savestate_restore_final(void);
 extern void savestate_memorysave(void);
 extern bool is_savestate_incompatible(void);
+extern uae_u32 get_statefile_version(void);
 
 extern void custom_prepare_savestate(void);
 

@@ -12436,7 +12436,7 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 	}
 #endif
 
-	x_do_cycles_post(CYCLE_UNIT, 0);
+	x_do_cycles_post(CYCLE_UNIT, v);
 
 	regs.chipset_latch_rw = regs.chipset_latch_read = v;
 

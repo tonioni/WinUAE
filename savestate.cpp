@@ -82,6 +82,7 @@ struct zfile *savestate_file;
 #define SAVESTATE_ALWAYSUSEPATH 16
 #define SAVESTATE_SPECIALDUMP (SAVESTATE_SPECIALDUMP1 | SAVESTATE_SPECIALDUMP2)
 static int savestate_flags;
+static uae_u32 statefile_version;
 
 TCHAR savestate_fname[MAX_DPATH];
 TCHAR path_statefile[MAX_DPATH];
@@ -577,6 +578,11 @@ static uae_u8 *restore_log (uae_u8 *src)
 	return src;
 }
 
+uae_u32 get_statefile_version(void)
+{
+	return statefile_version;
+}
+
 static void restore_header (uae_u8 *src)
 {
 	TCHAR *emuname, *emuversion, *description;
@@ -587,6 +593,21 @@ static void restore_header (uae_u8 *src)
 	description = restore_string ();
 	write_log (_T("Saved with: '%s %s', description: '%s'\n"),
 		emuname, emuversion, description);
+
+	statefile_version = 0;
+	TCHAR *tmpp = _tcschr(emuversion, '.');
+	if (tmpp) {
+		*tmpp++ = 0;
+		TCHAR *tmpp2 = tmpp;
+		statefile_version = _tstol(emuversion) << 16;
+		tmpp = _tcschr(tmpp, '.');
+		if (tmpp) {
+			*tmpp++ = 0;
+			statefile_version |= _tstol(tmpp2) << 8;
+			statefile_version |= _tstol(tmpp);
+		}
+	}
+
 	xfree (description);
 	xfree (emuversion);
 	xfree (emuname);
