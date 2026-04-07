@@ -445,7 +445,7 @@ static int linear_denise_frame_hbstrt_tmp, linear_denise_frame_hbstop_tmp;
 static int linear_denise_frame_hbstrt_sel, linear_denise_frame_hbstop_sel;
 static bool denise_blanking_changed;
 static int linear_denise_strobe_offset;
-static int denise_strobe_offset, horizontalzerooffset;
+static int denise_strobe_offset;
 static int denise_visible_lines, denise_visible_lines_counted;
 static uae_u16 hbstrt_denise_reg, hbstop_denise_reg;
 static uae_u16 fmode_denise, denise_bplfmode, denise_sprfmode;
@@ -586,10 +586,12 @@ static void count_frame(int monid)
 {
 	struct amigadisplay *ad = &adisplays[monid];
 	ad->framecnt++;
-	if (ad->framecnt >= currprefs.gfx_framerate || currprefs.monitoremu == MONITOREMU_A2024)
+	if (ad->framecnt >= currprefs.gfx_framerate || currprefs.monitoremu) {
 		ad->framecnt = 0;
-	if (ad->inhibit_frame)
+	}
+	if (ad->inhibit_frame) {
 		ad->framecnt = 1;
+	}
 }
 
 STATIC_INLINE int xshift(int x, int shift)
@@ -602,7 +604,10 @@ STATIC_INLINE int xshift(int x, int shift)
 
 int coord_native_to_amiga_x(int x)
 {
-	x += horizontalzerooffset / 2;
+	int x1 = (denise_hdelay << (RES_MAX + 1)) / 2;
+	int x2 = internal_pixel_start_cnt >> (doublescan ? 2 : 1);
+	x += x1;
+	x += x2;
 	return x;
 }
 
@@ -1102,49 +1107,59 @@ int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hr
 
 void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl)
 {
-	int delay1, delay2;
-	int w, h, dx, dy, dbl1, dbl2, y1, y2;
+	int skip = denise_hdelay << (RES_MAX + 1);
+	int w = diwlastword_total - diwfirstword_total;
+	int dx = diwfirstword_total - skip;
 
-	w = diwlastword_total - diwfirstword_total;
-	dx = diwfirstword_total - visible_left_border;
-
-	y2 = plflastline_total + 1;
-	y1 = plffirstline_total;
-	if (minfirstline_linear > y1)
+	int y2 = plflastline_total + 1;
+	int y1 = plffirstline_total;
+	if (minfirstline_linear > y1) {
 		y1 = minfirstline_linear;
+	}
 
-	h = y2 - y1;
-	dy = y1 - minfirstline_linear;
+	int h = y2 - y1;
+	int dy = y1 - minfirstline_linear;
 
-	if (*pw > 0)
+	if (*pw > 0) {
 		w = *pw;
+	}
 
-	if (*ph > 0)
+	if (*ph > 0) {
 		h = *ph;
+	}
 
-	delay1 = (firstword_bplcon1 & 0x0f) | ((firstword_bplcon1 & 0x0c00) >> 6);
-	delay2 = ((firstword_bplcon1 >> 4) & 0x0f) | (((firstword_bplcon1 >> 4) & 0x0c00) >> 6);
+	//int delay1 = (firstword_bplcon1 & 0x0f) | ((firstword_bplcon1 & 0x0c00) >> 6);
+	//int delay2 = ((firstword_bplcon1 >> 4) & 0x0f) | (((firstword_bplcon1 >> 4) & 0x0c00) >> 6);
 
-	dbl2 = dbl1 = currprefs.gfx_vresolution;
+	int dbl1 = currprefs.gfx_vresolution;
+	int dbl2 = dbl1;
 	if ((doublescan > 0 || interlace_seen > 0) && !dbl) {
 		dbl1--;
 		dbl2--;
 	}
-	if (interlace_seen > 0)
+	if (interlace_seen > 0) {
 		dbl2++;
-	if (interlace_seen <= 0 && dbl)
+	}
+	if (interlace_seen <= 0 && dbl) {
 		dbl2--;
+	}
+
 	h = xshift (h, dbl1);
 	dy = xshift (dy, dbl2);
 
-	if (w < 1)
+	if (w < 1) {
 		w = 1;
-	if (h < 1)
+	}
+	if (h < 1) {
 		h = 1;
-	if (dx < 0)
+	}
+	if (dx < 0) {
 		dx = 0;
-	if (dy < 0)
+	}
+	if (dy < 0) {
 		dy = 0;
+	}
+
 	*pw = w; *ph = h;
 	*pdx = dx; *pdy = dy;
 }
@@ -6120,8 +6135,6 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 	}
 
 	frame_internal_pixel_cnt = internal_pixel_cnt;
-	horizontalzerooffset = internal_pixel_cnt - denise_strobe_offset;
-	horizontalzerooffset += internal_pixel_start_cnt;
 
 	// detect horizontal blanking
 	if (!denise_vblank_active) {
