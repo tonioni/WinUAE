@@ -2707,12 +2707,16 @@ static void sprwrite(int reg, uae_u32 v)
 	}
 
 	if (dat) {
-		uae_u16 oa = s->dataa;
-		uae_u16 ob = s->datab;
 		if (second) {
 			s->datab = v;
+			if (!denise_sprfmode64) {
+				s->datab64 = v;
+			}
 		} else {
 			s->dataa = v;
+			if (!denise_sprfmode64) {
+				s->dataa64 = v;
+			}
 			// if same cycle would arm the sprite and match it, match is missed
 			if (!s->armed && (s->xpos & (1 << 2)) && s->xpos - (1 << 2) == (denise_hcounter << 2)) {
 				return;
