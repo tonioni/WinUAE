@@ -6669,22 +6669,43 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 		dtgbuf[h][ipix] = gpix;
 
 		// bitplane and sprite merge & output
-		if (!dpixcnt && buf1 && denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+		int dpixcnt_add = hresolution_add << xshift;
+		if (buf1 && denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 
-			uae_u32 t = dtbuf[h ^ lol][ipix]; 
+			if (currprefs.gfx_lores_mode && dpixcnt_add == 2) {
+				if (ipix == 1 || ipix == 3) {
+					uae_u32 t0 = dtbuf[h ^ lol][ipix];
+					uae_u32 t1 = dtbuf[h ^ lol][ipix - 1];
+					uae_u32 t = filter_pixel(t0, t1);
 #ifdef DEBUGGER
-			if (decode_specials_debug) {
-				t = decode_denise_specials_debug(t, cnt);
-			}
+					if (decode_specials_debug) {
+						t = decode_denise_specials_debug(t, cnt);
+					}
 #endif
-			*buf1++ = t;
-			*buf2++ = t;
-			if (gbuf) {
-				*gbuf++ = dtgbuf[h ^ lol][ipix];
+					*buf1++ = t;
+					*buf2++ = t;
+					if (gbuf) {
+						*gbuf++ = dtgbuf[h ^ lol][ipix];
+					}
+				}
+			} else {
+				if (!dpixcnt) {
+					uae_u32 t = dtbuf[h ^ lol][ipix];
+#ifdef DEBUGGER
+					if (decode_specials_debug) {
+						t = decode_denise_specials_debug(t, cnt);
+					}
+#endif
+					*buf1++ = t;
+					*buf2++ = t;
+					if (gbuf) {
+						*gbuf++ = dtgbuf[h ^ lol][ipix];
+					}
+				}
 			}
 		}
 
-		dpixcnt += hresolution_add << xshift;
+		dpixcnt += dpixcnt_add;
 		dpixcnt &= (1 << RES_SUPERHIRES) - 1;
 
 		cnt += xadd;
