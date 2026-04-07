@@ -584,9 +584,9 @@ static const TCHAR *fp_print(fpdata *fpd, int mode)
 		_stprintf(fsout, _T("%c%s"), n ? '-' : '+', _T("nan"));
 	} else {
 #ifdef USE_LONG_DOUBLE
-		_stprintf(fsout, _T("#%Le"), fpd->fp);
+		_stprintf(fsout, _T("%Le"), fpd->fp);
 #else
-		_stprintf(fsout, _T("#%e"), fpd->fp);
+		_stprintf(fsout, _T("%e"), fpd->fp);
 #endif
 	}
 	if (mode == 0 || mode > _tcslen(fsout))

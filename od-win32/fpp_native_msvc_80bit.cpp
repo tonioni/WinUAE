@@ -540,7 +540,7 @@ static const TCHAR *fp_print(fpdata *fpd, int mode)
 	} else {
 		if(n)
 			fpd->fp *= -1.0;
-		_stprintf(fsout, _T("#%e"), fp);
+		_stprintf(fsout, _T("%e"), fp);
 	}
 	fp_reset_normal_prec();
 	if (mode == 0 || mode > _tcslen(fsout))
