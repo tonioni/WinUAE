@@ -6672,11 +6672,26 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 		int dpixcnt_add = hresolution_add << xshift;
 		if (buf1 && denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 
+			uae_u32 t = 0;
 			if (currprefs.gfx_lores_mode && dpixcnt_add == 2) {
-				if (ipix == 1 || ipix == 3) {
+				if (hresolution_inv == 2 && ipix == 2) {
+					uae_u32 t0 = dtbuf[h ^ lol][2];
+					uae_u32 t1 = dtbuf[h ^ lol][0];
+					t = filter_pixel(t0, t1);
+#ifdef DEBUGGER
+					if (decode_specials_debug) {
+						t = decode_denise_specials_debug(t, cnt);
+					}
+#endif
+					* buf1++ = t;
+					*buf2++ = t;
+					if (gbuf) {
+						*gbuf++ = dtgbuf[h ^ lol][ipix];
+					}
+				} else if (hresolution_inv == 1 && (ipix == 1 || ipix == 3)) {
 					uae_u32 t0 = dtbuf[h ^ lol][ipix];
 					uae_u32 t1 = dtbuf[h ^ lol][ipix - 1];
-					uae_u32 t = filter_pixel(t0, t1);
+					t = filter_pixel(t0, t1);
 #ifdef DEBUGGER
 					if (decode_specials_debug) {
 						t = decode_denise_specials_debug(t, cnt);
@@ -6879,30 +6894,39 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 		dtgbuf[h][ipix] = gpix;
 
 		// bitplane and sprite merge & output
-		if (!dpixcnt && buf1 && denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
+		if (buf1 && denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 
-			uae_u32 t = dtbuf[h ^ lol][ipix];
-
+			if (currprefs.gfx_lores_mode && hresolution_inv == 2) {
+				if (ipix == 1 || ipix == 3) {
+					uae_u32 t0 = dtbuf[h ^ lol][ipix];
+					uae_u32 t1 = dtbuf[h ^ lol][ipix - 1];
+					uae_u32 t = filter_pixel(t0, t1);
 #ifdef DEBUGGER
-			if (decode_specials_debug) {
-				t = decode_denise_specials_debug(t, cnt);
-			}
+					if (decode_specials_debug) {
+						t = decode_denise_specials_debug(t, cnt);
+					}
 #endif
-
-#if 0
-			if (reswitch_unalign < 0) {
-				t |= 0x0000ff;
-			} else if (reswitch_unalign == 1) {
-				t |= 0xffff00;
-			}
+					*buf1++ = t;
+					*buf2++ = t;
+					if (gbuf) {
+						*gbuf++ = dtgbuf[h ^ lol][ipix];
+					}
+				}
+			} else {
+				if (!dpixcnt) {
+					uae_u32 t = dtbuf[h ^ lol][ipix];
+#ifdef DEBUGGER
+					if (decode_specials_debug) {
+						t = decode_denise_specials_debug(t, cnt);
+					}
 #endif
-
-			*buf1++ = t;
-			*buf2++ = t;
-			if (gbuf) {
-				*gbuf++ = dtgbuf[h ^ lol][ipix];
+					*buf1++ = t;
+					*buf2++ = t;
+					if (gbuf) {
+						*gbuf++ = dtgbuf[h ^ lol][ipix];
+					}
+				}
 			}
-
 		}
 
 		dpixcnt += hresolution_add;
