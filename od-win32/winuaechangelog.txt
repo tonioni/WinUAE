@@ -1,18 +1,55 @@
 
-6.1.0:
+Beta 1:
 
-Development:
-
-- Copper emulation rewritten to match lower level logic (Relatively simple 3 stage state machine based on Alice schematics). This is needed to support nasty VHPOSW write special cases. Emulation code is also now much shorter and simpler, all COPxJMP special case hacks are gone.
-- Unified native and programmed mode display positioning. For example positioning in native PAL and programmed mode that sets matching PAL parameters is identical now. This also includes overscan setting, previously programmed modes ignored TV mode settings.
-- Display positioning now only uses Agnus/Alice generated sync and optionally using blank signals (like real displays work), this enables correct positioning even if mode is very strange. Previously positioning used hardwired PAL/NTSC sync/blank positions or programmed mode sync/blank register contents, this mode can only work mode is not too weird.
-- Display height is from vertical blanking end to start. If vertical blanking is completely missing (It isn't required in real world, only need black in VB area to not confuse display's black level calibration), whole vertical (minus few lines after vsync start) are shown. Horizontal width uses horizontal blanking (or if missing, from hsync + few CCKs to start of next hsync).
-- Chipset panel Monitor Sync Source option renamed to Monitor sync / positioning mode. First 3 options select blanking based positioning/size mode (default, same options as in previous versions), new 3 options select sync based positioning/size mode. This is basically how CRTs originally worked, later models had digital control logic and could also use blanking for positioning.
-- Extreme overscan mode now equals selecting sync based positioning/size mode.
+- Copper emulation rewritten to match low level logic (Relatively simple 3 stage state machine based on Alice schematics). This is needed to support nasty VHPOSW write special cases. Emulation code is also now much shorter and simpler, all COPxJMP special case hacks are gone.
+- Unified native and programmed mode display positioning. For example positioning in native PAL and programmed mode that sets matching PAL parameters is now identical. This also includes overscan setting, previously programmed modes ignored TV mode settings.
+- Display positioning now only uses Agnus/Alice generated sync and optionally using blank signals (like real displays work, sync+blank is the default, backwards compatible), this enables correct positioning even if mode is very strange. Previously positioning used hardwired PAL/NTSC sync/blank positions or programmed mode sync/blank register contents, this mode can only work mode is not too weird.
+- Display height is from vertical blanking end to start. If vertical blanking is completely missing (It isn't required in real world, only need black in VB area to not confuse display's black level calibration), vertical size is from vsync start (plus few lines) to next vsync start. Horizontal width uses horizontal blanking (or if missing, from hsync + few CCKs to start of next hsync).
+- Chipset panel Monitor Sync Source option renamed to Monitor sync / positioning mode. First 3 options select blanking based positioning/size mode (default, same options as in previous versions), new 3 options select sync based positioning/size mode. This is basically how CRTs originally worked, later models had digital control logic and could have also used blanking for positioning.
+- Extreme overscan mode now is same as selecting sync based positioning/size mode.
+- Display panel horizontal centering should work (at least slightly better) in doublescanned modes.
+- Display panel horizontal and vertical centering options are disabled and cleared if overscan mode is Overscan+ or higher (and restored automatically if overscan is set back to original value in same session). Previously centering was already ignored in Overscan+ but GUI options was not cleared.
+- Integer scaling was wrong if, for example, vertical was doubled but horizontal was lores or shres without scandoubling.
+- Added "Automatic integer scale" aspect ratio option to Display panel. If ticked, all resolution/line mode combinations, including doublescanned modes always have correct integer aspect ratio. Without this option some programmed modes are very tall and narrow or vice versa. Option is automatically enabled except if loaded config already has new config entry or if filter config has different horizontal and vertical zoom factors or if resolution is not hires or if vertical doubling is not enabled.
+- Doublescan mode detection (Enables internal horizontal doubling) is now more accurate. This is used to add 2x/4x horizontal doubling to keep correct aspect ratio (above new option). Doublescanned modes are half-width scanlines with double the number scanlines which would result in ugly aspect ratio without horizontal redoubling. All programmed modes should now have correct aspect ratio if "Automatic integer scale" is also ticked (correct as in not tall and narrow or short and wide)
+- Automatic scaling and Auto integer scale should be now fully working in all programmed modes.
+- Directory filesystem ACTION LOCATE OBJECT (dos/Lock() creates ACTION LOCATE OBJECT filesystem packet) now checks if file or directory physically exists and return not found error if it was cached but not found, stale cached node is also flushed. Previously if it was already cached and then file/dir was removed from host side, Lock() still succeeded.
+- uaegfx hardware sprite mouse cursor colors didn't update until sprite shape was also modified. This was not normally visible because shape was always updated after color change. (604?)
+- A3000 SDMAC now uses word or long (depending on RAMSEY version) DMA transfers and drops last odd byte (WORD) or 1-3 extra bytes (LONG), matching real hardware. Driver bug that does not transfer last 1/1-3 remaining bytes now also happens in emulation.
+- A2091/A590 DMAC DMA uses now word based DMA reads/writes and does not anymore DMA transfer last odd byte, matching real hardware. (This also should have above real world driver bug, not confirmed yet)
+- Host clock sync moved from directory filesystem process to UAE Boot ROM helper task that is always running when UAE Boot ROM is enabled. Clock sync does not anymore require at least one directory filesystem.
+- Display port adapters (after being updated to work with new display emulation) will work in Overscan/Overscan+/Extreme modes. Currently A2024 is the only working one. (But not fully in Extreme). Display port adapters/CD32FMV/Genlock are now always disabled in Ultra extreme overscan.
+- Debugger ? now also supports decimal parameters and 6888x floating point formats (single = $xxxxxxxx.S, double = $xxxxxxxxyyyyyyyy.D, extended = $xxxx.yyyyyyyyyyyyyyyy.X). "?." toggles output of floating point values, default off, floating point values are always shown if input value is not integer. Floating point registers supported (RFP0 = use current FP0 contents). NOTE: If floating point values are used in calculations, calculations are done using host double format. (Will be replaced with 80-bit softfloat in the future)
+- Some debugger fixes and tweaks.
+- Added *.hda to hardfile dialog file filter. (604?)
+- If sprites were in AGA 64-bit wide mode and data registers had non-zero data, then sprite mode was switched to non-64 bit mode, then data register was updated (Copper/CPU), only non-64 bit internal sprite data variable was updated and pre-update graphics was shown if sprite was switched back to 64-bit mode. (Virtual Karting 2) (604?)
+- Filtered low resolution setting was not implemented in generic and slow drawing routine (used only when sub-pixel effects need to be emulated). (Virtual Karting 2 had single line of non-filtered pixels)
+- Fixed 68000/10 cycle-exact statefiles being randomly broken if CPU was mid-instruction doing chip bus read when statefile was saved (6.0.x). Also added partial workaround that allows some of already broken statefiles to load properly. (Very stupid bug, variable was replaced with zero constant temporarily during 5.x->6.x refactoring but it was never restored) (604?)
+- Disk wordsync interrupt was only allowed when DSKLEN WRITE=0 but it is only inhibited when disk writing is active. Was broken few versions ago. (Global Trash / Silents) (604?)
 - Lines that TV overscan setting blanked also skipped bitplane/sprite collision detection.
+- uaescsi.device SCSI command REZERO UNIT should stop audio CD play. (604?)
 
+TL;DR:
 
-Unified native/programmed mode can break existing configurations that have manually adjusted programmed modes. Only native PAL/NTSC mode normal overscan+ or smaller filter configuration positioning and size will be kept compatible with old config files. Autoscale and other similar filters should now work much better when mode is very weird.
+Programmed and native screen modes now use same sync/blank timing detection emulation code.
+Programmed and native screen mode "monitor emulation" (sync/blank/etc detection) now uses same emulation code.
+Display positioning is now based on generated sync/blank signals instead of using hardwired PAL/NTSC or programmed mode register contents which are not necessarily same if program does VPOSW tricks.
+
+Important tests:
+
+If old config files with filter/display panel settings in PAL/NTSC modes still work correctly.
+
+Unified native/programmed mode can break existing configurations that have manually adjusted programmed modes. Only native PAL/NTSC mode normal overscan+ or smaller filter configuration positioning and size will be kept compatible with old config files (If it isn't, report it and include config file). Autoscale and other similar filters should now work much better when mode is very weird.
+
+Known broken:
+
+- "Remove interlace artifacts" (always breaks)
+- Display port adapters. Only A2024 works.
+
+Possible quick fix 6.0.4 will have changes marked with (604). This will be decided in next 1-3 weeks.
+
+Windows ARM64EC builds will be added to github automatic builds later, currently waiting for new Snapdragon X2 laptop (few weeks to few months, I guess)
+
 
 6.0.3:
 
