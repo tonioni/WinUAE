@@ -546,8 +546,8 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 			if (scalemode == AUTOSCALE_CENTER) {
 
-				float scalex = ds->scale;
-				float scaley = ds->scale;
+				int scalex = ds->scale;
+				int scaley = ds->scale;
 
 				int ww = cw * scalex;
 				int hh = ch * scaley;
@@ -607,9 +607,9 @@ void getfilterdata(int monid, struct displayscale *ds)
 				scaley = scaley * palntscratio / dstratio;
 
 				if (doublescan2x > 0) {
-					scalex *= 2.0 * doublescan2x;
+					scalex *= 2.0f * doublescan2x;
 				} else if (doublescan2x < 0) {
-					scaley *= 2.0 * (-doublescan2x);
+					scaley *= 2.0f * (-doublescan2x);
 				}
 
 				ds->outwidth = (int)(cw * ds->scale);
