@@ -6937,6 +6937,9 @@ void m68k_dumpcache (bool dc)
 	if (!currprefs.cpu_compatible)
 		return;
 	if (currprefs.cpu_model == 68020) {
+		if (dc) {
+			return;
+		}
 		for (int i = 0; i < CACHELINES020; i += 4) {
 			for (int j = 0; j < 4; j++) {
 				int s = i + j;

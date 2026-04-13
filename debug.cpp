@@ -213,7 +213,7 @@ static const TCHAR help[] = {
 	_T("  od                    Enable/disable Copper vpos/hpos tracing.\n")
 	_T("  ot                    Copper single step trace.\n")
 	_T("  ob <addr>             Copper breakpoint.\n")
-	_T("  H[H] <cnt>            Show PC history (HH=full CPU info) <cnt> instructions.\n")
+	_T("  H[H][s] <cnt>         Show PC history (HH=full CPU info, s=disable DMA info) <cnt> instructions.\n")
 	_T("  C <value>             Search for values like energy or lifes in games.\n")
 	_T("  mmu <fc>              Set current MMU translation function code for all debugging instructions.\n")
 	_T("  mmud                  Dump MMU tables.\n")
@@ -520,7 +520,7 @@ static bool isoperator(TCHAR **cp)
 	TCHAR c1 = c ? _totupper((*cp)[1]) : 0;
 	TCHAR c2 = c1 ? _totupper((*cp)[2]) : 0;
 	return c == '+' || c == '-' || c == '/' || c == '*' || c == '(' || c == ')' ||
-		c == '|' || c == '&' || c == '^' || c == '=' || c == '>' || c == '<' ||
+		c == '|' || c == '&' || c == '^' || c == '~' || c == '=' || c == '>' || c == '<' ||
 		(c == 'R' && (c1 == 'L' || c1 == 'W' || c1 == 'B') && c2 == '(');
 }
 
@@ -6469,7 +6469,7 @@ static void searchmem (TCHAR **cc)
 			}
 		}
 	}
-	console_out_f(_T("Searching from %08X to %08X..\n"), addr + 1, endaddr - 1);
+	console_out_f(_T("Searching from %08X to %08X\n"), addr + 1, endaddr - 1);
 	nextaddr_init(addr);
 	bool out = false;
 	int colcnt = 0;
@@ -6659,7 +6659,7 @@ static void debug_sprite (TCHAR **inptr)
 			ypos = ypos_ecs;
 			ypose = ypose_ecs;
 		}
-
+		int spritey = 0;
 		for (y = ypos; y < ypose; y++) {
 			int x;
 			addr += size * 4;
@@ -6716,12 +6716,13 @@ static void debug_sprite (TCHAR **inptr)
 				}
 			}
 			tmp[width] = 0;
-			console_out_f (_T("%3d %06X %s\n"), y, addr, tmp);
+			console_out_f (_T("%3d %3d %06X %s\n"), y, spritey, addr, tmp);
+			spritey++;
 		}
 
 		console_out_f (_T("Sprite address %08X, Width=%d\n"), saddr, size * 16);
-		console_out_f (_T("OCS: StartX=%d StartY=%d EndY=%d Height=%d\n"), xpos, ypos, ypose, ypose - ypos + 1);
-		console_out_f (_T("ECS: StartX=%d (%d.%d) StartY=%d EndY=%d Height=%d %s\n"), xpos_ecs, xpos_ecs / 4, xpos_ecs & 3, ypos_ecs, ypose_ecs, ypose_ecs - ypos_ecs + 1, ecs ? _T(" (*)") : _T(""));
+		console_out_f (_T("OCS: StartX=%d StartY=%d EndY=%d Height=%d\n"), xpos, ypos, ypose - 1, ypose - ypos);
+		console_out_f (_T("ECS: StartX=%d (%d.%d) StartY=%d EndY=%d Height=%d %s\n"), xpos_ecs, xpos_ecs / 4, xpos_ecs & 3, ypos_ecs, ypose_ecs - 1, ypose_ecs - ypos_ecs + 1, ecs ? _T(" (*)") : _T(""));
 		console_out_f (_T("Attach: %d. AGA SSCAN/SH10 bit: %d\n"), attach, sh10);
 
 		addr += size * 4;
@@ -6856,7 +6857,7 @@ static void find_ea (TCHAR **inptr)
 			}
 		}
 	}
-	console_out_f (_T("Searching from %08X to %08X\n"), addr + 1, end);
+	console_out_f (_T("Searching from %08X to %08X\n"), addr + 1, end - 1);
 	end2 = 0;
 	nextaddr_init(addr);
 	bool out = false;
@@ -6870,7 +6871,7 @@ static void find_ea (TCHAR **inptr)
 				out = true;
 				hits++;
 				if (hits > 100) {
-					console_out_f (_T("Too many hits. End addr = %08X\n"), addr);
+					console_out_f (_T("Too many hits. End addr = %08X\n"), addr - 1);
 					break;
 				}
 			}
@@ -7476,6 +7477,7 @@ static bool debug_line (TCHAR *input)
 				uae_u32 oldpc = m68k_getpc ();
 				int lastframes, lastvpos, lasthpos;
 				struct regstruct save_regs = regs;
+				bool dmadata = true;
 
 				badly = 0;
 				if (inptr[0] == 'H') {
@@ -7487,7 +7489,10 @@ static bool debug_line (TCHAR *input)
 					dmadbg = 1;
 					inptr++;
 				}
-
+				if (inptr[0] == 's') {
+					dmadata = false;
+					inptr++;
+				}
 				if (more_params(&inptr))
 					count = readint(&inptr, NULL);
 				else
@@ -7517,7 +7522,7 @@ static bool debug_line (TCHAR *input)
 						if (badly) {
 							m68k_dumpstate(NULL, 0xffffffff);
 						} else {
-							if (dmadbg && lastvpos >= 0) {
+							if (dmadbg && lastvpos >= 0 && dmadata) {
 								dma_disasm(lastframes, lastvpos, lasthpos, history[temp].fp, history[temp].vpos, history[temp].hpos);
 							}
 							lastframes = history[temp].fp;
@@ -7951,11 +7956,11 @@ static bool check_breakpoint(struct breakpoint_node *bpn, uaecptr pc)
 
 static bool check_breakpoint_count(struct breakpoint_node *bpn, uaecptr pc)
 {
+	bpn->cnt--;
 	if (bpn->cnt <= 0) {
 		return true;
 	}
 	console_out_f(_T("Breakpoint %d hit: PC=%08x, count=%d.\n"), bpn - bpnodes, pc, bpn->cnt);
-	bpn->cnt--;
 	return false;
 }
 
