@@ -721,7 +721,7 @@ static int diwfirstword, diwlastword;
 static int last_diwlastword;
 static int hb_last_diwlastword;
 static int last_hdiw;
-static diw_states vdiwstate, hdiwstate;
+static diw_states vdiwstate;
 static int hdiwbplstart;
 static bool exthblank;
 
@@ -6765,7 +6765,6 @@ void custom_reset(bool hardreset, bool keyboardreset)
 
 		diwhigh = 0;
 		diwhigh_written = 0;
-		hdiwstate = diw_states::DIW_waiting_start; // this does not reset at vblank
 
 		refptr = 0;
 		if (aga_mode) {
@@ -6958,10 +6957,10 @@ void dumpcustom(void)
 	console_out_f(_T("COP1LC: $%08x, COP2LC: $%08x COPPTR: $%08x\n"), cop1lc, cop2lc, cop_state.ip);
 	console_out_f(_T("DIWSTRT: $%04x DIWSTOP: $%04x DDFSTRT: $%04x DDFSTOP: $%04x\n"),
 		diwstrt, diwstop, ddfstrt, ddfstop);
-	console_out_f(_T("BPLCON 0: $%04x 1: $%04x 2: $%04x 3: $%04x 4: $%04x LOF=%d/%d HDIW=%d VDIW=%d\n"),
+	console_out_f(_T("BPLCON 0: $%04x 1: $%04x 2: $%04x 3: $%04x 4: $%04x LOF=%d/%d VDIW=%d\n"),
 		bplcon0, bplcon1, bplcon2, bplcon3, bplcon4,
 		lof_display, lof_store,
-		hdiwstate == diw_states::DIW_waiting_start ? 0 : 1, vdiwstate == diw_states::DIW_waiting_start ? 0 : 1);
+		vdiwstate == diw_states::DIW_waiting_start ? 0 : 1);
 	if (timeframes && vsync_counter) {
 		console_out_f(_T("Average frame time: %.2f ms [frames: %d time: %d]\n"),
 			(double)frametime / timeframes, vsync_counter, frametime);
@@ -7812,7 +7811,7 @@ uae_u8 *restore_custom(uae_u8 *src)
 	hcenter = RW;			/* 1E2 HCENTER */
 	diwhigh = RW;			/* 1E4 DIWHIGH */
 	diwhigh_written = (diwhigh & 0x8000) ? 1 : 0;
-	hdiwstate = (diwhigh & 0x4000) ? diw_states::DIW_waiting_stop : diw_states::DIW_waiting_start;
+	denise_set_hdiw((diwhigh & 0x4000) != 0);
 	vdiwstate = (diwhigh & 0x0080) ? diw_states::DIW_waiting_start : diw_states::DIW_waiting_stop;
 	diwhigh &= 0x3f3f;
 	BPLHMOD(RW);			/* 1E6 ? */
@@ -8060,7 +8059,7 @@ uae_u8 *save_custom(size_t *len, uae_u8 *dstptr, int full)
 	SW(hsstrt);			/* 1DE HSSTRT */
 	SW(vsstrt);			/* 1E0 VSSTRT */
 	SW(hcenter);		/* 1E2 HCENTER */
-	SW(diwhigh | (diwhigh_written ? 0x8000 : 0) | (hdiwstate == diw_states::DIW_waiting_stop ? 0x4000 : 0) | (vdiwstate == diw_states::DIW_waiting_start ? 0x0080 : 0)); /* 1E4 DIWHIGH */
+	SW(diwhigh | (diwhigh_written ? 0x8000 : 0) | (denise_get_hdiw() ? 0x4000 : 0) | (vdiwstate == diw_states::DIW_waiting_start ? 0x0080 : 0)); /* 1E4 DIWHIGH */
 	SW(bplhmod);				/* 1E6 */
 	SW(hhspr >> 16);	/* 1E8 */
 	SW(hhspr & 0xffff);	/* 1EA */

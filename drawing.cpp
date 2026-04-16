@@ -571,6 +571,15 @@ void toggle_inhibit_frame(int monid, int bit)
 	ad->inhibit_frame ^= 1 << bit;
 }
 
+void denise_set_hdiw(bool hdiw)
+{
+	denise_hdiw = hdiw;
+}
+bool denise_get_hdiw(void)
+{
+	return denise_hdiw;
+}
+
 static void clearbuffer(struct vidbuffer *dst)
 {
 	if (!dst->bufmem_allocated)
