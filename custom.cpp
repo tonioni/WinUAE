@@ -2385,15 +2385,17 @@ static void incpos(uae_u16 *hpp, uae_u16 *vpp)
 	if (syncs_stopped) {
 		return;
 	}
-	if (hp == 1) {
-		vp++;
-		if (vp == maxvpos + lof_store) {
-			vp = 0;
+	if (currprefs.cpu_memory_cycle_exact) {
+		if (hp == 1) {
+			vp++;
+			if (vp == maxvpos + lof_store) {
+				vp = 0;
+			}
 		}
-	}
-	hp++;
-	if (hp == maxhpos || hp == maxhpos_long) {
-		hp = 0;
+		hp++;
+		if (hp == maxhpos || hp == maxhpos_long) {
+			hp = 0;
+		}
 	}
 	if (canvhposw()) {
 		if (agnus_pos_change >= 1) {
