@@ -4649,6 +4649,7 @@ void inputdevice_do_keyboard(int code, int state)
 	if (code < 0x80) {
 		uae_u8 key = code | (state ? 0x00 : 0x80);
 		keybuf[key & 0x7f] = (key & 0x80) ? 0 : 1;
+
 		if (keyboard_reset_seq_mode > 0) {
 			if (keyboard_reset_seq_mode == 3) {
 				if (keyboard_reset_seq >= 15 * 50) {
@@ -4657,6 +4658,7 @@ void inputdevice_do_keyboard(int code, int state)
 					} else {
 						keyboard_reset_seq_mode = 4;
 					}
+					keyboard_reset_seq = 0;
 				}
 				return;
 			}
@@ -4678,25 +4680,26 @@ void inputdevice_do_keyboard(int code, int state)
 			}
 			return;
 		}
-
 		if (currprefs.keyboard_mode > 0) {
 			if (!currprefs.cs_resetwarning) {
 				if (keyboardresetkeys() || key == AK_RESETWARNING) {
 					int r = keybuf[AK_LALT] | keybuf[AK_RALT];
 					if (r) {
-						keyboard_reset_seq_mode = 2;
 						custom_reset(true, true);
 						cpu_inreset();
+						keyboard_reset_seq_mode = 2;
 					} else {
 						custom_reset(false, true);
 						cpu_inreset();
 						keyboard_reset_seq_mode = 1;
 					}
+					keyboard_reset_seq = 0;
 				}
 			}
 		} else if (key == AK_RESETWARNING) {
 			if (resetwarning_do(0)) {
 				keyboard_reset_seq_mode = 3;
+				keyboard_reset_seq = 0;
 			}
 			return;
 		} else if (keyboardresetkeys()) {
@@ -4704,9 +4707,9 @@ void inputdevice_do_keyboard(int code, int state)
 			keyboard_reset_seq_mode = 0;
 			int r = keybuf[AK_LALT] | keybuf[AK_RALT];
 			if (r) {
-				keyboard_reset_seq_mode = 2;
 				custom_reset(true, true);
 				cpu_inreset();
+				keyboard_reset_seq_mode = 2;
 			} else {
 				if (currprefs.cs_resetwarning && resetwarning_do(0)) {
 					keyboard_reset_seq_mode = 3;
@@ -4717,10 +4720,12 @@ void inputdevice_do_keyboard(int code, int state)
 				}
 			}
 		}
+
 		if (!keyboard_reset_seq_mode) {
 			if (record_key((uae_u8)((key << 1) | (key >> 7)), false)) {
-				if (inputdevice_logging & 1)
+				if (inputdevice_logging & 1) {
 					write_log(_T("Amiga key %02X %d\n"), key & 0x7f, key >> 7);
+				}
 			}
 		}
 		return;
@@ -4730,14 +4735,16 @@ void inputdevice_do_keyboard(int code, int state)
 
 void inputdevice_do_kb_reset(void)
 {
+	int mode = keyboard_reset_seq_mode;
 	custom_reset(false, true);
-	if (keyboard_reset_seq_mode == 3) {
+	if (mode == 3) {
 		if (!keyboardresetkeys()) {
 			keyboard_reset_seq_mode = 0;
+			keyboard_reset_seq = 0;
 			uae_reset(0, 1);
 		} else {
-			keyboard_reset_seq_mode = 4;
 			cpu_inreset();
+			keyboard_reset_seq_mode = 4;
 		}
 	} else {
 		uae_reset(0, 1);
@@ -5842,7 +5849,7 @@ void inputdevice_vsync (void)
 			pausemode(1);
 		}
 	}
-	if (keyboard_reset_seq_mode && keyboard_reset_seq > 0) {
+	if (keyboard_reset_seq_mode) {
 		keyboard_reset_seq++;
 	}
 
@@ -5881,9 +5888,12 @@ void inputdevice_reset (void)
 {
 	magicmouse_ibase = 0;
 	magicmouse_gfxbase = 0;
-	mousehack_reset ();
-	if (inputdevice_is_tablet ())
-		mousehack_enable ();
+	mousehack_reset();
+	if (inputdevice_is_tablet()) {
+		mousehack_enable();
+	}
+	keyboard_reset_seq = 0;
+	keyboard_reset_seq_mode = 0;
 	bouncy = 0;
 	while (delayed_events) {
 		struct delayed_event *de = delayed_events;
