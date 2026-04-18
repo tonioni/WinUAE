@@ -1417,7 +1417,7 @@ static uaecptr nextaddr(uaecptr addr, uaecptr last, uaecptr *endp, bool verbose,
 			console_out_f(_T("\n"));
 			*lfp = false;
 		}
-		console_out_f(_T("Scanning.. %08x - %08x (%s)\n"), start, addr, get_mem_bank(start).name);
+		console_out_f(_T("Scanning %08x - %08x (%s)\n"), start, addr - 1, get_mem_bank(start).name);
 	}
 
 	return start;
@@ -3288,12 +3288,17 @@ static void init_record_copper(void)
 		cop_record[0] = xmalloc(struct cop_rec, NR_COPPER_RECORDS);
 		cop_record[1] = xmalloc(struct cop_rec, NR_COPPER_RECORDS);
 	}
+	curr_cop_set = 0;
+	selected_cop_set = 0;
+	nr_cop_records[0] = nr_cop_records[1] = 0;
 }
 
 void record_copper_blitwait (uaecptr addr, int hpos, int vpos)
 {
 	int t = nr_cop_records[curr_cop_set];
-	init_record_copper();
+	if (!cop_record[0]) {
+		init_record_copper();
+	}
 	cop_record[curr_cop_set][t].bhpos = hpos;
 	cop_record[curr_cop_set][t].bvpos = vpos;
 }
@@ -3301,7 +3306,9 @@ void record_copper_blitwait (uaecptr addr, int hpos, int vpos)
 void record_copper (uaecptr addr, uaecptr nextaddr, uae_u16 word1, uae_u16 word2, int hpos, int vpos)
 {
 	int t = nr_cop_records[curr_cop_set];
-	init_record_copper();
+	if (!cop_record[0]) {
+		init_record_copper();
+	}
 	if (t < NR_COPPER_RECORDS) {
 		cop_record[curr_cop_set][t].addr = addr;
 		cop_record[curr_cop_set][t].nextaddr = nextaddr;
@@ -3428,6 +3435,7 @@ static int copper_debugger (TCHAR **c)
 			debug_copper = 0;
 		else
 			debug_copper = 1;
+		init_record_copper();
 		console_out_f (_T("Copper debugger %s.\n"), debug_copper ? _T("enabled") : _T("disabled"));
 	} else if (**c == 't') {
 		debug_copper = 1|2;
@@ -3514,8 +3522,9 @@ static void listcheater(int mode, int size)
 			console_out_f(_T("%08X=%04X "), ts->addr, b);
 		else
 			console_out_f(_T("%08X "), ts->addr);
-		if ((i % skip) == skip)
+		if ((i % skip) == skip - 1) {
 			console_out(_T("\n"));
+		}
 	}
 }
 
@@ -7812,6 +7821,7 @@ static TCHAR input[MAX_LINEWIDTH];
 
 static void debug_1 (void)
 {
+	draw_denise_line_queue_flush();
 	open_console();
 	custom_dumpstate(0);
 	m68k_dumpstate(&nextpc, debug_pc);
