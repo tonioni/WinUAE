@@ -1849,12 +1849,18 @@ void compute_framesync(void)
 // do not switch to H/V sync cable mode if required programmed mode registers are uninitialized
 static bool valid_programmed_mode(void)
 {
-	if ((beamcon0 & (BEAMCON0_VARHSYEN | BEAMCON0_VARCSYEN)) && programmed_register_accessed_h) {
+	if (beamcon0 & (BEAMCON0_VARHSYEN | BEAMCON0_VARCSYEN)) {
+		if (!programmed_register_accessed_h) {
+			return false;
+		}
 		if (hsstrt == 0xffff || hsstop == 0xffff) {
 			return false;
 		}
 	}
-	if ((beamcon0 & (BEAMCON0_VARVSYEN | BEAMCON0_VARCSYEN)) && programmed_register_accessed_v) {
+	if (beamcon0 & (BEAMCON0_VARVSYEN | BEAMCON0_VARCSYEN)) {
+		if (!programmed_register_accessed_v) {
+			return false;
+		}
 		if (vsstrt == 0xffff || vsstop == 0xffff) {
 			return false;
 		}
