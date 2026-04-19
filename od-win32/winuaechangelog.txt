@@ -1,4 +1,27 @@
 
+Beta 2:
+
+- Detect missing hsync/vsync and trigger "no signal" state quicker. "No signal" state was also clearing internal buffer every frame, slowing down emulation unnecessarily.
+- If program writes to BEAMCON0 (for example enabling programmed horizontal or vertical sync) but matching programmed mode registers are still uninitialized and monitor sync mode is combined: do not switch to (unusable) H/V sync cable mode. (Love / VD/Fairlight writing bogus value $0200 to BEAMCON0)
+- If "no signal" state is active when display mode changes, wait until syncs are valid and then wait 2 more fields before deciding display aspect and size after display parameter change. (AR3 corrupted screen in cycle-exact mode after entering it twice)
+- b1 clock sync change didn't check if UAE Boot ROM interrupt was active before sending the sync request message, causing hang due to stuck interrupt if done too early.
+- Only emulate VHPOSR/VPOSR reading 1 CCK later value than all other parts of chipset sees in cycle-exact modes, it can cause side-effects in fast CPU modes.
+- 68020/30 CE mode sometimes delayed interrupts until 68020/030 prefetch buffer was reloaded (after branch/RTS etc instruction). (old)
+- HDIW removed from debugger c command, it can't show current HDIW state cycle-accurately because Denise side scanline is emulated after Agnus line has been completed. Use DMA debugger to check HDIW state.
+- 68020/30 memory cycle-exact instruction cache loads didn't check for chip bus DMA stealing CPU cycles. (old)
+- Fixed always on active HDIW not being saved to statefile and not loaded from statefile (same reason as above).
+- Keyboard could stop working if system was reset during keyboard reset warning wait period. (Probably introduced when emulated keyboard controllers were added)
+- Added ~ (NOT) operator to debugger calculator.
+- Debugger od copper disassembler stored horizontal/vertical values are now cleared when debugger is enabled or disabled.
+
+Known broken:
+
+- OCS Denise NTSC odd/even horizontal toggling is visible incorrectly in overscan/overscan+.
+- 68020 CE has something wrong (no easy test case so far), it was supposed to be same as previously but it isn't.
+- "Remove interlace artifacts" (always breaks)
+- Display port adapters. Only A2024 works.
+
+
 Beta 1:
 
 - Copper emulation rewritten to match low level logic (Relatively simple 3 stage state machine based on Alice schematics). This is needed to support nasty VHPOSW write special cases. Emulation code is also now much shorter and simpler, all COPxJMP special case hacks are gone.

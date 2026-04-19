@@ -748,11 +748,11 @@ void write_log (const TCHAR *format, ...)
 		DWORD temp;
 		if (lfdetected && ts) {
 			char *utf8_ts = uutf8(ts);
-			WriteFile(stdoutput, utf8_ts, strlen(utf8_ts), &temp, NULL);
+			WriteFile(stdoutput, utf8_ts, (DWORD)strlen(utf8_ts), &temp, NULL);
 			xfree(utf8_ts);
 		}
 		char *utf8 = uutf8(bufp);
-		WriteFile(stdoutput, utf8, strlen(utf8), &temp, NULL);
+		WriteFile(stdoutput, utf8, (DWORD)strlen(utf8), &temp, NULL);
 		xfree(utf8);
 	}
 
