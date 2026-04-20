@@ -1,4 +1,9 @@
 
+Beta 3:
+
+- b2 68020/030 CE interrupt fix made interrupts too fast, now they are always delayed until next instruction has finished which probably isn't fully correct either but better than previously (too fast or delayed by multiple instructions).
+- OCS Denise NTSC odd/even line sawtooth pattern is now correct in Overscan (completely hidden) and Overscan+ (visible in right border).
+
 Beta 2:
 
 - Detect missing hsync/vsync and trigger "no signal" state quicker. "No signal" state was also clearing internal buffer every frame, slowing down emulation unnecessarily.
