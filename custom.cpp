@@ -988,23 +988,20 @@ static void debug_cycle_diagram(void)
 
 static void create_cycle_diagram_table(void)
 {
-	int fm, res, cycle, planes, rplanes, v;
-	int fetch_start, max_planes, freecycles;
-	const uae_s8 *cycle_sequence;
-
-	for (fm = 0; fm <= 2; fm++) {
-		for (res = 0; res <= 2; res++) {
-			max_planes = fm_maxplanes[fm * 4 + res];
-			fetch_start = 1 << fetchstarts[fm * 4 + res];
-			cycle_sequence = &cycle_sequences[(max_planes - 1) * 8];
+	for (int fm = 0; fm <= 2; fm++) {
+		for (int res = 0; res <= 2; res++) {
+			int max_planes = fm_maxplanes[fm * 4 + res];
+			int fetch_start = 1 << fetchstarts[fm * 4 + res];
+			const uae_s8 *cycle_sequence = &cycle_sequences[(max_planes - 1) * 8];
 			max_planes = 1 << max_planes;
-			for (planes = 0; planes <= 8; planes++) {
-				freecycles = 0;
-				for (cycle = 0; cycle < 32; cycle++) {
+			for (int planes = 0; planes <= 8; planes++) {
+				int freecycles = 0;
+				for (int cycle = 0; cycle < 32; cycle++) {
 					cycle_diagram_table[fm][res][planes][cycle] = -1;
 				}
 				if (planes <= max_planes) {
-					for (cycle = 0; cycle < fetch_start; cycle++) {
+					for (int cycle = 0; cycle < fetch_start; cycle++) {
+						int v;
 						if (cycle < max_planes && planes >= cycle_sequence[cycle & 7]) {
 							v = cycle_sequence[cycle & 7];
 						} else {
@@ -1016,7 +1013,7 @@ static void create_cycle_diagram_table(void)
 				}
 				cycle_diagram_free_cycles[fm][res][planes] = freecycles;
 				cycle_diagram_total_cycles[fm][res][planes] = fetch_start;
-				rplanes = planes;
+				int rplanes = planes;
 				if (rplanes > max_planes) {
 					rplanes = 0;
 				}
@@ -1236,6 +1233,7 @@ static void update_mirrors(void)
 		}
 	}
 	ddf_mask = ecs_agnus ? 0xfe : 0xfc;
+	create_cycle_diagram_table();
 	set_chipset_mode(true);
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	check_lineoptimizations();
@@ -2204,7 +2202,6 @@ void init_custom(void)
 {
 	check_nocustom();
 	update_mirrors();
-	create_cycle_diagram_table();
 	reset_drawing();
 	init_hz();
 }
@@ -7009,7 +7006,6 @@ int custom_init(void)
 	drawing_init();
 
 	update_mirrors();
-	create_cycle_diagram_table();
 
 	return 1;
 }
