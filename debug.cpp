@@ -6595,7 +6595,7 @@ static void debugtest_set (TCHAR **inptr)
 	}
 }
 
-static void debug_sprite (TCHAR **inptr)
+static void debug_sprite(TCHAR **inptr)
 {
 	uaecptr saddr, addr, addr2;
 	int xpos, xpos_ecs;
@@ -6606,7 +6606,7 @@ static void debug_sprite (TCHAR **inptr)
 	int size = 1, width;
 	int ecs, sh10;
 	int y, i;
-	TCHAR tmp[80];
+	TCHAR tmp[80], tmp2a[80], tmp2b[80];
 	int max = 14;
 
 	addr2 = 0;
@@ -6628,12 +6628,12 @@ static void debug_sprite (TCHAR **inptr)
 		sh10 = 0;
 		saddr = addr;
 		width = size * 16;
-		w1 = get_word_debug (addr);
-		w2 = get_word_debug (addr + size * 2);
-		console_out_f (_T("    %06X "), addr);
+		w1 = get_word_debug(addr);
+		w2 = get_word_debug(addr + size * 2);
+		console_out_f(_T("        %06X "), addr);
 		for (i = 0; i < size * 2; i++)
-			console_out_f (_T("%04X "), get_word_debug (addr + i * 2));
-		console_out_f (_T("\n"));
+			console_out_f(_T("%04X "), get_word_debug(addr + i * 2));
+		console_out_f(_T("\n"));
 
 		ypos = (int)(w1 >> 8);
 		xpos = w1 & 255;
@@ -6669,73 +6669,90 @@ static void debug_sprite (TCHAR **inptr)
 			ypose = ypose_ecs;
 		}
 		int spritey = 0;
-		for (y = ypos; y < ypose; y++) {
+		for (y = ypos; y < ypose + 1; y++) {
 			int x;
+			uaecptr prev_addr = addr, prev_addr2 = addr2;
 			addr += size * 4;
-			if (addr2)
+			if (addr2) {
 				addr2 += size * 4;
+			}
+			tmp[0] = 0;
+			tmp2a[0] = 0;
+			tmp2b[0] = 0;
 			if (size == 1) {
-				w1 = get_word_debug (addr);
-				w2 = get_word_debug (addr + 2);
+				w1 = get_word_debug(addr);
+				w2 = get_word_debug(addr + 2);
+				_stprintf(tmp2a, _T("%04X %04X "), (uae_u16)w1, (uae_u16)w2);
 				if (addr2) {
-					ww1 = get_word_debug (addr2);
-					ww2 = get_word_debug (addr2 + 2);
+					ww1 = get_word_debug(addr2);
+					ww2 = get_word_debug(addr2 + 2);
+					_stprintf(tmp2b, _T("%04X %04X "), (uae_u16)ww1, (uae_u16)ww2);
 				}
 			} else if (size == 2) {
-				w1 = get_long_debug (addr);
-				w2 = get_long_debug (addr + 4);
+				w1 = get_long_debug(addr);
+				w2 = get_long_debug(addr + 4);
+				_stprintf(tmp2a, _T("%08X %08X "), (uae_u32)w1, (uae_u32)w2);
 				if (addr2) {
-					ww1 = get_long_debug (addr2);
-					ww2 = get_long_debug (addr2 + 4);
+					ww1 = get_long_debug(addr2);
+					ww2 = get_long_debug(addr2 + 4);
+					_stprintf(tmp2b, _T("%08X %08X "), (uae_u32)ww1, (uae_u32)ww2);
 				}
 			} else if (size == 4) {
-				w1 = get_long_debug (addr + 0);
-				w2 = get_long_debug (addr + 8);
+				w1 = get_long_debug(addr + 0);
+				w2 = get_long_debug(addr + 8);
 				w1 <<= 32;
 				w2 <<= 32;
-				w1 |= get_long_debug (addr + 4);
-				w2 |= get_long_debug (addr + 12);
+				w1 |= get_long_debug(addr + 4);
+				w2 |= get_long_debug(addr + 12);
+				_stprintf(tmp2a, _T("%016llX %016llX "), w1, w2);
 				if (addr2) {
-					ww1 = get_long_debug (addr2 + 0);
-					ww2 = get_long_debug (addr2 + 8);
+					ww1 = get_long_debug(addr2 + 0);
+					ww2 = get_long_debug(addr2 + 8);
 					ww1 <<= 32;
 					ww2 <<= 32;
-					ww1 |= get_long_debug (addr2 + 4);
-					ww2 |= get_long_debug (addr2 + 12);
+					ww1 |= get_long_debug(addr2 + 4);
+					ww2 |= get_long_debug(addr2 + 12);
+					_stprintf(tmp2b, _T("%016llX %016llX "), ww1, ww2);
 				}
 			}
-			width = size * 16;
-			for (x = 0; x < width; x++) {
-				int v1 = w1 & 1;
-				int v2 = w2 & 1;
-				int v = v2 * 2 + v1;
-				w1 >>= 1;
-				w2 >>= 1;
-				if (addr2) {
-					int vv1 = ww1 & 1;
-					int vv2 = ww2 & 1;
-					int vv = vv2 * 2 + vv1;
-					ww1 >>= 1;
-					ww2 >>= 1;
-					v *= 4;
-					v += vv;
-					tmp[width - (x + 1)] = v >= 10 ? 'A' + v - 10 : v + '0';
-				} else {
-					tmp[width - (x + 1)] = v + '0';
+			if (y < ypose) {
+				width = size * 16;
+				for (x = 0; x < width; x++) {
+					int v1 = w1 & 1;
+					int v2 = w2 & 1;
+					int v = v2 * 2 + v1;
+					w1 >>= 1;
+					w2 >>= 1;
+					if (addr2) {
+						int vv1 = ww1 & 1;
+						int vv2 = ww2 & 1;
+						int vv = vv2 * 2 + vv1;
+						ww1 >>= 1;
+						ww2 >>= 1;
+						v *= 4;
+						v += vv;
+						tmp[width - (x + 1)] = v >= 10 ? 'A' + v - 10 : v + '0';
+					} else {
+						tmp[width - (x + 1)] = v + '0';
+					}
 				}
+				tmp[width] = 0;
+				spritey++;
+				console_out_f(_T("%3d %3d %06X %s%s%s\n"), y, spritey, addr, tmp2a, tmp2b, tmp);
+			} else {
+				console_out_f(_T("%3d     %06X %s%s\n"), y, addr, tmp2a, tmp2b);
+				addr = prev_addr;
+				addr2 = prev_addr2;
 			}
-			tmp[width] = 0;
-			console_out_f (_T("%3d %3d %06X %s\n"), y, spritey, addr, tmp);
-			spritey++;
 		}
 
-		console_out_f (_T("Sprite address %08X, Width=%d\n"), saddr, size * 16);
-		console_out_f (_T("OCS: StartX=%d StartY=%d EndY=%d Height=%d\n"), xpos, ypos, ypose - 1, ypose - ypos);
-		console_out_f (_T("ECS: StartX=%d (%d.%d) StartY=%d EndY=%d Height=%d %s\n"), xpos_ecs, xpos_ecs / 4, xpos_ecs & 3, ypos_ecs, ypose_ecs - 1, ypose_ecs - ypos_ecs + 1, ecs ? _T(" (*)") : _T(""));
-		console_out_f (_T("Attach: %d. AGA SSCAN/SH10 bit: %d\n"), attach, sh10);
+		console_out_f(_T("Sprite address %08X, Width=%d\n"), saddr, size * 16);
+		console_out_f(_T("OCS: StartX=%d StartY=%d EndY=%d Height=%d\n"), xpos, ypos, ypose - 1, ypose - ypos);
+		console_out_f(_T("ECS: StartX=%d (%d.%d) StartY=%d EndY=%d Height=%d %s\n"), xpos_ecs, xpos_ecs / 4, xpos_ecs & 3, ypos_ecs, ypose_ecs - 1, ypose_ecs - ypos_ecs, ecs ? _T(" (*)") : _T(""));
+		console_out_f(_T("Attach: %d. AGA SSCAN/SH10 bit: %d\n"), attach, sh10);
 
 		addr += size * 4;
-		if (get_word_debug (addr) == 0 && get_word_debug (addr + size * 4) == 0)
+		if (get_word_debug(addr) == 0 && get_word_debug(addr + size * 4) == 0)
 			break;
 		max--;
 		if (max <= 0) {
