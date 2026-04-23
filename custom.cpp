@@ -2089,6 +2089,7 @@ static void init_hz_reset(void)
 	linear_vpos = currprefs.ntscmode ? MAXVPOS_NTSC : MAXVPOS_PAL;
 	linear_hpos = currprefs.ntscmode ? MAXHPOS_NTSC : MAXHPOS_PAL;
 	linear_vpos += lof_store;
+	minfirstline = (currprefs.ntscmode ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL) - 1;
 	//linear_vpos -= vsync_startline;
 	linear_vpos_prev[0] = linear_vpos;
 	linear_vpos_prev[1] = linear_vpos;
