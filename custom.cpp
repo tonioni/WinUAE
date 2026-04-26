@@ -4376,7 +4376,7 @@ void blitter_done_notify(void)
 		}
 		if (debug_copper) {
 			int hpos = current_hpos();
-			record_copper_blitwait(cop_state.ip - 4, hpos, vpos);
+			record_copper_blitwait(cop_state.ip - 2, hpos, vpos);
 		}
 	}
 #endif
@@ -9005,7 +9005,7 @@ static void process_copper(struct rgabuf *r)
 
 #ifdef DEBUGGER
 		if (debug_copper && cop_state.irload2) {
-			record_copper(cop_state.ip - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], agnus_hpos, vpos);
+			record_copper(cop_state.ip - 2, cop_state.ip, cop_state.ir[0], cop_state.ir[1], agnus_hpos, vpos);
 		}
 #endif
 	}
@@ -9021,13 +9021,13 @@ static void process_copper(struct rgabuf *r)
 			cop_state.strobe = 0;
 #ifdef DEBUGGER
 			if (debug_copper) {
-				record_copper(previp - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], agnus_hpos, vpos);
+				record_copper(previp - 2, cop_state.ip, cop_state.ir[0], cop_state.ir[1], agnus_hpos, vpos);
 			}
 #endif
 		} else {
 #ifdef DEBUGGER
 			if (debug_copper && cop_state.irload2) {
-				record_copper(cop_state.ip - 4, cop_state.ip, cop_state.ir[0], cop_state.ir[1], agnus_hpos, vpos);
+				record_copper(cop_state.ip - 2, cop_state.ip, cop_state.ir[0], cop_state.ir[1], agnus_hpos, vpos);
 			}
 		}
 #endif
