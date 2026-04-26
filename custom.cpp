@@ -12158,18 +12158,14 @@ int do_cycles_cck(int cycles)
 // blitter idle cycles do count!)
 
 extern int cpu_tracer;
-static int dma_cycle(int *mode, int *ipl)
+static void dma_cycle(int *ipl)
 {
 	if (cpu_tracer < 0) {
-		return current_hpos_safe();
+		return;
 	}
-	if (!currprefs.cpu_memory_cycle_exact) {
-		return current_hpos_safe();
-	}
-	blt_info.nasty_cnt = 0;
-	while (currprefs.cpu_memory_cycle_exact) {
+	while (currprefs.cpu_memory_cycle_exact && quit_program <= 0) {
 		struct rgabuf *r = read_rga_out();
-		if (r->alloc <= 0 || quit_program > 0) {
+		if (r->alloc <= 0) {
 			break;
 		}
 		blt_info.nasty_cnt++;
@@ -12178,7 +12174,6 @@ static int dma_cycle(int *mode, int *ipl)
 		/* bus was allocated to dma channel, wait for next cycle.. */
 	}
 	blt_info.nasty_cnt = 0;
-	return agnus_hpos;
 }
 
 static void sync_cycles(void)
@@ -12210,7 +12205,8 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	dma_cycle(&mode, &ipl);
+	blt_info.nasty_cnt = 0;
+	dma_cycle(&ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -12282,7 +12278,8 @@ void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	dma_cycle(&mode, &ipl);
+	blt_info.nasty_cnt = 0;
+	dma_cycle(&ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -12332,7 +12329,8 @@ uae_u32 wait_cpu_cycle_read_ce020(uaecptr addr, int mode)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	dma_cycle(NULL, &ipl);
+	blt_info.nasty_cnt = 1;
+	dma_cycle(&ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -12388,7 +12386,8 @@ void wait_cpu_cycle_write_ce020(uaecptr addr, int mode, uae_u32 v)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	dma_cycle(NULL, &ipl);
+	blt_info.nasty_cnt = 1;
+	dma_cycle(&ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -12429,7 +12428,9 @@ void do_cycles_ce(int cycles)
 
 void do_cycles_ce020(int cycles)
 {
+#if 0
 	evt_t cc;
+#endif
 	static int extra;
 
 	cycles += extra;
@@ -12437,7 +12438,9 @@ void do_cycles_ce020(int cycles)
 	if (!cycles) {
 		return;
 	}
+#if 0
 	cc = get_cycles();
+#endif
 	while (cycles >= CYCLE_UNIT) {
 		do_cck(true);
 		cycles -= CYCLE_UNIT;
