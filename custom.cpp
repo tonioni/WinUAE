@@ -2113,7 +2113,6 @@ static void init_hz_reset(void)
 	vsync_lines = linear_vpos;
 	vsync_linecnt = 0;
 	vb_end_detect = true;
-	init_hz();
 }
 
 void init_hz(void)
@@ -6829,6 +6828,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	check_harddis();
 
 	init_hz_reset();
+	init_hz();
 
 	audio_reset();
 	if (!isrestore()) {
@@ -7669,10 +7669,12 @@ void custom_prepare_savestate(void)
 
 void restore_custom_finish(void)
 {
+
 	if ((bplcon0 & 2) && !currprefs.genlock) {
 		changed_prefs.genlock = currprefs.genlock = 1;
 		write_log(_T("statefile with BPLCON0 ERSY set without Genlock. Enabling Genlock.\n"));
 	}
+	init_hz_reset();
 }
 
 void restore_custom_start(void)
@@ -8237,6 +8239,12 @@ uae_u8 *restore_custom_extra(uae_u8 *src)
 	currprefs.cs_agnusmodel = changed_prefs.cs_agnusmodel = RBB;
 	currprefs.cs_agnussize = changed_prefs.cs_agnussize = RBB;
 	currprefs.cs_denisemodel = changed_prefs.cs_denisemodel = RBB;
+
+	// workaround for old savestates that had A1000 chipset extra with AGA mode configured.
+	if (currprefs.cs_agnusmodel = AGNUSMODEL_A1000 && aga_mode && currprefs.cs_compatible == CP_A1000) {
+		currprefs.cs_agnusmodel = changed_prefs.cs_agnusmodel = AGNUSMODEL_AGA;
+		currprefs.cs_compatible = changed_prefs.cs_compatible = CP_A1200;
+	}
 
 	return src;
 }
