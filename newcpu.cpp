@@ -6933,8 +6933,10 @@ void m68k_dumpstate(uaecptr *nextpc, uaecptr prevpc)
 		}
 	}
 	m68k_disasm (pc, nextpc, pc, 1);
-	if (nextpc)
+	if (nextpc) {
 		console_out_f (_T("Next PC: %08x\n"), *nextpc);
+		*nextpc = pc;
+	}
 }
 
 void m68k_dumpcache (bool dc)
