@@ -1,4 +1,19 @@
 
+Beta 4:
+
+- When config was changed on the fly (This includes loading statefile after emulation has been started), FMODE AGA-only register could have reset back to previous zero value after few seconds. (Probably introduced in 5.x)
+- If emulation was already started and config change from OCS/ECS to AGA was done by setting new quitstart config or loading new config file, OCS/ECS-only "7-planes" mode (6 planes shown, 4 DMA transferred, last 2 can be updated with Copper or CPU) was activated if AGA program used 7 planes, FMODE=0 and lores screenmode. (bug has existed at least since 5.x, probably is even older)
+- Display vertical start changed after each reset in most configs.
+- Loading some statefiles caused display to be detected as 2x doublescanned, resulting in a very wide but short display.
+- Allow immediate blitter in cycle-exact CPU modes (which makes no sense but for testing purposes it can be useful). Blitter finishes immediately after BLTSIZE write, no DMA cycles used.
+- Added workaround for very old statefiles with A1000 chipset extra but AGA enabled. Statefile would load normally but any on the fly config change would disable part of AGA features causing display corruption.
+- Adjusted CPU stealing blitter cycles (blitter nasty) in 68020 CE mode, now it is closer to 5.x timing. (This is due to lack of 68020 CE accuracy). It should have been same so this needs debugging later.
+- Merged Velvet prototype keyboard fix from segrax. Keyboard was connected to CIA-B in Velvet.
+- Debugger sp command update, show also sprite data in hexadecimal and also include sprite data after last line of sprite. Data that is normally loaded to SPRxPOS/SPRxCTL. Attempt to autodetect sprite width (16/32/64) by checking distance between SPRxPOS/SPRxCTL words.
+- Debugger initial PC now points to start of next instruction, instead of start of following instruction.
+- Debugger fc command didn't always break when it should have.
+- Debugger copper break point now points to copper instruction start instead of copper instruction start + 2 (6.1.0)
+
 Beta 3:
 
 - b2 68020/030 CE interrupt fix made interrupts too fast, now they are always delayed until next instruction has finished which probably isn't fully correct either but better than previously (too fast or delayed by multiple instructions).
