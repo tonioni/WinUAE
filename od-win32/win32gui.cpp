@@ -8202,7 +8202,6 @@ static void enable_for_chipsetdlg (HWND hDlg)
 	} else {
 		ew(hDlg, IDC_BLITWAIT, TRUE);
 	}
-	ew(hDlg, IDC_BLITIMM, !workprefs.cpu_cycle_exact);
 
 	ew(hDlg, IDC_GENLOCKMODE, genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKMIX, genlock ? TRUE : FALSE);
