@@ -2019,17 +2019,17 @@ static void init_beamcon0(void)
 		display_vblankstart_skip = -3000;
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_EXTREME) {
 		display_vblankstart_skip = vbstart;
-		display_vblankend_skip = 3;
+		display_vblankend_skip = 1;
 		maxvpos_display_vsync += 2;
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_BROADCAST) {
 		maxvpos_display_vsync++;
 		display_vblankstart_skip = -1;
-		display_vblankend_skip = 2;
+		display_vblankend_skip = -2;
 		display_hstart_cyclewait_end--;
 	} else {
 		maxvpos_display_vsync++;
 		display_vblankstart_skip = -1;
-		display_vblankend_skip = 2;
+		display_vblankend_skip = -1;
 	}
 
 	if (beamcon0 & (BEAMCON0_VARVBEN | bemcon0_vsync_mask)) {
