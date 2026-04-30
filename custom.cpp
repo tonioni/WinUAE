@@ -6788,7 +6788,8 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		beamcon0 = new_beamcon0 = beamcon0_saved = currprefs.ntscmode ? 0x00 : BEAMCON0_PAL;
 		blt_info.blit_main = 0;
 		blt_info.blit_pending = 0;
-		blt_info.blit_interrupt = 1;
+		blt_info.blit_interrupt = true;
+		blt_info.blit_interrupt_trigger = false;
 		blt_info.blit_queued = 0;
 		//init_sprites();
 
@@ -12160,6 +12161,7 @@ int do_cycles_cck(int cycles)
 extern int cpu_tracer;
 static void dma_cycle(int *ipl)
 {
+	blt_info.blit_interrupt_trigger = false;
 	if (cpu_tracer < 0) {
 		return;
 	}
@@ -12205,7 +12207,7 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	blt_info.nasty_cnt = 0;
+	blt_info.nasty_cnt = blt_info.blit_interrupt_trigger && aga_mode ? -0x7fffffff : 0;
 	dma_cycle(&ipl);
 
 #ifdef DEBUGGER
@@ -12278,7 +12280,7 @@ void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	blt_info.nasty_cnt = 0;
+	blt_info.nasty_cnt = blt_info.blit_interrupt_trigger && aga_mode ? -0x7fffffff : 0;
 	dma_cycle(&ipl);
 
 #ifdef DEBUGGER
@@ -12329,7 +12331,13 @@ uae_u32 wait_cpu_cycle_read_ce020(uaecptr addr, int mode)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	blt_info.nasty_cnt = 1;
+	// Nasty Alice bug, A1200 and A4000 mainboard have a hack that disables Gayle/Gary BLS signal
+	// if Alice INT3 output (blitter finished) is active for next chip bus cycle to allow blitter
+	// to use next free cycle which normally could be stolen by the CPU.
+	// This hack is needed because otherwise CPU could steal many cycles from the blitter after
+	// blitter busy bit has cleared but final D write has not yet completed in FMODE=0 + 7 planes lores
+	// screen mode.
+	blt_info.nasty_cnt = blt_info.blit_interrupt_trigger ? -0x7fffffff : 0;
 	dma_cycle(&ipl);
 
 #ifdef DEBUGGER
@@ -12386,7 +12394,7 @@ void wait_cpu_cycle_write_ce020(uaecptr addr, int mode, uae_u32 v)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	blt_info.nasty_cnt = 1;
+	blt_info.nasty_cnt = blt_info.blit_interrupt_trigger ? -0x7fffffff : 0;
 	dma_cycle(&ipl);
 
 #ifdef DEBUGGER
