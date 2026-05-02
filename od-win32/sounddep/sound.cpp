@@ -2203,7 +2203,7 @@ void restart_sound_buffer (void)
 	restart_sound_buffer2 (sdp);
 }
 
-#if WITH_OPENAL
+#ifdef WITH_OPENAL
 static int alcheck (struct sound_data *sd, int v)
 {
 	struct sound_dp *s = sd->data;
@@ -3094,7 +3094,7 @@ static void wasapi_enum (struct sound_device **sdp)
 
 }
 
-#if WITH_OPENAL
+#ifdef WITH_OPENAL
 static void OpenALEnumerate (struct sound_device **sds, const char *pDeviceNames, const char *ppDefaultDevice, int skipdetect)
 {
 	while (pDeviceNames && *pDeviceNames) {
@@ -3265,7 +3265,7 @@ int enumerate_sound_devices (void)
 		if (sounddrivermask & SOUNDDRIVE_XAUDIO2)
 			xaudioenumerate (sound_devices);
 #endif
-#if WITH_OPENAL
+#ifdef WITH_OPENAL
 		if (sounddrivermask & SOUNDDRIVER_OPENAL) {
 			__try {
 				if (isdllversion (_T("openal32.dll"), 6, 14, 357, 22)) {
