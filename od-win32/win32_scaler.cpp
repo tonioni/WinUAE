@@ -65,7 +65,7 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 			}
 		}
 #endif
-		cw = avidinfo->outbuffer->outwidth << (RES_MAX - currprefs.gfx_resolution);
+		cw = (avidinfo->outbuffer->outwidth ? avidinfo->outbuffer->outwidth : avidinfo->outbuffer->inwidth) << (RES_MAX - currprefs.gfx_resolution);
 	} else {	
 		cw = v;
 	}
@@ -83,7 +83,7 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 			ch = native ? (current_linear_vpos - minfirstline) << VRES_MAX : avidinfo->outbuffer->outheight;
 		}
 #endif
-		ch = avidinfo->outbuffer->outheight << (VRES_MAX - currprefs.gfx_vresolution);
+		ch = (avidinfo->outbuffer->outheight ? avidinfo->outbuffer->outheight : avidinfo->outbuffer->inheight) << (VRES_MAX - currprefs.gfx_vresolution);
 	} else {
 		ch = v;
 	}
