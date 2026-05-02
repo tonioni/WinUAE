@@ -8,7 +8,9 @@
 
 #include "sysconfig.h"
 
-#if defined(AHI)
+int ahi_debug = 1;
+
+#if defined(AHI_v2)
 
 #include <windows.h>
 
@@ -30,8 +32,6 @@
 #include <alc.h>
 
 #define AHI_STRUCT_VERSION 1
-
-int ahi_debug = 1;
 
 #define UAE_MAXCHANNELS 24
 #define UAE_MAXSOUNDS 256

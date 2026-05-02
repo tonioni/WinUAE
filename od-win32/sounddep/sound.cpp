@@ -34,14 +34,17 @@
 #include <Audioclient.h>
 #include <Mmdeviceapi.h>
 #include <Functiondiscoverykeys_devpkey.h>
+
+#ifdef WITH_OPENAL
 #include <al.h>
 #include <alc.h>
-
+#endif
+#ifdef WITH_PORTAUDIO
 #include <portaudio.h>
+#endif
 
 #include "sounddep/sound.h"
 
-#define USE_XAUDIO 0
 #define WASAPI_SESSION_NOTIFICATION 0
 
 struct sound_dp
@@ -60,6 +63,7 @@ struct sound_dp
 	int max_sndbufsize;
 	int snd_configsize;
 
+#ifdef WITH_OPENAL
 	// openal
 
 #define AL_BUFFERS 2
@@ -72,8 +76,9 @@ struct sound_dp
 	DWORD al_format;
 	uae_u8 *al_bigbuffer;
 	int al_bufsize, al_offset;
+#endif
 
-
+#ifdef WITH_PORTAUDIO
 	// portaudio
 
 #define PA_BUFFERSIZE (262144 * 4)
@@ -84,6 +89,7 @@ struct sound_dp
 	int paframesperbuffer;
 	PaStream *pastream;
 	int pavolume;
+#endif
 
 	// wasapi
 
@@ -112,7 +118,7 @@ struct sound_dp
 	int pullbuffermaxlen;
 	bool gotpullevent;
 
-#if USE_XAUDIO
+#ifdef WITH_XAUDIO
 	// xaudio2
 
 #define XA_BUFFERS 8
@@ -316,7 +322,7 @@ static void clearbuffer (struct sound_data *sd)
 	}
 }
 
-#if USE_XAUDIO
+#ifdef WITH_XAUDIO
 static void pause_audio_xaudio2 (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
@@ -448,6 +454,7 @@ static void resume_audio_ds (struct sound_data *sd)
 	s->avg_correct = 0;
 	s->cnt_correct = 0;
 }
+#ifdef WITH_PORTAUDIO
 static void pause_audio_pa (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
@@ -466,6 +473,8 @@ static void resume_audio_pa (struct sound_data *sd)
 		write_log (_T("PASOUND: Pa_StartStream() error %d (%s)\n"), err, Pa_GetErrorText (err));
 	sd->paused = 0;
 }
+#endif
+#ifdef WITH_OPENAL
 static void pause_audio_al (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
@@ -478,7 +487,7 @@ static void resume_audio_al (struct sound_data *sd)
 	sd->waiting_for_buffer = 1;
 	s->al_offset = 0;
 }
-
+#endif
 static int restore_ds (struct sound_data *sd, DWORD hr)
 {
 	struct sound_dp *s = sd->data;
@@ -523,12 +532,16 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 	if (!s) {
 		return;
 	}
+#ifdef WITH_OPENAL
 	if (sd->devicetype == SOUND_DEVICE_AL) {
 		float vol = 0.0f;
 		if (volume < 100.0f && !mute)
 			vol = (100.0f - volume) / 100.0f;
 		alSourcef (s->al_Source, AL_GAIN, vol);
-	} else if (sd->devicetype == SOUND_DEVICE_DS) {
+
+	}
+#endif
+	if (sd->devicetype == SOUND_DEVICE_DS) {
 		LONG vol = DSBVOLUME_MIN;
 		if (volume < 100 && !mute)
 			vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (1 - volume / 100.0)));
@@ -549,13 +562,17 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 				write_log (_T("pAudioVolume->SetMute(%d) failed: %08Xs\n"), mute, hr);
 		}
 #endif
-	} else if (sd->devicetype == SOUND_DEVICE_PA) {
+	}
+#ifdef WITH_PORTAUDIO
+	if (sd->devicetype == SOUND_DEVICE_PA) {
 		s->pavolume = volume;
-#if USE_XAUDIO
-	} else if (sd->devicetype == SOUND_DEVICE_XAUDIO2) {
+	}
+#endif
+#ifdef WITH_XAUDIO
+	if (sd->devicetype == SOUND_DEVICE_XAUDIO2) {
 		s->xmaster->SetVolume (mute ? 0.0 : (float)(100 - volume) / 100.0);
 #endif
-	} else if (sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE || sd->devicetype == SOUND_DEVICE_WASAPI) {
+	if (sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE || sd->devicetype == SOUND_DEVICE_WASAPI) {
 		sd->softvolume = -1;
 		hr = s->pAudioVolume->SetMasterVolume (1.0, NULL);
 		wasapi_check_state(sd, hr);
@@ -685,6 +702,7 @@ static void finish_sound_buffer_pull(struct sound_data *sd, uae_u16 *sndbuffer)
 	s->pullbufferlen += sd->sndbufsize;
 }
 
+#ifdef WITH_PORTAUDIO
 static void finish_sound_buffer_pa (struct sound_data *sd, uae_u16 *sndbuffer)
 {
 	struct sound_dp *s = sd->data;
@@ -698,7 +716,9 @@ static void finish_sound_buffer_pa (struct sound_data *sd, uae_u16 *sndbuffer)
 	}
 	finish_sound_buffer_pull(sd, sndbuffer);
 }
+#endif
 
+#ifdef WITH_PORTAUDIO
 static int _cdecl portAudioCallback (const void *inputBuffer, void *outputBuffer,
 	unsigned long framesPerBuffer,
 	const PaStreamCallbackTimeInfo* timeInfo,
@@ -852,7 +872,9 @@ end:
 	close_audio_pa (sd);
 	return 0;
 }
+#endif
 
+#ifdef WITH_OPENAL
 static void close_audio_al (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
@@ -935,6 +957,7 @@ error:
 	close_audio_al (sd);
 	return 0;
 }
+#endif
 
 static void setwavfmt (WAVEFORMATEXTENSIBLE *wavfmt, struct sound_data *sd, DWORD channelmask)
 {
@@ -951,7 +974,7 @@ static void setwavfmt (WAVEFORMATEXTENSIBLE *wavfmt, struct sound_data *sd, DWOR
 	wavfmt->Format.nAvgBytesPerSec = wavfmt->Format.nBlockAlign * wavfmt->Format.nSamplesPerSec;
 }
 
-#if USE_XAUDIO
+#ifdef WITH_XAUDIO
 static void close_audio_xaudio2 (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
@@ -1890,17 +1913,26 @@ int open_sound_device (struct sound_data *sd, int index, int bufsize, int freq, 
 	sd->channels = channels;
 	sd->paused = 1;
 	sd->index = index;
-	if (type == SOUND_DEVICE_AL)
+#ifdef WITH_OPENAL
+	if (type == SOUND_DEVICE_AL) {
 		ret = open_audio_al (sd, index);
-	else if (type == SOUND_DEVICE_DS)
+	}
+#endif
+	if (type == SOUND_DEVICE_DS) {
 		ret = open_audio_ds (sd, index);
-	else if (type == SOUND_DEVICE_PA)
+	}
+#ifdef WITH_PORTAUDIO
+	if (type == SOUND_DEVICE_PA) {
 		ret = open_audio_pa (sd, index);
-	else if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE)
+	}
+#endif
+	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
 		ret = open_audio_wasapi (sd, index, type == SOUND_DEVICE_WASAPI_EXCLUSIVE);
-#if USE_XAUDIO
-	else if (type == SOUND_DEVICE_XAUDIO2)
+	}
+#ifdef WITH_XAUDIO
+	if (type == SOUND_DEVICE_XAUDIO2) {
 		ret = open_audio_xaudio2 (sd, index);
+	}
 #endif
 	sd->samplesize = sd->channels * 2;
 	sd->sndbufframes = sd->sndbufsize / sd->samplesize;
@@ -1909,17 +1941,26 @@ int open_sound_device (struct sound_data *sd, int index, int bufsize, int freq, 
 void close_sound_device (struct sound_data *sd)
 {
 	pause_sound_device (sd);
-	if (sd->devicetype == SOUND_DEVICE_AL)
+#ifdef WITH_OPENAL
+	if (sd->devicetype == SOUND_DEVICE_AL) {
 		close_audio_al (sd);
-	else if (sd->devicetype == SOUND_DEVICE_DS)
+	}
+#endif
+	if (sd->devicetype == SOUND_DEVICE_DS) {
 		close_audio_ds (sd);
-	else if (sd->devicetype == SOUND_DEVICE_PA)
+	}
+#ifdef WITH_PORTAUDIO
+	if (sd->devicetype == SOUND_DEVICE_PA) {
 		close_audio_pa (sd);
-	else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE)
+	}
+#endif
+	if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
 		close_audio_wasapi (sd);
-#if USE_XAUDIO
-	else if (sd->devicetype == SOUND_DEVICE_XAUDIO2)
+	}
+#ifdef WITH_XAUDIO
+	if (sd->devicetype == SOUND_DEVICE_XAUDIO2) {
 		close_audio_xaudio2 (sd);
+	}
 #endif
 	xfree (sd->data);
 	sd->data = NULL;
@@ -1931,17 +1972,26 @@ void pause_sound_device (struct sound_data *sd)
 	sd->paused = 1;
 	gui_data.sndbuf_status = 0;
 	gui_data.sndbuf = 0;
-	if (sd->devicetype == SOUND_DEVICE_AL)
+#ifdef WITH_OPENAL
+	if (sd->devicetype == SOUND_DEVICE_AL) {
 		pause_audio_al (sd);
-	else if (sd->devicetype == SOUND_DEVICE_DS)
+	}
+#endif
+	if (sd->devicetype == SOUND_DEVICE_DS) {
 		pause_audio_ds (sd);
-	else if (sd->devicetype == SOUND_DEVICE_PA)
+	}
+#ifdef WITH_PORTAUDIO
+	if (sd->devicetype == SOUND_DEVICE_PA) {
 		pause_audio_pa (sd);
-	else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE)
+	}
+#endif
+	if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
 		pause_audio_wasapi (sd);
-#if USE_XAUDIO
-	else if (sd->devicetype == SOUND_DEVICE_XAUDIO2)
+	}
+#ifdef WITH_XAUDIO
+	if (sd->devicetype == SOUND_DEVICE_XAUDIO2) {
 		pause_audio_xaudio2 (sd);
+	}
 #endif
 	if (s->pullevent)
 		ResetEvent(s->pullevent);
@@ -1951,17 +2001,26 @@ void pause_sound_device (struct sound_data *sd)
 void resume_sound_device (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
-	if (sd->devicetype == SOUND_DEVICE_AL)
+#ifdef WITH_OPENAL
+	if (sd->devicetype == SOUND_DEVICE_AL) {
 		resume_audio_al (sd);
-	else if (sd->devicetype == SOUND_DEVICE_DS)
+	}
+#endif
+	if (sd->devicetype == SOUND_DEVICE_DS) {
 		resume_audio_ds (sd);
-	else if (sd->devicetype == SOUND_DEVICE_PA)
+	}
+#ifdef WITH_PORTAUDIO
+	if (sd->devicetype == SOUND_DEVICE_PA) {
 		resume_audio_pa (sd);
-	else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE)
+	}
+#endif
+	if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
 		resume_audio_wasapi (sd);
-#if USE_XAUDIO
-	else if (sd->devicetype == SOUND_DEVICE_XAUDIO2)
+	}
+#ifdef WITH_XAUDIO
+	if (sd->devicetype == SOUND_DEVICE_XAUDIO2) {
 		resume_audio_xaudio2 (sd);
+	}
 #endif
 	if (s->pullevent)
 		ResetEvent(s->pullevent);
@@ -2144,6 +2203,7 @@ void restart_sound_buffer (void)
 	restart_sound_buffer2 (sdp);
 }
 
+#if WITH_OPENAL
 static int alcheck (struct sound_data *sd, int v)
 {
 	struct sound_dp *s = sd->data;
@@ -2270,8 +2330,9 @@ static void finish_sound_buffer_al (struct sound_data *sd, uae_u16 *sndbuffer)
 
 	alcheck (sd, 0);
 }
+#endif
 
-#if USE_XAUDIO
+#ifdef WITH_XAUDIO
 static void finish_sound_buffer_xaudio2 (struct sound_data *sd, uae_u16 *sndbuffer)
 {
 	struct sound_dp *s = sd->data;
@@ -2672,17 +2733,26 @@ static void send_sound (struct sound_data *sd, uae_u16 *sndbuffer)
 			p[i] = p[i] * sd->softvolume / 32768;
 		}
 	}
-	if (type == SOUND_DEVICE_AL)
+#ifdef WITH_OPENAL
+	if (type == SOUND_DEVICE_AL) {
 		finish_sound_buffer_al (sd, sndbuffer);
-	else if (type == SOUND_DEVICE_DS)
+	}
+#endif
+	if (type == SOUND_DEVICE_DS) {
 		finish_sound_buffer_ds (sd, sndbuffer);
-	else if (type == SOUND_DEVICE_PA)
+	}
+#ifdef WITH_PORTAUDIO
+	if (type == SOUND_DEVICE_PA) {
 		finish_sound_buffer_pa (sd, sndbuffer);
-	else if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE)
+	}
+#endif
+	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
 		finish_sound_buffer_wasapi (sd, sndbuffer);
-#if USE_XAUDIO
-	else if (type == SOUND_DEVICE_XAUDIO2)
+	}
+#ifdef WITH_XAUDIO
+	if (type == SOUND_DEVICE_XAUDIO2) {
 		finish_sound_buffer_xaudio2 (sd, sndbuffer);
+	}
 #endif
 }
 
@@ -3024,6 +3094,7 @@ static void wasapi_enum (struct sound_device **sdp)
 
 }
 
+#if WITH_OPENAL
 static void OpenALEnumerate (struct sound_device **sds, const char *pDeviceNames, const char *ppDefaultDevice, int skipdetect)
 {
 	while (pDeviceNames && *pDeviceNames) {
@@ -3086,8 +3157,9 @@ static void OpenALEnumerate (struct sound_device **sds, const char *pDeviceNames
 			pDeviceNames += strlen (pDeviceNames) + 1;
 	}
 }
+#endif
 
-#if USE_XAUDIO
+#ifdef WITH_XAUDIO
 static void xaudioenumerate (struct sound_device **sds)
 {
 	IXAudio2 *xaudio2 = NULL;
@@ -3124,8 +3196,7 @@ static void xaudioenumerate (struct sound_device **sds)
 }
 #endif
 
-#define PORTAUDIO 1
-#if PORTAUDIO
+#ifdef WITH_PORTAUDIO
 static void PortAudioEnumerate (struct sound_device **sds)
 {
 	int num;
@@ -3190,10 +3261,11 @@ int enumerate_sound_devices (void)
 			DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
 			DirectSoundCaptureEnumerate((LPDSENUMCALLBACK)DSEnumProc, record_devices);
 		}
-#if USE_XAUDIO
+#ifdef WITH_XAUDIO
 		if (sounddrivermask & SOUNDDRIVE_XAUDIO2)
 			xaudioenumerate (sound_devices);
 #endif
+#if WITH_OPENAL
 		if (sounddrivermask & SOUNDDRIVER_OPENAL) {
 			__try {
 				if (isdllversion (_T("openal32.dll"), 6, 14, 357, 22)) {
@@ -3216,7 +3288,8 @@ int enumerate_sound_devices (void)
 				flush_log ();
 			}
 		}
-#if PORTAUDIO
+#endif
+#ifdef WITH_PORTAUDIO
 		if (sounddrivermask & SOUNDDRIVER_PORTAUDIO) {
 			__try {
 #ifdef CPU_64_BIT

@@ -1002,6 +1002,7 @@ static int getFromRenderTarget11(struct avientry *avie, bool renderTarget)
 	return ok;
 }
 
+#ifdef WITH_DIRECT3D9
 static int getFromRenderTarget(struct avientry *avie, bool renderTarget)
 {
 	int ok = 0;
@@ -1057,6 +1058,7 @@ static int getFromRenderTarget(struct avientry *avie, bool renderTarget)
 	}
 	return ok;
 }
+#endif
 
 static int getFromDC(struct avientry *avie)
 {
@@ -1241,18 +1243,29 @@ static void AVIOutput_WriteVideo(void)
 	if (avioutput_originalsize) {
 		v = getFromBuffer (ae, 1);
 		if (!v) {
+#ifdef WITH_DIRECT3D11
 			if (D3D_isenabled(0) == 2) {
 				v = getFromRenderTarget11(ae, false);
-			} else if (D3D_isenabled(0) == 1) {
+			}
+#endif
+#ifdef WITH_DIRECT3D9
+			if (D3D_isenabled(0) == 1) {
 				v = getFromRenderTarget(ae, false);
 			}
+#endif
 		}
 	} else {
+#ifdef WITH_DIRECT3D11
 		if (D3D_isenabled(0) == 2) {
 			v = getFromRenderTarget11(ae, true);
-		} else if (D3D_isenabled(0) == 1) {
+		}
+#endif
+#ifdef WITH_DIRECT3D9
+		if (D3D_isenabled(0) == 1) {
 			v = getFromRenderTarget(ae, true);
-		} else {
+		}
+#endif
+		if (D3D_isenabled(0) == 0) {
 			v = getFromDC (ae);
 		}
 	}

@@ -3,6 +3,11 @@
 
 #include <windows.h>
 
+#include "sysconfig.h"
+#include "sysdeps.h"
+
+#ifdef WITH_DIRECT3D11
+
 #include <DXGI1_5.h>
 #include <dxgi1_6.h>
 #include <d3d11.h>
@@ -10,9 +15,6 @@
 
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
-
-#include "sysconfig.h"
-#include "sysdeps.h"
 
 #include "options.h"
 #include "xwin.h"
@@ -5686,15 +5688,37 @@ void d3d11_select(void)
 	D3D_paint = NULL;
 }
 
+#endif
+
+void D3D_getpixelformat(int *rb, int *gb, int *bb, int *rs, int *gs, int *bs, int *ab, int *as, int *a)
+{
+	*rb = 8;
+	*gb = 8;
+	*bb = 8;
+	*ab = 8;
+	*rs = 16;
+	*gs = 8;
+	*bs = 0;
+	*as = 24;
+	*a = 0;
+}
+
 void d3d_select(struct uae_prefs *p)
 {
+	bool selected = false;
+
 	for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
 		d3d11data[i].num = i;
 	}
-	if (p->gfx_api == 0)
+	if (p->gfx_api == 0) {
 		gdi_select();
-	else if (p->gfx_api >= 2)
+	} else if (p->gfx_api >= 2) {
+#ifdef WITH_DIRECT3D11
 		d3d11_select();
-	else
+#endif
+	} else {
+#ifdef WITH_DIRECT3D9
 		d3d9_select();
+#endif
+	}
 }

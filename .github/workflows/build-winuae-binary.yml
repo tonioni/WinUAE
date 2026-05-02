@@ -106,5 +106,5 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: WinUAE 64-bit
+        name: WinUAE x64
         path: D:\Amiga
