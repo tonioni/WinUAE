@@ -1,11 +1,26 @@
 
+Beta 6:
+
+- First official native Windows ARM64 build. (Not ARM64EC with mixed x64 code anymore that was used in older test versions)
+- "64-bit" in title and about screen replaced with "x64"/"ARM64".
+- Updated most static support libraries and also recompiled for ARM64 (zlib, png, flac, munt etc). Some library names and paths have changed.
+
+- "Overlay" video port adapters (like genlock or CD32 FMV) had wrong position and size at boot for few seconds.
+
+ARM64 build main missing features:
+
+- Direct3D9 (D3D9X library is obsolete and does not have ARM64 version).
+- JIT (Amiberry Windows ARM64 JIT support is still work in progress)
+- OpenAL and PortAudio audio support.
+
+
 Beta 5:
 
 - Emulated A1200 and A4000 mainboard (CD32 fix is inside Akiko) Alice blitter busy bug fix circuitry that causes graphics glitches in FMODE=0 and 7 lores planes AGA mode and blitter nasty off. If blitter finished but final D write is still pending, CPU can steal multiple cycles from the blitter and can have more than enough time to update blitter registers for next blit before blitter finally gets free cycle to write final D. This fixes graphics glitches for example in Charlie J Cool, Zool 2 AGA and more.
 - b4 CPU stealing blitter cycle change reverted, it was wrong, correct fix is above fix.
 - Last 2-3 lines were not visible in normal PAL/NTSC modes.
 
-This should fix "68020 CE has something wrong (no easy test case so far), it was supposed to be same as previously but it isn't.". This was extremely nasty and can affect 6.0 (6.0 differently than 6.1) up to 610b4. Blitter emulation was rewritten to match Alice schematics accurately in v6 but it missed very important bit: blitter in non-nasty mode has a bug which is fixed by extra logic on mainboard (TTL chip on A1200, PAL in A4000, CD32 fixed in Akiko) which I missed completely until now. Previoius blitter emulation was not accurate enough to not trigger this condition. Note that OCS/ECS also have same "bug" but it can't trigger (at least not continuously) because Agnus bitplane DMA can't steal as many cycles back to back and still have single free cycle every 7 cycles which CPU would always steal from the blitter.
+This should fix "68020 CE has something wrong (no easy test case so far), it was supposed to be same as previously but it isn't.". This was extremely nasty and can affect 6.0 (6.0 differently than 6.1) up to 610b4. Blitter emulation was rewritten to match Alice schematics accurately in v6 but it missed very important bit: blitter in non-nasty mode has a bug which is fixed by extra logic on mainboard (TTL chip on A1200, PAL in A4000, CD32 fixed in Akiko) which I missed completely until now. Previous blitter emulation was not accurate enough to not trigger this condition. Note that OCS/ECS also have same "bug" but it can't trigger (at least not continuously) because Agnus bitplane DMA can't steal as many cycles back to back and still have single free cycle every 7 cycles which CPU would always steal from the blitter.
 
 Beta 4:
 
