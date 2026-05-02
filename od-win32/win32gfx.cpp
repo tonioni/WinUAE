@@ -891,6 +891,7 @@ void reenumeratemonitors(void)
 
 static void getd3dmonitornames (void)
 {
+#ifdef WITH_DIRECT3D9
 	// XP does not support hybrid displays, don't load Direct3D
 	// Windows 10+ seems to use same names by default
 	if (os_win10)
@@ -927,6 +928,7 @@ static void getd3dmonitornames (void)
 		md++;
 	}
 	d3d->Release ();
+#endif
 }
 
 static bool enumeratedisplays2 (bool selectall)
@@ -3773,6 +3775,20 @@ retry:
 		regqueryint(NULL, wasfsname[0], &wasfs[0]);
 	if (wasfs[1] == 0)
 		regqueryint(NULL, wasfsname[1], &wasfs[1]);
+
+#if !defined WITH_DIRECT3D9 && defined WITH_DIRECT3D11
+	if (currprefs.gfx_api == 1) {
+		changed_prefs.gfx_api = currprefs.gfx_api = 2;
+	}
+#endif
+#if defined WITH_DIRECT3D9 && !defined WITH_DIRECT3D11
+	if (currprefs.gfx_api == 2) {
+		changed_prefs.gfx_api = currprefs.gfx_api = 1;
+	}
+#endif
+#if !defined WITH_DIRECT3D9 && !defined WITH_DIRECT3D11
+	changed_prefs.gfx_api = currprefs.gfx_api = 0;
+#endif
 
 	d3d_select(&currprefs);
 

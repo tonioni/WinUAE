@@ -24,7 +24,7 @@
 #endif
 #endif
 #define WINDOWS
-#define ZLIB_WINAPI
+#define ZEXPORT _cdecl
 #define PACKAGE_STRING "WinUAE"
 
 #ifndef UAE_MINI
@@ -121,6 +121,11 @@
 #define WITH_DSP
 #define WITH_DRACO
 #define WITH_MIDI
+#define WITH_PORTAUDIO
+#define WITH_AL
+#define WITH_LIBMPEG2
+#define WITH_DIRECT3D11
+#define WITH_DIRECT3D9
 
 #else
 
@@ -138,6 +143,15 @@
 #define CPUEMU_13
 #define CPUEMU_11
 
+#endif
+
+#ifdef ARM64
+
+#undef SERIAL_ENET
+#undef WITH_PORTAUDIO
+#undef WITH_AL
+#undef WITH_LUA
+#undef WITH_DIRECT3D9
 
 #endif
 

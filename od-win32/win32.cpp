@@ -375,7 +375,7 @@ void target_calibrate_spin(void)
 		uae_u64 v1;
 		int vp2;
 		for (;;) {
-			v1 = __rdtsc();
+			v1 = read_processor_time_rdtsc();
 			vp2 = target_get_display_scanline(-1);
 			if (vp2 <= -10)
 				goto fail;
@@ -389,7 +389,7 @@ void target_calibrate_spin(void)
 			if (vp2 <= -10)
 				goto fail;
 			if (vp2 == vp + cntlines * 2) {
-				uae_u64 scd = (__rdtsc() - v1) / cntlines;
+				uae_u64 scd = (read_processor_time_rdtsc() - v1) / cntlines;
 				if (sc > scd)
 					sc = scd;
 			}
@@ -703,6 +703,8 @@ void resumesoundpaused (void)
 	resume_sound ();
 #ifdef AHI
 	ahi_open_sound ();
+#endif
+#ifdef AHI_V2
 	ahi2_pause_sound (0);
 #endif
 }
@@ -711,6 +713,8 @@ void setsoundpaused (void)
 	pause_sound ();
 #ifdef AHI
 	ahi_close_sound ();
+#endif
+#ifdef AHI_V2
 	ahi2_pause_sound (1);
 #endif
 }
@@ -6633,16 +6637,20 @@ static void makeverstr (TCHAR *s)
 			_stprintf (BetaStr, _T(" (%sBeta %s, %d.%02d.%02d)"), WINUAEPUBLICBETA > 0 ? _T("Public ") : _T(""), WINUAEBETA,
 				GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
 		}
-#ifdef _WIN64
-		_tcscat (BetaStr, _T(" 64-bit"));
+#if defined _M_ARM64
+		_tcscat(BetaStr, _T(" ARM64"));
+#elif defined _WIN64
+		_tcscat (BetaStr, _T(" x64"));
 #endif
 		_stprintf (s, _T("WinUAE %d.%d.%d%s%s"),
 			UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, BetaStr);
 	} else {
 		_stprintf (s, _T("WinUAE %d.%d.%d%s (%d.%02d.%02d)"),
 			UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
-#ifdef _WIN64
-		_tcscat (s, _T(" 64-bit"));
+#if defined _M_ARM64
+		_tcscat(s, _T(" ARM64"));
+#elif defined _WIN64
+		_tcscat(s, _T(" x64"));
 #endif
 	}
 	if (_tcslen (WINUAEEXTRA) > 0) {
@@ -7744,8 +7752,10 @@ static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
 		if (WINUAEPUBLICBETA > 0)
 			_stprintf (beta, _T("b%s"), WINUAEBETA);
 		_stprintf (dumpfilename, _T("winuae%s_%d.%d.%d_%s_%d.%02d.%02d_%02d.%02d.%02d.dmp"),
-#ifdef _WIN64
+#if defined __amd64__
 			_T("_x64"),
+#elif defined _M_ARM64
+			_T("_ARM64"),
 #else
 			_T(""),
 #endif
@@ -8120,14 +8130,22 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 		case 1:
 			p = _tcschr (newname, '.');
 			if (p) {
+#ifdef _M_ARM64
+				_tcscpy(p, _T("_arm64"));
+#else
 				_tcscpy(p, _T("_x64"));
+#endif
 				_tcscat(p, _tcschr(name, '.'));
 			}
 			break;
 		case 2:
 			p = _tcschr (newname, '.');
 			if (p) {
+#ifdef _M_ARM64
+				_tcscpy(p, _T("arm64"));
+#else
 				_tcscpy(p, _T("x64"));
+#endif
 				_tcscat(p, _tcschr(name, '.'));
 			}
 			break;

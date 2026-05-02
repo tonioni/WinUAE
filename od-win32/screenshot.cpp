@@ -424,6 +424,7 @@ donormal:
 			width = state->Width;
 			height = state->Height;
 		}
+#ifdef WITH_DIRECT3D11
 		if (D3D_isenabled(0) == 2) {
 			int w, h, bits, pitch;
 			void *data;
@@ -466,8 +467,10 @@ donormal:
 			if (got)
 				D3D11_capture(monid, NULL, NULL, NULL, NULL, NULL, renderTarget);
 			d3dcaptured = true;
-
-		} else if (D3D_isenabled(0) == 1) {
+		}
+#endif
+#ifdef WITH_DIRECT3D9
+		if (D3D_isenabled(0) == 1) {
 			int w, h, bits;
 			HRESULT hr;
 			D3DLOCKED_RECT l;
@@ -513,8 +516,8 @@ donormal:
 					d3dcaptured = true;
 				}
 			}
-
 		}
+#endif
 		if (!d3dcaptured) {
 			surface_dc = gethdc(monid);
 			surface_dc_monid = monid;

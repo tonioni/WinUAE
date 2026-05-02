@@ -323,7 +323,8 @@ extern void Support_Types ( void );
 extern void Support_Types_FileDefault ( void );
 extern void Save_Rip ( char *, int );
 extern void Save_Rip_Special ( char *, int, Uchar * , Ulong );
-extern void Crap ( char *, Uchar, Uchar, FILE *);
+extern void Crap (char *, Uchar, Uchar, FILE *);
+extern void Crap15 (char *, Uchar, Uchar, FILE *);
 extern short testSpecialCruncherData ( long , long );
 extern void Rip_SpecialCruncherData ( char * , int , int );
 extern short test_1_start ( Ulong );
@@ -331,7 +332,7 @@ extern short test_smps ( long, long, long, Uchar, Uchar );
 extern long  PWGetFileSize ( char * );
 extern FILE * PW_fopen ( char *, char * );
 extern void fillPTKtable ( Uchar[37][2] );
-extern int htonl(int);
+extern unsigned int htonl(unsigned int);
 
 /* globals */
 /* Some say it's badly coding when using Globals ... sure it is, now what's the solution ? */
