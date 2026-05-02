@@ -122,7 +122,7 @@
 #define WITH_DRACO
 #define WITH_MIDI
 #define WITH_PORTAUDIO
-#define WITH_AL
+#define WITH_OPENAL
 #define WITH_LIBMPEG2
 #define WITH_DIRECT3D11
 #define WITH_DIRECT3D9
@@ -149,7 +149,7 @@
 
 #undef SERIAL_ENET
 #undef WITH_PORTAUDIO
-#undef WITH_AL
+#undef WITH_OPENAL
 #undef WITH_LUA
 #undef WITH_DIRECT3D9
 
