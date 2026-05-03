@@ -697,13 +697,13 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;setupapi.lib;wininet.lib;shlwapi.lib;zs.lib;libpng16.lib;wtsapi32.lib;prowizard.lib;lzmalib.lib;FLAC.lib;hid.lib;Iphlpapi.lib;gdiplus.lib;effects11.lib;Msimg32.lib;Dwmapi.lib;mt32emu.lib;XINPUT9_1_0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;setupapi.lib;wininet.lib;shlwapi.lib;portaudio_arm64.lib;zs.lib;libpng16.lib;wtsapi32.lib;prowizard.lib;lzmalib.lib;FLAC.lib;hid.lib;Iphlpapi.lib;libmpeg2_ff.lib;gdiplus.lib;effects11.lib;Msimg32.lib;Dwmapi.lib;mt32emu.lib;XINPUT9_1_0.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries);MSVCRT</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;portaudio_arm64.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -926,13 +926,13 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;setupapi.lib;wininet.lib;shlwapi.lib;zs.lib;libpng16.lib;wtsapi32.lib;prowizard.lib;lzmalib.lib;FLAC.lib;hid.lib;Iphlpapi.lib;libmpeg2_ff.lib;gdiplus.lib;effects11.lib;Msimg32.lib;Dwmapi.lib;mt32emu.lib;XINPUT9_1_0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;setupapi.lib;wininet.lib;shlwapi.lib;portaudio_arm64.lib;zs.lib;libpng16.lib;wtsapi32.lib;prowizard.lib;lzmalib.lib;FLAC.lib;hid.lib;Iphlpapi.lib;libmpeg2_ff.lib;gdiplus.lib;effects11.lib;Msimg32.lib;Dwmapi.lib;mt32emu.lib;XINPUT9_1_0.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries);MSVCRT</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;portaudio_arm64.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -1243,13 +1243,13 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;setupapi.lib;wininet.lib;shlwapi.lib;zs.lib;libpng16.lib;wtsapi32.lib;prowizard.lib;lzmalib.lib;FLAC.lib;hid.lib;Iphlpapi.lib;libmpeg2_ff.lib;gdiplus.lib;effects11.lib;Msimg32.lib;Dwmapi.lib;mt32emu.lib;XINPUT9_1_0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;setupapi.lib;wininet.lib;shlwapi.lib;portaudio_arm64.lib;zs.lib;libpng16.lib;wtsapi32.lib;prowizard.lib;lzmalib.lib;FLAC.lib;hid.lib;Iphlpapi.lib;libmpeg2_ff.lib;gdiplus.lib;effects11.lib;Msimg32.lib;Dwmapi.lib;mt32emu.lib;XINPUT9_1_0.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries);MSVCRT</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;portaudio_arm64.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\arm64\FullRelease/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>

@@ -148,7 +148,6 @@
 #ifdef ARM64
 
 #undef SERIAL_ENET
-#undef WITH_PORTAUDIO
 #undef WITH_OPENAL
 #undef WITH_LUA
 #undef WITH_DIRECT3D9
