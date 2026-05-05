@@ -1651,7 +1651,6 @@ static void update_display_vars(void)
 	}
 
 	vb->inwidth = (current_linear_hpos_short - (display_hstart_cyclewait_skip_start + display_hstart_cyclewait_skip_end)) << (res2 + 1);
-	vb->inwidth2 = vb->inwidth;
 	vb->extrawidth = -2;
 	if (currprefs.gfx_extrawidth > 0) {
 		vb->extrawidth = currprefs.gfx_extrawidth << res2;
@@ -1676,7 +1675,6 @@ static void update_display_vars(void)
 		linear_vpos_vb_end = 0;
 	}
 	vb->inheight = maxv << vres2;
-	vb->inheight2 = vb->inheight;
 	vb->inxoffset = 0;
 
 	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
@@ -1696,12 +1694,8 @@ static void update_display_vars(void)
 
 	if (vb->inwidth < 16)
 		vb->inwidth = 16;
-	if (vb->inwidth2 < 16)
-		vb->inwidth2 = 16;
 	if (vb->inheight < 1)
 		vb->inheight = 1;
-	if (vb->inheight2 < 1)
-		vb->inheight2 = 1;
 
 	if (!vb->hardwiredpositioning) {
 		vb->outwidth = vb->inwidth;
@@ -1729,13 +1723,9 @@ static void update_display_vars(void)
 
 	if (vb->inwidth > vb->width_allocated)
 		vb->inwidth = vb->width_allocated;
-	if (vb->inwidth2 > vb->width_allocated)
-		vb->inwidth2 = vb->width_allocated;
-
+	
 	if (vb->inheight > vb->height_allocated)
 		vb->inheight = vb->height_allocated;
-	if (vb->inheight2 > vb->height_allocated)
-		vb->inheight2 = vb->height_allocated;
 
 	if (vb->outwidth > vb->width_allocated)
 		vb->outwidth = vb->width_allocated;
