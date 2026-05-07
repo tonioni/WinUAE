@@ -1740,7 +1740,20 @@ static void update_gfxparams(struct AmigaMonitor *mon)
 	struct picasso96_state_struct *state = &picasso96_state[mon->monitor_id];
 
 	updatewinfsmode(mon->monitor_id, &currprefs);
+
 #ifdef PICASSO96
+
+	if (currprefs.win32_rtgvblankrate == 0) {
+		currprefs.gfx_apmode[1].gfx_refreshrate = currprefs.gfx_apmode[0].gfx_refreshrate;
+		if (currprefs.gfx_apmode[0].gfx_interlaced) {
+			currprefs.gfx_apmode[1].gfx_refreshrate *= 2;
+		}
+	} else if (currprefs.win32_rtgvblankrate < 0) {
+		currprefs.gfx_apmode[1].gfx_refreshrate = 0;
+	} else {
+		currprefs.gfx_apmode[1].gfx_refreshrate = currprefs.win32_rtgvblankrate;
+	}
+
 	if (mon->screen_is_picasso) {
 		float mx = 1.0;
 		float my = 1.0;
@@ -1753,16 +1766,6 @@ static void update_gfxparams(struct AmigaMonitor *mon)
 		mon->currentmode.current_width = (int)(state->Width * currprefs.rtg_horiz_zoom_mult * mx);
 		mon->currentmode.current_height = (int)(state->Height * currprefs.rtg_vert_zoom_mult * my);
 		currprefs.gfx_apmode[1].gfx_interlaced = false;
-		if (currprefs.win32_rtgvblankrate == 0) {
-			currprefs.gfx_apmode[1].gfx_refreshrate = currprefs.gfx_apmode[0].gfx_refreshrate;
-			if (currprefs.gfx_apmode[0].gfx_interlaced) {
-				currprefs.gfx_apmode[1].gfx_refreshrate *= 2;
-			}
-		} else if (currprefs.win32_rtgvblankrate < 0) {
-			currprefs.gfx_apmode[1].gfx_refreshrate = 0;
-		} else {
-			currprefs.gfx_apmode[1].gfx_refreshrate = currprefs.win32_rtgvblankrate;
-		}
 	} else {
 #endif
 		mon->currentmode.current_width = currprefs.gfx_monitor[mon->monitor_id].gfx_size.width;

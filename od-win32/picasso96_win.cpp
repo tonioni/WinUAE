@@ -2201,8 +2201,9 @@ static void FillBoardInfo(TrapContext *ctx, uaecptr amigamemptr, struct LibResol
 	trap_put_byte(ctx, amigamemptr + PSSO_ModeInfo_first_union, 98);
 	trap_put_byte(ctx, amigamemptr + PSSO_ModeInfo_second_union, 14);
 
+	int freq = currprefs.gfx_apmode[GF_RTG].gfx_refreshrate;
 	trap_put_long(ctx, amigamemptr + PSSO_ModeInfo_PixelClock,
-		width * height * (currprefs.gfx_apmode[1].gfx_refreshrate ? abs (currprefs.gfx_apmode[1].gfx_refreshrate) : default_freq));
+		width * height * (freq ? abs(freq) : default_freq));
 }
 
 struct modeids {
@@ -2431,8 +2432,8 @@ static int p96depth (int depth)
 
 static int _cdecl resolution_compare (const void *a, const void *b)
 {
-	struct PicassoResolution *ma = (struct PicassoResolution *)a;
-	struct PicassoResolution *mb = (struct PicassoResolution *)b;
+	struct PicassoResolution *ma = (struct PicassoResolution*)a;
+	struct PicassoResolution *mb = (struct PicassoResolution*)b;
 	if (ma->res.width < mb->res.width)
 		return -1;
 	if (ma->res.width > mb->res.width)
