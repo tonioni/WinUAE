@@ -22,7 +22,9 @@ uae_u32 picasso_demux (uae_u32 arg, TrapContext *ctx);
 
 #if defined PICASSO96_SUPPORTED
 
+#ifndef PICASSO96
 #define PICASSO96
+#endif
 
 
 /* Seems the same routines copy back and forth ;-) */
@@ -103,6 +105,8 @@ extern struct PicassoResolution DisplayModes[MAX_PICASSO_MODES];
 
 
 /* Types for RGBFormat used */
+#ifndef UAE_RTGMODES_H
+#define UAE_RTGMODES_H
 typedef enum {
     RGBFB_NONE,		/* no valid RGB format (should not happen) */
     RGBFB_CLUT,		/* palette mode, set colors when opening screen using
@@ -169,6 +173,7 @@ typedef enum {
 
 #define RGBFB_PLANAR	RGBFB_NONE
 #define RGBFB_CHUNKY	RGBFB_CLUT
+#endif /* UAE_RTGMODES_H */
 
 /************************************************************************/
 
@@ -504,9 +509,16 @@ struct picasso96_state_struct
     uae_u8		SwitchState; /* From SetSwitch() - 0 is Amiga, 1 is Picasso */
     uae_u8		BytesPerPixel;
     uae_u8		CardFound;
+    uae_u8		BigAssBitmap;
+    unsigned int	Version;
+    uae_u8		*HostAddress;
+    int			XYOffset;
+    bool		dualclut, advDragging;
+    int			HLineDBL, VLineDBL;
+    bool		ModeChanged;
 };
 
-extern void InitPicasso96 (void);
+extern void InitPicasso96(int monid);
 
 extern uae_u32 picasso_SetDisplay (void);
 extern uae_u32 picasso_WaitVerticalSync (void);
@@ -533,7 +545,7 @@ extern uae_u8 *gfxmemory;
 
 extern int uaegfx_card_found;
 
-extern struct picasso96_state_struct picasso96_state;
+extern struct picasso96_state_struct picasso96_state[MAX_AMIGAMONITORS];
 
 #ifdef _WIN32
 extern unsigned int timer_id;
@@ -548,8 +560,9 @@ extern void DX_SetPalette_vsync (void);
 extern int DX_FillResolutions (uae_u16 *);
 extern int DX_BitsPerCannon (void);
 extern void DX_Invalidate (int first, int last);
-extern void picasso_enablescreen (int on);
-extern void picasso_refresh (int call_setpalette);
+extern void picasso_enablescreen(int monid, int on);
+extern void picasso_refresh(int monid);
+extern void init_hz_p96(int monid);
 extern void picasso_handle_vsync (void);
 
 extern uae_u8 *gfxmemory;
@@ -557,21 +570,37 @@ extern uae_u8 *gfxmemory;
 /* This structure describes the UAE-side framebuffer for the Picasso
  * screen.  */
 struct picasso_vidbuf_description {
-    int width, height, depth;
-    int rowbytes, pixbytes;
-    int extra_mem; /* nonzero if there's a second buffer that must be updated */
-    uae_u32 rgbformat;
-    uae_u32 selected_rgbformat;
-    uae_u32 clut[256];
+	    int width, height, depth;
+	    int rowbytes, pixbytes, offset;
+	    int maxwidth, maxheight;
+	    int extra_mem; /* nonzero if there's a second buffer that must be updated */
+	    uae_u32 rgbformat;
+	    uae_u32 selected_rgbformat;
+	    uae_u32 clut[256 * 2];
+	    int picasso_convert[2], host_mode;
+	    int ohost_mode, orgbformat;
+	    int full_refresh;
+	    int set_panning_called;
+	    int rtg_clear_flag;
+	    bool picasso_active;
+	    bool picasso_changed;
+	    uae_s16 splitypos;
+	    uae_atomic picasso_state_change;
+	    uae_u32 dacrgbformat[2];
 };
 
-extern struct picasso_vidbuf_description picasso_vidinfo;
+extern struct picasso_vidbuf_description picasso_vidinfo[MAX_AMIGAMONITORS];
 
-extern void gfx_set_picasso_modeinfo (int w, int h, int d, int rgbfmt);
-extern void gfx_set_picasso_baseaddr (uaecptr);
-extern void gfx_set_picasso_state (int on);
-extern uae_u8 *gfx_lock_picasso (void);
-extern void gfx_unlock_picasso (bool);
+extern void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt);
+extern void gfx_set_picasso_colors(int monid, RGBFTYPE rgbfmt);
+extern void gfx_set_picasso_state(int monid, int on);
+extern uae_u8 *gfx_lock_picasso(int monid, bool fullupdate);
+extern void gfx_unlock_picasso(int monid, bool dorender);
+extern void fb_copyrow(int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int width, int srcpixbytes, int dy);
+extern void picasso_allocatewritewatch(int index, int gfxmemsize);
+extern int picasso_getwritewatch(int index, int offset, uae_u8 ***gwwbufp, uae_u8 **startp);
+extern bool picasso_is_vram_dirty(int index, uaecptr addr, int size);
+extern void picasso_invalidate(int monid, int x, int y, int w, int h);
 extern int picasso_display_mode_index (uae_u32 x, uae_u32 y, uae_u32 d);
 extern int picasso_nr_resolutions (void);
 extern void picasso_clip_mouse (int *, int *);

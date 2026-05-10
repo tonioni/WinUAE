@@ -19,7 +19,7 @@ Arithmetic Package, Release 2a.
 #endif
 
 #include "softfloat.h"
-#include "softfloat-macros.h"
+#include "SOFTFLOAT-MACROS.H"
 #include "softfloat/softfloat-specialize.h"
 
 /*----------------------------------------------------------------------------

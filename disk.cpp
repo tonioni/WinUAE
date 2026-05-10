@@ -243,6 +243,10 @@ typedef struct {
 #endif
 } drive;
 
+static void DISK_check_change(void);
+static void load_track(int num, int cyl, int dside, int *sectable);
+static void abrcheck(struct diskinfo *di);
+
 #define MIN_STEPLIMIT_CYCLE (CYCLE_UNIT * 140)
 
 static const TCHAR *drivetypes[] = {
@@ -3371,6 +3375,7 @@ void disk_insert_force (int num, const TCHAR *name, bool forcedwriteprotect)
 
 static void floppybridge_getsetprofile(int i)
 {
+#ifdef FLOPPYBRIDGE
 	if (currprefs.floppyslots[i].dfxsubtype == 0 || currprefs.floppyslots[i].dfxsubtypeid[0] == 0) {
 		int sub = currprefs.floppyslots[i].dfxsubtype;
 		if (sub == 0) {
@@ -3385,6 +3390,7 @@ static void floppybridge_getsetprofile(int i)
 			_tcscpy(currprefs.floppyslots[i].dfxsubtypeid, changed_prefs.floppyslots[i].dfxsubtypeid);
 		}
 	}
+#endif
 }
 
 static void DISK_check_change (void)

@@ -1,3 +1,6 @@
+#include "sysconfig.h"
+#include "sysdeps.h"
+
 #include "uae/log.h"
 #include <stdio.h>
 #include <stdarg.h>

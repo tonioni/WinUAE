@@ -1946,23 +1946,24 @@ static uae_u8 ReadCIAA(uae_u32 addr, uae_u32 *flags)
 			uae_u8 v;
 			parallel_direct_read_data(&v);
 			tmp = v;
-#ifdef ARCADIA
-		} else if (arcadia_bios) {
-			tmp = arcadia_parport(0, c->prb, c->drb);
-#endif
-		} else if (currprefs.win32_samplersoundcard >= 0) {
-
-			if (flags) {
-				tmp = sampler_getsample((c->pra & 4) ? 1 : 0);
-			}
-#endif
-
 		} else if (parallel_port_scsi) {
 
 			if (flags) {
 				tmp = parallel_port_scsi_read(0, c->prb, c->drb);
 			}
 
+		} else
+#endif
+#ifdef ARCADIA
+		if (arcadia_bios) {
+			tmp = arcadia_parport(0, c->prb, c->drb);
+		} else
+#endif
+		if (currprefs.win32_samplersoundcard >= 0) {
+
+			if (flags) {
+				tmp = sampler_getsample((c->pra & 4) ? 1 : 0);
+			}
 		} else {
 			tmp = handle_parport_joystick (0, tmp);
 			tmp = dongle_cia_read (1, reg, c->drb, tmp);
@@ -2153,9 +2154,15 @@ static void WriteCIAA(uae_u16 addr, uae_u8 val, uae_u32 *flags)
 		}
 #endif
 #ifdef ARCADIA
+#ifdef PARALLEL_PORT
 		if (!isprinter() && arcadia_bios) {
 			arcadia_parport(1, c->prb, c->drb);
 		}
+#else
+		if (arcadia_bios) {
+			arcadia_parport(1, c->prb, c->drb);
+		}
+#endif
 #endif
 #ifdef PARALLEL_PORT
 		if (!isprinter() && parallel_port_scsi) {

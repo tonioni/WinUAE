@@ -6332,6 +6332,7 @@ const struct expansionromtype expansionroms[] = {
 #endif
 
 		/* Network */
+#ifdef A2065
 	{
 		_T("a2065"), _T("A2065"), _T("Commodore"),
 		NULL, a2065_init, NULL, NULL, ROMTYPE_A2065 | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
@@ -6350,6 +6351,7 @@ const struct expansionromtype expansionroms[] = {
 		false, 0, ethernet_settings,
 		{ 0xc1, 0xc9, 0x00, 0x00, 2167 >> 8, 2167 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
+#endif
 #ifdef WITH_QEMU_CPU
 	{
 		_T("ariadne2"), _T("Ariadne II"), _T("Village Tronic"),

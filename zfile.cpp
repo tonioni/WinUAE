@@ -13,6 +13,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#include "uae.h"
 #include "options.h"
 #include "zfile.h"
 #include "disk.h"

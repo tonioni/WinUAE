@@ -23,7 +23,7 @@
 #include "newcpu.h"
 #include "fpp.h"
 
-#include "softfloat/softfloat-macros.h"
+#include "softfloat/SOFTFLOAT-MACROS.H"
 #include "softfloat/softfloat-specialize.h"
 
 #define	FPCR_ROUNDING_MODE	0x00000030
@@ -833,4 +833,3 @@ void fp_init_softfloat(int fpu_model)
 	fpp_tst = fp_tst;
 	fpp_move = fp_move;
 }
-

@@ -326,7 +326,7 @@ static inline int8_t inf_clear_intbit(float_status *status)
 | Routine to raise any or all of the software IEC/IEEE floating-point
 | exception flags.
 *----------------------------------------------------------------------------*/
-void float_raise(uint8_t flags, float_status *status);
+static inline void float_raise(uint8_t flags, float_status *status);
 
 
 /*----------------------------------------------------------------------------

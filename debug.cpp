@@ -16,6 +16,7 @@
 
 #include "options.h"
 #include "uae.h"
+#include "uae/io.h"
 #include "memory.h"
 #include "custom.h"
 #include "newcpu.h"
