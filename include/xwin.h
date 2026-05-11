@@ -10,6 +10,7 @@
 #define UAE_XWIN_H
 
 #include "uae/types.h"
+#include "uae/time.h"
 #include "machdep/rpt.h"
 
 typedef uae_u32 xcolnr;

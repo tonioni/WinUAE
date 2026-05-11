@@ -506,10 +506,10 @@ static smp_comm_pipe requests;
 static volatile int akiko_thread_running;
 static uae_sem_t akiko_sem, sub_sem, cda_sem;
 
-static void checkint (void)
+static void akiko_checkint(void)
 {
 	if (cdrom_intreq & cdrom_intena) {
-		irq ();
+		irq();
 #if AKIKO_DEBUG_IRQ
 		write_log(_T("CD32: Akiko INT %08x\n"), cdrom_intreq & cdrom_intena);
 #endif
@@ -520,22 +520,22 @@ static void checkint (void)
 	}
 }
 
-static void set_status (uae_u32 status)
+static void set_status(uae_u32 status)
 {
 #if AKIKO_DEBUG_IO
 	if (log_cd32 > 1) {
 		if (!(cdrom_intreq & status))
-			write_log (_T("CD32: Akiko IRQ %08x | %08x = %08x\n"), status, cdrom_intreq, cdrom_intreq | status);
+			write_log(_T("CD32: Akiko IRQ %08x | %08x = %08x\n"), status, cdrom_intreq, cdrom_intreq | status);
 	}
 #endif
 	cdrom_intreq |= status;
-	checkint ();
+	akiko_checkint();
 	cdrom_led ^= LED_CD_ACTIVE2;
 }
 
 static void rethink_akiko(void)
 {
-	checkint ();
+	akiko_checkint();
 }
 
 static void cdaudiostop_do (void)

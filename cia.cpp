@@ -2132,6 +2132,7 @@ static void WriteCIAA(uae_u16 addr, uae_u8 val, uae_u32 *flags)
 #endif
 		break;
 	case 1:
+	{
 #if DONGLE_DEBUG > 0
 		if (notinrom ())
 			write_log(_T("BFE101 W %02X %s\n"), val, debuginfo(0));
@@ -2142,27 +2143,31 @@ static void WriteCIAA(uae_u16 addr, uae_u8 val, uae_u32 *flags)
 		alg_parallel_port(c->drb, val);
 #endif
 #ifdef PARALLEL_PORT
-		if (isprinter()) {
-			if (isprinter() > 0) {
+		int printermode = isprinter();
+		if (printermode) {
+			if (printermode > 0) {
 				doprinter(val);
 				cia_parallelack();
-			} else if (isprinter() < 0) {
+			} else if (printermode) {
 				parallel_direct_write_data(val, c->drb);
 				cia_parallelack();
 			}
 		}
+#else
+		int printermode = 0;
 #endif
 #ifdef ARCADIA
-		if (!isprinter() && arcadia_bios) {
+		if (!printermode && arcadia_bios) {
 			arcadia_parport(1, c->prb, c->drb);
 		}
 #endif
 #ifdef PARALLEL_PORT
-		if (!isprinter() && parallel_port_scsi) {
+		if (!printermode && parallel_port_scsi) {
 			parallel_port_scsi_write(0, c->prb, c->drb);
 		}
 #endif
-		break;
+	}
+	break;
 	case 2:
 #if DONGLE_DEBUG > 0
 		if (notinrom ())

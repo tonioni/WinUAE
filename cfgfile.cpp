@@ -935,10 +935,12 @@ static void cfgfile_write_str(struct zfile *f, const TCHAR *option, const TCHAR 
 {
 	cfg_dowrite(f, option, optionext, value, 0, 0, 0);
 }
-static void cfgfile_write_str_escape(struct zfile *f, const TCHAR *option, const TCHAR *value)
+#if 0
+void cfgfile_write_str_escape(struct zfile *f, const TCHAR *option, const TCHAR *value)
 {
 	cfg_dowrite(f, option, value, 0, 0, 1);
 }
+#endif
 void cfgfile_dwrite_str(struct zfile *f, const TCHAR *option, const TCHAR *value)
 {
 	cfg_dowrite(f, option, value, 1, 0, 0);
