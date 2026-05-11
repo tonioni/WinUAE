@@ -3688,9 +3688,11 @@ static void DDFSTOP(uae_u16 v)
 static void FMODE(uae_u16 v)
 {
 	if (!aga_mode) {
+#ifdef WITH_SPECIALMONITORS
 		if (currprefs.monitoremu) {
 			specialmonitor_store_fmode(vpos, agnus_hpos, v);
 		}
+#endif
 		fmode_saved = v;
 		v = 0;
 	} else {
