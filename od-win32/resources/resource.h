@@ -1375,6 +1375,7 @@
 #define IDC_KEYBOARD_ENDHACK            1866
 #define IDC_SER_RTSCTSDTRDTECD          1867
 #define IDC_SER_RI                      1868
+#define IDC_SER_CRLF                    1869
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

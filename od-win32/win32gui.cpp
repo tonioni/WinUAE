@@ -17838,6 +17838,7 @@ static void enable_for_portsdlg (HWND hDlg)
 	ew(hDlg, IDC_SER_CTSRTS, FALSE);
 	ew(hDlg, IDC_SER_RTSCTSDTRDTECD, FALSE);
 	ew(hDlg, IDC_SER_RI, FALSE);
+	ew(hDlg, IDC_SER_CRLF, FALSE);
 	ew(hDlg, IDC_SERIAL_DIRECT, FALSE);
 	ew(hDlg, IDC_SERIAL, FALSE);
 	ew(hDlg, IDC_UAESERIAL, FALSE);
@@ -17847,6 +17848,7 @@ static void enable_for_portsdlg (HWND hDlg)
 	ew(hDlg, IDC_SER_CTSRTS, v);
 	ew(hDlg, IDC_SER_RTSCTSDTRDTECD, v);
 	ew(hDlg, IDC_SER_RI, v);
+	ew(hDlg, IDC_SER_CRLF, v);
 	ew(hDlg, IDC_SER_DIRECT, v);
 	ew(hDlg, IDC_UAESERIAL, full_property_sheet);
 #endif
@@ -18149,25 +18151,14 @@ static void values_from_portsdlg (HWND hDlg)
 		workprefs.use_serial = 0;
 		workprefs.sername[0] = 0;
 	}
-	workprefs.serial_demand = 0;
-	if (ischecked(hDlg, IDC_SER_SHARED))
-		workprefs.serial_demand = 1;
-	workprefs.serial_hwctsrts = 0;
-	if (ischecked(hDlg, IDC_SER_CTSRTS))
-		workprefs.serial_hwctsrts = 1;
-	workprefs.serial_rtsctsdtrdtecd = 0;
-	if (ischecked(hDlg, IDC_SER_RTSCTSDTRDTECD))
-		workprefs.serial_rtsctsdtrdtecd = 1;
-	workprefs.serial_ri = 0;
-	if (ischecked(hDlg, IDC_SER_RI))
-		workprefs.serial_ri = 1;
-	workprefs.serial_direct = 0;
-	if (ischecked(hDlg, IDC_SER_DIRECT))
-		workprefs.serial_direct = 1;
+	workprefs.serial_demand = ischecked(hDlg, IDC_SER_SHARED);
+	workprefs.serial_hwctsrts = ischecked(hDlg, IDC_SER_CTSRTS);
+	workprefs.serial_rtsctsdtrdtecd = ischecked(hDlg, IDC_SER_RTSCTSDTRDTECD);
+	workprefs.serial_ri = ischecked(hDlg, IDC_SER_RI);
+	workprefs.serial_crlf = ischecked(hDlg, IDC_SER_CRLF);
+	workprefs.serial_direct = ischecked(hDlg, IDC_SER_DIRECT);
 
-	workprefs.uaeserial = 0;
-	if (ischecked (hDlg, IDC_UAESERIAL))
-		workprefs.uaeserial = 1;
+	workprefs.uaeserial = ischecked(hDlg, IDC_UAESERIAL);
 
 	GetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters, sizeof workprefs.ghostscript_parameters / sizeof (TCHAR));
 	v  = GetDlgItemInt (hDlg, IDC_PRINTERAUTOFLUSH, &success, FALSE);
@@ -18239,6 +18230,7 @@ static void values_to_portsdlg (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_SER_CTSRTS, workprefs.serial_hwctsrts);
 	CheckDlgButton(hDlg, IDC_SER_RTSCTSDTRDTECD, workprefs.serial_rtsctsdtrdtecd);
 	CheckDlgButton(hDlg, IDC_SER_RI, workprefs.serial_ri);
+	CheckDlgButton(hDlg, IDC_SER_CRLF, workprefs.serial_crlf);
 	CheckDlgButton(hDlg, IDC_SER_DIRECT, workprefs.serial_direct);
 
 	if(!workprefs.sername[0])  {
@@ -18700,7 +18692,7 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 				closeprinter ();
 			}
 		} else if (wParam == IDC_UAESERIAL || wParam == IDC_SER_SHARED || wParam == IDC_SER_DIRECT || wParam == IDC_SER_CTSRTS || wParam == IDC_SER_RTSCTSDTRDTECD || wParam == IDC_SER_RI ||
-			wParam == IDC_PRINTERAUTOFLUSH || wParam == IDC_SAMPLER_STEREO || wParam == IDC_MIDIROUTER) {
+			wParam == IDC_SER_CRLF || wParam == IDC_PRINTERAUTOFLUSH || wParam == IDC_SAMPLER_STEREO || wParam == IDC_MIDIROUTER) {
 			values_from_portsdlg (hDlg);
 		} else {
 			if (HIWORD (wParam) == CBN_SELCHANGE) {
