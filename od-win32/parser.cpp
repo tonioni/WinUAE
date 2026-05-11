@@ -907,7 +907,8 @@ static uae_u8 inputbuffer[SERIAL_READ_BUFFER];
 static int datainoutput;
 static int dataininput, dataininputcnt;
 static OVERLAPPED writeol, readol;
-static int writepending;
+static bool writepending;
+static int writepending_size;
 static bool breakpending;
 
 static WSADATA wsadata;
@@ -1087,7 +1088,7 @@ int openser (const TCHAR *sername)
 	}
 
 	SetCommMask (hCom, EV_RXFLAG | EV_BREAK);
-	SetupComm (hCom, 65536, 128);
+	SetupComm (hCom, 128, 128);
 	PurgeComm (hCom, PURGE_TXABORT | PURGE_RXABORT | PURGE_TXCLEAR | PURGE_RXCLEAR);
 	CommTimeOuts.ReadIntervalTimeout = 0xFFFFFFFF;
 	CommTimeOuts.ReadTotalTimeoutMultiplier = 0;
@@ -1168,22 +1169,67 @@ void closeser (void)
 	uartbreak = 0;
 }
 
-static void outser (void)
+static void outser(void)
 {
-	if (datainoutput <= 0)
-		return;
-	DWORD v = WaitForSingleObject (writeevent, 0);
-	if (v == WAIT_OBJECT_0) {
+	if (writepending) {
 		DWORD actual;
-		memcpy (outputbufferout, outputbuffer, datainoutput);
-		WriteFile (hCom, outputbufferout, datainoutput, &actual, &writeol);
+		writepending = false;
+		if (GetOverlappedResult(hCom, &writeol, &actual, FALSE)) {
+			if (actual < writepending_size) {
+				if (actual) {
+					memmove(outputbufferout, outputbufferout + actual, writepending_size - actual);
+					writepending_size -= actual;
+				}
+				if (!WriteFile(hCom, outputbufferout, writepending_size, NULL, &writeol)) {
+					if (GetLastError() == ERROR_IO_PENDING) {
+						writepending = true;
+					}
+				} else {
+					DWORD err = GetLastError();
+					write_log(_T("SERIAL: WriteFile failed (remaining write), err=%d\n"), err);
+					writepending_size = 0;
+				}
+			}
+		} else {
+			writepending = false;
+			writepending_size = 0;
+		}
+	}
+	if (!writepending && datainoutput > 0) {
+		writepending_size = 0;
+		memcpy(outputbufferout, outputbuffer, datainoutput);
+		if (!WriteFile(hCom, outputbufferout, datainoutput, NULL, &writeol)) {
+			DWORD err = GetLastError();
+			if (err == ERROR_IO_PENDING) {
+				writepending_size = datainoutput;
+				writepending = true;
+				datainoutput = 0;
+			} else {
+				write_log(_T("SERIAL: WriteFile failed, err=%d\n"), err);
+				datainoutput = 0;
+			}
+		} else {
+			datainoutput = 0;
+		}
+	}
+}
+
+static void writeser_waitpending(void)
+{
+	if (writepending) {
+		DWORD actual;
+		GetOverlappedResult(hCom, &writeol, &actual, TRUE);
+		writepending_size = 0;
 		datainoutput = 0;
+		writepending = false;
 	}
 }
 
 void writeser_flush(void)
 {
+	writeser_waitpending();
 	outser();
+	writeser_waitpending();
 }
 
 void writeser (int c)

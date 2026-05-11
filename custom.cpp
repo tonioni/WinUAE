@@ -3179,9 +3179,13 @@ static void rethink_intreq(void)
 	devices_rethink();
 }
 
-static void intreq_checks(uae_u16 oldreq, uae_u16 newreq)
+static void intreq_checks(uae_u16 req)
 {
-	serial_rbf_change((newreq & 0x0800) ? 1 : 0);
+#ifdef SERIAL_PORT
+	if (req & 0x0800) {
+		serial_rbf_change((req & 0x8000) != 0);
+	}
+#endif
 }
 
 static void event_doint_delay_do_ext_old(uae_u32 v)
@@ -3290,7 +3294,7 @@ static void INTREQ_nodelay(uae_u16 v)
 	uae_u16 old = intreq;
 	setclr(&intreq, v);
 	intreq2 = intreq;
-	intreq_checks(old, intreq);
+	intreq_checks(v);
 	doint();
 }
 
@@ -3299,17 +3303,17 @@ void INTREQ_f(uae_u16 v)
 	uae_u16 old = intreq;
 	setclr(&intreq, v);
 	intreq2 = intreq;
-	intreq_checks(old, intreq);
+	intreq_checks(v);
 }
 
 bool INTREQ_0(uae_u16 v)
 {
 	uae_u16 old = intreq;
 	setclr(&intreq, v);
+	intreq_checks(v);
 
 	if (old != intreq) {
 		doint_delay_intreq(v);
-		intreq_checks(old, intreq);
 	}
 	return true;
 }

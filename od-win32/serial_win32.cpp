@@ -284,7 +284,7 @@ void SERPER (uae_u16 w)
 		serial_period_receive_ccks = maxhpos;
 		safe_receive = true;
 	}
-	if (sermap_enabled || serxdevice_enabled) {
+	if (sermap_enabled || serxdevice_enabled || currprefs.m68k_speed < 0) {
 		safe_receive = true;
 	}
 
@@ -477,8 +477,9 @@ static void checkreceive_serial (void)
 	static int ninebitdata;
 	int recdata;
 
-	if (!canreceive())
+	if (!canreceive()) {
 		return;
+	}
 
 	if (ninebit) {
 		bool breakcond;
@@ -1047,8 +1048,9 @@ uae_u16 SERDATR(void)
 	if (!data_in_serdatr) {
 		// interrupt was previously cleared but SERDATR was not read.
 		// Clear it now when SERDATR was read.
-		INTREQ_f(1 << 11);
+		INTREQ_INT(11, 0);
 	}
+	serdatr_last_got = 0;
 	return serdatr;
 }
 
