@@ -2290,7 +2290,23 @@ static const struct modeids mi[] =
 	1440,1080, 188,
 	1600,1000, 189,
 	1600,1024, 190,
+	2048,1280, 191,
+	6144,3456, 192,
+	7680,4320, 193,
 	-1,-1,0
+};
+
+static int missmodes[] = {
+	 320,  200,
+	 320,  240,
+	 320,  256,
+	 640,  400,
+	 640,  480,
+	 640,  512,
+	 800,  600,
+	1024,  768,
+	1280, 1024,
+	-1
 };
 
 static int AssignModeID (int w, int h, int *unkcnt)
@@ -2444,8 +2460,6 @@ static int _cdecl resolution_compare (const void *a, const void *b)
 		return 1;
 	return 0;
 }
-
-static int missmodes[] = { 320, 200, 320, 240, 320, 256, 640, 400, 640, 480, 640, 512, 800, 600, 1024, 768, 1280, 1024, -1 };
 
 static int addresolutions(void)
 {
