@@ -20579,6 +20579,7 @@ static const int filtertypes[] = {
 	0,
 	0,
 	0, 0, 0, 0,
+	0, 0,
 	-1
 };	
 static void *filtervars_wp[] = {
@@ -20596,6 +20597,8 @@ static void *filtervars_wp[] = {
 	&workprefs.gf[0].gfx_filter_keep_autoscale_aspect,
 	&workprefs.gf[0].gfx_filter_integerscalelimit,
 	&workprefs.gf[0].gfx_filter_left_border, &workprefs.gf[0].gfx_filter_right_border, &workprefs.gf[0].gfx_filter_top_border, &workprefs.gf[0].gfx_filter_bottom_border,
+	&workprefs.gf[0].gfx_filter_scanlineoffset,
+	&workprefs.gf[0].gfx_filter_rotation,
 	NULL
 };
 static void *filtervars_cp[] = {
@@ -20613,17 +20616,19 @@ static void *filtervars_cp[] = {
 	&currprefs.gf[0].gfx_filter_keep_autoscale_aspect,
 	&currprefs.gf[0].gfx_filter_integerscalelimit,
 	&currprefs.gf[0].gfx_filter_left_border, &currprefs.gf[0].gfx_filter_right_border, &currprefs.gf[0].gfx_filter_top_border, &currprefs.gf[0].gfx_filter_bottom_border,
+	&currprefs.gf[0].gfx_filter_scanlineoffset,
+	&currprefs.gf[0].gfx_filter_rotation,
 	NULL
 };
 
 struct filterpreset {
 	const TCHAR *name;
-	int conf[27];
+	int conf[29];
 };
 static const struct filterpreset filterpresets[] =
 {
-	{ _T("D3D Autoscale"),		0,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 4, 0, 0 },
-	{ _T("D3D Full Scaling"),	0,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 0, 0, 0 },
+	{ _T("D3D Autoscale"),		0,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 4, 0, 0, 0, 0 },
+	{ _T("D3D Full Scaling"),	0,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 0, 0, 0, 0, 0 },
 	{ NULL }
 };
 
