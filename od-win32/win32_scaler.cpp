@@ -16,6 +16,9 @@
 #define AUTORESIZE_FRAME_DELAY 4
 
 static float filteroffsetx, filteroffsety, filterxmult = 1.0, filterymult = 1.0;
+static const float palpar = 944.0f / 908.0f;
+static const float ntscpar = 780.0f / 910.0f;
+static const float palntscmult = (3546895.0f / 3579545.0f);
 
 void getfilteroffset(int monid, float *dx, float *dy, float *mx, float *my)
 {
@@ -116,45 +119,46 @@ static bool get_auto_aspect_ratio(int monid, int cw, int ch, int crealh, int sca
 	return false;
 }
 
-static float getpalntscratio(float dstratio, int keep_aspect, int palntscadjust)
+static float getpalntscratio(float dstratio, int aspect_type, int palntscadjust)
 {
 	int lh = 0;
 	bool isp = ispal(&lh);
 	float palntscratio = dstratio;
 	if (lh > 1) {
-		float palh = (313 - 25) * 2 + 1.0f;
-		float ntsch = (263 - 20) * 2 + 1.0f;
-		float ll = lh * 2 + 1.0f;
-		if (abs(lh - (263 - 20)) <= 22) {
-			ll = ntsch;
-		}
-		if (abs(lh - (313 - 25)) <= 22) {
-			ll = palh;
-		}
 		if (currprefs.ntscmode) {
-			if (palntscadjust && !isp) {
-				palntscratio = palntscratio * palh / ll;
-			}
-			if (keep_aspect == 2 && isp) {
-				palntscratio = palntscratio * 0.93f;
-			} else if (keep_aspect == 1 && !isp) {
-				palntscratio = palntscratio * 0.98f;
+			if (palntscadjust) {
+				if (!isp) {
+					palntscratio = palntscratio / ntscpar;
+				}
+			} else {
+				if ((aspect_type == ASPECT_TYPE_TV_AUTO && !isp) || aspect_type == ASPECT_TYPE_TV_NTSC) {
+					palntscratio = palntscratio / ntscpar;
+				} else if (aspect_type == ASPECT_TYPE_TV_PAL) {
+					palntscratio = palntscratio / palpar / palntscmult;
+				} else if (aspect_type == ASPECT_TYPE_VGA && !isp) {
+					palntscratio = palntscratio * 0.98f;
+				}
 			}
 		} else {
-			if (palntscadjust && !isp) {
-				palntscratio = palntscratio * palh / ll;
-			}
-			if (keep_aspect == 2 && isp) {
-				palntscratio = palntscratio * 0.95f;
-			} else if (keep_aspect == 1 && !isp) {
-				palntscratio = palntscratio * 0.95f;
+			if (palntscadjust) {
+				if (!isp) {
+					palntscratio = palntscratio / ntscpar * palntscmult;
+				}
+			} else {
+				if ((aspect_type == ASPECT_TYPE_TV_AUTO && isp) || aspect_type == ASPECT_TYPE_TV_PAL) {
+					palntscratio = palntscratio / palpar;
+				} else if (aspect_type == ASPECT_TYPE_TV_NTSC) {
+					palntscratio = palntscratio / ntscpar * palntscmult;
+				} else if (aspect_type == ASPECT_TYPE_VGA && !isp) {
+					palntscratio = palntscratio * 0.95f;
+				}
 			}
 		}
 	}
 	return palntscratio;
 }
 
-static bool get_aspect(int monid, float *dstratiop, float *srcratiop, float *xmultp, float *ymultp, bool doautoaspect, float autoaspectratio, int keep_aspect, int filter_aspect)
+static bool get_aspect(int monid, float *dstratiop, float *srcratiop, float *xmultp, float *ymultp, bool doautoaspect, float autoaspectratio, int aspect_type, int filter_aspect)
 {
 	struct amigadisplay *ad = &adisplays[monid];
 	bool aspect = false;
@@ -164,24 +168,31 @@ static bool get_aspect(int monid, float *dstratiop, float *srcratiop, float *xmu
 	*xmultp = 1.0;
 	*ymultp = 1.0;
 
-	if (keep_aspect || filter_aspect != 0) {
+	if (aspect_type || filter_aspect != 0) {
 
-		if (keep_aspect) {
+		if (aspect_type) {
 			if (isvga()) {
-				if (keep_aspect == 1)
+				if (aspect_type == ASPECT_TYPE_VGA) {
 					dstratio = dstratio * 0.93f;
+				}
 			} else {
 				bool isp = ispal(NULL);
 				if (currprefs.ntscmode) {
-					if (keep_aspect == 2 && !isp)
-						dstratio = dstratio * 0.93f;
-					else if (keep_aspect == 1 && isp)
+					if ((aspect_type == ASPECT_TYPE_TV_AUTO && !isp) || aspect_type == ASPECT_TYPE_TV_NTSC) {
+						dstratio = dstratio / ntscpar;
+					} else if (aspect_type == ASPECT_TYPE_TV_PAL) {
+						dstratio = dstratio / palpar / palntscmult;
+					} else if (aspect_type == ASPECT_TYPE_VGA && isp) {
 						dstratio = dstratio * 0.98f;
+					}
 				} else {
-					if (keep_aspect == 2 && isp)
+					if ((aspect_type == ASPECT_TYPE_TV_AUTO && isp) || aspect_type == ASPECT_TYPE_TV_PAL) {
+						dstratio = dstratio / palpar;
+					} else if (aspect_type == ASPECT_TYPE_TV_NTSC) {
+						dstratio = dstratio / ntscpar * palntscmult;
+					} else if (aspect_type == ASPECT_TYPE_VGA && !isp) {
 						dstratio = dstratio * 0.95f;
-					else if (keep_aspect == 1 && !isp)
-						dstratio = dstratio * 0.95f;
+					}
 				}
 			}
 		}
@@ -228,7 +239,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 	bool doautoaspect = false;
 	float autoaspectratio;
 	int idx = ad->gf_index;
-	int keep_aspect = currprefs.gf[idx].gfx_filter_keep_aspect;
+	int aspect_type = currprefs.gf[idx].gfx_filter_aspect_type;
 	int filter_aspect = currprefs.gf[idx].gfx_filter_aspect;
 	int palntscadjust = currprefs.gfx_ntscpixels;
 	int autoselect = 0;
@@ -298,7 +309,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 	if (!specialmode && scalemode == AUTOSCALE_STATIC_AUTO) {
 		filter_aspect = 0;
-		keep_aspect = 0;
+		aspect_type = 0;
 		if (ds->dstwidth >= 640 && ds->dstwidth <= 800 && ds->dstheight >= 480 && ds->dstheight <= 600) {
 			int hres = currprefs.gfx_resolution + doublescan2x;
 			autoselect = 1;
@@ -424,7 +435,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 				doautoaspect = get_auto_aspect_ratio(cw, ch, crealh, scalemode, &autoaspectratio);
 				autoaspect_done = true;
 
-				if (get_aspect(&dstratio, &srcratio, &xmult, &ymult, doautoaspect, autoaspectratio, keep_aspect, filter_aspect)) {
+				if (get_aspect(&dstratio, &srcratio, &xmult, &ymult, doautoaspect, autoaspectratio, aspect_type, filter_aspect)) {
 					cw += cw - cw * xmult;
 					ch += ch - ch * ymult;
 				}
@@ -603,7 +614,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 				float scalex = currprefs.gf[idx].gfx_filter_horiz_zoom_mult > 0 ? currprefs.gf[idx].gfx_filter_horiz_zoom_mult : 1.0f;
 				float scaley = currprefs.gf[idx].gfx_filter_vert_zoom_mult > 0 ? currprefs.gf[idx].gfx_filter_vert_zoom_mult : 1.0f;
 
-				float palntscratio = getpalntscratio(dstratio, keep_aspect, palntscadjust);
+				float palntscratio = getpalntscratio(dstratio, aspect_type, palntscadjust);
 				scaley = scaley * palntscratio / dstratio;
 
 				if (doublescan2x > 0) {
@@ -673,7 +684,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 				diffy = ds->outheight;
 			}
 
-			if (get_aspect(monid, &dstratio, &srcratio, &xmult, &ymult, doautoaspect, autoaspectratio, keep_aspect, filter_aspect)) {
+			if (get_aspect(monid, &dstratio, &srcratio, &xmult, &ymult, doautoaspect, autoaspectratio, aspect_type, filter_aspect)) {
 				diff = diffx - (int)(diffx * xmult);
 				sizeoffset(ds, diff, 0);
 				filteroffsetx += -diff / 2;
@@ -714,7 +725,7 @@ cont:
 
 		sizeoffset(ds, extraw, extrah);
 
-		if (keep_aspect) {
+		if (aspect_type) {
 			float xm, ym, m;
 
 			xm = (float)aws / ds->dstwidth;
@@ -750,7 +761,7 @@ cont:
 	}
 
 	{
-		float palntscratio = getpalntscratio(dstratio, keep_aspect, palntscadjust);
+		float palntscratio = getpalntscratio(dstratio, aspect_type, palntscadjust);
 		ymult = ymult * palntscratio / dstratio;
 	}
 

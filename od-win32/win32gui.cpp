@@ -20489,9 +20489,9 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew(hDlg, IDC_FILTERFILTERH, TRUE);
 	ew(hDlg, IDC_FILTERFILTERV, TRUE);
 	ew(hDlg, IDC_FILTERSTACK, workprefs.gfx_api);
-	ew(hDlg, IDC_FILTERKEEPASPECT, v && scalemode != AUTOSCALE_STATIC_AUTO);
-	ew(hDlg, IDC_FILTERASPECT, v && scalemode != AUTOSCALE_STATIC_AUTO);
-	ew(hDlg, IDC_FILTERASPECT2, v && workprefs.gf[filter_nativertg].gfx_filter_keep_aspect && scalemode != AUTOSCALE_STATIC_AUTO);
+	ew(hDlg, IDC_FILTERKEEPASPECT, v && scalemode != AUTOSCALE_STATIC_AUTO && !workprefs.gfx_ntscpixels);
+	ew(hDlg, IDC_FILTERASPECT, v && scalemode != AUTOSCALE_STATIC_AUTO && !workprefs.gfx_ntscpixels);
+	ew(hDlg, IDC_FILTERASPECT2, v && workprefs.gf[filter_nativertg].gfx_filter_aspect_type && scalemode != AUTOSCALE_STATIC_AUTO && !workprefs.gfx_ntscpixels);
 	ew(hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, scalemode == AUTOSCALE_NORMAL || scalemode == AUTOSCALE_INTEGER_AUTOSCALE);
 	ew(hDlg, IDC_FILTEROVERLAY, workprefs.gfx_api);
 	ew(hDlg, IDC_FILTEROVERLAYTYPE, workprefs.gfx_api);
@@ -20592,7 +20592,7 @@ static void *filtervars_wp[] = {
 	&workprefs.gfx_xcenter, &workprefs.gfx_ycenter,
 	&workprefs.gf[0].gfx_filter_luminance, &workprefs.gf[0].gfx_filter_contrast, &workprefs.gf[0].gfx_filter_saturation,
 	&workprefs.gf[0].gfx_filter_gamma, &workprefs.gf[0].gfx_filter_blur, &workprefs.gf[0].gfx_filter_noise,
-	&workprefs.gf[0].gfx_filter_keep_aspect, &workprefs.gf[0].gfx_filter_aspect,
+	&workprefs.gf[0].gfx_filter_aspect_type, &workprefs.gf[0].gfx_filter_aspect,
 	&workprefs.gf[0].gfx_filter_autoscale, &workprefs.gf[0].gfx_filter_bilinear,
 	&workprefs.gf[0].gfx_filter_keep_autoscale_aspect,
 	&workprefs.gf[0].gfx_filter_integerscalelimit,
@@ -20611,7 +20611,7 @@ static void *filtervars_cp[] = {
 	&currprefs.gfx_xcenter, &currprefs.gfx_ycenter,
 	&currprefs.gf[0].gfx_filter_luminance, &currprefs.gf[0].gfx_filter_contrast, &currprefs.gf[0].gfx_filter_saturation,
 	&currprefs.gf[0].gfx_filter_gamma, &currprefs.gf[0].gfx_filter_blur, &currprefs.gf[0].gfx_filter_noise,
-	&currprefs.gf[0].gfx_filter_keep_aspect, &currprefs.gf[0].gfx_filter_aspect,
+	&currprefs.gf[0].gfx_filter_aspect_type, &currprefs.gf[0].gfx_filter_aspect,
 	&currprefs.gf[0].gfx_filter_autoscale, &currprefs.gf[0].gfx_filter_bilinear,
 	&currprefs.gf[0].gfx_filter_keep_autoscale_aspect,
 	&currprefs.gf[0].gfx_filter_integerscalelimit,
@@ -20691,12 +20691,12 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 		(workprefs.gf[filter_nativertg].gfx_filter_aspect < 0) ? 1 :
 		getaspectratioindex (workprefs.gf[filter_nativertg].gfx_filter_aspect) + 2, 0);
 
-	CheckDlgButton(hDlg, IDC_FILTERKEEPASPECT, workprefs.gf[filter_nativertg].gfx_filter_keep_aspect);
+	CheckDlgButton(hDlg, IDC_FILTERKEEPASPECT, workprefs.gf[filter_nativertg].gfx_filter_aspect_type);
 	CheckDlgButton(hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, workprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect != 0);
 	CheckDlgButton(hDlg, IDC_SCALENTSC, workprefs.gfx_ntscpixels);
 
 	xSendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_SETCURSEL,
-		workprefs.gf[filter_nativertg].gfx_filter_keep_aspect, 0);
+		workprefs.gf[filter_nativertg].gfx_filter_aspect_type, 0);
 
 	xSendDlgItemMessage (hDlg, IDC_FILTERINTEGER, CB_RESETCONTENT, 0, 0L);
 	xSendDlgItemMessage (hDlg, IDC_FILTERINTEGER, CB_ADDSTRING, 0, (LPARAM)_T("1/1"));
@@ -21255,11 +21255,13 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		xSendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 		addaspectratios (hDlg, IDC_FILTERASPECT);
 
-		xSendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_RESETCONTENT, 0, 0);
-		WIN32GUI_LoadUIString (IDS_DISABLED, tmp, sizeof tmp / sizeof (TCHAR));
-		xSendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)tmp);
-		xSendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)_T("VGA"));
-		xSendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)_T("TV"));
+		xSendDlgItemMessage(hDlg, IDC_FILTERASPECT2, CB_RESETCONTENT, 0, 0);
+		WIN32GUI_LoadUIString(IDS_DISABLED, tmp, sizeof tmp / sizeof (TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)tmp);
+		xSendDlgItemMessage(hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)_T("VGA"));
+		xSendDlgItemMessage(hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)_T("TV (Auto)"));
+		xSendDlgItemMessage(hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)_T("TV (PAL)"));
+		xSendDlgItemMessage(hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)_T("TV (NTSC)"));
 
 		xSendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_RESETCONTENT, 0, 0L);
 		WIN32GUI_LoadUIString (IDS_SCREEN_NATIVE, tmp, sizeof tmp / sizeof (TCHAR));
@@ -21349,9 +21351,9 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		case IDC_FILTERKEEPASPECT:
 			{
 				if (ischecked (hDlg, IDC_FILTERKEEPASPECT))
-					currprefs.gf[filter_nativertg].gfx_filter_keep_aspect = workprefs.gf[filter_nativertg].gfx_filter_keep_aspect = 1;
+					currprefs.gf[filter_nativertg].gfx_filter_aspect_type = workprefs.gf[filter_nativertg].gfx_filter_aspect_type = 1;
 				else
-					currprefs.gf[filter_nativertg].gfx_filter_keep_aspect = workprefs.gf[filter_nativertg].gfx_filter_keep_aspect = 0;
+					currprefs.gf[filter_nativertg].gfx_filter_aspect_type = workprefs.gf[filter_nativertg].gfx_filter_aspect_type = 0;
 				enable_for_hw3ddlg (hDlg);
 				values_to_hw3ddlg (hDlg, false);
 				updatedisplayarea(-1);
@@ -21390,7 +21392,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					if (getdlgnumber(hz, &val, -99, 99)) {
 						fd->gfx_filter_horiz_zoom = (float)val;
 						xSendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, val);
-						if (fdwp->gfx_filter_keep_aspect) {
+						if (fdwp->gfx_filter_aspect_type) {
 							fd->gfx_filter_vert_zoom = currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
 							xSendDlgItemMessage(hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, (int)fdwp->gfx_filter_vert_zoom);
 						}
@@ -21399,7 +21401,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					if (getdlgnumber(vz, &val, -99, 99)) {
 						fd->gfx_filter_vert_zoom = (float)val;
 						xSendDlgItemMessage(hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, val);
-						if (fdwp->gfx_filter_keep_aspect) {
+						if (fdwp->gfx_filter_aspect_type) {
 							fd->gfx_filter_horiz_zoom = currprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
 							xSendDlgItemMessage(hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, (int)fdwp->gfx_filter_horiz_zoom);
 						}
@@ -21576,7 +21578,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					{
 						int v = xSendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_GETCURSEL, 0, 0L);
 						if (v != CB_ERR)
-							currprefs.gf[filter_nativertg].gfx_filter_keep_aspect = workprefs.gf[filter_nativertg].gfx_filter_keep_aspect = v;
+							currprefs.gf[filter_nativertg].gfx_filter_aspect_type = workprefs.gf[filter_nativertg].gfx_filter_aspect_type = v;
 						updatedisplayarea(-1);
 					}
 					break;
@@ -21620,13 +21622,13 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			} else {
 				if (h == hz) {
 					fd->gfx_filter_horiz_zoom = (float)SendMessage (hz, TBM_GETPOS, 0, 0);
-					if (fdwp->gfx_filter_keep_aspect) {
+					if (fdwp->gfx_filter_aspect_type) {
 						fd->gfx_filter_vert_zoom = currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
 						xSendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, (int)fdwp->gfx_filter_vert_zoom);
 					}
 				} else if (h == vz) {
 					fd->gfx_filter_vert_zoom = (float)SendMessage (vz, TBM_GETPOS, 0, 0);
-					if (fdwp->gfx_filter_keep_aspect) {
+					if (fdwp->gfx_filter_aspect_type) {
 						fd->gfx_filter_horiz_zoom = currprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
 						xSendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, (int)fdwp->gfx_filter_horiz_zoom);
 					}
