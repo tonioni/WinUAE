@@ -119,7 +119,7 @@ static int not_safe_mode;
 static bool dmal_next;
 static int fast_lines_cnt;
 static bool lineoptimizations_draw_always;
-static int agnus_trigger_cck;
+static evt_t agnus_trigger_cck;
 static int init_beamcon_delay;
 
 static uae_u32 scandoubled_bpl_ptr[MAX_SCANDOUBLED_LINES + 1][2][MAX_PLANES];
@@ -185,7 +185,7 @@ static void write_drga_strobe(uae_u16 rga)
 	r->rga = rga;
 	r->flags = 0;
 	r->line = rga_denise_cycle_line;
-	r->v = get_cck_cycles() - agnus_trigger_cck;
+	r->v = get_cck_cycles_diff(agnus_trigger_cck);
 };
 static void write_drga(uae_u16 rga, uaecptr pt, uae_u32 v)
 {
@@ -571,13 +571,13 @@ static uae_u32 cop1lc, cop2lc, copcon;
 */
 
 static bool agnus_phsync, agnus_phblank;
-static uae_u32 agnus_phblank_start_tmp, agnus_phblank_start, agnus_phblank_end, agnus_hsync_start, agnus_vsync_start;
+static evt_t agnus_phblank_start_tmp, agnus_phblank_start, agnus_phblank_end, agnus_hsync_start, agnus_vsync_start;
 static int hsync_ccks;
 static int current_linear_hs_hb_dist;
-static uae_u32 agnus_hsstrt_cck, agnus_hsstop_cck;
+static evt_t agnus_hsstrt_cck, agnus_hsstop_cck;
 static int agnus_hslen_cck, agnus_hslen_cck_prev, agnus_hslen_cck_cnt, current_agnus_hslen_cck;
-static uae_u32 agnus_phsstrt_cck, agnus_phsstop_cck;
-static uae_u32 agnus_pchsstrt_cck, agnus_pchsstop_cck;
+static evt_t agnus_phsstrt_cck, agnus_phsstop_cck;
+static evt_t agnus_pchsstrt_cck, agnus_pchsstop_cck;
 static bool agnus_pvsync, agnus_pcsync, agnus_csync;
 static int agnus_vb, agnus_pvb;
 static bool agnus_vb_active;
@@ -5181,7 +5181,7 @@ static void check_no_signal(void)
 	if (!nosignal_trigger) {
 
 		evt_t c = get_cycles();
-		uae_u32 cck = get_cck_cycles();
+		evt_t cck = get_cck_cycles();
 
 		if (issyncstopped(bplcon0)) {
 			nosignal_trigger = true;
@@ -9881,9 +9881,9 @@ static void update_fast_vb(void)
 	vb_fast = get_strobe_reg(0) != 0x3c;
 }
 
-static void count_hsyncs(uae_u32 start, uae_u32 end)
+static void count_hsyncs(evt_t start, evt_t end)
 {
-	agnus_hslen_cck = end - start;
+	agnus_hslen_cck = get_cck_cycles_sub(end, start);
 	if (agnus_hslen_cck == agnus_hslen_cck_prev) {
 		agnus_hslen_cck_cnt++;
 		if (agnus_hslen_cck_cnt >= 30) {
@@ -10675,7 +10675,7 @@ static void decide_hsync(void)
 			display_hstart_cyclewait_cnt--;
 		} else {
 			display_hstart_fastmode = agnus_hpos;
-			hdisplay_left_border = (get_cck_cycles() - agnus_trigger_cck) - REFRESH_FIRST_HPOS + display_hstart_cyclewait_skip_start;
+			hdisplay_left_border = get_cck_cycles_diff(agnus_trigger_cck) - REFRESH_FIRST_HPOS + display_hstart_cyclewait_skip_start;
 			do_draw_line();
 			draw_line_next_line = 1;
 		}
@@ -11258,7 +11258,7 @@ static void check_hsyncs_hardwired(void)
 		agnus_hsstrt_cck = get_cck_cycles();
 		check_vidsyncs();
 		if (!beamcon0_has_hsync) {
-			hsync_ccks = get_cck_cycles() - agnus_hsync_start;
+			hsync_ccks = get_cck_cycles_diff(agnus_hsync_start);
 			vsync_linecnt++;
 			agnus_hsync_start = get_cck_cycles();
 			display_hstart_cyclewait_started = true;
@@ -11486,7 +11486,7 @@ static void check_hsyncs_programmed(void)
 #endif
 		}
 		if (beamcon0_has_hsync) {
-			hsync_ccks = get_cck_cycles() - agnus_hsync_start;
+			hsync_ccks = get_cck_cycles_diff(agnus_hsync_start);
 			vsync_linecnt++;
 			agnus_hsync_start = get_cck_cycles();
 			display_hstart_cyclewait_started = true;
@@ -11538,8 +11538,8 @@ static void check_hsyncs_programmed(void)
 		agnus_phblank_end = get_cck_cycles();
 		agnus_phblank_start = agnus_phblank_start_tmp;
 		if (!agnus_vb_active) {
-			int len = agnus_phblank_end - agnus_phblank_start;
-			current_linear_hs_hb_dist = agnus_phblank_end - agnus_hsstrt_cck;
+			int len = get_cck_cycles_sub(agnus_phblank_end, agnus_phblank_start);
+			current_linear_hs_hb_dist = get_cck_cycles_sub(agnus_phblank_end, agnus_hsstrt_cck);
 			if (hblen_display_tmp > 0 && hblen_display_tmp == len) {
 				hblen_cnt++;
 				if (hblen_cnt > maxvpos / 8) {
