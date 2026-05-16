@@ -4001,7 +4001,7 @@ static void smc_detect_init(TCHAR **c)
 		initialize_memwatch(0);
 	if (v)
 		smc_mode = 1;
-	console_out_f(_T("SMCD enabled. Break=%d. Last address=%08x\n"), smc_mode, smc_size);
+	console_out_f(_T("SMCD enabled. Break=%d. Last address=%08x\n"), smc_mode, smc_size - 1);
 }
 
 void debug_smc_clear(uaecptr addr, int size)
