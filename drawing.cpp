@@ -275,8 +275,6 @@ static bool denise_lock(void)
 	return true;
 }
 
-int scandoubled_line;
-
 struct amigadisplay adisplays[MAX_AMIGADISPLAYS];
 
 typedef enum

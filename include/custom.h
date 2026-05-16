@@ -81,7 +81,6 @@ extern int vpos, linear_display_vpos;
 extern int linear_vpos_vb_start, linear_vpos_vb_end;
 extern uae_u8 agnus_hpos;
 extern bool lof_store, lof_display;
-extern int scandoubled_line;
 
 extern int n_frames;
 

@@ -123,6 +123,7 @@ static int agnus_trigger_cck;
 static int init_beamcon_delay;
 
 static uae_u32 scandoubled_bpl_ptr[MAX_SCANDOUBLED_LINES + 1][2][MAX_PLANES];
+static bool scandoubled_bpl_ptr_active[MAX_SCANDOUBLED_LINES + 1][2];
 static bool scandoubled_bpl_ena[MAX_SCANDOUBLED_LINES + 1];
 
 static evt_t blitter_dma_change_cycle, copper_dma_change_cycle, sprite_dma_change_cycle_on, sprite_dma_change_cycle_off;
@@ -828,11 +829,6 @@ static bool doflickerfix_possible(void)
 static bool doflickerfix_active(void)
 {
 	return interlace_seen > 0 && doflickerfix_possible();
-}
-
-static bool flickerfix_line_no_draw(int dvp)
-{
-	return doflickerfix_active() && dvp >= (maxvpos_nom - vsync_startline - 1) * 2;
 }
 
 uae_u32 get_copper_address(int copno)
@@ -9360,6 +9356,7 @@ static void update_bpl_scandoubler(void)
 	for (int i = 0; i < MAX_PLANES; i++) {
 		scandoubled_bpl_ptr[linear_vpos][lof_store][i] = bplpt[i];
 	}
+	scandoubled_bpl_ptr_active[linear_vpos][lof_store] = true;
 }
 
 static void decide_bpl(int hpos)
@@ -10357,9 +10354,6 @@ static bool draw_border_fast(struct linestate *l, int ldv)
 static bool draw_line_fast(struct linestate *l, int ldv, uaecptr bplptp[8], bool addbpl)
 {
 	int dvp = calculate_linetype(ldv);
-	if (flickerfix_line_no_draw(dvp)) {
-		return draw_border_fast(l, ldv);
-	}
 
 	if (l->hbstrt_offset < 0 || l->hbstop_offset < 0) {
 		return false;
@@ -10532,7 +10526,6 @@ static bool checkprevfieldlinestateequal(void)
 
 					// first line after accurate -> fast switch
 					if (doflickerfix_active() && custom_fastmode == 1 && lvpos >= 2 && scandoubled_bpl_ena[lvpos]) {
-						scandoubled_line = 1;
 						lof_display ^= 1;
 						int lvpos2 = lvpos - 1;
 						struct linestate *l2 = &lines[lvpos2][lof_display];
@@ -10550,13 +10543,11 @@ static bool checkprevfieldlinestateequal(void)
 							draw_line_fast(l2, linear_display_vpos + 0, bplptx, false);
 						}
 						lof_display ^= 1;
-						scandoubled_line = 0;
 					}
 
 					r = draw_line_fast(l, linear_display_vpos + 1, bplpt, true);
 					if (doflickerfix_active()) {
 						if (scandoubled_bpl_ena[lvpos]) {
-							scandoubled_line = 1;
 							lof_display ^= 1;
 							struct linestate *l2 = &lines[lvpos][lof_display];
 							uaecptr bplptx[MAX_PLANES];
@@ -10573,7 +10564,6 @@ static bool checkprevfieldlinestateequal(void)
 								draw_line_fast(l2, linear_display_vpos + 2, bplptx, false);
 							}
 							lof_display ^= 1;
-							scandoubled_line = 0;
 						}
 					}
 				}
@@ -10588,9 +10578,6 @@ static void draw_line(int ldvpos, bool finalseg)
 {
 	int dvp = calculate_linetype(ldvpos);
 	int wclks = draw_line_wclks;
-	if (flickerfix_line_no_draw(dvp)) {
-		wclks = -1;
-	}
 
 	struct linestate *l = NULL;
 	if (linear_vpos < MAX_SCANDOUBLED_LINES) {
@@ -10651,16 +10638,22 @@ static void do_draw_line(void)
 		draw_line_wclks = linear_hpos - (display_hstart_cyclewait_skip_start - display_hstart_cyclewait_skip_end);
 		if (custom_fastmode >= 0) {
 			if (doflickerfix_active() && scandoubled_bpl_ena[linear_vpos]) {
-				denise_store_restore_registers_queue(true, rga_denise_cycle_line);
-				draw_line(linear_display_vpos, true);
-				draw_denise_line_queue_flush();
-				do_scandouble();
-				denise_store_restore_registers_queue(false, rga_denise_cycle_line);
+				if (scandoubled_bpl_ptr_active[linear_vpos][lof_display]) {
+					denise_store_restore_registers_queue(true, rga_denise_cycle_line);
+					draw_line(linear_display_vpos, true);
+					draw_denise_line_queue_flush();
+					do_scandouble();
+					denise_store_restore_registers_queue(false, rga_denise_cycle_line);
+				} else {
+					draw_denise_line_queue_flush();
+					do_scandouble();
+				}
 				lof_display ^= 1;
-				scandoubled_line = 1;
 				rga_denise_cycle_count_start = 0;
-				draw_line(linear_display_vpos, true);
-				scandoubled_line = 0;
+				if (scandoubled_bpl_ptr_active[linear_vpos][lof_display]) {
+					draw_line(linear_display_vpos, true);
+				}
+				scandoubled_bpl_ptr_active[linear_vpos][lof_display] = false;
 				lof_display ^= 1;
 			} else {
 				draw_line(linear_display_vpos, true);
