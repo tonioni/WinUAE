@@ -41,6 +41,7 @@ using namespace std;
 #endif
 
 #if defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC) 
+#define CPU_AARCH64 1
 #define CPU_arm 1
 #define ARM_ASSEMBLY 1
 #define CPU_64_BIT 1

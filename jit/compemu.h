@@ -1,3 +1,6 @@
+#if defined(CPU_AARCH64)
+#include "arm/compemu_arm.h"
+#else
 /*
  * compiler/compemu.h - Public interface and definitions
  *
@@ -46,9 +49,13 @@ typedef uae_u32 uintptr;
 #define USE_JIT
 #endif
 
-#define JITPTR (uae_u32)(uintptr)
+#define JITPTR (uintptr)
 
 #ifdef USE_JIT
+
+/* Allocate memory near the JIT cache / .data segment for RIP-relative access.
+ * options=0 uses anchor-based allocation; options=1 forces low 2GB (MAP_32BIT). */
+extern void *jit_vm_acquire(uae_u32 size, int options = 0);
 
 #ifdef JIT_DEBUG
 /* dump some information (m68k block, x86 block addresses) about the compiler state */
@@ -86,7 +93,7 @@ union cacheline {
 #error implementation in progress
 #endif
 
-/* (gb) When on, this option can save save up to 30% compilation time
+/* (gb) When on, this option can save up to 30% compilation time
  *  when many lazy flushes occur (e.g. apps in MacOS 8.x).
  */
 #define USE_SEPARATE_BIA 1
@@ -97,7 +104,7 @@ union cacheline {
 /* Use code inlining, aka follow-up of constant jumps */
 #define USE_INLINING 1
 
-/* Inlining requires the chained checksuming information */
+/* Inlining requires the chained checksum information */
 #if USE_INLINING
 #undef  USE_CHECKSUM_INFO
 #define USE_CHECKSUM_INFO 1
@@ -176,6 +183,9 @@ extern void (*flush_icache)(int);
 #endif
 extern void alloc_cache(void);
 extern int check_for_cache_miss(void);
+#ifdef UAE
+extern void disable_jit_on_runtime_alloc_failure(const char *what);
+#endif
 
 /* JIT FPU compilation */
 struct jit_disable_opcodes {
@@ -253,7 +263,7 @@ extern void* pushall_call_handler;
 
 typedef struct {
   uae_u32* mem;
-  uae_u32 val;
+  uintptr val;  /* Must be pointer-width: PC_P holds a host pointer (64-bit on x86_64) */
   uae_u8 is_swapped;
   uae_u8 status;
   uae_s8 realreg; /* gb-- realreg can hold -1 */
@@ -348,6 +358,7 @@ typedef struct {
 extern int touchcnt;
 
 #define IMM  uae_s32
+#define IMPTR uintptr
 #define RR1  uae_u32
 #define RR2  uae_u32
 #define RR4  uae_u32
@@ -363,9 +374,9 @@ extern int touchcnt;
 #define RW1 uae_u32
 #define RW2 uae_u32
 #define RW4 uae_u32
-#define MEMR uae_u32
-#define MEMW uae_u32
-#define MEMRW    uae_u32
+#define MEMR uintptr
+#define MEMW uintptr
+#define MEMRW    uintptr
 #define MEMPTR   uintptr
 #define MEMPTRR  MEMPTR
 #define MEMPTRW  MEMPTR
@@ -382,15 +393,6 @@ extern int touchcnt;
 
 /* What we expose to the outside */
 #define DECLARE_MIDFUNC(func) extern void func
-
-#if defined(CPU_arm)
-
-#include "compemu_midfunc_arm.h"
-
-#if defined(USE_JIT2)
-#include "compemu_midfunc_arm2.h"
-#endif
-#endif
 
 #if defined(CPU_i386) || defined(CPU_x86_64)
 #include "compemu_midfunc_x86.h"
@@ -419,9 +421,9 @@ extern void set_zero(int r, int tmp);
 extern int kill_rodent(int r);
 #define SYNC_PC_OFFSET 100
 extern void sync_m68k_pc(void);
-extern uae_u32 get_const(int r);
+extern uintptr get_const(int r);
 extern int  is_const(int r);
-extern void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond);
+extern void register_branch(uintptr not_taken, uintptr taken, uae_u8 cond);
 void compemu_make_sr(int sr, int tmp);
 void compemu_enter_super(int sr);
 void compemu_exc_make_frame(int format, int sr, int currpc, int nr, int tmp);
@@ -569,18 +571,12 @@ void jit_abort(const char *format,...) __attribute__((format(printf, 1, 2))) __a
 
 #endif /* UAE */
 
-#ifdef CPU_64_BIT
-static inline uae_u32 check_uae_p32(uintptr address, const char *file, int line)
-{
-	if (address > (uintptr_t) 0xffffffff) {
-		jit_abort("JIT: 64-bit pointer (0x%llx) at %s:%d (fatal)",
-			(unsigned long long)address, file, line);
-	}
-	return (uae_u32) address;
-}
-#define uae_p32(x) (check_uae_p32((uintptr)(x), __FILE__, __LINE__))
-#else
-#define uae_p32(x) ((uae_u32)(x))
-#endif
+/* x86_64 JIT is now 64-bit pointer-clean. uae_p32() is no longer needed
+   for pointer truncation. It now passes through the full uintptr value.
+   The debug check remains to catch any leftover code that still assumes
+   32-bit pointers where it shouldn't. */
+#define uae_p32(x) ((uintptr)(x))
 
 #endif /* COMPEMU_H */
+
+#endif /* CPU_AARCH64 */

@@ -1,3 +1,6 @@
+#if defined(CPU_AARCH64)
+#include "arm/compemu_arm.cpp"
+#else
 #include "sysconfig.h"
 #if defined(JIT)
 #include "sysdeps.h"
@@ -20,6 +23,7 @@
 #define PART_7 1
 #define PART_8 1
 #endif
+#endif /* CPU_AARCH64 */
 
 #ifdef USE_JIT_FPU
 extern void comp_fpp_opp();
