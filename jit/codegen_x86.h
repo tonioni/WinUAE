@@ -454,7 +454,9 @@ static inline int x86_DISP32_addressing_possible(uintptr addr)
 #define _r_X(   R, D,B,I,S,O)	(_r0P(I) ? (_r0P(B)    ? (!X86_TARGET_64BIT ? _r_D(R,D) : \
 					                 (_x86_RIP_addressing_possible(D, O) ? \
 				                          _r_D(R, (D) - ((uintptr)x86_get_target() + 4 + (O))) : \
-				                          _r_DSIB(R,D))) : \
+				                          (x86_DISP32_addressing_possible(D) ? \
+				                           _r_DSIB(R,D) : \
+				                           x86_emit_failure("x86-64 absolute address is not RIP-relative and does not fit disp32")))) : \
 				           (_rIP(B)    ? _r_D   (R,D                )   : \
 				           (_rsp12P(B) ? _r_DBIS(R,D,_rSP(),_rSP(),1)   : \
 						         _r_DB  (R,D,     B       ))))  : \
