@@ -21,7 +21,6 @@
 #include "newcpu.h"
 #include "fpp.h"
 #include "uae/attributes.h"
-#include "uae/vm.h"
 #include "softfloat/softfloat-specialize.h"
 
 extern "C"
@@ -117,43 +116,10 @@ static void fp_set_mode(uae_u32 m68k_cw)
 
 }
 
-/* The main motivation for dynamically creating an x86(-64) function in
-* memory is because MSVC (x64) does not allow you to use inline assembly,
-* and the x86-64 versions of _control87/_controlfp functions only modifies
-* SSE2 registers. */
-
 static uae_u16 x87_cw = 0;
-static uae_u8 *x87_fldcw_code = NULL;
-typedef void (uae_cdecl *x87_fldcw_function)(void);
 
 void init_fpucw_x87_80(void)
 {
-	if (x87_fldcw_code) {
-		return;
-	}
-	x87_fldcw_code = (uae_u8 *)uae_vm_alloc(uae_vm_page_size(), UAE_VM_32BIT, UAE_VM_READ_WRITE_EXECUTE);
-	uae_u8 *c = x87_fldcw_code;
-	/* mov eax,0x0 */
-	*(c++) = 0xb8;
-	*(c++) = 0x00;
-	*(c++) = 0x00;
-	*(c++) = 0x00;
-	*(c++) = 0x00;
-#ifdef CPU_x86_64
-	/* Address override prefix */
-	*(c++) = 0x67;
-#endif
-	/* fldcw WORD PTR [eax+addr] */
-	*(c++) = 0xd9;
-	*(c++) = 0xa8;
-	*(c++) = (((uintptr_t)&x87_cw)) & 0xff;
-	*(c++) = (((uintptr_t)&x87_cw) >> 8) & 0xff;
-	*(c++) = (((uintptr_t)&x87_cw) >> 16) & 0xff;
-	*(c++) = (((uintptr_t)&x87_cw) >> 24) & 0xff;
-	/* ret */
-	*(c++) = 0xc3;
-	/* Write-protect the function */
-	uae_vm_protect(x87_fldcw_code, uae_vm_page_size(), UAE_VM_READ_EXECUTE);
 }
 
 static void native_set_fpucw(uae_u32 m68k_cw)
@@ -165,11 +131,11 @@ static void native_set_fpucw(uae_u32 m68k_cw)
 	static const unsigned int fp87_prec[4] = { _PC_53, _PC_24, _PC_53, _PC_53 };
 	int round = (m68k_cw >> 4) & 3;
 #ifdef WIN64
-	// x64 only sets SSE2, must also call x87_fldcw_code() to set FPU rounding mode.
+	// x64 only sets SSE2, must also load the x87 control word to set FPU rounding mode.
 	_controlfp(ex | fp87_round[round], _MCW_RC);
 #else
 	int prec = (m68k_cw >> 6) & 3;
-	// x86 sets both FPU and SSE2 rounding mode, don't need x87_fldcw_code()
+	// x86 sets both FPU and SSE2 rounding mode, don't need an explicit x87 load.
 	_control87(ex | fp87_round[round] | fp87_prec[prec], _MCW_RC | _MCW_PC);
 	return;
 #endif
@@ -180,7 +146,7 @@ static void native_set_fpucw(uae_u32 m68k_cw)
 		0x127f, 0x1e7f, 0x167f, 0x1a7f,	/* undefined (Double) */
 	};
 	x87_cw = x87_cw_tab[(m68k_cw >> 4) & 0xf];
-	((x87_fldcw_function)x87_fldcw_code)();
+	xfp_fldcw(&x87_cw);
 }
 
 /* Functions for setting host/library modes and getting status */

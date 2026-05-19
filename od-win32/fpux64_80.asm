@@ -1,6 +1,10 @@
 
 ; 64-bit assembly functions for native 80-bit FPU emulation
 
+cpu x64
+bits 64
+default rel
+
 global xfp_int
 global xfp_mov
 global xfp_fldcw
@@ -52,8 +56,6 @@ global xfp_get_status
 global xfp_clear_status
 
 section .text
-
-bits 64
 
 %macro loadfp1 0
 	fld tword[rdx]
