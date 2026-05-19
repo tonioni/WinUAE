@@ -1,3 +1,6 @@
+#if defined(CPU_AARCH64)
+#include "arm/compstbl_arm.cpp"
+#else
 #include "sysconfig.h"
 #if defined(JIT)
 #include "sysdeps.h"
@@ -3756,3 +3759,4 @@ const struct comptbl op_smalltbl_0_comp_nf[] = {
 { NULL, 63488, COMP_OPCODE_ISJUMP }, /* LPSTOP */
 { 0, 65536, 0 }};
 #endif
+#endif /* CPU_AARCH64 */

@@ -54,6 +54,7 @@ static bool rom_write_enabled;
 int special_mem, special_mem_default;
 /* do not use get_n_addr */
 int jit_n_addr_unsafe;
+int jit_n_addr_bank_unsafe;
 #endif
 static int mem_hardreset;
 static bool roms_modified;
@@ -3100,7 +3101,17 @@ void memory_reset (void)
 	need_hardreset = false;
 	rom_write_enabled = true;
 #ifdef JIT
+	/* Start in direct n_addr mode; map_banks() will mark real
+	 * S_N_ADDR banks separately. High x86-64 natmem only needs
+	 * pointer-clean codegen, not helper fallback. */
 	jit_n_addr_unsafe = 0;
+	jit_n_addr_bank_unsafe = 0;
+#if defined(CPU_x86_64) && defined(NATMEM_OFFSET)
+	if ((uintptr_t)natmem_offset + natmem_reserved_size > (uintptr_t)0x100000000ULL) {
+		write_log(_T("JIT: jit_n_addr_unsafe enabled for high x86-64 natmem at %p\n"), natmem_offset);
+		jit_n_addr_unsafe = 1;
+	}
+#endif
 #endif
 	/* Use changed_prefs, as m68k_reset is called later.  */
 	if (last_address_space_24 != changed_prefs.address_space_24)
@@ -3733,7 +3744,12 @@ void map_banks (addrbank *bank, int start, int size, int realsize)
 
 #ifdef JIT
 	if ((bank->jit_read_flag | bank->jit_write_flag) & S_N_ADDR) {
+		if (!jit_n_addr_bank_unsafe) {
+			write_log(_T("JIT: jit_n_addr_unsafe enabled by bank '%s' at %08x (r=%d w=%d)\n"),
+				bank->name ? bank->name : _T("<unnamed>"), start << 16, bank->jit_read_flag, bank->jit_write_flag);
+		}
 		jit_n_addr_unsafe = 1;
+		jit_n_addr_bank_unsafe = 1;
 	}
 #endif
 

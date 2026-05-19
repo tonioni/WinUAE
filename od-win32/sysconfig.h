@@ -29,10 +29,8 @@
 
 #ifndef UAE_MINI
 
-#if !defined(_M_ARM64) && !defined(_M_ARM64EC)
 #define JIT /* JIT compiler support */
 #define USE_JIT_FPU
-#endif
 
 #define DEBUGGER
 //#define GDBSERVER
