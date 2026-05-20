@@ -400,7 +400,7 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 		return 0;
 	}
 
-	uae_u32 addr = uae_p32(fault_addr) - uae_p32(NATMEM_OFFSET);
+	uae_u32 addr = (uae_u32)(fault_addr - (uintptr_t)NATMEM_OFFSET);
 #ifdef DEBUG_ACCESS
 	if (addr >= 0x80000000) {
 		write_log (_T("JIT: Suspicious address 0x%x in SEGV handler.\n"), addr);
@@ -508,7 +508,7 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 		return 0;
 	}
 
-	uae_u32 addr = uae_p32(fault_addr) - uae_p32(NATMEM_OFFSET);
+	uae_u32 addr = (uae_u32)(fault_addr - (uintptr_t)NATMEM_OFFSET);
 #ifdef DEBUG_ACCESS
 	if (addr >= 0x80000000) {
 			write_log (_T("JIT: Suspicious address 0x%x in SEGV handler.\n"), addr);
@@ -600,7 +600,8 @@ LONG WINAPI EvalException(LPEXCEPTION_POINTERS info)
 	}
 	if (currprefs.comp_catchfault) {
 		// setup fake exception
-		exception2_setup(regs.opcode, uae_p32(address) - uae_p32(NATMEM_OFFSET), info->ExceptionRecord->ExceptionInformation[0] == 0, 1, regs.s ? 4 : 0);
+		uae_u32 amiga_addr = (uae_u32)(address - (uintptr_t)NATMEM_OFFSET);
+		exception2_setup(regs.opcode, amiga_addr, info->ExceptionRecord->ExceptionInformation[0] == 0, 1, regs.s ? 4 : 0);
 		return EXCEPTION_EXECUTE_HANDLER;
 	}
 	return EXCEPTION_CONTINUE_SEARCH;
