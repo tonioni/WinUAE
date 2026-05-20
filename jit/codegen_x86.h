@@ -423,15 +423,15 @@ static inline int x86_RIP_addressing_possible(uintptr addr, uintptr offset)
 #if X86_TARGET_64BIT
 	/*
 	 * address of the next instruction.
-	 * The opcode has already been emmitted,
-	 * so this is the size of an 32bit displacement +
+	 * The opcode has already been emitted, but the ModR/M byte has not,
+	 * so this is the size of the ModR/M byte + a 32-bit displacement +
 	 * the size of any immediate value that is part of the instruction (offset),
 	 */
-	uintptr dst = (uintptr)get_target() + 4 + offset;
-	intptr disp = dst - addr;
-	int ok = disp >= -0x80000000LL && disp <= 0x7fffffffLL;
-	/* fprintf(stderr, "x86_RIP_addressing_possible: %llx - %llx %16llx = %d\n", (unsigned long long)dst, (unsigned long long)addr, (long long)disp, ok); */
-	return ok;
+	uintptr next = (uintptr)get_target() + 1 + 4 + offset;
+	if (addr >= next) {
+		return addr - next <= 0x7fffffffULL;
+	}
+	return next - addr <= 0x80000000ULL;
 #else
 	UNUSED(addr);
 	UNUSED(offset);
@@ -443,7 +443,7 @@ static inline int x86_RIP_addressing_possible(uintptr addr, uintptr offset)
 static inline int x86_DISP32_addressing_possible(uintptr addr)
 {
 #if X86_TARGET_64BIT
-	return addr <= 0xFFFFFFFFULL;
+	return addr <= 0x7FFFFFFFULL;
 #else
 	UNUSED(addr);
 	return 1;
@@ -454,7 +454,9 @@ static inline int x86_DISP32_addressing_possible(uintptr addr)
 #define _r_X(   R, D,B,I,S,O)	(_r0P(I) ? (_r0P(B)    ? (!X86_TARGET_64BIT ? _r_D(R,D) : \
 					                 (_x86_RIP_addressing_possible(D, O) ? \
 				                          _r_D(R, (D) - ((uintptr)x86_get_target() + 4 + (O))) : \
-				                          _r_DSIB(R,D))) : \
+				                          (x86_DISP32_addressing_possible(D) ? \
+				                           _r_DSIB(R,D) : \
+				                           x86_emit_failure("x86-64 absolute address is not RIP-relative and does not fit disp32")))) : \
 				           (_rIP(B)    ? _r_D   (R,D                )   : \
 				           (_rsp12P(B) ? _r_DBIS(R,D,_rSP(),_rSP(),1)   : \
 						         _r_DB  (R,D,     B       ))))  : \
