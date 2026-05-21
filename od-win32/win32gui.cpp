@@ -10249,11 +10249,12 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 	enable_for_memorydlg(hDlg);
 }
 
-extern uae_u32 natmem_reserved_size;
+extern size_t natmem_reserved_size;
 static void setmax32bitram (HWND hDlg)
 {
 	TCHAR tmp[256], tmp2[256];
-	uae_u32 size32 = 0, z3size_uae = 0, z3size_real = 0;
+	uae_u32 size32 = 0;
+	size_t z3size_uae = 0, z3size_real = 0;
 
 	z3size_uae = natmem_reserved_size >= expamem_z3_pointer_uae ? natmem_reserved_size - expamem_z3_pointer_uae : 0;
 	z3size_real = natmem_reserved_size >= expamem_z3_pointer_real ? natmem_reserved_size - expamem_z3_pointer_real : 0;
@@ -10274,7 +10275,10 @@ static void setmax32bitram (HWND hDlg)
 		size32 -= first;
 
 	WIN32GUI_LoadUIString(IDS_MEMINFO, tmp2, sizeof(tmp2) / sizeof(TCHAR));
-	_stprintf (tmp, tmp2, size32 / (1024 * 1024), (natmem_reserved_size - 256 * 1024 * 1024) / (1024 * 1024), z3size_uae / (1024 * 1024), z3size_real / (1024 * 1024));
+	_stprintf (tmp, tmp2, size32 / (1024 * 1024),
+		(uae_u32)((natmem_reserved_size - 256 * 1024 * 1024) / (1024 * 1024)),
+		(uae_u32)(z3size_uae / (1024 * 1024)),
+		(uae_u32)(z3size_real / (1024 * 1024)));
 	SetDlgItemText (hDlg, IDC_MAX32RAM, tmp);
 }
 

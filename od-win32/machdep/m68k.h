@@ -13,7 +13,54 @@
 
 extern int cctrue(int cc);
 
-#ifndef SAHF_SETO_PROFITABLE
+#if defined(CPU_AARCH64)
+
+struct flag_struct {
+	union {
+		uae_u64 cznv;
+		uae_u64 nzcv;
+	};
+	uae_u64 x;
+};
+
+extern struct flag_struct regflags;
+
+/*
+ * ARM64 JIT stores the 68k CZNV flags in the host NZCV bit positions.
+ */
+
+#define FLAGBIT_N	31
+#define FLAGBIT_Z	30
+#define FLAGBIT_C	29
+#define FLAGBIT_V	28
+#define FLAGBIT_X	0
+
+#define FLAGVAL_N	(1u << FLAGBIT_N)
+#define FLAGVAL_Z	(1u << FLAGBIT_Z)
+#define FLAGVAL_C	(1u << FLAGBIT_C)
+#define FLAGVAL_V	(1u << FLAGBIT_V)
+#define FLAGVAL_X	(1u << FLAGBIT_X)
+
+#define SET_NFLG(y)		(regflags.nzcv = (regflags.nzcv & ~FLAGVAL_N) | (((y) & 1) << FLAGBIT_N))
+#define SET_ZFLG(y)		(regflags.nzcv = (regflags.nzcv & ~FLAGVAL_Z) | (((y) & 1) << FLAGBIT_Z))
+#define SET_CFLG(y)		(regflags.nzcv = (regflags.nzcv & ~FLAGVAL_C) | (((y) & 1) << FLAGBIT_C))
+#define SET_VFLG(y)		(regflags.nzcv = (regflags.nzcv & ~FLAGVAL_V) | (((y) & 1) << FLAGBIT_V))
+#define SET_XFLG(y)		(regflags.x = ((y) & 1))
+
+#define GET_NFLG()		((regflags.nzcv >> FLAGBIT_N) & 1)
+#define GET_ZFLG()		((regflags.nzcv >> FLAGBIT_Z) & 1)
+#define GET_CFLG()		((regflags.nzcv >> FLAGBIT_C) & 1)
+#define GET_VFLG()		((regflags.nzcv >> FLAGBIT_V) & 1)
+#define GET_XFLG()		((regflags.x) & 1)
+
+#define CLEAR_CZNV()	(regflags.nzcv = 0)
+#define GET_CZNV()		(regflags.nzcv)
+#define IOR_CZNV(X)		(regflags.nzcv |= (X))
+#define SET_CZNV(X)		(regflags.nzcv = (X))
+
+#define COPY_CARRY()	(regflags.x = (regflags.nzcv >> FLAGBIT_C) & 1)
+
+#elif !defined(SAHF_SETO_PROFITABLE)
 
 struct flag_struct {
 #if defined(CPU_x86_64)

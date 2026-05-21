@@ -108,3 +108,51 @@ jobs:
       with:
         name: WinUAE x64
         path: D:\Amiga
+
+  Build-WinUAE-ARM64-binary:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Install Visual Studio Build Tools
+      shell: pwsh
+      run: |
+        Write-Host "Installing VS 2026 Build Tools..."
+        choco install visualstudio2026buildtools `
+          --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --add Microsoft.VisualStudio.Component.VC.ATL --add Microsoft.VisualStudio.Component.VC.ATL.ARM64 --add Microsoft.VisualStudio.Component.VC.ATLMFC --includeRecommended --quiet" `
+          -y --ignore-package-exit-codes=3010
+        Write-Host "VS 2026 Build Tools installation completed"
+
+    # Running roughly step 4 of README.md
+    - name: Download WinUAE includes and libs
+      shell: powershell
+      run: Invoke-WebRequest -Uri "https://download.abime.net/winuae/files/b/winuaeinclibs.zip" -OutFile "winuaeinclibs.zip"
+
+    - name: Unpack WinUAE includes and libs to C:\dev
+      uses: ihiroky/extract-action@v1
+      with:
+        file_path: winuaeinclibs.zip
+        extract_dir: C:\dev
+
+    # Running roughly step 7 of README.md
+    - name: Add NASM to PATH
+      uses: ilammy/setup-nasm@v1.5.1
+
+    # Running roughly step 12 of README.md
+    - name: Build ARM64 FullRelease
+      shell: cmd
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: |
+        call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
+        msbuild /m /p:Platform=ARM64 /p:Configuration=FullRelease /p:BuildProjectReferences=false ${{env.SOLUTION_FILE_PATH}}\winuae_msvc.vcxproj
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: WinUAE ARM64
+        path: D:\Amiga

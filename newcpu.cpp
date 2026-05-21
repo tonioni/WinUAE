@@ -62,6 +62,12 @@
 /* Need to have these somewhere */
 bool check_prefs_changed_comp (bool checkonly) { return false; }
 #endif
+
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+jmp_buf jit_bus_error_jmpbuf;
+volatile bool jit_in_compiled_code = false;
+#endif
+
 /* For faster JIT cycles handling */
 int pissoff = 0;
 
@@ -5464,6 +5470,17 @@ static void custom_reset_cpu(bool hardreset, bool keyboardreset)
 
 #ifdef JIT  /* Completely different run_2 replacement */
 
+#ifdef CPU_AARCH64
+void execute_exception(uae_u32 cycles)
+{
+	countdown -= cycles;
+	Exception_cpu(regs.jit_exception);
+	regs.jit_exception = 0;
+	cpu_cycles = adjust_cycles(4 * CYCLE_UNIT / 2);
+	do_cycles(cpu_cycles);
+}
+#endif
+
 void do_nothing (void)
 {
 	if (!currprefs.cpu_thread) {
@@ -5584,12 +5601,29 @@ static void cpu_thread_run_jit(void *v)
 #endif
 	{
 		for (;;) {
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+			{
+				int bus_error_exc = setjmp(jit_bus_error_jmpbuf);
+				if (bus_error_exc != 0) {
+					jit_in_compiled_code = false;
+					Exception(bus_error_exc);
+					continue;
+				}
+			}
+			jit_in_compiled_code = true;
+#endif
 			((compiled_handler*)(pushall_call_handler))();
 			/* Whenever we return from that, we should check spcflags */
 			if (regs.spcflags || cpu_thread_ilvl > 0) {
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+				jit_in_compiled_code = false;
+#endif
 				if (do_specialties_thread()) {
 					break;
 				}
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+				jit_in_compiled_code = true;
+#endif
 			}
 		}
 	}
@@ -5604,6 +5638,9 @@ static void cpu_thread_run_jit(void *v)
 	}
 #endif
 	cpu_thread_active = 0;
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+	jit_in_compiled_code = false;
+#endif
 }
 #endif
 
@@ -5626,18 +5663,37 @@ static void m68k_run_jit(void)
 #ifdef USE_STRUCTURED_EXCEPTION_HANDLING
 		__try {
 #endif
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+			{
+				int bus_error_exc = setjmp(jit_bus_error_jmpbuf);
+				if (bus_error_exc != 0) {
+					jit_in_compiled_code = false;
+					Exception(bus_error_exc);
+				}
+			}
+			jit_in_compiled_code = true;
+#endif
 			for (;;) {
 				((compiled_handler*)(pushall_call_handler))();
 				/* Whenever we return from that, we should check spcflags */
 				check_uae_int_request();
 				if (regs.spcflags) {
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+					jit_in_compiled_code = false;
+#endif
 					if (do_specialties(0)) {
 						STOPTRY;
 						return;
 					}
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+					jit_in_compiled_code = true;
+#endif
 				}
 				// If T0, T1 or M got set: run normal emulation loop
 				if (regs.t0 || regs.t1 || regs.m) {
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+					jit_in_compiled_code = false;
+#endif
 					flush_icache(3);
 					struct regstruct *r = &regs;
 					bool exit = false;
@@ -5654,6 +5710,9 @@ static void m68k_run_jit(void)
 						}
 					}
 					unset_special(SPCFLAG_END_COMPILE);
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+					jit_in_compiled_code = true;
+#endif
 				}
 			}
 #ifdef USE_STRUCTURED_EXCEPTION_HANDLING
@@ -7831,7 +7890,11 @@ void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 
 void exception2_setup(uae_u32 opcode, uaecptr addr, bool read, int size, uae_u32 fc)
 {
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+	last_addr_for_exception_3 = jit_in_compiled_code ? regs.instruction_pc : m68k_getpc();
+#else
 	last_addr_for_exception_3 = m68k_getpc();
+#endif
 	last_fault_for_exception_3 = addr;
 	last_writeaccess_for_exception_3 = read == 0;
 	last_op_for_exception_3 = opcode;
@@ -7873,6 +7936,11 @@ void hardware_exception2(uaecptr addr, uae_u32 v, bool read, bool ins, int size)
 		}
 		// Non-MMU
 		exception2_setup(regs.opcode, addr, read, size, fc);
+#if defined(JIT_HAS_BUS_ERROR_RECOVERY)
+		if (jit_in_compiled_code) {
+			longjmp(jit_bus_error_jmpbuf, 2);
+		}
+#endif
 		THROW(2);
 	}
 }

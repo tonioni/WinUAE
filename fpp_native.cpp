@@ -393,7 +393,11 @@ static void fp_from_exten(fpdata *fpd, uae_u32 *wrd1, uae_u32 *wrd2, uae_u32 *wr
 #endif
 }
 #else // if !USE_LONG_DOUBLE
+#ifdef CPU_AARCH64
+void fp_to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+#else
 static void fp_to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
+#endif
 {
 	if (!currprefs.cachesize || !currprefs.compfpu) {
 		floatx80 fx80;

@@ -12,6 +12,8 @@
 #include "gfxboard.h"
 #include "cpuboard.h"
 #include "gui.h"
+#include <algorithm>
+#include <vector>
 #ifdef WINUAE
 #include "win32.h"
 #endif
@@ -20,8 +22,8 @@
 
 #define WIN32_NATMEM_TEST 0
 
-uae_u32 max_z3fastmem;
-uae_u32 max_physmem;
+size_t max_z3fastmem;
+size_t max_physmem;
 
 /* BARRIER is used in case Amiga memory is access across memory banks,
  * for example move.l $1fffffff,d0 when $10000000-$1fffffff is mapped and
@@ -36,7 +38,7 @@ uae_u32 max_physmem;
 
 static struct uae_shmid_ds shmids[MAX_SHMID];
 uae_u8 *natmem_reserved, *natmem_offset;
-uae_u32 natmem_reserved_size;
+size_t natmem_reserved_size;
 static uae_u8 *p96mem_offset;
 static int p96mem_size;
 static uae_u32 p96base_offset;
@@ -191,7 +193,7 @@ bool preinit_shm (void)
 	if ((uae_u64)max_allowed_mman * 1024 * 1024 > size64)
 		max_allowed_mman = (uae_u32)(size64 / (1024 * 1024));
 
-	uae_u32 natmem_size = (max_allowed_mman + 1) * 1024 * 1024;
+	size_t natmem_size = (max_allowed_mman + 1) * (size_t)1024 * 1024;
 	if (natmem_size < 17 * 1024 * 1024)
 		natmem_size = 17 * 1024 * 1024;
 
@@ -202,13 +204,27 @@ bool preinit_shm (void)
 	if (natmem_size > 0xc0000000) {
 		natmem_size = 0xc0000000;
 	}
+#if defined(CPU_AARCH64)
+	/* Windows ARM64 JIT direct memory can address the full 68040 32-bit
+	 * address space through natmem_offset + m68k_addr. Reserve the whole
+	 * range so later gap commits can make unmapped reads safe. */
+	if (natmem_size < 0x100000000ULL)
+		natmem_size = 0x100000000ULL;
+#endif
 
 	write_log (_T("MMAN: Total physical RAM %llu MB, all RAM %llu MB\n"),
 				  totalphys64 >> 20, total64 >> 20);
-	write_log(_T("MMAN: Attempting to reserve: %u MB\n"), natmem_size >> 20);
+	write_log(_T("MMAN: Attempting to reserve: %zu MB\n"), natmem_size >> 20);
 
 #if 1
-	natmem_reserved = (uae_u8 *) uae_vm_reserve(natmem_size, UAE_VM_32BIT | UAE_VM_WRITE_WATCH);
+	int vm_flags = UAE_VM_32BIT | UAE_VM_WRITE_WATCH;
+#if defined(CPU_AARCH64)
+	/* Keep Windows ARM64 natmem above 4GB.  A low mapping at 0x80000000
+	 * can make normal Kickstart host PCs look like signed 32-bit values
+	 * if any ARM64 path sign-extends a word-sized pointer component. */
+	vm_flags &= ~UAE_VM_32BIT;
+#endif
+	natmem_reserved = (uae_u8 *) uae_vm_reserve(natmem_size, vm_flags);
 #else
 	natmem_size = 0x20000000;
 	natmem_reserved = (uae_u8 *) uae_vm_reserve_fixed(
@@ -217,7 +233,7 @@ bool preinit_shm (void)
 
 	if (!natmem_reserved) {
 		if (natmem_size <= 768 * 1024 * 1024) {
-			uae_u32 p = 0x78000000 - natmem_size;
+			uae_u32 p = 0x78000000 - (uae_u32)natmem_size;
 			for (;;) {
 				natmem_reserved = (uae_u8*) VirtualAlloc((void*)(intptr_t)p, natmem_size, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_READWRITE);
 				if (natmem_reserved)
@@ -256,8 +272,8 @@ bool preinit_shm (void)
 		max_z3fastmem = natmem_size;
 	}
 	max_physmem = natmem_size;
-	write_log (_T("MMAN: Reserved %p-%p (0x%08x %dM)\n"),
-			   natmem_reserved, (uae_u8 *) natmem_reserved + natmem_reserved_size,
+	write_log (_T("MMAN: Reserved %p-%p (0x%zx %zuM)\n"),
+			   natmem_reserved, natmem_reserved + natmem_reserved_size,
 			   natmem_reserved_size, natmem_reserved_size / (1024 * 1024));
 
 	clear_shm ();
@@ -413,11 +429,11 @@ static int doinit_shm (void)
 	// rtg outside of natmem?
 	if (start_rtg > 0 && start_rtg < 0xffffffff && end_rtg > natmem_reserved_size) {
 		if (jit_direct_compatible_memory) {
-			write_log(_T("MMAN: VRAM outside of natmem (%08x > %08x), switching off JIT Direct.\n"), end_rtg, natmem_reserved_size);
+			write_log(_T("MMAN: VRAM outside of natmem (%08x > %zx), switching off JIT Direct.\n"), end_rtg, natmem_reserved_size);
 			jit_direct_compatible_memory = false;
 		}
 		if (end_rtg - start_rtg > natmem_reserved_size) {
-			write_log(_T("MMAN: VRAMs don't fit in natmem space! (%08x > %08x)\n"), end_rtg - start_rtg, natmem_reserved_size);
+			write_log(_T("MMAN: VRAMs don't fit in natmem space! (%08x > %zx)\n"), end_rtg - start_rtg, natmem_reserved_size);
 			notify_user(NUMSG_NOMEMORY);
 			return -1;
 		}
@@ -455,7 +471,7 @@ static int doinit_shm (void)
 				ab->jit_read_flag = 0;
 				ab->jit_write_flag = 0;
 				if (aci->start + aci->size > natmem_reserved_size) {
-					write_log(_T("%s %08x-%08x: not JIT direct capable (>%08x)!\n"), ab->name, aci->start, aci->start + aci->size - 1, natmem_reserved_size);
+					write_log(_T("%s %08x-%08x: not JIT direct capable (>%zx)!\n"), ab->name, aci->start, aci->start + aci->size - 1, natmem_reserved_size);
 					ab->flags |= ABFLAG_ALLOCINDIRECT;
 					ab->jit_read_flag = S_READ;
 					ab->jit_write_flag = S_WRITE;
@@ -1010,6 +1026,100 @@ void protect_roms(bool protect)
 				shm->rosize, shm->rosize >> 10, protect ? _T("WPROT") : _T("UNPROT"));
 		}
 	}
+}
+
+/*
+ * Commit dummy read-only pages for unmapped gaps in the natmem reservation.
+ *
+ * ARM64 JIT direct memory can access natmem_offset + m68k_addr for normal
+ * memory reads. Actual RAM/ROM banks are committed separately; the gaps stay
+ * reserved but inaccessible unless we back them here. Read-only gaps preserve
+ * dummy-bank read behavior without creating writable phantom RAM.
+ */
+void commit_natmem_gaps(void)
+{
+	if (!canbang || !natmem_reserved || !natmem_reserved_size)
+		return;
+
+	struct range {
+		size_t start;
+		size_t end;
+	};
+
+	std::vector<range> committed;
+	for (int i = 0; i < MAX_SHMID; i++) {
+		if (shmids[i].key == -1 || !shmids[i].attached || !shmids[i].natmembase)
+			continue;
+
+		uae_u8 *host_addr = (uae_u8*)shmids[i].attached;
+		if (host_addr < natmem_reserved || host_addr >= natmem_reserved + natmem_reserved_size)
+			continue;
+
+		size_t offset = (size_t)(host_addr - natmem_reserved);
+		size_t size = shmids[i].size;
+		if (offset + size > natmem_reserved_size)
+			size = natmem_reserved_size - offset;
+		if (size > 0)
+			committed.push_back({ offset, offset + size });
+	}
+
+	std::sort(committed.begin(), committed.end(),
+		[](const range& a, const range& b) { return a.start < b.start; });
+
+	std::vector<range> merged;
+	for (const auto& r : committed) {
+		if (!merged.empty() && r.start <= merged.back().end) {
+			if (r.end > merged.back().end)
+				merged.back().end = r.end;
+		} else {
+			merged.push_back(r);
+		}
+	}
+
+	uae_u8 fill_byte = currprefs.cs_unmapped_space == 2 ? 0xff : 0x00;
+	size_t page_mask = (size_t)uae_vm_page_size() - 1;
+	size_t total_gap = 0;
+	size_t pos = 0;
+
+	for (const auto& r : merged) {
+		if (r.start > pos) {
+			size_t gap_start = (pos + page_mask) & ~page_mask;
+			size_t gap_end = r.start & ~page_mask;
+			if (gap_end > gap_start) {
+				size_t gap_size = gap_end - gap_start;
+				uae_u8 *addr = natmem_reserved + gap_start;
+				if (uae_vm_commit(addr, gap_size, UAE_VM_READ_WRITE)) {
+					if (fill_byte)
+						memset(addr, fill_byte, gap_size);
+					uae_vm_protect(addr, gap_size, UAE_VM_READ);
+					total_gap += gap_size;
+					write_log(_T("MMAN: Committed gap %zx-%zx (%zuK) fill=0x%02x [read-only]\n"),
+						gap_start, gap_end, gap_size >> 10, fill_byte);
+				}
+			}
+		}
+		pos = r.end;
+	}
+
+	if (pos < natmem_reserved_size) {
+		size_t gap_start = (pos + page_mask) & ~page_mask;
+		size_t gap_end = natmem_reserved_size & ~page_mask;
+		if (gap_end > gap_start) {
+			size_t gap_size = gap_end - gap_start;
+			uae_u8 *addr = natmem_reserved + gap_start;
+			if (uae_vm_commit(addr, gap_size, UAE_VM_READ_WRITE)) {
+				if (fill_byte)
+					memset(addr, fill_byte, gap_size);
+				uae_vm_protect(addr, gap_size, UAE_VM_READ);
+				total_gap += gap_size;
+				write_log(_T("MMAN: Committed trailing gap %zx-%zx (%zuK) fill=0x%02x [read-only]\n"),
+					gap_start, gap_end, gap_size >> 10, fill_byte);
+			}
+		}
+	}
+
+	if (total_gap > 0)
+		write_log(_T("MMAN: Total gap pages committed: %zuK\n"), total_gap >> 10);
 }
 
 // Mark indirect regions (indirect VRAM) as non-accessible when JIT direct is active.
