@@ -1133,15 +1133,25 @@ chd_lzma_decompressor::chd_lzma_decompressor(chd_file &chd, UINT32 hunkbytes, bo
 	CLzmaEncProps encoder_props;
 	chd_lzma_compressor::configure_properties(encoder_props, hunkbytes);
 
-	// convert to decoder properties
-	CLzmaProps decoder_props;
-	decoder_props.lc = encoder_props.lc;
-	decoder_props.lp = encoder_props.lp;
-	decoder_props.pb = encoder_props.pb;
-	decoder_props.dicSize = encoder_props.dictSize;
+	CLzmaEncHandle encoder = LzmaEnc_Create(&m_allocator);
+	if (!encoder)
+		throw CHDERR_DECOMPRESSION_ERROR;
+	if (LzmaEnc_SetProps(encoder, &encoder_props) != SZ_OK)
+	{
+		LzmaEnc_Destroy(encoder, &m_allocator, &m_allocator);
+		throw CHDERR_DECOMPRESSION_ERROR;
+	}
+	Byte decoder_props[LZMA_PROPS_SIZE];
+	SizeT props_size = sizeof(decoder_props);
+	if (LzmaEnc_WriteProperties(encoder, decoder_props, &props_size) != SZ_OK)
+	{
+		LzmaEnc_Destroy(encoder, &m_allocator, &m_allocator);
+		throw CHDERR_DECOMPRESSION_ERROR;
+	}
+	LzmaEnc_Destroy(encoder, &m_allocator, &m_allocator);
 
 	// do memory allocations
-	SRes res = LzmaDec_Allocate_MAME(&m_decoder, &decoder_props, &m_allocator);
+	SRes res = LzmaDec_Allocate(&m_decoder, decoder_props, LZMA_PROPS_SIZE, &m_allocator);
 	if (res != SZ_OK)
 		throw CHDERR_DECOMPRESSION_ERROR;
 }
