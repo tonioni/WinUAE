@@ -138,6 +138,42 @@ static char endstr[1000];
 
 #include "flags_x86.h"
 
+#ifdef UAE
+static void write_winuae_header_prefix(FILE *f)
+{
+	fprintf(f, "#if defined(CPU_AARCH64)\n");
+	fprintf(f, "#include \"%s\"\n", "arm/comptbl_arm.h");
+	fprintf(f, "#else\n");
+}
+
+static void write_winuae_header_suffix(FILE *f)
+{
+	fprintf(f, "#endif /* CPU_AARCH64 */\n");
+}
+
+static void write_winuae_source_prefix(FILE *f, const char *arm_source)
+{
+	fprintf(f, "#if defined(CPU_AARCH64) || defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)\n");
+	fprintf(f, "#include \"%s\"\n", arm_source);
+	fprintf(f, "#else\n");
+}
+
+static void write_winuae_compemu_prefix(FILE *f)
+{
+	write_winuae_source_prefix(f, "arm/compemu_arm.cpp");
+}
+
+static void write_winuae_compemu_suffix(FILE *f)
+{
+	fprintf(f, "#endif /* CPU_AARCH64 */\n");
+}
+
+static void write_winuae_source_suffix(FILE *f)
+{
+	fprintf(f, "#endif /* CPU_AARCH64 */\n");
+}
+#endif
+
 #ifndef __attribute__
 #  ifndef __GNUC__
 #    define __attribute__(x)
@@ -3507,7 +3543,14 @@ generate_func(int noflags)
 			"#define PART_6 1\n"
 			"#define PART_7 1\n"
 			"#define PART_8 1\n"
+#ifdef UAE
+			"#endif\n");
+		if (!noflags)
+			write_winuae_compemu_suffix(stdout);
+		printf("\n");
+#else
 			"#endif\n\n");
+#endif
 #ifdef UAE
 
 		printf("#ifdef USE_JIT_FPU\n");
@@ -3561,6 +3604,9 @@ int main(void)
 	 * I don't dare to touch the 68k version.  */
 
 	headerfile = fopen(GEN_PATH "comptbl.h", "wb");
+#ifdef UAE
+	write_winuae_header_prefix(headerfile);
+#endif
 	fprintf(headerfile, ""
 		"extern const struct comptbl op_smalltbl_0_comp_nf[];\n"
 		"extern const struct comptbl op_smalltbl_0_comp_ff[];\n"
@@ -3571,6 +3617,10 @@ int main(void)
 		abort();
 	}
 
+#ifdef UAE
+	write_winuae_source_prefix(stblfile, "arm/compstbl_arm.cpp");
+	write_winuae_compemu_prefix(stdout);
+#endif
 	generate_includes(stdout);
 	generate_includes(stblfile);
 
@@ -3595,6 +3645,10 @@ int main(void)
 
 	printf("#endif\n");
 	fprintf(stblfile, "#endif\n");
+#ifdef UAE
+	write_winuae_source_suffix(stblfile);
+	write_winuae_header_suffix(headerfile);
+#endif
 
 	free(opcode_map);
 	free(opcode_last_postfix);
