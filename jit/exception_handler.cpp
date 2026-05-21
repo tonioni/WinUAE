@@ -214,20 +214,48 @@ static bool decode_instruction(
 
 	switch (pc[0]) {
 	case 0x8a: /* MOV r8, m8 */
-		if ((pc[1] & 0xc0) == 0x80) {
+		switch (pc[1] & 0xc0) {
+		case 0x80:
 			*r = (pc[1] >> 3) & 7;
 			*dir = SIG_READ;
 			*size = 1;
 			*len += 6;
 			break;
+		case 0x40:
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_READ;
+			*size = 1;
+			*len += 3;
+			break;
+		case 0x00:
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_READ;
+			*size = 1;
+			*len += 2;
+			break;
+		default:
+			break;
 		}
 		break;
 	case 0x88: /* MOV m8, r8 */
-		if ((pc[1] & 0xc0) == 0x80) {
+		switch (pc[1] & 0xc0) {
+		case 0x80:
 			*r = (pc[1] >> 3) & 7;
 			*dir = SIG_WRITE;
 			*size = 1;
 			*len += 6;
+			break;
+		case 0x40:
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_WRITE;
+			*size = 1;
+			*len += 3;
+			break;
+		case 0x00:
+			*r = (pc[1] >> 3) & 7;
+			*dir = SIG_WRITE;
+			*size = 1;
+			*len += 2;
 			break;
 		}
 		break;
@@ -273,6 +301,12 @@ static bool decode_instruction(
 		break;
 	}
 #ifdef CPU_x86_64
+	/* SIB byte present when ModR/M rm field = 100.
+	 * JIT-generated natmem forms can use [R15 + reg*scale + disp],
+	 * where R15 = natmem_offset. This covers only the MOV forms decoded here. */
+	if (*r != -1 && (pc[1] & 0x07) == 0x04) {
+		*len += 1;
+	}
 	if (*rex & (1 << 2)) {
 		/* Use x86-64 extended registers R8..R15. */
 		*r += 8;
@@ -359,13 +393,15 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 {
 	uae_u8 *fault_pc = (uae_u8 *) CONTEXT_PC(context);
 #ifdef CPU_64_BIT
-#if 0
-	if ((fault_addr & 0xffffffff00000000) == 0xffffffff00000000) {
-		fault_addr &= 0xffffffff;
-	}
-#endif
-	if (fault_addr > (uintptr_t) 0xffffffff) {
-		return 0;
+	/* Compute the Amiga address first. The host fault address can exceed
+	 * 32 bits when natmem_offset + amiga_addr is above 4GB. */
+	uintptr_t amiga_addr_wide = fault_addr - (uintptr_t)NATMEM_OFFSET;
+	if (amiga_addr_wide > (uintptr_t)0xffffffff) {
+		if (amiga_addr_wide < 0x200000000ULL) {
+			/* Single 32-bit wrap from JIT address computation. */
+		} else {
+			return 0;
+		}
 	}
 #endif
 
@@ -401,14 +437,38 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 	}
 
 	uae_u32 addr = (uae_u32)(fault_addr - (uintptr_t)NATMEM_OFFSET);
+	addrbank *ab = &get_mem_bank(addr);
 #ifdef DEBUG_ACCESS
 	if (addr >= 0x80000000) {
 		write_log (_T("JIT: Suspicious address 0x%x in SEGV handler.\n"), addr);
 	}
-	addrbank *ab = &get_mem_bank(addr);
 	if (ab)
 		write_log(_T("JIT: Address bank: %s, address %08x\n"), ab->name ? ab->name : _T("NONE"), addr);
 #endif
+
+	/* dummy_bank can call hardware_exception2() through Gary bus-error
+	 * emulation. Do not throw from this native exception handler; emulate
+	 * unmapped direct JIT accesses locally. */
+	if (ab == &dummy_bank) {
+		if (dir == SIG_READ) {
+			uae_u32 v = dummy_get_safe(addr,
+				size == 1 ? sz_byte : size == 2 ? sz_word : sz_long,
+				false, currprefs.cs_unmapped_space == 2 ? 0xffffffff : 0);
+			switch (size) {
+			case 1: *((uae_u8*)pr) = (uae_u8)v; break;
+			case 2: *((uae_u16*)pr) = do_byteswap_16((uae_u16)v); break;
+			case 4: *((uae_u32*)pr) = do_byteswap_32(v); break;
+			default: break;
+			}
+		}
+		CONTEXT_PC(context) += len;
+		if (delete_trigger(active, fault_pc))
+			return 1;
+		if (delete_trigger(dormant, fault_pc))
+			return 1;
+		set_special(0);
+		return 1;
+	}
 
 	if (dir == SIG_READ) {
 		switch (size) {
@@ -467,13 +527,15 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 {
 	uae_u8 *fault_pc = (uae_u8 *) CONTEXT_PC(context);
 #ifdef CPU_64_BIT
-#if 0
-	if ((fault_addr & 0xffffffff00000000) == 0xffffffff00000000) {
-		fault_addr &= 0xffffffff;
-	}
-#endif
-	if (fault_addr > (uintptr_t) 0xffffffff) {
-		return 0;
+	/* Compute the Amiga address first. The host fault address can exceed
+	 * 32 bits when natmem_offset + amiga_addr is above 4GB. */
+	uintptr_t amiga_addr_wide = fault_addr - (uintptr_t)NATMEM_OFFSET;
+	if (amiga_addr_wide > (uintptr_t)0xffffffff) {
+		if (amiga_addr_wide < 0x200000000ULL) {
+			/* Single 32-bit wrap from JIT address computation. */
+		} else {
+			return 0;
+		}
 	}
 #endif
 
@@ -509,14 +571,38 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 	}
 
 	uae_u32 addr = (uae_u32)(fault_addr - (uintptr_t)NATMEM_OFFSET);
+	addrbank *ab = &get_mem_bank(addr);
 #ifdef DEBUG_ACCESS
 	if (addr >= 0x80000000) {
 			write_log (_T("JIT: Suspicious address 0x%x in SEGV handler.\n"), addr);
 	}
-	addrbank *ab = &get_mem_bank(addr);
 	if (ab)
 		write_log(_T("JIT: Address bank: %s, address %08x\n"), ab->name ? ab->name : _T("NONE"), addr);
 #endif
+
+	/* dummy_bank can call hardware_exception2() through Gary bus-error
+	 * emulation. Do not throw from this native exception handler; emulate
+	 * unmapped direct JIT accesses locally. */
+	if (ab == &dummy_bank) {
+		if (dir == SIG_READ) {
+			uae_u32 v = dummy_get_safe(addr,
+				size == 1 ? sz_byte : size == 2 ? sz_word : sz_long,
+				false, currprefs.cs_unmapped_space == 2 ? 0xffffffff : 0);
+			switch (size) {
+			case 1: *((uae_u8*)pr) = (uae_u8)v; break;
+			case 2: *((uae_u16*)pr) = do_byteswap_16((uae_u16)v); break;
+			case 4: *((uae_u32*)pr) = do_byteswap_32(v); break;
+			default: break;
+			}
+		}
+		CONTEXT_PC(context) += len;
+		if (delete_trigger(active, fault_pc))
+			return 1;
+		if (delete_trigger(dormant, fault_pc))
+			return 1;
+		set_special(0);
+		return 1;
+	}
 
 	uae_u8 *original_target = target;
 	target = (uae_u8*) CONTEXT_PC(context);
