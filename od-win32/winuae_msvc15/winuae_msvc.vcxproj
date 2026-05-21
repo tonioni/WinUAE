@@ -700,7 +700,7 @@
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\dev\lib\arm64;%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries);MSVCRT</IgnoreSpecificDefaultLibraries>
       <DelayLoadDLLs>ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;portaudio_arm64.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -928,7 +928,7 @@
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\dev\lib\arm64;%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries);MSVCRT</IgnoreSpecificDefaultLibraries>
       <DelayLoadDLLs>ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;portaudio_arm64.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -1244,7 +1244,7 @@
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\dev\lib\arm64;%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries);MSVCRT</IgnoreSpecificDefaultLibraries>
       <DelayLoadDLLs>ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;portaudio_arm64.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>

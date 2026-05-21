@@ -389,7 +389,24 @@ typedef fptype fpu_register;
 /* Flags for Bernie during development/debugging. Should go away eventually */
 #define DISTRUST_CONSISTENT_MEM 0
 
+void jit_abort(const char *format,...);
 void jit_abort(const TCHAR *format,...);
+
+#if defined(CPU_AARCH64) || defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+#define JIT_HAS_BUS_ERROR_RECOVERY 1
+#if defined(_WIN32) && defined(D)
+#define WINUAE_RESTORE_D_AFTER_SETJMP
+#pragma push_macro("D")
+#undef D
+#endif
+#include <setjmp.h>
+#ifdef WINUAE_RESTORE_D_AFTER_SETJMP
+#pragma pop_macro("D")
+#undef WINUAE_RESTORE_D_AFTER_SETJMP
+#endif
+extern jmp_buf jit_bus_error_jmpbuf;
+extern volatile bool jit_in_compiled_code;
+#endif
 
 #ifdef CPU_64_BIT
 static inline uae_u32 check_uae_p32(uintptr address, const char* file, int line)

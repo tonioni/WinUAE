@@ -3381,6 +3381,11 @@ void memory_reset (void)
 	if (mem_hardreset) {
 		memory_clear ();
 	}
+#if defined(NATMEM_OFFSET) && defined(CPU_AARCH64)
+	if (canbang) {
+		commit_natmem_gaps();
+	}
+#endif
 	write_log (_T("memory init end\n"));
 }
 

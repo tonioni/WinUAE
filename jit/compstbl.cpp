@@ -1,4 +1,4 @@
-#if defined(CPU_AARCH64)
+#if defined(CPU_AARCH64) || defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 #include "arm/compstbl_arm.cpp"
 #else
 #include "sysconfig.h"
