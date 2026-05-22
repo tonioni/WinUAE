@@ -3,8 +3,8 @@
 #include "sysdeps.h"
 
 #include "ethernet.h"
-#ifdef _WIN32
-#include "win32_uaenet.h"
+#ifdef WITH_UAENET_PCAP
+#include "uaenet.h"
 #endif
 #include "threaddep/thread.h"
 #include "options.h"
