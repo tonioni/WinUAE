@@ -695,7 +695,7 @@ static uae_s16 bpl1mod, bpl2mod;
 static uaecptr bplpt[MAX_PLANES];
 
 
-uae_u16 bplcon0;
+static uae_u16 bplcon0;
 static uae_u16 bplcon1, bplcon2, bplcon3, bplcon4;
 static uae_u32 bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
 static int diwstrt, diwstop, diwhigh;
@@ -3562,6 +3562,10 @@ static void BPLCON0(uae_u16 v)
 	if (bplcon0 == va) {
 		return;
 	}
+
+#ifdef WITH_SPECIALMONITORS
+	specialmonitor_gaudio((v & 0x0100) != 0, vpos);
+#endif
 
 	// UHRES, BYPASS
 	if (va & (0x0080 | 0x0020)) {
