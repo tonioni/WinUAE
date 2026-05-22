@@ -926,6 +926,7 @@ struct uae_prefs {
 	int win32_iconified_input;
 
 	bool win32_rtgallowscaling;
+	bool win32_rtgnonsquarepixels;
 	int win32_rtgscaleaspectratio;
 	int win32_rtgvblankrate;
 	bool win32_borderless;

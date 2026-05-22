@@ -11654,6 +11654,8 @@ static void enable_for_expansiondlg(HWND hDlg)
 	ew(hDlg, IDC_RTG_SCALE, rtg2);
 	ew(hDlg, IDC_RTG_CENTER, rtg2);
 	ew(hDlg, IDC_RTG_INTEGERSCALE, rtg2);
+	ew(hDlg, IDC_RTG_NONSQUAREPIXELS, rtg2);
+	hide(hDlg, IDC_RTG_NONSQUAREPIXELS, TRUE); // not yet implemen ted
 	ew(hDlg, IDC_RTG_SCALE_ALLOW, rtg2);
 	ew(hDlg, IDC_RTG_SCALE_ASPECTRATIO, rtg2);
 	ew(hDlg, IDC_RTG_VBLANKRATE, rtg2);
@@ -11778,6 +11780,7 @@ static void values_to_expansiondlg(HWND hDlg)
 	CheckDlgButton(hDlg, IDC_RTG_SCALE, workprefs.gf[1].gfx_filter_autoscale == RTG_MODE_SCALE);
 	CheckDlgButton(hDlg, IDC_RTG_CENTER, workprefs.gf[1].gfx_filter_autoscale == RTG_MODE_CENTER);
 	CheckDlgButton(hDlg, IDC_RTG_INTEGERSCALE, workprefs.gf[1].gfx_filter_autoscale == RTG_MODE_INTEGER_SCALE);
+	CheckDlgButton(hDlg, IDC_RTG_NONSQUAREPIXELS, workprefs.win32_rtgnonsquarepixels);
 	CheckDlgButton(hDlg, IDC_RTG_SCALE_ALLOW, workprefs.win32_rtgallowscaling);
 	CheckDlgButton(hDlg, IDC_RTG_VBINTERRUPT, workprefs.rtg_hardwareinterrupt);
 	CheckDlgButton(hDlg, IDC_RTG_HWSPRITE, workprefs.rtg_hardwaresprite);
@@ -11929,6 +11932,13 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				workprefs.gf[1].gfx_filter_autoscale = ischecked(hDlg, IDC_RTG_INTEGERSCALE) ? RTG_MODE_INTEGER_SCALE : 0;
 				setchecked(hDlg, IDC_RTG_SCALE, false);
 				setchecked(hDlg, IDC_RTG_CENTER, false);
+				setchecked(hDlg, IDC_RTG_NONSQUAREPIXELS, false);
+				break;
+			case IDC_RTG_NONSQUAREPIXELS:
+				workprefs.win32_rtgnonsquarepixels = ischecked(hDlg, IDC_RTG_NONSQUAREPIXELS);
+				if (workprefs.win32_rtgnonsquarepixels) {
+					setchecked(hDlg, IDC_RTG_INTEGERSCALE, false);
+				}
 				break;
 			case IDC_RTG_SCALE_ALLOW:
 				workprefs.win32_rtgallowscaling = ischecked(hDlg, IDC_RTG_SCALE_ALLOW);

@@ -4508,6 +4508,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_SCALE;
 		p->win32_rtgallowscaling = 0;
 		p->win32_rtgscaleaspectratio = -1;
+		p->win32_rtgnonsquarepixels = false;
 		p->win32_rtgvblankrate = 0;
 		p->rtg_hardwaresprite = true;
 		p->rtg_overlay = true;
@@ -4617,7 +4618,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 			
 	cfgfile_target_dwrite_bool(f, _T("rtg_scale_small"), p->gf[GF_RTG].gfx_filter_autoscale == 1);
 	cfgfile_target_dwrite_bool(f, _T("rtg_scale_center"), p->gf[GF_RTG].gfx_filter_autoscale == 2);
-	cfgfile_target_dwrite_bool (f, _T("rtg_scale_allow"), p->win32_rtgallowscaling);
+	cfgfile_target_dwrite_bool(f, _T("rtg_scale_allow"), p->win32_rtgallowscaling);
+	cfgfile_target_dwrite_bool(f, _T("rtg_scale_nonsquarepixels"), p->win32_rtgnonsquarepixels);
 	cfgfile_target_dwrite (f, _T("rtg_scale_aspect_ratio"), _T("%d:%d"),
 		p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio / ASPECTMULT) : -1,
 		p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio & (ASPECTMULT - 1)) : -1);
@@ -4859,6 +4861,8 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 		return 1;
 	}
 	if (cfgfile_yesno(option, value, _T("rtg_scale_allow"), &p->win32_rtgallowscaling))
+		return 1;
+	if (cfgfile_yesno(option, value, _T("rtg_scale_nonsquarepixels"), &p->win32_rtgnonsquarepixels))
 		return 1;
 
 	if (cfgfile_intval(option, value, _T("soundcard"), &p->win32_soundcard, 1)) {

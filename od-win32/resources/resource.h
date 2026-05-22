@@ -1286,6 +1286,7 @@
 #define IDC_RTG_INITIAL_MONITOR         1803
 #define IDC_INFOBOX_TEXT3               1804
 #define IDC_CD_EJECT                    1804
+#define IDC_RTG_NONSQUAREPIXELS         1804
 #define IDC_CD_TEXT                     1805
 #define IDC_CD_TYPE                     1806
 #define IDC_CD_SELECT                   1807

@@ -1398,6 +1398,7 @@ int lockscr(struct vidbuffer *vb, bool fullupdate, bool skip)
 	if (vb->vram_buffer) {
 		vb->bufmem = D3D_locktexture(vb->monitor_id, &vb->rowbytes, &vb->width_allocated, &vb->height_allocated, skip ? -1 : (fullupdate ? 1 : 0));
 		if (vb->bufmem) {
+			vb->bufmemend = vb->bufmem + vb->rowbytes * vb->height_allocated;
 			ret = 1;
 		}
 	} else {
@@ -1417,6 +1418,7 @@ void unlockscr(struct vidbuffer *vb, int y_start, int y_end)
 	vb->locked = false;
 	if (vb->vram_buffer) {
 		vb->bufmem = NULL;
+		vb->bufmemend = NULL;
 		D3D_unlocktexture(vb->monitor_id, y_start, y_end);
 	}
 	gfx_unlock();
@@ -1479,7 +1481,7 @@ void getrtgfilterdata(int monid, struct displayscale *ds)
 		picasso_offset_my *= currprefs.gf[GF_RTG].gfx_filter_vert_zoom_mult;
 	}
 
-	if (!mon->scalepicasso)
+	if (!mon->scalepicasso || currprefs.win32_rtgnonsquarepixels)
 		return;
 
 	int srcratio, dstratio;
