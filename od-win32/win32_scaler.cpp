@@ -119,6 +119,29 @@ static bool get_auto_aspect_ratio(int monid, int cw, int ch, int crealh, int sca
 	return false;
 }
 
+static float getpalntscratiointernal(float ratio, bool isp, int aspect_type)
+{
+	if (currprefs.ntscmode) {
+		if ((aspect_type == ASPECT_TYPE_TV_AUTO && !isp) || aspect_type == ASPECT_TYPE_TV_NTSC) {
+			ratio = ratio / ntscpar;
+		} else if ((aspect_type == ASPECT_TYPE_TV_AUTO && isp) || aspect_type == ASPECT_TYPE_TV_PAL) {
+			ratio = ratio / palpar / palntscmult;
+		} else if (aspect_type == ASPECT_TYPE_VGA && !isp) {
+			ratio = ratio * 0.98f;
+		}
+	} else {
+		if ((aspect_type == ASPECT_TYPE_TV_AUTO && !isp) || aspect_type == ASPECT_TYPE_TV_NTSC) {
+			ratio = ratio / ntscpar / palntscmult;
+		} else if (aspect_type == ASPECT_TYPE_TV_PAL) {
+			ratio = ratio / palpar;
+		} else if (aspect_type == ASPECT_TYPE_VGA && !isp) {
+			ratio = ratio * 0.95f;
+		}
+	}
+	return ratio;
+}
+
+
 static float getpalntscratio(float dstratio, int aspect_type, int palntscadjust)
 {
 	int lh = 0;
@@ -131,13 +154,7 @@ static float getpalntscratio(float dstratio, int aspect_type, int palntscadjust)
 					palntscratio = palntscratio / ntscpar;
 				}
 			} else {
-				if ((aspect_type == ASPECT_TYPE_TV_AUTO && !isp) || aspect_type == ASPECT_TYPE_TV_NTSC) {
-					palntscratio = palntscratio / ntscpar;
-				} else if (aspect_type == ASPECT_TYPE_TV_PAL) {
-					palntscratio = palntscratio / palpar / palntscmult;
-				} else if (aspect_type == ASPECT_TYPE_VGA && !isp) {
-					palntscratio = palntscratio * 0.98f;
-				}
+				palntscratio = getpalntscratiointernal(palntscratio, isp, aspect_type);
 			}
 		} else {
 			if (palntscadjust) {
@@ -145,13 +162,7 @@ static float getpalntscratio(float dstratio, int aspect_type, int palntscadjust)
 					palntscratio = palntscratio / ntscpar * palntscmult;
 				}
 			} else {
-				if ((aspect_type == ASPECT_TYPE_TV_AUTO && isp) || aspect_type == ASPECT_TYPE_TV_PAL) {
-					palntscratio = palntscratio / palpar;
-				} else if (aspect_type == ASPECT_TYPE_TV_NTSC) {
-					palntscratio = palntscratio / ntscpar * palntscmult;
-				} else if (aspect_type == ASPECT_TYPE_VGA && !isp) {
-					palntscratio = palntscratio * 0.95f;
-				}
+				palntscratio = getpalntscratiointernal(palntscratio, isp, aspect_type);
 			}
 		}
 	}
@@ -177,23 +188,7 @@ static bool get_aspect(int monid, float *dstratiop, float *srcratiop, float *xmu
 				}
 			} else {
 				bool isp = ispal(NULL);
-				if (currprefs.ntscmode) {
-					if ((aspect_type == ASPECT_TYPE_TV_AUTO && !isp) || aspect_type == ASPECT_TYPE_TV_NTSC) {
-						dstratio = dstratio / ntscpar;
-					} else if (aspect_type == ASPECT_TYPE_TV_PAL) {
-						dstratio = dstratio / palpar / palntscmult;
-					} else if (aspect_type == ASPECT_TYPE_VGA && isp) {
-						dstratio = dstratio * 0.98f;
-					}
-				} else {
-					if ((aspect_type == ASPECT_TYPE_TV_AUTO && isp) || aspect_type == ASPECT_TYPE_TV_PAL) {
-						dstratio = dstratio / palpar;
-					} else if (aspect_type == ASPECT_TYPE_TV_NTSC) {
-						dstratio = dstratio / ntscpar * palntscmult;
-					} else if (aspect_type == ASPECT_TYPE_VGA && !isp) {
-						dstratio = dstratio * 0.95f;
-					}
-				}
+				dstratio = getpalntscratiointernal(dstratio, isp, aspect_type);
 			}
 		}
 		aspect = true;
