@@ -1160,7 +1160,10 @@ static struct zfile *wrp (struct zfile *z, int *retcode)
 
 #ifdef A_7Z
 #include "7z/Xz.h"
-#include "7z/Lzmadec.h"
+#include "7z/LzmaDec.h"
+#ifdef UAE_7Z_SDK_1604
+#define LZMA_FINISH_ANY CODER_FINISH_ANY
+#endif
 #include "7z/7zCrc.h"
 
 static void *SzAlloc (void *p, size_t size)

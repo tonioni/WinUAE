@@ -123,7 +123,6 @@ extern struct zvolume *archive_directory_lha(struct zfile *zf);
 extern struct zfile *archive_access_lha (struct znode *zn);
 extern struct zvolume *archive_directory_zip(struct zfile *zf);
 extern struct zvolume *archive_directory_7z (struct zfile *z);
-extern struct zfile *archive_access_7z (struct znode *zn);
 extern struct zvolume *archive_directory_rar (struct zfile *z);
 extern struct zfile *archive_access_rar (struct znode *zn);
 extern struct zvolume *archive_directory_lzx (struct zfile *in_file);
