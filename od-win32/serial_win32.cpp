@@ -35,6 +35,7 @@
 #define SERIAL_HSYNC_BEFORE_OVERFLOW 200
 #define SERIAL_BREAK_DELAY (20 * maxvpos)
 #define SERIAL_BREAK_TRANSMIT_DELAY 4
+#define MAX_SERIAL_TRANSMIT_PENDING 20
 
 #define SERIAL_MAP
 
@@ -198,6 +199,7 @@ static int dtr;
 static int serial_period_hsyncs;
 static int serial_period_transmit_ccks, serial_period_receive_ccks;
 static int serial_period_transmit_cck_counter, serial_period_receive_cck_counter;
+static bool serial_period_transmit_cck_delayed_irq;
 static int ninebit;
 static int lastbitcycle_active_hsyncs;
 static bool gotlogwrite;
@@ -256,7 +258,7 @@ void SERPER (uae_u16 w)
 	}
 	mbaud = baud;
 
-	serial_period_transmit_ccks = ((serper & 0x7fff) + 1) * (1 + 8 + ninebit + 1 - 1);
+	serial_period_transmit_ccks = ((serper & 0x7fff) + 1) * (1 + (8 + ninebit) + 1);
 	serial_period_receive_ccks = serial_period_transmit_ccks / 4;
 
 #if SERIALLOGGING > 0
@@ -688,7 +690,6 @@ end:
 
 static bool checkshiftempty(void)
 {
-	writeser_flush();
 	checksend();
 	if (data_in_sershift == 3) {
 		data_in_sershift = 0;
@@ -760,7 +761,12 @@ static void serdatcopy(void)
 	}
 
 	if (data_in_sershift == 0) {
-		INTREQ_INT(0, 1);
+		// delay transmit interrupt if number of queued transmitted bytes is too large.
+		if (!ser_accurate && serial_period_transmit_cck_counter >= MAX_SERIAL_TRANSMIT_PENDING * serial_period_transmit_ccks) {
+			serial_period_transmit_cck_delayed_irq = true;
+		} else {
+			INTREQ_INT(0, 1);
+		}
 	}
 	data_in_sershift = 1;
 
@@ -917,11 +923,13 @@ void serial_hsynchandler (void)
 		serdatr_last_got++;
 	}
 	if (!ser_accurate) {
-		serial_period_transmit_cck_counter += maxhpos;
-		if (serial_period_transmit_cck_counter >= serial_period_transmit_ccks && serial_period_transmit_ccks) {
-			serial_period_transmit_cck_counter %= serial_period_transmit_ccks;
-			serial_period_transmit_cck_counter += maxhpos - 1;
-			checkshiftempty();
+		serial_period_transmit_cck_counter -= maxhpos;
+		if (serial_period_transmit_cck_delayed_irq && serial_period_transmit_cck_counter < MAX_SERIAL_TRANSMIT_PENDING * serial_period_transmit_ccks) {
+			serial_period_transmit_cck_delayed_irq = false;
+			INTREQ_INT(0, 1);
+		}
+		if (serial_period_transmit_cck_counter < 0) {
+			serial_period_transmit_cck_counter = 0;
 		}
 	} else {
 		serial_period_transmit_cck_counter = 0;
@@ -967,6 +975,8 @@ static void flushqueue(void)
 static void SERDAT_send(uae_u32 v)
 {
 	uae_u16 w = (uae_u16)v;
+
+	serial_period_transmit_cck_counter += serial_period_transmit_ccks;
 #if SERIALDEBUG > 2
 	write_log(_T("SERIAL: SERDAT write 0x%04x (%c) PC=%x\n"), w, dochar(w), M68K_GETPC);
 #endif
@@ -1007,7 +1017,7 @@ static void SERDAT_send(uae_u32 v)
 uae_u16 SERDATR(void)
 {
 	serdatr &= 0x03ff;
-	if (!data_in_serdat && (!ser_accurate || (ser_accurate && get_cycles() >= data_in_serdat_delay))) {
+	if (!data_in_serdat && ((!ser_accurate && !serial_period_transmit_cck_delayed_irq) || (ser_accurate && get_cycles() >= data_in_serdat_delay))) {
 		serdatr |= 0x2000; // TBE (Transmit buffer empty)
 	}
 	if (!data_in_sershift && (serdatr & 0x2000)) {
