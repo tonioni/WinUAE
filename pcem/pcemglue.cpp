@@ -821,15 +821,28 @@ void thread_sleep(int n)
 	sleep_millis(n);
 }
 
-thread_t *thread_create(void (*thread_rout)(void *param), void *param)
+typedef struct pcem_thread_handle
 {
 	uae_thread_id tid;
-	uae_start_thread(_T("PCem helper"), thread_rout, param, &tid);
-	return tid;
+} pcem_thread_handle;
+
+thread_t *thread_create(void (*thread_rout)(void *param), void *param)
+{
+	pcem_thread_handle *handle = xcalloc(pcem_thread_handle, 1);
+	if (!uae_start_thread(_T("PCem helper"), thread_rout, param, &handle->tid)) {
+		xfree(handle);
+		return NULL;
+	}
+	return (thread_t*)handle;
 }
 void thread_kill(thread_t *handle)
 {
-	uae_end_thread((uae_thread_id*)&handle);
+	if (!handle) {
+		return;
+	}
+	pcem_thread_handle *thread = (pcem_thread_handle*)handle;
+	uae_end_thread(&thread->tid);
+	xfree(thread);
 }
 event_t *thread_create_event(void)
 {
@@ -842,25 +855,30 @@ int thread_wait(thread_t *arg)
 	if (!arg) {
 		return 0;
 	}
-	uae_sem_wait((uae_sem_t*)&arg);
+	pcem_thread_handle *thread = (pcem_thread_handle*)arg;
+	uae_wait_thread(thread->tid);
+	xfree(thread);
 	return 1;
 }
 void thread_set_event(event_t *event)
 {
-	uae_sem_post((uae_sem_t*)&event);
+	uae_sem_t sem = (uae_sem_t)event;
+	uae_sem_post(&sem);
 }
 void thread_reset_event(event_t *_event)
 {
-	uae_sem_init((uae_sem_t*)&_event, 1, 0);
+	uae_sem_t sem = (uae_sem_t)_event;
+	uae_sem_unpost(&sem);
 }
 int thread_wait_event(event_t *event, int timeout)
 {
-	uae_sem_trywait_delay((uae_sem_t*)&event, timeout < 0 ? INFINITE : timeout);
-	return 0;
+	uae_sem_t sem = (uae_sem_t)event;
+	return uae_sem_trywait_delay(&sem, timeout < 0 ? -1 : timeout);
 }
 void thread_destroy_event(event_t *_event)
 {
-	uae_sem_destroy((uae_sem_t*)&_event);
+	uae_sem_t sem = (uae_sem_t)_event;
+	uae_sem_destroy(&sem);
 }
 
 typedef struct win_mutex_t
