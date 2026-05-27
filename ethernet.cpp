@@ -122,7 +122,12 @@ int ethernet_open (struct netdriverdata *ndd, void *vsd, void *user, ethernet_go
 			slirp_data = ed;
 			uae_sem_init (&slirp_sem1, 0, 1);
 			uae_sem_init (&slirp_sem2, 0, 1);
-			uae_slirp_init();
+			if (uae_slirp_init() < 0) {
+				slirp_data = NULL;
+				uae_sem_destroy (&slirp_sem1);
+				uae_sem_destroy (&slirp_sem2);
+				return 0;
+			}
 			for (int i = 0; i < MAX_SLIRP_REDIRS; i++) {
 				struct slirp_redir *sr = &currprefs.slirp_redirs[i];
 				if (sr->proto) {
@@ -156,7 +161,13 @@ int ethernet_open (struct netdriverdata *ndd, void *vsd, void *user, ethernet_go
 				}
 			}
 			netmode = ndd->type;
-			uae_slirp_start ();
+			if (!uae_slirp_start ()) {
+				uae_slirp_cleanup ();
+				slirp_data = NULL;
+				uae_sem_destroy (&slirp_sem1);
+				uae_sem_destroy (&slirp_sem2);
+				return 0;
+			}
 		}
 		return 1;
 #endif
@@ -184,9 +195,9 @@ void ethernet_close (struct netdriverdata *ndd, void *vsd)
 		case UAENET_SLIRP:
 		case UAENET_SLIRP_INBOUND:
 		if (slirp_data) {
-			slirp_data = NULL;
 			uae_slirp_end ();
 			uae_slirp_cleanup ();
+			slirp_data = NULL;
 			uae_sem_destroy (&slirp_sem1);
 			uae_sem_destroy (&slirp_sem2);
 		}

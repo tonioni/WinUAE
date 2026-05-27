@@ -137,6 +137,7 @@ int slirp_init(void)
 
     link_up = 1;
 
+    bootp_reset();
     if_init();
     ip_init();
 
@@ -159,6 +160,7 @@ void slirp_cleanup(void)
 {
     ip_cleanup();
     m_cleanup();
+	bootp_reset();
 	link_up = 0;
 }
 
