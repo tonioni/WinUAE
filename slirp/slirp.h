@@ -11,7 +11,7 @@
 #include "sysconfig.h"
 #include "slirp_config.h"
 
-#define SLIRP_ICMP 0
+#define SLIRP_ICMP 1
 
 #ifdef _WIN32
 #include <stdint.h>

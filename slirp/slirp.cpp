@@ -302,7 +302,7 @@ int slirp_select_fill(INT_PTR *pnfds,
 			}
 		}
 
-#if 0
+#if SLIRP_ICMP
         /*
          * ICMP sockets
          */
@@ -533,7 +533,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 			}
 		}
 
-#if 0
+#if SLIRP_ICMP
         /*
          * Check incoming ICMP relies.
          */
