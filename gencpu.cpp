@@ -5575,8 +5575,12 @@ static void gen_opcode (unsigned int opcode)
 		genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, cpu_level == 1 ? GF_NOREFILL : 0);
 		if (curi->size == sz_byte) {
 			out("src &= 0xFF;\n");
-			if (curi->mnemo == i_ANDSR)
+			if (curi->mnemo == i_ANDSR) {
 				out("src |= 0xff00;\n");
+			}
+			if (cpu_level == 2 || cpu_level == 3) {
+				check_trace();
+			}
 		} else {
 			check_trace();
 		}
