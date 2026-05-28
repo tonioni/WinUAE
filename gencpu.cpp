@@ -7305,8 +7305,11 @@ static void gen_opcode (unsigned int opcode)
 			genastore("m68k_areg(regs, 7)", curi->smode, "srcreg", sz_long, "src");
 			out("m68k_areg(regs, 7) += offs;\n");
 			fill_prefetch_next_t();
-			if (!next_level_060_to_040())
-				next_level_020_to_010();
+			if (!next_level_060_to_040()) {
+				if (!next_level_040_to_030()) {
+					next_level_020_to_010();
+				}
+			}
 		}
 		break;
 	case i_UNLK:

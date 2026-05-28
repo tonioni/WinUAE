@@ -44333,6 +44333,28 @@ uae_u32 REGPARAM2 op_4800_2_ff(uae_u32 opcode)
 }
 /* 2 0,0   */
 
+/* LINK.L An,#<data>.L */
+#ifndef CPUEMU_68000_ONLY
+uae_u32 REGPARAM2 op_4808_2_ff(uae_u32 opcode)
+{
+	int count_cycles = 0;
+	uae_u32 real_opcode = opcode;
+	uae_u32 srcreg = (real_opcode & 7);
+	uae_s32 src = m68k_areg(regs, srcreg);
+	uaecptr olda;
+	olda = m68k_areg(regs, 7) - 4;
+	m68k_areg(regs, 7) = olda;
+	uae_s32 offs;
+	offs = get_dilong(2);
+	put_long(olda, src);
+	m68k_areg(regs, srcreg) = (m68k_areg(regs, 7));
+	m68k_areg(regs, 7) += offs;
+	m68k_incpc(6);
+	return (20 * CYCLE_UNIT / 2 + count_cycles) | (((1 * 4 * CYCLE_UNIT / 2 + count_cycles) * 4) << 16);
+}
+/* 6 0,0   */
+
+#endif
 /* NBCD.B (An) */
 uae_u32 REGPARAM2 op_4810_2_ff(uae_u32 opcode)
 {
@@ -45289,6 +45311,25 @@ uae_u32 REGPARAM2 op_4cfb_2_ff(uae_u32 opcode)
 	return (12 * CYCLE_UNIT / 2 + count_cycles) | (((1 * 4 * CYCLE_UNIT / 2 + count_cycles) * 4) << 16);
 }
 /* 4 2,0   */
+
+/* LINK.W An,#<data>.W */
+uae_u32 REGPARAM2 op_4e50_2_ff(uae_u32 opcode)
+{
+	int count_cycles = 0;
+	uae_u32 real_opcode = opcode;
+	uae_u32 srcreg = (real_opcode & 7);
+	uae_s32 src = m68k_areg(regs, srcreg);
+	uaecptr olda;
+	olda = m68k_areg(regs, 7) - 4;
+	m68k_areg(regs, 7) = olda;
+	uae_s16 offs = get_diword(2);
+	put_long(olda, src);
+	m68k_areg(regs, srcreg) = (m68k_areg(regs, 7));
+	m68k_areg(regs, 7) += offs;
+	m68k_incpc(4);
+	return (16 * CYCLE_UNIT / 2 + count_cycles) | (((1 * 4 * CYCLE_UNIT / 2 + count_cycles) * 4) << 16);
+}
+/* 4 0,0   */
 
 /* MVR2USP.L An */
 uae_u32 REGPARAM2 op_4e60_2_ff(uae_u32 opcode)
