@@ -192,6 +192,7 @@ static uaecptr lm_safe_address1, lm_safe_address2;
 static uae_u8 ccr_cnt;
 static int condition_cnt;
 static int subtest_count;
+static int test_count_missed;
 
 struct uae_prefs currprefs;
 
@@ -2139,7 +2140,7 @@ static bool regchange(int reg, uae_u32 *regs)
 
 static void fill_memory_buffer(uae_u8 *p, int size)
 {
-	uae_u8 *pend = p - 64;
+	uae_u8 *pend = p + size - 64;
 	int i = 0;
 	while (p < pend) {
 		int x = (i & 3);
@@ -5072,6 +5073,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	interrupt_delay_cnt = 0;
 	interrupt_pc = 0;
 	waitstate_delay_cnt = 0;
+	test_count_missed = 0;
 
 	int sr_override = 0;
 
@@ -6145,8 +6147,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 							regs.usp = regs.regs[15];
 							regs.isp = super_stack_memory - 0x80;
-							// copy user stack to super stack, for RTE etc support
-							memcpy(test_memory + (regs.isp - test_memory_start), test_memory + (regs.usp - test_memory_start), 0x20);
+							if (regs.usp >= test_memory_start && regs.usp < test_memory_start + test_memory_size) {
+								// copy user stack to super stack, for RTE etc support
+								memcpy(test_memory + (regs.isp - test_memory_start), test_memory + (regs.usp - test_memory_start), 0x20);
+							} else {
+								skipped = 1;
+							}
 							regs.msp = super_stack_memory;
 		
 							// data size optimization, only store data
@@ -6243,7 +6249,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							}
 
 							// skip exceptions if loop mode and not CC instruction
-							if (test_exception >= 2 && feature_loop_mode_jit && !isccinst(dp)) {
+							if (test_exception >= 2 && test_exception != 4 && feature_loop_mode_jit && !isccinst(dp)) {
 								skipped = 1;
 							}
 
@@ -6460,7 +6466,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						instructionendpc_old = instructionendpc_old_prev;
 						startpc_old = startpc_old_prev;
 						interrupt_count = interrupt_count_old_prev;
+						test_count_missed++;
 					} else {
+						test_count_missed = 0;
 						full_format_cnt++;
 						data_saved = 1;
 						// if test used data or fpu register as a source or destination: modify it
@@ -6634,11 +6642,27 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			}
 		}
 
+		if (test_count_missed > 10000) {
+			break;
+		}
+
 		if (nextround >= 0) {
+			for (;;) {
+				int r = rand8() & 7;
+				if (regchange(r, cur_regs.regs)) {
+					break;
+				}
+			}
+			for (;;) {
+				int r = rand8() & 7;
+				if (regchange(r + 8, cur_regs.regs)) {
+					break;
+				}
+			}
 			cur_regs.regs[0] &= 0xffff;
-			cur_regs.regs[8] &= 0xffff;
+			cur_regs.regs[8 + 0] &= 0xffff;
 			cur_regs.regs[8 + 6]--;
-			cur_regs.regs[15] -= 2;
+			cur_regs.regs[8 + 7] -= 2;
 			rnd_seed_prev = rnd_seed;
 			rand8_cnt_prev = rand8_cnt;
 			rand16_cnt_prev = rand16_cnt;
