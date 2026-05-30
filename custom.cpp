@@ -4989,7 +4989,10 @@ static void vsync_check_vsyncmode(void)
 		if (abs(current_linear_vblank_lines - linear_vpos_vblank_lines) >= 2 ||
 			abs(current_linear_vpos_vb_end - linear_vpos_vblank_end) >= 2 ||
 			abs(current_linear_vpos_vb_start - linear_vpos_vblank_start) >= 2 ||
-			abs(current_linear_vpos_vb_vsync - linear_vpos_vblank_vsync) >= 2) {
+			abs(current_linear_vpos_vb_vsync - linear_vpos_vblank_vsync) >= 2 ||
+			abs(current_linear_hpos - current_linear_hpos_temp) >= 1 ||
+			abs(current_linear_vpos - current_linear_vpos_temp) >= 2)
+		{
 			current_linear_temp_change = 2;
 		}
 	}
