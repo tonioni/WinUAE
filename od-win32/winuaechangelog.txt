@@ -1,4 +1,30 @@
 
+Beta 7:
+
+- ARM64 JIT added (Amiberry). CPUTESTER found some ARM64-only JIT bugs which will be fixed in future versions. 
+- x64 JIT does not anymore require all Amiga address space memory located in first 4G of host process address space. Address space randomization feature is now enabled in x64 version. Also some minor JIT updates. (Amiberry)
+- Always stretch NTSC now overrides other manual aspect ratio settings, this is the default and simple option that automatically selects correct NTSC pixel aspect ratio (If not integer scale mode). Previously selecting multiple aspect modes would have resulted in weird aspect ratios. Note that PAL is always 1:1 mapped in this mode which is not exactly correct.
+- If vertical value changes, wait one frame before recalculating "monitor" parameters, it could be single frame glitch due to single VPOSW or BEAMCON0 write causing unnecessary vertical single frame jump.
+- Filter panel "Keep aspect ratio" renamed to "Pixel aspect ratio adjustment" and new "TV (PAL)" and "TV (NTSC)" added. This should make this option a bit less confusing (I am sure it still is confusing) "TV" = match selected chipset PAL/NTSC mode like previously. Having manual PAL/NTSC option makes it easier to see how it affects the display. This is the advanced pixel aspect ratio setting. Normally not needed.
+- Filter panel filter presets didn't store scanline offset (gfx_filter_scanlineoffset) and rotation (gfx_filter_rotation) settings.
+- Added filter scanline offset and rotation to filter presets.
+- Configured RTG refresh rate (if other than default 60Hz) was ignored when creating RTG modes (RTG modes in ScreenMode prefs still had 60Hz instead of configured refresh rate) until RTG mode was activated at least once and then emulator was reset or restarted.
+- Serial port emulation CR/LF conversion added to GUI. (Was previously config file only serial_crlf=crlf_cr)
+- Fast CPU mode serial port emulation was unreliable (This might have have only affected some host serial devices or device drivers)
+- Fast CPU mode serial port transmit throttling implemented, if queued number of transmitted bytes is larger than 20 (to guarantee small transmit bursts are sent with minimal latency) and bytes were transmitted too quickly relative to selected baud rate, Paula serial port transmit interrupt and transmit buffer status bit updates are delayed to match selected transmit baud rate. Does not affect "Direct" serial mode.
+- Amiga Paula serial port SERDATR OVRUN bit emulation was partially broken and triggered randomly even when there was no overrun, causing retries or lost data. (5300b10)
+- Added new known (=static modeid) RTG screen modes: 2048x1280, 6144x3456, 7680x4320.
+- Internal CCK counter changed to 64-bit. It overflowed every ~20 minutes, causing single frame glitch. (6.0)
+- PortAudio updated to latest github version. ARM64 PortAudio support added.
+
+CPUTESTER tests:
+
+- Fastest possible CPU 68020/030 useless LINK.x #z,SP instruction now works identically to real CPU. Prefetch/CE was already correct, fastest possible had missing check in gencpu.
+- Previously missed special case: AND/EOR/OR #x,CCR and T0 trace bit set: trace is generated if 68020/68030 (This didn't generate trace). 68040: trace is not generated, only AND/EOR/OR #x,SR + T0 trace generates trace. 68060 removed T0 trace bit.
+
+ARM64 build has now feature parity with x86 version.
+
+
 Beta 6:
 
 - First official native Windows ARM64 build. (Not ARM64EC with mixed x64 code anymore that was used in older test versions)
