@@ -1466,8 +1466,8 @@ static void supra_do_dma(struct soft_scsi *ncr)
 	}
 }
 
-uae_u8 aic_bget_dma(struct soft_scsi *scsi, bool *phaseerr);
-void aic_bput_dma(struct soft_scsi *scsi, uae_u8 v, bool *phaseerr);
+static uae_u8 aic_bget_dma(struct soft_scsi *scsi, bool *phaseerr);
+static void aic_bput_dma(struct soft_scsi *scsi, uae_u8 v, bool *phaseerr);
 
 static void hardframe_do_dma(struct soft_scsi *ncr)
 {
