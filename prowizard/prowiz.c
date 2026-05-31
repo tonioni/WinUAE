@@ -13,6 +13,9 @@
 #if 0
 int main ( int ac , char **av )
 #else
+#ifdef __cplusplus
+extern "C"
+#endif
 int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
 #endif
 {
