@@ -359,7 +359,8 @@ void midi_write(uint8_t v)
 	if (!midi_open) {
 		midi_open = Midi_Open();
 	}
-	Midi_Parse(midi_output, &v);
+	BYTE b = (BYTE)v;
+	Midi_Parse(midi_output, &b);
 #endif
 }
 
