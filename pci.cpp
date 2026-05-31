@@ -45,7 +45,9 @@ static struct pci_bridge *bridges[PCI_BRIDGE_MAX + 1];
 static int last_bridge_index;
 static struct pci_board_state *hsyncs[MAX_PCI_BOARDS + 1];
 
+namespace {
 extern addrbank pci_config_bank, pci_io_bank, pci_mem_bank, pci_bridge_bank;
+}
 
 static void pci_board_free(struct pci_board_state *pcibs)
 {
@@ -1461,34 +1463,36 @@ static void REGPARAM2 pci_bridge_lput_2(uaecptr addr, uae_u32 b)
 	pci_bridge_wput_2(addr + 2, b >>  0);
 }
 
-static addrbank pci_config_bank = {
+namespace {
+addrbank pci_config_bank = {
 	pci_config_lget, pci_config_wget, pci_config_bget,
 	pci_config_lput, pci_config_wput, pci_config_bput,
 	default_xlate, default_check, NULL, NULL, _T("PCI CONFIG"),
 	pci_config_lget, pci_config_wget,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
-static addrbank pci_io_bank = {
+addrbank pci_io_bank = {
 	pci_io_lget, pci_io_wget, pci_io_bget,
 	pci_io_lput, pci_io_wput, pci_io_bput,
 	default_xlate, default_check, NULL, NULL, _T("PCI IO"),
 	pci_io_lget, pci_io_wget,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
-static addrbank pci_mem_bank = {
+addrbank pci_mem_bank = {
 	pci_mem_lget, pci_mem_wget, pci_mem_bget,
 	pci_mem_lput, pci_mem_wput, pci_mem_bput,
 	default_xlate, default_check, NULL, NULL, _T("PCI MEMORY"),
 	pci_mem_lget, pci_mem_wget,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
-static addrbank pci_bridge_bank = {
+addrbank pci_bridge_bank = {
 	pci_bridge_lget, pci_bridge_wget, pci_bridge_bget,
 	pci_bridge_lput, pci_bridge_wput, pci_bridge_bput,
 	default_xlate, default_check, NULL, NULL, _T("PCI BRIDGE"),
 	pci_bridge_lget, pci_bridge_wget,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
+}
 static addrbank pci_bridge_bank_2 = {
 	pci_bridge_lget_2, pci_bridge_wget_2, pci_bridge_bget_2,
 	pci_bridge_lput_2, pci_bridge_wput_2, pci_bridge_bput_2,
