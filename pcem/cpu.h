@@ -104,6 +104,7 @@ typedef struct
 
 extern CPU *cpu_s;
 
+#if 0
 extern CPU cpus_8088[];
 extern CPU cpus_8086[];
 extern CPU cpus_286[];
@@ -138,6 +139,7 @@ extern CPU cpus_ibmxt286[];
 extern CPU cpus_ps1_m2011[];
 extern CPU cpus_ps2_m30_286[];
 extern CPU cpus_acer[];
+#endif
 
 extern int cpu_iscyrix;
 extern int cpu_16bitbus;
