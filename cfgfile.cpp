@@ -6298,7 +6298,12 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 	if (cfgfile_yesno(option, value, _T("toccata_mixer"), &dummybool))
 	{
 		if (dummybool) {
+			int idx = 0;
 			addbcromtype(p, ROMTYPE_TOCCATA, true, NULL, 0);
+			struct boardromconfig *brc = get_device_rom(p, ROMTYPE_TOCCATA, 0, &idx);
+			if (brc) {
+				brc->roms[idx].device_settings |= 1;
+			}
 		}
 		return 1;
 	}
