@@ -81,6 +81,10 @@ typedef int ioctlsockopt_t;
 # include <stdint.h>
 #endif
 
+#ifndef container_of
+#define container_of(address, type, field) ((type *)((char *)(address) - (uintptr_t)(&((type *)0)->field)))
+#endif
+
 #ifdef NEED_TYPEDEFS
 typedef char int8_t;
 typedef unsigned char u_int8_t;
