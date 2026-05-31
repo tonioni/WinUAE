@@ -1679,7 +1679,12 @@ static void codec_start(struct snddev_data *data)
 	if (data->snddev_active & STATUS_FIFO_RECORD) {
 		data->capture_buffer_size = 48000 * 2 * 2; // 1s at 48000/stereo/16bit
 		data->capture_buffer = xcalloc(uae_u8, data->capture_buffer_size);
-		sndboard_init_capture(data->freq_adjusted);
+		if (!sndboard_init_capture(data->freq_adjusted)) {
+			write_log(_T("SNDDEV capture unavailable, recording disabled\n"));
+			data->snddev_active &= ~STATUS_FIFO_RECORD;
+			xfree(data->capture_buffer);
+			data->capture_buffer = NULL;
+		}
 	}
 }
 
