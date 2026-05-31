@@ -3569,11 +3569,24 @@ int device_get_config_int(const char *s)
 	if (!strcmp(s, "dithering")) {
 		return 1;
 	}
+	if (!strcmp(s, "dithersub")) {
+		return 1;
+	}
 	if (!strcmp(s, "dacfilter")) {
 		return 1;
 	}
 	if (!strcmp(s, "recompiler")) {
+#ifdef _WIN32
 		return 1;
+#else
+		return 0;
+#endif
+	}
+	if (!strcmp(s, "sli") || !strcmp(s, "type")) {
+		return 0;
+	}
+	if (!strcmp(s, "framebuffer_memory") || !strcmp(s, "texture_memory")) {
+		return 2;
 	}
 	if (!strcmp(s, "memory")) {
 		return pcem_getvramsize() >> 20;
