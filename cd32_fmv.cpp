@@ -25,13 +25,17 @@
 #include "archivers/mp2/kjmp2.h"
 
 #ifdef WITH_LIBMPEG2
+#ifndef WINUAE
 #ifdef __cplusplus
 extern "C" {
 #endif
+#endif
 #include "mpeg2.h"
 #include "mpeg2convert.h"
+#ifndef WINUAE
 #ifdef __cplusplus
 }
+#endif
 #endif
 #endif
 
