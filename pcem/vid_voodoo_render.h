@@ -1,4 +1,16 @@
-#if !(defined i386 || defined __i386 || defined __i386__ || defined _X86_ || defined WIN32 || defined _WIN32 || defined _WIN32) && !(defined __amd64__)
+#if !defined(ARM64) && !defined(_M_ARM64) && !defined(__aarch64__)
+#if defined(__x86_64__) || defined(__amd64__) || defined(_M_X64) || defined(WIN64)
+#define PCEM_VOODOO_CODEGEN_X86_64 1
+#elif defined(i386) || defined(__i386) || defined(__i386__) || defined(_M_IX86) || defined(_X86_)
+#define PCEM_VOODOO_CODEGEN_X86 1
+#endif
+#endif
+
+#if defined(PCEM_VOODOO_CODEGEN_X86) || defined(PCEM_VOODOO_CODEGEN_X86_64)
+#ifndef PCEM_VOODOO_CODEGEN
+#define PCEM_VOODOO_CODEGEN 1
+#endif
+#else
 #define NO_CODEGEN
 #endif
 

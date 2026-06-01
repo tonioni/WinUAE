@@ -3576,7 +3576,7 @@ int device_get_config_int(const char *s)
 		return 1;
 	}
 	if (!strcmp(s, "recompiler")) {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(PCEM_VOODOO_CODEGEN)
 		return 1;
 #else
 		return 0;
