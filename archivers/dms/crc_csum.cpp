@@ -9,6 +9,7 @@
  */
 
 
+#include "sysconfig.h"
 #include "cdata.h"
 #include "crc_csum.h"
 
@@ -65,5 +66,4 @@ USHORT dms_CreateCRC(UCHAR* mem, ULONG size ){
 
 	return CRC;
 }
-
 
