@@ -31,6 +31,10 @@
 #define CLIB_DECL __cdecl
 #define FLAC_API_EXPORTS
 
+#if defined(CPU_64_BIT) && !defined(PTR64)
+#define PTR64 1
+#endif
+
 /* Macros for normalizing data into big or little endian formats */
 #define FLIPENDIAN_INT16(x)	(((((UINT16) (x)) >> 8) | ((x) << 8)) & 0xffff)
 #define FLIPENDIAN_INT32(x)	((((UINT32) (x)) << 24) | (((UINT32) (x)) >> 24) | \

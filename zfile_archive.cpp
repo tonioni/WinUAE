@@ -510,6 +510,7 @@ static struct zfile *archive_unpack_zip (struct zfile *zf)
 
 #include "7z/7z.h"
 #include "7z/Alloc.h"
+#include "7z/7zBuf.h"
 #include "7z/7zFile.h"
 #include "7z/7zVersion.h"
 #include "7z/7zCrc.h"
@@ -573,6 +574,51 @@ static void init_7z (void)
 	_tzset ();
 }
 
+#ifdef UAE_7Z_SDK_1604
+static TCHAR *sevenzip_get_name(const CSzArEx *db, UInt32 index)
+{
+	size_t len = SzArEx_GetFileNameUtf16(db, index, NULL);
+	UInt16 *src = xcalloc(UInt16, len > 0 ? len : 1);
+	TCHAR *out;
+
+	SzArEx_GetFileNameUtf16(db, index, src);
+#if defined(UNICODE) || defined(_UNICODE)
+	out = xmalloc(TCHAR, len > 0 ? len : 1);
+	for (size_t i = 0; i < len; i++)
+		out[i] = (TCHAR)src[i];
+	if (!len)
+		out[0] = 0;
+#else
+	out = xmalloc(TCHAR, len * 4 + 1);
+	size_t o = 0;
+	for (size_t i = 0; i < len && src[i]; i++) {
+		uae_u32 c = src[i];
+		if (c >= 0xd800 && c <= 0xdbff && i + 1 < len && src[i + 1] >= 0xdc00 && src[i + 1] <= 0xdfff) {
+			c = 0x10000 + ((c - 0xd800) << 10) + (src[++i] - 0xdc00);
+		}
+		if (c < 0x80) {
+			out[o++] = (TCHAR)c;
+		} else if (c < 0x800) {
+			out[o++] = (TCHAR)(0xc0 | (c >> 6));
+			out[o++] = (TCHAR)(0x80 | (c & 0x3f));
+		} else if (c < 0x10000) {
+			out[o++] = (TCHAR)(0xe0 | (c >> 12));
+			out[o++] = (TCHAR)(0x80 | ((c >> 6) & 0x3f));
+			out[o++] = (TCHAR)(0x80 | (c & 0x3f));
+		} else {
+			out[o++] = (TCHAR)(0xf0 | (c >> 18));
+			out[o++] = (TCHAR)(0x80 | ((c >> 12) & 0x3f));
+			out[o++] = (TCHAR)(0x80 | ((c >> 6) & 0x3f));
+			out[o++] = (TCHAR)(0x80 | (c & 0x3f));
+		}
+	}
+	out[o] = 0;
+#endif
+	xfree(src);
+	return out;
+}
+#endif
+
 struct SevenZContext
 {
 	CSzArEx db;
@@ -623,6 +669,33 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 		return NULL;
 	}
 	zv = zvolume_alloc (z, ArchiveFormat7Zip, ctx, NULL);
+#ifdef UAE_7Z_SDK_1604
+	for (i = 0; i < ctx->db.NumFiles; i++) {
+		TCHAR *name = sevenzip_get_name(&ctx->db, i);
+		struct zarchive_info zai;
+
+		memset(&zai, 0, sizeof zai);
+		zai.name = name;
+		zai.flags = SzBitWithVals_Check(&ctx->db.Attribs, i) ? ctx->db.Attribs.Vals[i] : -1;
+		zai.size = SzArEx_GetFileSize(&ctx->db, i);
+		if (SzBitWithVals_Check(&ctx->db.MTime, i)) {
+			CNtfsFileTime *mt = ctx->db.MTime.Vals + i;
+			uae_u64 t = (((uae_u64)mt->High) << 32) | mt->Low;
+			if (t >= EPOCH_DIFF) {
+				zai.tv.tv_sec = (t - EPOCH_DIFF) / RATE_DIFF;
+				zai.tv.tv_sec -= _timezone;
+				if (_daylight)
+					zai.tv.tv_sec += 1 * 60 * 60;
+			}
+		}
+		if (!SzArEx_IsDir(&ctx->db, i)) {
+			struct znode *zn = zvolume_addfile_abs (zv, &zai);
+			if (zn)
+				zn->offset = i;
+		}
+		xfree(name);
+	}
+#else
 	for (i = 0; i < ctx->db.db.NumFiles; i++) {
 		CSzFileItem *f = ctx->db.db.Files + i;
 		TCHAR *name = (TCHAR*)(ctx->db.FileNames.data + ctx->db.FileNameOffsets[i] * 2);
@@ -647,6 +720,7 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 				zn->offset = i;
 		}
 	}
+#endif
 	zv->method = ArchiveFormat7Zip;
 	return zv;
 }

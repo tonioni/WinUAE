@@ -25,8 +25,14 @@
 #include "archivers/mp2/kjmp2.h"
 
 #ifdef WITH_LIBMPEG2
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "mpeg2.h"
 #include "mpeg2convert.h"
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 #define FMV_DEBUG 0
