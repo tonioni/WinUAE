@@ -37,7 +37,7 @@ float DSP_history_a[5][5];
 uint16_t DSP_history_CC[5];
 int32_t DSP_history_mem[5][5];
 uint8_t *DSP_onboard_RAM;
-uint8_t DSP_onboard_ROM[];
+extern uint8_t DSP_onboard_ROM[];
 uint8_t *DSP_MMIO;
 
 /* Defines */
