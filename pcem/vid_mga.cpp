@@ -20,7 +20,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <wchar.h>
+#ifdef __cplusplus
+#include <atomic>
+using std::atomic_bool;
+using std::atomic_int;
+using std::atomic_uint;
+#else
 #include <stdatomic.h>
+#endif
 #include "ibm.h"
 #include "device.h"
 #include "io.h"
