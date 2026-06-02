@@ -26,6 +26,10 @@ __inline Ulong htonlx (Ulong v)
 {
     return (v >> 24) | ((v >> 8) & 0xff00) | (v << 24) | ((v << 8) & 0xff0000);
 }
+#else
+#ifndef _cdecl
+#define _cdecl
+#endif
 #endif
 
 #define _KNOWN_FORMATS      135
