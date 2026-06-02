@@ -44,7 +44,9 @@ int model_getmodel(int romset);
 char *model_getname();
 char *model_get_internal_name();
 int model_get_model_from_internal_name(char *s);
+#if 0
 void model_init();
+#endif
 device_t *model_getdevice(int model);
 int model_has_fixed_gfx(int model);
 int model_has_optional_gfx(int model);

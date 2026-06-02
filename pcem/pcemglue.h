@@ -10,8 +10,6 @@ uint32_t mem_read_romextl(uint32_t addr, void *priv);
 void pcem_linear_mark(int offset);
 
 extern int SOUNDBUFLEN;
-extern int32_t *x86_sndbuffer[2];
-extern bool x86_sndbuffer_filled[2];
 
 extern void *pcem_mapping_linear_priv;
 extern uae_u32 pcem_mapping_linear_offset;

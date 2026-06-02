@@ -10,7 +10,9 @@
 #include "x87.h"
 #include "mem.h"
 #include "codegen.h"
+#ifndef UAE
 #include "codegen_backend.h"
+#endif
 #include "cpu.h"
 #include "fdc.h"
 #include "nmi.h"
@@ -237,12 +239,12 @@ static void prefetch_flush()
 
 #include "386_ops.h"
 
+int cpu_end_block_after_ins = 0;
+
+#ifndef UAE
 
 #define CACHE_ON() (!(cr0 & (1 << 30)) && !(cpu_state.flags & T_FLAG))
 //#define CACHE_ON() 0
-
-int cpu_end_block_after_ins = 0;
-
 
 static inline void exec_interpreter(void)
 {
@@ -660,3 +662,5 @@ void exec386_dynarec(int cycs)
                 cycles_main -= (cycles_start - cycles);
         }
 }
+
+#endif
