@@ -11,7 +11,11 @@
 #define MT32EMU_API_TYPE 1
 #include <mt32emu.h>
 #include "midiemu.h"
+#ifdef _WIN32
 #include "parser.h"
+#else
+#include "midi.h"
+#endif
 
 // MUNT MT-32/CM-32L emulation
 
@@ -271,7 +275,11 @@ void midi_emu_reopen(void)
 	if (midi_emu) {
 		midi_emu_close();
 		if (currprefs.win32_midioutdev >= 0) {
+#ifdef _WIN32
 			TCHAR *name = midioutportinfo[currprefs.win32_midioutdev]->name;
+#else
+			const TCHAR *name = unix_midi_output_device_config_name_for_id(currprefs.win32_midioutdev);
+#endif
 			if (!_tcsncmp(name, _T("Munt "), 5)) {
 				midi_emu_open(name);
 			}
