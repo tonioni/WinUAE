@@ -6128,6 +6128,14 @@ const struct expansionromtype expansionroms[] = {
 		false, 2, NULL,
 		{ 0xd2, 0x07, 0x00, 0x00, 0x14, 0x4A, 0x00, 0x00, 0x00, 0x01, 0x00, 0x08 }
 	},
+	{
+		_T("aide"), _T("AIDE"), _T("Matthias Heinrichs"),
+		NULL, aide_init, NULL, aide_add_ide_unit, ROMTYPE_AIDE | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_IDE,
+		0, 0, 0, false, NULL,
+		false, 0, NULL
+	},
 
 	/* PC Bridgeboards */
 #ifdef WITH_X86
