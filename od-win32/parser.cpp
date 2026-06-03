@@ -973,6 +973,11 @@ static int opentcp (const TCHAR *sername)
 	bool waitmode = false;
 	const int one = 1;
 	const struct linger linger_1s = { 1, 1 };
+	ADDRINFOW hints = {0};
+
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
 
 	if (WSAStartup (MAKEWORD (2, 2), &wsadata)) {
 		DWORD lasterror = WSAGetLastError ();
@@ -999,7 +1004,7 @@ static int opentcp (const TCHAR *sername)
 	if (!port)
 		port = 	my_strdup (_T("1234"));
 
-	err = GetAddrInfoW (name, port, NULL, &socketinfo);
+	err = GetAddrInfoW (name, port, &hints, &socketinfo);
 	if (err < 0) {
 		write_log (_T("SERIAL_TCP: GetAddrInfoW() failed, %s:%s: %d\n"), name, port, WSAGetLastError ());
 		goto end;
