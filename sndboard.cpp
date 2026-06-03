@@ -22,6 +22,9 @@
 #include "qemuvga/qemuaudio.h"
 #include "rommgr.h"
 #include "devices.h"
+#ifndef _WIN32
+#include "sndboard_host.h"
+#endif
 
 #define DEBUG_SNDDEV 0
 #define DEBUG_SNDDEV_READ 0
@@ -2437,6 +2440,8 @@ static struct fm801_data fm801;
 static bool fm801_active;
 static const int fm801_freq[16] = { 5500, 8000, 9600, 11025, 16000, 19200, 22050, 32000, 38400, 44100, 48000 };
 
+#ifdef WITH_PCI
+
 static void calculate_volume_fm801(void)
 {
 	struct fm801_data *data = &fm801;
@@ -2832,6 +2837,8 @@ const struct pci_board solo1_pci_board =
 	}
 };
 
+#endif
+
 static SWVoiceOut *qemu_voice_out;
 
 static bool audio_state_sndboard_qemu(int streamid, void *params)
@@ -3015,8 +3022,10 @@ static void sndboard_vsync(void)
 {
 	if (snddev[0].snddev_active)
 		sndboard_vsync_toccata(&snddev[0]);
+#ifdef WITH_PCI
 	if (fm801_active)
 		sndboard_vsync_fm801();
+#endif
 	if (qemu_voice_out_active())
 		sndboard_vsync_qemu();
 }
@@ -3025,8 +3034,10 @@ void sndboard_ext_volume(void)
 {
 	if (snddev[0].snddev_active)
 		calculate_volume_toccata(&snddev[0]);
+#ifdef WITH_PCI
 	if (fm801_active)
 		calculate_volume_fm801();
+#endif
 	calculate_volume_qemu_all();
 }
 
@@ -3181,6 +3192,28 @@ Exit:;
 	write_log(_T("sndboard capture init failed %08x\n"), hr);
 	sndboard_free_capture();
 	return false;
+}
+
+#else
+
+static uae_u8 *sndboard_get_buffer(int *frames)
+{
+	return unix_sndboard_get_buffer(frames);
+}
+
+static void sndboard_release_buffer(uae_u8 *buffer, int frames)
+{
+	unix_sndboard_release_buffer(buffer, frames);
+}
+
+static void sndboard_free_capture(void)
+{
+	unix_sndboard_free_capture();
+}
+
+static bool sndboard_init_capture(int freq)
+{
+	return unix_sndboard_init_capture(freq);
 }
 
 #endif
