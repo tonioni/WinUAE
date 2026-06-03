@@ -11,7 +11,11 @@
 #define MT32EMU_API_TYPE 1
 #include <mt32emu.h>
 #include "midiemu.h"
+#ifdef _WIN32
 #include "parser.h"
+#else
+#include "midi.h"
+#endif
 
 // MUNT MT-32/CM-32L emulation
 
@@ -86,14 +90,23 @@ static bool load_rom(const TCHAR *path, const TCHAR *name)
 	return err >= 0;
 }
 
+static void set_mt32_rom_path(TCHAR *path)
+{
+	fetch_rompath(path, MAX_DPATH);
+	fixtrailing(path);
+	_tcscat(path, _T("mt32-roms"));
+	fixtrailing(path);
+}
+
 static void midi_emu_add_roms(void)
 {
 	TCHAR path[MAX_DPATH];
-	fetch_rompath(path, sizeof(path) / sizeof(TCHAR));
-	_tcscat(path, _T("mt32-roms\\"));
+	set_mt32_rom_path(path);
+#ifdef _WIN32
 	if (!my_existsdir(path)) {
 		_tcscpy(path, _T("c:\\mt32-rom-data\\"));
 	}
+#endif
 	if (!my_existsdir(path)) {
 		write_log(_T("mt32emu: rom path missing\n"));
 		return;
@@ -138,10 +151,13 @@ bool midi_emu_available(const TCHAR *id)
 		if (rc == 0) {
 			fetch_rompath(path, sizeof(path) / sizeof(TCHAR));
 		} else if (rc == 1) {
-			fetch_rompath(path, sizeof(path) / sizeof(TCHAR));
-			_tcscat(path, _T("mt32-roms\\"));
+			set_mt32_rom_path(path);
 		} else if (rc == 2) {
+#ifdef _WIN32
 			_tcscpy(path, _T("C:\\mt32-rom-data\\"));
+#else
+			continue;
+#endif
 		}
 		if (!my_existsdir(path)) {
 			continue;
@@ -226,7 +242,8 @@ int midi_emu_open(const TCHAR *id)
 	}
 	const char *s = mt32emu_get_library_version_string();
 	write_log("mt32emu version: %s\n", s);
-	mt32context = mt32emu_create_context((mt32emu_report_handler_i)NULL, NULL);
+	mt32emu_report_handler_i report_handler = { NULL };
+	mt32context = mt32emu_create_context(report_handler, NULL);
 	if (!mt32context) {
 		write_log("mt32emu_create_context() failed\n");
 		return 0;
@@ -258,7 +275,11 @@ void midi_emu_reopen(void)
 	if (midi_emu) {
 		midi_emu_close();
 		if (currprefs.win32_midioutdev >= 0) {
+#ifdef _WIN32
 			TCHAR *name = midioutportinfo[currprefs.win32_midioutdev]->name;
+#else
+			const TCHAR *name = unix_midi_output_device_config_name_for_id(currprefs.win32_midioutdev);
+#endif
 			if (!_tcsncmp(name, _T("Munt "), 5)) {
 				midi_emu_open(name);
 			}
