@@ -3,8 +3,8 @@
 #include "sysdeps.h"
 
 #include "ethernet.h"
-#ifdef _WIN32
-#include "win32_uaenet.h"
+#ifdef WITH_UAENET_PCAP
+#include "uaenet.h"
 #endif
 #include "threaddep/thread.h"
 #include "options.h"
@@ -99,6 +99,8 @@ void ethernet_trigger (struct netdriverdata *ndd, void *vsd)
 #endif
 #ifdef WITH_UAENET_PCAP
 		case UAENET_PCAP:
+		case UAENET_TAP:
+		case UAENET_TUN:
 		uaenet_trigger (vsd);
 		return;
 #endif
@@ -160,6 +162,8 @@ int ethernet_open (struct netdriverdata *ndd, void *vsd, void *user, ethernet_go
 #endif
 #ifdef WITH_UAENET_PCAP
 		case UAENET_PCAP:
+		case UAENET_TAP:
+		case UAENET_TUN:
 		if (uaenet_open (vsd, ndd, user, gotfunc, getfunc, promiscuous, mac)) {
 			netmode = ndd->type;
 			return 1;
@@ -190,6 +194,8 @@ void ethernet_close (struct netdriverdata *ndd, void *vsd)
 #endif
 #ifdef WITH_UAENET_PCAP
 		case UAENET_PCAP:
+		case UAENET_TAP:
+		case UAENET_TUN:
 		return uaenet_close (vsd);
 #endif
 	}
@@ -257,6 +263,8 @@ void ethernet_close_driver (struct netdriverdata *ndd)
 		return;
 #ifdef WITH_UAENET_PCAP
 		case UAENET_PCAP:
+		case UAENET_TAP:
+		case UAENET_TUN:
 		return uaenet_close_driver (ndd);
 #endif
 	}
@@ -272,6 +280,8 @@ int ethernet_getdatalenght (struct netdriverdata *ndd)
 		return sizeof (struct ethernet_data);
 #ifdef WITH_UAENET_PCAP
 		case UAENET_PCAP:
+		case UAENET_TAP:
+		case UAENET_TUN:
 		return uaenet_getdatalenght ();
 #endif
 	}

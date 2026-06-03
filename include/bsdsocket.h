@@ -17,6 +17,8 @@
 
 extern int log_bsd;
 
+typedef struct TrapContext TrapContext;
+
 #define ISBSDTRACE (log_bsd || BSD_TRACING_ENABLED) 
 #define BSDTRACE(x) do { if (ISBSDTRACE) { write_log x; } } while(0)
 
@@ -35,6 +37,10 @@ extern void deinit_socket_layer (void);
 #ifdef _WIN32
 #define SOCKET_TYPE SOCKET
 #else
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET (-1)
+#endif
+typedef int SOCKET;
 #define SOCKET_TYPE int
 #endif
 
@@ -97,6 +103,7 @@ struct socketbase {
     uae_u32 sets [3];
     uae_u32 timeout;
     uae_u32 sigmp;
+    TrapContext *context;
 #endif
 };
 
