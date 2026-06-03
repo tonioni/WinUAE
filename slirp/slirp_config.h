@@ -92,6 +92,9 @@
 
 /* Define if you have index() */
 #undef HAVE_INDEX
+#ifndef _WIN32
+#define HAVE_INDEX
+#endif
 
 /* Define if you have bcmp() */
 #undef HAVE_BCMP

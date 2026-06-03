@@ -135,6 +135,7 @@ int uae_slirp_redir(int is_udp, int host_port, struct in_addr guest_addr,
 
 static volatile int slirp_thread_active;
 static uae_thread_id slirp_tid;
+static bool slirp_thread_started;
 extern uae_sem_t slirp_sem2;
 
 static void slirp_receive_func(void *arg)
@@ -203,8 +204,14 @@ bool uae_slirp_start (void)
 #ifdef WITH_BUILTIN_SLIRP
 	if (impl == BUILTIN_IMPLEMENTATION) {
 		uae_slirp_end ();
-		uae_start_thread(_T("slirp-receive"), slirp_receive_func, NULL,
-						 &slirp_tid);
+		slirp_thread_active = 1;
+		if (!uae_start_thread(_T("slirp-receive"), slirp_receive_func, NULL,
+						 &slirp_tid)) {
+			slirp_thread_active = 0;
+			slirp_thread_started = false;
+			return false;
+		}
+		slirp_thread_started = true;
 		return true;
 	}
 #endif
@@ -221,20 +228,10 @@ void uae_slirp_end(void)
 #endif
 #ifdef WITH_BUILTIN_SLIRP
 	if (impl == BUILTIN_IMPLEMENTATION) {
-		if (slirp_thread_active > 0) {
+		if (slirp_thread_started) {
 			slirp_thread_active = 0;
-			// Use a proper timeout instead of infinite waiting
-			int wait_count = 0;
-			while (slirp_thread_active == 0 && wait_count < 100) {
-				sleep_millis(10);
-				wait_count++;
-			}
-
-			// Force thread termination if it didn't exit cleanly
-			if (slirp_thread_active == 0) {
-				write_log(_T("SLIRP thread did not terminate properly, forcing exit\n"));
-			}
-			uae_end_thread(&slirp_tid);
+			uae_wait_thread(slirp_tid);
+			slirp_thread_started = false;
 		}
 		slirp_thread_active = 0;
 		return;
