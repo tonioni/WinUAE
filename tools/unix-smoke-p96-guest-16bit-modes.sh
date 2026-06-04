@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+WINUAE_SMOKE_LOG=${WINUAE_SMOKE_LOG:-/tmp/winuae_unix_p96_guest_16bit_modes_smoke.log}
+WINUAE_P96_EXPECT_MODE_MASK=${WINUAE_P96_EXPECT_MODE_MASK:-10}
+WINUAE_P96_EXPECT_RESINFO_BYTES=${WINUAE_P96_EXPECT_RESINFO_BYTES:-1280}
+export WINUAE_SMOKE_LOG WINUAE_P96_EXPECT_MODE_MASK WINUAE_P96_EXPECT_RESINFO_BYTES
+
+exec "$SCRIPT_DIR/unix-smoke-p96-guest.sh" "$@" -s rtg_modes=0x10
