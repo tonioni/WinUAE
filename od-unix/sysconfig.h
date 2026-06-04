@@ -156,7 +156,7 @@
 typedef long uae_atomic;
 typedef int boolean;
 
-#ifdef WINUAE_UNIX_WITH_GFXBOARD
+#ifdef GFXBOARD
 typedef int8_t INT8;
 typedef uint8_t UINT8;
 typedef int16_t INT16;
