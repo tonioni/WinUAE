@@ -61,7 +61,7 @@ int uae_slirp_init(void)
 
 #ifdef WITH_QEMU_SLIRP
 	if (impl == QEMU_IMPLEMENTATION) {
-		return uae_qemu_uae_init() == NULL;
+		return uae_qemu_uae_init() ? 0 : -1;
 	}
 #endif
 #ifdef WITH_BUILTIN_SLIRP
@@ -140,7 +140,6 @@ extern uae_sem_t slirp_sem2;
 
 static void slirp_receive_func(void *arg)
 {
-	slirp_thread_active = 1;
 	while (slirp_thread_active == 1) {
 		fd_set rfds, wfds, xfds;
 		INT_PTR nfds;
