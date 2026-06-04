@@ -42,8 +42,6 @@ static void sndboard_reset(int hardreset);
 
 static float base_event_clock;
 
-extern addrbank uaesndboard_bank_z2, uaesndboard_bank_z3;
-
 #define MAX_DUPLICATE_SOUND_BOARDS 1
 #define MAX_SNDDEVS 3
 
@@ -257,8 +255,7 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 
 static bool audio_state_sndboard_uae(int streamid, void *params);
 
-extern addrbank uaesndboard_ram_bank;
-MEMORY_FUNCTIONS(uaesndboard_ram);
+DECLARE_MEMORY_FUNCTIONS(uaesndboard_ram);
 static addrbank uaesndboard_ram_bank = {
 	uaesndboard_ram_lget, uaesndboard_ram_wget, uaesndboard_ram_bget,
 	uaesndboard_ram_lput, uaesndboard_ram_wput, uaesndboard_ram_bput,
@@ -266,6 +263,7 @@ static addrbank uaesndboard_ram_bank = {
 	uaesndboard_ram_lget, uaesndboard_ram_wget,
 	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
+MEMORY_FUNCTIONS(uaesndboard_ram);
 
 static bool uaesnd_rethink(void)
 {
@@ -909,6 +907,43 @@ static void uaesnd_configure(struct uaesndboard_data *data)
 	}
 }
 
+static uae_u32 REGPARAM3 uaesndboard_lget(uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 uaesndboard_wget(uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 uaesndboard_bget(uaecptr) REGPARAM;
+static void REGPARAM3 uaesndboard_lput(uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 uaesndboard_wput(uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 uaesndboard_bput(uaecptr, uae_u32) REGPARAM;
+
+static addrbank uaesndboard_sub_bank_z2 = {
+	uaesndboard_lget, uaesndboard_wget, uaesndboard_bget,
+	uaesndboard_lput, uaesndboard_wput, uaesndboard_bput,
+	default_xlate, default_check, NULL, NULL, _T("uaesnd z2"),
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
+};
+
+static struct addrbank_sub uaesndz2_sub_banks[] = {
+	{ &uaesndboard_sub_bank_z2, 0x0000 },
+	{ &uaesndboard_ram_bank, 0x8000 },
+	{ NULL }
+};
+
+static addrbank uaesndboard_bank_z3 = {
+	uaesndboard_lget, uaesndboard_wget, uaesndboard_bget,
+	uaesndboard_lput, uaesndboard_wput, uaesndboard_bput,
+	default_xlate, default_check, NULL, NULL, _T("uaesnd z3"),
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
+};
+
+static addrbank uaesndboard_bank_z2 = {
+	sub_bank_lget, sub_bank_wget, sub_bank_bget,
+	sub_bank_lput, sub_bank_wput, sub_bank_bput,
+	default_xlate, default_check, NULL, NULL, _T("uaesnd z2"),
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE, uaesndz2_sub_banks
+};
+
 static uae_u32 REGPARAM2 uaesndboard_bget(uaecptr addr)
 {
 	uae_u8 v = 0;
@@ -1148,36 +1183,6 @@ static void REGPARAM2 uaesndboard_lput(uaecptr addr, uae_u32 b)
 		}
 	}
 }
-
-static addrbank uaesndboard_sub_bank_z2 = {
-	uaesndboard_lget, uaesndboard_wget, uaesndboard_bget,
-	uaesndboard_lput, uaesndboard_wput, uaesndboard_bput,
-	default_xlate, default_check, NULL, NULL, _T("uaesnd z2"),
-	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO, S_READ, S_WRITE
-};
-
-static struct addrbank_sub uaesndz2_sub_banks[] = {
-	{ &uaesndboard_sub_bank_z2, 0x0000 },
-	{ &uaesndboard_ram_bank, 0x8000 },
-	{ NULL }
-};
-
-static addrbank uaesndboard_bank_z3 = {
-	uaesndboard_lget, uaesndboard_wget, uaesndboard_bget,
-	uaesndboard_lput, uaesndboard_wput, uaesndboard_bput,
-	default_xlate, default_check, NULL, NULL, _T("uaesnd z3"),
-	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO, S_READ, S_WRITE
-};
-
-static addrbank uaesndboard_bank_z2 = {
-	sub_bank_lget, sub_bank_wget, sub_bank_bget,
-	sub_bank_lput, sub_bank_wput, sub_bank_bput,
-	default_xlate, default_check, NULL, NULL, _T("uaesnd z2"),
-	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO, S_READ, S_WRITE, uaesndz2_sub_banks
-};
 
 static void ew(uae_u8 *acmemory, int addr, uae_u32 value)
 {
@@ -1480,8 +1485,6 @@ struct snddev_data {
 };
 
 static struct snddev_data snddev[MAX_SNDDEVS];
-
-extern addrbank toccata_bank;
 
 #define STATUS_ACTIVE 1
 #define STATUS_RESET 2
@@ -2137,6 +2140,21 @@ static struct snddev_data *getsnddev(uaecptr addr)
 	return NULL;
 }
 
+static uae_u32 REGPARAM3 toccata_lget(uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 toccata_wget(uaecptr) REGPARAM;
+static uae_u32 REGPARAM3 toccata_bget(uaecptr) REGPARAM;
+static void REGPARAM3 toccata_lput(uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 toccata_wput(uaecptr, uae_u32) REGPARAM;
+static void REGPARAM3 toccata_bput(uaecptr, uae_u32) REGPARAM;
+
+static addrbank toccata_bank = {
+	toccata_lget, toccata_wget, toccata_bget,
+	toccata_lput, toccata_wput, toccata_bput,
+	default_xlate, default_check, NULL, _T("*"), _T("Toccata"),
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
+};
+
 static void REGPARAM2 toccata_bput(uaecptr addr, uae_u32 b)
 {
 	addr &= 0xffffff;
@@ -2212,14 +2230,6 @@ static uae_u32 REGPARAM2 toccata_lget(uaecptr addr)
 	v |= toccata_bget(addr + 3) << 0;
 	return v;
 }
-
-static addrbank toccata_bank = {
-	toccata_lget, toccata_wget, toccata_bget,
-	toccata_lput, toccata_wput, toccata_bput,
-	default_xlate, default_check, NULL, _T("*"), _T("Toccata"),
-	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO, S_READ, S_WRITE
-};
 
 static addrbank prelude_bank = {
 	toccata_lget, toccata_wget, toccata_bget,
