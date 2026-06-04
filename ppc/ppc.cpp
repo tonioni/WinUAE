@@ -47,8 +47,8 @@ static volatile bool ppc_spinlock_waiting;
 static CRITICAL_SECTION ppc_cs1, ppc_cs2;
 static bool ppc_cs_initialized;
 #else
-#include <glib.h>
-static GMutex mutex, mutex2;
+#include <mutex>
+static std::mutex ppc_mutex, ppc_mutex2;
 #endif
 
 void uae_ppc_spinlock_get(void)
@@ -60,11 +60,11 @@ void uae_ppc_spinlock_get(void)
 	ppc_spinlock_waiting = false;
 	LeaveCriticalSection(&ppc_cs2);
 #else
-	g_mutex_lock(&mutex2);
+	ppc_mutex2.lock();
 	ppc_spinlock_waiting = true;
-	g_mutex_lock(&mutex);
+	ppc_mutex.lock();
 	ppc_spinlock_waiting = false;
-	g_mutex_unlock(&mutex2);
+	ppc_mutex2.unlock();
 #endif
 #if SPINLOCK_DEBUG
 	if (spinlock_cnt != 0)
@@ -83,7 +83,7 @@ void uae_ppc_spinlock_release(void)
 #ifdef WIN32_SPINLOCK
 	LeaveCriticalSection(&ppc_cs1);
 #else
-	g_mutex_unlock(&mutex);
+	ppc_mutex.unlock();
 #endif
 }
 
