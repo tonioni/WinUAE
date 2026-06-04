@@ -32,13 +32,6 @@ void target_main_set_args(int argc, TCHAR **argv)
 
 int target_main_handle_early(int argc, TCHAR **argv)
 {
-#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
-    for (int i = 1; i < argc; i++) {
-        if (!_tcscmp(argv[i], _T("--qt-board-catalog"))) {
-            return runWinUaeQtBoardCatalogDump();
-        }
-    }
-#endif
     return -1;
 }
 
