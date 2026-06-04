@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=WinUAE
+GenericName=Amiga Emulator
+Comment=Configure and run Amiga emulation
+Exec=winuae %f
+Icon=winuae
+Terminal=false
+Categories=Game;Emulator;
+MimeType=application/x-winuae-config;
+StartupNotify=false
