@@ -17,6 +17,7 @@ static int unix_avi_audio_codec = AVIAUDIO_AVI;
 #include "savestate.h"
 #include "sound_unix.h"
 #include "uaeserial_unix.h"
+#include "winuae_builddate.h"
 #ifdef WITH_MIDI
 #include "midi.h"
 #endif
@@ -793,7 +794,7 @@ void fetch_videopath(TCHAR *out, int size) { fetch_user_data_path_override(out, 
 
 void target_getdate(int *y, int *m, int *d)
 {
-    *y = 2026;
-    *m = 5;
-    *d = 10;
+    *y = GETBDY(WINUAEDATE);
+    *m = GETBDM(WINUAEDATE);
+    *d = GETBDD(WINUAEDATE);
 }
