@@ -1853,7 +1853,7 @@ void host_recvfrom(TrapContext *ctx, SB, uae_u32 sd, uae_u32 msg, uae_u8 *hmsg, 
 
 uae_u32 host_shutdown(SB, uae_u32 sd, uae_u32 how)
 {
-	TrapContext *ctx = NULL;
+	TrapContext *ctx = sb->context;
 	SOCKET s;
 
 	write_log("shutdown(%d,%d) -> ", sd, how);
@@ -1874,7 +1874,7 @@ uae_u32 host_shutdown(SB, uae_u32 sd, uae_u32 how)
 
 void host_setsockopt(SB, uae_u32 sd, uae_u32 level, uae_u32 optname, uae_u32 optval, uae_u32 len)
 {
-	TrapContext* ctx = NULL;
+	TrapContext* ctx = sb->context;
 	int s = getsock(ctx, sb, sd + 1);
 	void* buf = NULL;
 	struct linger sl;
@@ -2405,6 +2405,7 @@ void host_WaitSelect(TrapContext *ctx, SB, uae_u32 nfds, uae_u32 readfds, uae_u3
 	sb->sets [2] = exceptfds;
 	sb->timeout  = timeout;
 	sb->sigmp    = wssigs;
+	sb->context  = ctx;
 	sb->action   = 5;
 
 	uae_sem_post (&sb->sem);

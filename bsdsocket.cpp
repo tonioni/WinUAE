@@ -639,6 +639,9 @@ static uae_u32 REGPARAM2 bsdsocklib_recv (TrapContext *ctx)
 static uae_u32 REGPARAM2 bsdsocklib_shutdown (TrapContext *ctx)
 {
 	struct socketbase *sb = get_socketbase (ctx);
+#ifndef _WIN32
+	sb->context = ctx;
+#endif
 	return host_shutdown (sb, trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1));
 }
 
@@ -646,6 +649,9 @@ static uae_u32 REGPARAM2 bsdsocklib_shutdown (TrapContext *ctx)
 static uae_u32 REGPARAM2 bsdsocklib_setsockopt (TrapContext *ctx)
 {
 	struct socketbase *sb = get_socketbase (ctx);
+#ifndef _WIN32
+	sb->context = ctx;
+#endif
 	host_setsockopt (sb, trap_get_dreg(ctx, 0), trap_get_dreg(ctx, 1), trap_get_dreg(ctx, 2),
 		trap_get_areg(ctx, 0), trap_get_dreg(ctx, 3));
 	return sb->resultval;
