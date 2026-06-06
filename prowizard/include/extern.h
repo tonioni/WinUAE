@@ -332,7 +332,9 @@ extern short test_smps ( long, long, long, Uchar, Uchar );
 extern long  PWGetFileSize ( char * );
 extern FILE * PW_fopen ( char *, char * );
 extern void fillPTKtable ( Uchar[37][2] );
+#ifndef htonl
 extern unsigned int htonl(unsigned int);
+#endif
 
 /* globals */
 /* Some say it's badly coding when using Globals ... sure it is, now what's the solution ? */
@@ -354,12 +356,6 @@ extern char Extensions[_KNOWN_FORMATS+1][33];
 extern Uchar CONVERT;
 extern Uchar Amiga_EXE_Header;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 extern void pw_write_log (const char *, ...);
 extern FILE *moduleripper2_fopen (const char *name, const char *mode, const char *aid, int addr, int size);
 extern FILE *moduleripper_fopen (const char *aname, const char *amode);
-#ifdef __cplusplus
-}
-#endif
