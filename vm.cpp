@@ -22,6 +22,9 @@
 #endif
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
+#if defined(CPU_AARCH64)
+#include <pthread.h>
+#endif
 #endif
 
 //#if defined(LINUX) && defined(CPU_x86_64)
@@ -156,6 +159,15 @@ static void *uae_vm_alloc_with_flags(size_t size, int flags, int protect)
 #else
 	int mmap_flags = MAP_PRIVATE | MAP_ANON;
 	int mmap_prot = protect_to_native(protect);
+#if defined(__APPLE__) && defined(CPU_AARCH64)
+	if (flags & UAE_VM_JIT) {
+#ifdef MAP_JIT
+		mmap_flags |= MAP_JIT;
+#else
+		uae_log("VM: UAE_VM_JIT requested but MAP_JIT is unavailable on this SDK\n");
+#endif
+	}
+#endif
 #endif
 
 #if !defined(CPU_64_BIT) || defined(__APPLE__)
@@ -278,6 +290,15 @@ bool uae_vm_free(void *address, size_t size)
 	return do_free(address, size);
 }
 
+void uae_vm_jit_write_protect(bool enable_execute_mode)
+{
+#if defined(__APPLE__) && defined(CPU_AARCH64)
+	pthread_jit_write_protect_np(enable_execute_mode ? 1 : 0);
+#else
+	(void)enable_execute_mode;
+#endif
+}
+
 static void *try_reserve(uintptr_t try_addr, size_t size, int flags)
 {
 	void *address = NULL;
@@ -299,6 +320,15 @@ static void *try_reserve(uintptr_t try_addr, size_t size, int flags)
 	}
 #else
 	int mmap_flags = MAP_PRIVATE | MAP_ANON;
+#if defined(__APPLE__) && defined(CPU_AARCH64)
+	if (flags & UAE_VM_JIT) {
+#ifdef MAP_JIT
+		mmap_flags |= MAP_JIT;
+#else
+		uae_log("VM: UAE_VM_JIT reserve requested but MAP_JIT is unavailable on this SDK\n");
+#endif
+	}
+#endif
 	address = mmap((void *) try_addr, size, PROT_NONE, mmap_flags, -1, 0);
 	if (address == MAP_FAILED) {
 		return NULL;
