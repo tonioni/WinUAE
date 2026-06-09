@@ -138,6 +138,8 @@ static inline void* vm_acquire_code(uae_u32 size, int options = VM_MAP_DEFAULT)
 
 // %%% BRIAN KING WAS HERE %%%
 extern bool canbang;
+extern int jit_n_addr_unsafe;
+extern int jit_n_addr_bank_unsafe;
 
 #include "../compemu_prefs.cpp"
 
@@ -183,6 +185,18 @@ static inline int distrust_addr(void)
 {
     return distrust_check(currprefs.comptrustnaddr);
 }
+
+#if defined(CPU_AARCH64)
+static inline bool jit_use_memory_helpers(void)
+{
+    return jit_n_addr_bank_unsafe || (jit_n_addr_unsafe && !canbang);
+}
+
+static inline bool jit_use_compile_fallbacks(void)
+{
+    return jit_n_addr_bank_unsafe;
+}
+#endif
 
 //#if DEBUG
 //#define PROFILE_COMPILE_TIME        1
@@ -2386,6 +2400,19 @@ static inline int isinrom(uintptr addr)
 #endif
 }
 
+#if defined(CPU_AARCH64)
+static inline int isinrtarea(uintptr addr)
+{
+#ifdef UAE
+    return rtarea_bank.baseaddr &&
+        addr >= (uintptr)rtarea_bank.baseaddr &&
+        addr < (uintptr)rtarea_bank.baseaddr + 65536;
+#else
+    return 0;
+#endif
+}
+#endif
+
 #if defined(UAE) || defined(FLIGHT_RECORDER)
 static void flush_all(void)
 {
@@ -3834,6 +3861,9 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
         int was_comp = 0;
         uae_u8 liveflags[MAXRUN + 1];
         bool trace_in_rom = isinrom((uintptr)pc_hist[0].location) != 0;
+#if defined(CPU_AARCH64)
+        bool ram_trap_block = false;
+#endif
         uintptr max_pcp = (uintptr)pc_hist[blocklen - 1].location;
         uintptr min_pcp = max_pcp;
         uae_u32 cl = cacheline(pc_hist[0].location);
@@ -3841,6 +3871,13 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
         blockinfo* bi = NULL;
         blockinfo* bi2;
 		int extra_len=0;
+#if defined(CPU_AARCH64)
+        const bool indirect_rtarea_block =
+            currprefs.uaeboard > 2 && isinrtarea((uintptr)pc_hist[0].location) != 0;
+        bool unsafe_special_mem_block = indirect_rtarea_block;
+        const bool unsafe_memory_helpers = jit_use_memory_helpers();
+        const bool unsafe_compile_fallbacks = jit_use_compile_fallbacks();
+#endif
 
         redo_current_block = 0;
         if (current_compile_p >= MAX_COMPILE_PTR)
@@ -3916,7 +3953,15 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
             uae_u16* currpcp = pc_hist[i].location;
             uae_u32 op = DO_GET_OPCODE(currpcp);
 
+#if defined(CPU_AARCH64)
+            if ((unsafe_compile_fallbacks || unsafe_memory_helpers) && pc_hist[i].specmem)
+                unsafe_special_mem_block = true;
+#endif
             trace_in_rom = trace_in_rom && isinrom((uintptr)currpcp);
+#if defined(CPU_AARCH64)
+            if ((prop[op].cflow & fl_trap) && !isinrom((uintptr)currpcp))
+                ram_trap_block = true;
+#endif
             if (follow_const_jumps && is_const_jump(op)) {
                 checksum_info* csi = alloc_checksum_info();
                 csi->start_p = (uae_u8*)min_pcp;
@@ -3946,6 +3991,17 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
 
         bi->needed_flags = liveflags[0];
 
+#if defined(CPU_AARCH64)
+        if (ram_trap_block) {
+            /* RAM test code can rewrite branch targets around fallback/trap opcodes
+             * before active compiled blocks are invalidated. Interpret these blocks
+             * so exception frames use the current instruction PC. */
+            optlev = 0;
+            bi->optlevel = optlev;
+            bi->count = -1;
+        }
+#endif
+
         /* This is the non-direct handler */
         was_comp = 0;
 
@@ -3959,7 +4015,11 @@ void compile_block(cpu_history* pc_hist, int blocklen, int totcycles)
             compemu_raw_dec_m((uintptr) & (bi->count));
             compemu_raw_maybe_recompile();
         }
-        if (optlev == 0) { /* No need to actually translate */
+        if (optlev == 0
+#if defined(CPU_AARCH64)
+            || unsafe_special_mem_block
+#endif
+            ) { /* No need to actually translate */
           /* Execute normally without keeping stats */
             compemu_raw_exec_nostats((uintptr)pc_hist[0].location);
         } else {
