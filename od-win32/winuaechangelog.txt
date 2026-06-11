@@ -1,4 +1,32 @@
 
+Beta 8:
+
+- Fixed AGA only sprite bug if DMA written SPRxDATx was immediately followed by Copper (or CPU) SPRxPOS/CTL write in next CCK. Pending SPRxDATx write was skipped in this condition. (6100b1)
+- A1060 Sidecar BIOS 2.07 (380619-04) added to ROM scanner.
+
+Amiberry updates:
+
+- ARM64 JIT CPUTESTER detected bugs fixed, most shift instructions, DIV, DIVL.L, MULL.L wrong flags in special cases, NEG.B/W flags, BFINS, branch to illegal instruction wrong stack frame address.
+- x86/x64/ARM64 JIT now passes all integer CPUTESTER tests, including useless LINK.x #z,SP and MOVEM.x #<regs>,-(An) where register list includes An.
+- uaenet.device cleanup fix.
+
+Patches from Stefan Reinauer:
+
+- QEMU 11 based PPC emulation plugin. x64 and ARM64 supported. 32-bit version is based on QEMU 9. QEMU 10+ dropped 32-bit support.
+- Misc compilation warning/portability patches.
+- Advanced chipset "DF0: ID Hardware" was not saved to config file.
+- Slirp portability update, stability fixes, BOOTP update, ICMP forwarding.
+- Emulated ethernet board + PPC CPU stability fix.
+- Munt (MT32 emulator) WinUAE integration portability updates.
+- Fix for PPC board external interrupt handling that could cause deadlock.
+- Matze AIDE IDE controller emulation.
+
+QEMU PPC DLL is finally updated to latest version (Thanks Stefan Reinauer!). https://www.winuae.net/files/b/ppc_plugin_11.7z
+I only quickly tested that AmigaOS 4.1 FE still boots to WB. Please report any compatibility problems or performance differences.
+
+Lots of (unexpected but nice) under the hood changes to non-emulation core.
+
+
 Beta 7:
 
 - ARM64 JIT added (Amiberry). CPUTESTER found some ARM64-only JIT bugs which will be fixed in future versions. 
