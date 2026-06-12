@@ -161,6 +161,9 @@ find "${source_dir}/od-win32/resources" -maxdepth 1 -type f \
     ! -name '*.manifest' \
     ! -name 'resource.h' \
     -exec cp '{}' "${resources_dir}/od-win32/resources/" ';'
+mkdir -p "${resources_dir}/od-unix/share/filter-presets"
+cp "${source_dir}/od-unix/share/filter-presets/"*.filter \
+    "${resources_dir}/od-unix/share/filter-presets/"
 cp "${source_dir}/README_unix.md" "${resources_dir}/README_unix.md"
 
 if [[ -f "${source_dir}/od-win32/resources/winuae.ico" ]]; then

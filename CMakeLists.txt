@@ -1728,6 +1728,9 @@ if(TARGET winuae_unix AND NOT APPLE)
         PATTERN "*.manifest" EXCLUDE
         PATTERN "resource.h" EXCLUDE
     )
+    install(DIRECTORY od-unix/share/filter-presets/
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/winuae/od-unix/share/filter-presets"
+    )
     if(WINUAE_UNIX_WITH_PPC_QEMU)
         install(FILES "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
             DESTINATION "${WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE}"
