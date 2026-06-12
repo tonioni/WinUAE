@@ -510,17 +510,27 @@ static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *pre
     return provider;
 }
 
-int runWinUaeQtLauncherForPrefs(int argc, char **argv, struct uae_prefs *prefs, int *exitCode)
+int winUaeQtLauncherArgumentsSpecifyConfig(int argc, char **argv)
 {
-    return runWinUaeQtLauncherForPrefsWithConfig(argc, argv, prefs, nullptr, exitCode);
+    QStringList arguments;
+    arguments.reserve(argc);
+    for (int i = 0; i < argc; i++) {
+        arguments.append(QString::fromLocal8Bit(argv[i]));
+    }
+    return winUaeQtArgumentsSpecifyConfig(arguments) ? 1 : 0;
 }
 
-int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_prefs *prefs, const char *initialConfigPath, int *exitCode)
+int runWinUaeQtLauncherForPrefs(int argc, char **argv, struct uae_prefs *prefs, int *exitCode)
+{
+    return runWinUaeQtLauncherForPrefsWithConfig(argc, argv, prefs, nullptr, 0, exitCode);
+}
+
+int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_prefs *prefs, const char *initialConfigPath, int runtimeActions, int *exitCode)
 {
     const QString initialPath = initialConfigPath && initialConfigPath[0]
         ? QString::fromLocal8Bit(initialConfigPath)
         : QString();
-    WinUaeQtLauncherResult result = runWinUaeQtLauncherForConfig(argc, argv, initialPath, bridgeHardwareProvider(prefs, !initialPath.isEmpty()));
+    WinUaeQtLauncherResult result = runWinUaeQtLauncherForConfig(argc, argv, initialPath, bridgeHardwareProvider(prefs, runtimeActions != 0));
     if (result.status == WinUaeQtLauncherStatus::StartRequested) {
         if (!applyWinUaeQtConfigToPrefs(result.config, prefs)) {
             fprintf(stderr, "Unix Qt UI failed: no preferences target available\n");

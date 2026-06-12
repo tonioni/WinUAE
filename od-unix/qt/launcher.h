@@ -134,6 +134,7 @@ struct WinUaeQtHardwareInfoProvider {
     void (*runProWizard)(void *context) = nullptr;
 };
 
+bool winUaeQtArgumentsSpecifyConfig(const QStringList &arguments);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider);
