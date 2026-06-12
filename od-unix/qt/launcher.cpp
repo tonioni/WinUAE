@@ -5498,6 +5498,7 @@ private:
     QButtonGroup *cpuButtons = nullptr;
     QButtonGroup *fpuButtons = nullptr;
     QCheckBox *cpu24Bit = nullptr;
+    int lastSelectedCpuModel = 68020;
     QCheckBox *moreCompatible = nullptr;
     QCheckBox *cpuDataCache = nullptr;
     QCheckBox *jit = nullptr;
@@ -6278,7 +6279,9 @@ private:
         chipsetCycleExact->setChecked(exact);
         chipsetCycleExactMemory->setChecked(memoryExact);
         moreCompatible->setChecked(level <= 2);
-        if (cpu >= 68030) {
+        if (cpu <= 68010) {
+            cpu24Bit->setChecked(true);
+        } else if (cpu >= 68030) {
             cpu24Bit->setChecked(false);
         }
         updateCpuControlState();
@@ -6347,8 +6350,7 @@ private:
             cpu->addWidget(button, i / 2, i % 2);
             cpuButtons->addButton(button, name.mid(2).toInt() + 68000);
             connect(button, &QRadioButton::clicked, this, [this]() {
-                updateFpuControls();
-                updateCpuControlState();
+                handleCpuModelSelected();
             });
             if (name == QStringLiteral("68020")) {
                 button->setChecked(true);
@@ -6482,6 +6484,14 @@ private:
 
         connect(cpu24Bit, &QCheckBox::toggled, this, [this]() { updateCpuControlState(); });
         connect(moreCompatible, &QCheckBox::toggled, this, [this]() { updateCpuControlState(); });
+        connect(moreCompatible, &QCheckBox::clicked, this, [this]() {
+            remapFpuSelection();
+            updateFpuControls();
+            updateCpuControlState();
+        });
+        connect(mmuButtons, QOverload<QAbstractButton *>::of(&QButtonGroup::buttonClicked), this, [this]() { updateCpuControlState(); });
+        connect(cpuSpeedButtons, QOverload<QAbstractButton *>::of(&QButtonGroup::buttonClicked), this, [this]() { updateCpuControlState(); });
+        connect(cpuFrequency, &QComboBox::currentTextChanged, this, [this]() { updateCpuControlState(); });
         connect(jit, &QCheckBox::toggled, this, [this](bool checked) {
             if (checked) {
                 if (jitCache && jitCacheSizeFromPosition(jitCache->value()) <= 0) {
@@ -6653,6 +6663,8 @@ private:
             }
             if (checked) {
                 chipsetCycleExactMemory->setChecked(true);
+            } else if (chipsetCycleExactMemory && !chipsetCycleExactMemory->isEnabled()) {
+                chipsetCycleExactMemory->setChecked(false);
             }
             updateCpuControlState();
         });
@@ -6666,16 +6678,23 @@ private:
             }
             updateCpuControlState();
         });
+        connect(chipsetCycleExactMemory, &QCheckBox::clicked, this, [this]() {
+            remapFpuSelection();
+            updateFpuControls();
+            updateCpuControlState();
+        });
         connect(immediateBlits, &QCheckBox::toggled, this, [this](bool checked) {
             if (checked) {
                 waitingBlits->setChecked(false);
             }
+            updateChipsetControlState();
         });
         connect(waitingBlits, &QCheckBox::toggled, this, [this](bool checked) {
             if (checked) {
                 immediateBlits->setChecked(false);
             }
         });
+        connect(keyboardMode, &QComboBox::currentTextChanged, this, [this]() { updateChipsetControlState(); });
         connect(genlockConnected, &QCheckBox::toggled, this, [this]() { updateGenlockControlState(); });
         connect(genlockMode, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this]() { updateGenlockControlState(); });
         connect(genlockFile, &QComboBox::currentTextChanged, this, [this]() { storeGenlockFilePath(); });
@@ -6689,6 +6708,7 @@ private:
             storeGenlockFilePath();
         });
         updateGenlockControlState();
+        updateChipsetControlState();
         return page;
     }
 
@@ -6875,6 +6895,7 @@ private:
             } else if (!checked && chipsetCompatible->currentText() != QStringLiteral("-")) {
                 chipsetCompatible->setCurrentText(QStringLiteral("-"));
             }
+            updateAdvancedChipsetControlState();
         });
         connect(chipsetCompatible, &QComboBox::currentTextChanged, this, [this](const QString &text) {
             setCheckBoxIfChanged(advancedCompatible, text != QStringLiteral("-"));
@@ -6890,15 +6911,11 @@ private:
                 advancedIdeA600A1200->setChecked(false);
             }
         });
-        auto updateRevisionState = [this]() {
-            advancedRamseyRevision->setEnabled(advancedRamsey->isChecked());
-            advancedFatGaryRevision->setEnabled(advancedFatGary->isChecked());
-        };
-        connect(advancedRamsey, &QCheckBox::toggled, this, updateRevisionState);
-        connect(advancedFatGary, &QCheckBox::toggled, this, updateRevisionState);
+        connect(advancedRamsey, &QCheckBox::toggled, this, [this]() { updateAdvancedChipsetControlState(); });
+        connect(advancedFatGary, &QCheckBox::toggled, this, [this]() { updateAdvancedChipsetControlState(); });
 
         applyAdvancedChipsetPreset(chipsetCompatible->currentText());
-        updateRevisionState();
+        updateAdvancedChipsetControlState();
         return page;
     }
 
@@ -7068,6 +7085,8 @@ private:
         advanced->addWidget(new QCheckBox(QStringLiteral("Manual configuration")), 2, 1);
         advanced->addWidget(new QCheckBox(QStringLiteral("DMA Capable")), 2, 2);
         root->addWidget(groupBox(QStringLiteral("Advanced Memory Settings"), advanced), 1);
+        connect(chipMem, &QComboBox::currentTextChanged, this, [this]() { updateAdvancedChipsetControlState(); });
+        updateMemoryControlState();
         return page;
     }
 
@@ -7679,8 +7698,6 @@ private:
                 rtgCenter->setChecked(false);
             }
         });
-        connect(rtgMem, &QComboBox::currentTextChanged, this, [this]() { updateCpuControlState(); });
-        connect(rtgType, &QComboBox::currentTextChanged, this, [this]() { updateCpuControlState(); });
         return page;
     }
 
@@ -9113,7 +9130,44 @@ private:
 
         root->addLayout(left, 3);
         root->addLayout(right, 1);
+        connect(displayAutoResolution, &QComboBox::currentTextChanged, this, [this]() { updateDisplayControlState(); });
+        connect(displayResolution, &QComboBox::currentTextChanged, this, [this]() { updateDisplayControlState(); });
+        connect(displayLineModeButtons, QOverload<QAbstractButton *>::of(&QButtonGroup::buttonClicked), this, [this]() { updateDisplayControlState(); });
+        updateDisplayControlState();
         return page;
+    }
+
+    void updateDisplayControlState()
+    {
+        const bool autoRes = displayAutoResolution
+            && displayAutoResolution->currentText() != QStringLiteral("Disabled");
+        if (displayResolution) {
+            displayResolution->setEnabled(!autoRes);
+        }
+        if (displayLineModeButtons) {
+            for (QAbstractButton *button : displayLineModeButtons->buttons()) {
+                button->setEnabled(!autoRes);
+            }
+        }
+        const bool doubled = displayLineModeButtons && displayLineModeButtons->checkedId() > 0;
+        if (displayInterlacedLineModeButtons) {
+            for (QAbstractButton *button : displayInterlacedLineModeButtons->buttons()) {
+                const bool single = button == displayInterlacedLineModeButtons->button(0);
+                button->setEnabled(!autoRes && (single ? !doubled : doubled));
+            }
+        }
+        if (displayAutoResolutionVga) {
+            const bool vga = displayResolution
+                && displayResolution->currentText() != QStringLiteral("lores")
+                && doubled;
+            if (!vga) {
+                setCheckBoxIfChanged(displayAutoResolutionVga, false);
+            }
+            displayAutoResolutionVga->setEnabled(vga);
+        }
+        if (displayFrameRate) {
+            displayFrameRate->setEnabled(!(chipsetCycleExactMemory && chipsetCycleExactMemory->isChecked()));
+        }
     }
 
     QWidget *makeFilterPage()
@@ -12359,17 +12413,14 @@ private:
     {
         const int cpu = selectedCpuModel();
         const int fpu = fpuModelConfigValue(cpu);
-        const bool z3Rtg = rtgNeeds32BitAddressSpace();
         bool jitEnabled = jit && jit->isChecked();
+        const bool memoryCycleExact = chipsetCycleExactMemory && chipsetCycleExactMemory->isChecked();
         if (cpu24Bit) {
-            cpu24Bit->setEnabled(cpu <= 68030 && !z3Rtg);
-            cpu24Bit->setToolTip(z3Rtg ? QStringLiteral("Zorro III RTG requires a 32-bit address space.") : QString());
-            if (z3Rtg && cpu24Bit->isChecked()) {
-                cpu24Bit->setChecked(false);
-            }
+            cpu24Bit->setEnabled(cpu <= 68030);
         }
+        const bool mmuSelected = mmuButtons && mmuButtons->checkedId() > 0;
         if (jit) {
-            jit->setEnabled(unixJitBackendAvailable() && cpu >= 68020 && !cpu24Bit->isChecked());
+            jit->setEnabled(unixJitBackendAvailable() && cpu >= 68020 && !cpu24Bit->isChecked() && !mmuSelected);
             if (!jit->isEnabled() && jit->isChecked()) {
                 jit->setChecked(false);
             }
@@ -12381,8 +12432,11 @@ private:
             chipsetCycleExact->setToolTip(jitEnabled ? QStringLiteral("Cycle-exact emulation is not compatible with JIT.") : QString());
         }
         if (chipsetCycleExactMemory) {
-            chipsetCycleExactMemory->setEnabled(cycleExactEnabled);
+            chipsetCycleExactMemory->setEnabled(cycleExactEnabled && cpu >= 68020);
             chipsetCycleExactMemory->setToolTip(jitEnabled ? QStringLiteral("Cycle-exact emulation is not compatible with JIT.") : QString());
+        }
+        if (moreCompatible) {
+            moreCompatible->setEnabled(!memoryCycleExact && !(jitEnabled && cpu >= 68040));
         }
         if (cpuDataCache) {
             cpuDataCache->setEnabled(cpu >= 68030 && moreCompatible->isChecked() && !jitEnabled);
@@ -12423,15 +12477,106 @@ private:
                 button->setEnabled(jitOptions);
             }
         }
+        const bool cycleExact = chipsetCycleExact && chipsetCycleExact->isChecked();
+        if (cpuSpeed) {
+            cpuSpeed->setEnabled(!cycleExact);
+        }
+        if (cpuSpeedLabel) {
+            cpuSpeedLabel->setEnabled(!cycleExact);
+        }
+        const bool adjustableSpeed = !cpuSpeedButtons || cpuSpeedButtons->checkedId() == 0;
+        if (cpuFrequency) {
+            cpuFrequency->setEnabled((cycleExact || (moreCompatible && moreCompatible->isChecked())) && adjustableSpeed);
+        }
+        if (cpuFrequencyCustom) {
+            cpuFrequencyCustom->setEnabled(cycleExact && adjustableSpeed
+                && cpuFrequency && cpuFrequency->currentText() == QStringLiteral("Custom"));
+        }
         updateJitCacheLabel();
+        updateChipsetControlState();
+        updateMemoryControlState();
+        updateDisplayControlState();
+        lastSelectedCpuModel = cpu;
     }
 
-    bool rtgNeeds32BitAddressSpace() const
+    void updateChipsetControlState()
     {
-        const int configType = rtgConfigType(rtgType ? rtgType->currentText() : QString());
-        return rtgMem && rtgType
-            && rtgMem->currentText() != QStringLiteral("None")
-            && (configType == 3 || configType == 7);
+        const int cpu = selectedCpuModel();
+        if (immediateBlits && waitingBlits) {
+            const bool blocked = immediateBlits->isChecked()
+                || (chipsetCycleExactMemory && chipsetCycleExactMemory->isChecked() && cpu <= 68010);
+            if (blocked) {
+                setCheckBoxIfChanged(waitingBlits, false);
+            }
+            waitingBlits->setEnabled(!blocked);
+        }
+        if (keyboardMode && keyboardNkro) {
+            const QString mode = configChoiceValue(keyboardModeChoices, int(sizeof(keyboardModeChoices) / sizeof(keyboardModeChoices[0])), keyboardMode->currentText());
+            const bool forcedNkro = mode == QStringLiteral("UAE") || mode == QStringLiteral("a2000_8039");
+            if (forcedNkro) {
+                setCheckBoxIfChanged(keyboardNkro, true);
+            }
+            keyboardNkro->setEnabled(!forcedNkro);
+        }
+    }
+
+    void updateMemoryControlState()
+    {
+        const bool z3 = !cpu24Bit || !cpu24Bit->isChecked();
+        const auto gateZ3Combo = [z3](QComboBox *box) {
+            if (!box) {
+                return;
+            }
+            if (!z3 && box->currentText() != QStringLiteral("None")) {
+                box->setCurrentText(QStringLiteral("None"));
+            }
+            box->setEnabled(z3);
+        };
+        gateZ3Combo(z3Fast);
+        gateZ3Combo(z3ChipMem);
+        gateZ3Combo(processorSlotMem);
+        if (z3Mapping) {
+            z3Mapping->setEnabled(z3);
+        }
+    }
+
+    void updateAdvancedChipsetControlState()
+    {
+        if (!advancedCompatible) {
+            return;
+        }
+        const bool manual = !advancedCompatible->isChecked();
+        const auto gateGroup = [manual](QButtonGroup *group) {
+            if (!group) {
+                return;
+            }
+            for (QAbstractButton *button : group->buttons()) {
+                button->setEnabled(manual);
+            }
+        };
+        gateGroup(advancedRtcButtons);
+        gateGroup(advancedCiaTodButtons);
+        for (QCheckBox *box : advancedCheckBoxes) {
+            box->setEnabled(manual);
+        }
+        if (QCheckBox *jumper = advancedCheckBoxes.value(QStringLiteral("1mchipjumper"))) {
+            jumper->setEnabled(manual && (!chipMem || chipMemConfigValue() <= 1));
+        }
+        for (QWidget *widget : std::initializer_list<QWidget *>{
+                advancedRtcAdjust, advancedIdeA600A1200, advancedIdeA4000, advancedCia391078,
+                advancedUnmappedAddress, advancedCiaSync, advancedScsiA3000, advancedScsiA4000T,
+                advancedRamsey, advancedFatGary, advancedAgnusModel, advancedAgnusSize,
+                advancedDeniseModel }) {
+            if (widget) {
+                widget->setEnabled(manual);
+            }
+        }
+        if (advancedRamseyRevision) {
+            advancedRamseyRevision->setEnabled(manual && advancedRamsey && advancedRamsey->isChecked());
+        }
+        if (advancedFatGaryRevision) {
+            advancedFatGaryRevision->setEnabled(manual && advancedFatGary && advancedFatGary->isChecked());
+        }
     }
 
     int rtgConfigType(const QString &type) const
@@ -13573,14 +13718,59 @@ private:
     void updateFpuControls()
     {
         const int cpu = selectedCpuModel();
-        if (QAbstractButton *internal = fpuButtons->button(FpuInternal)) {
-            internal->setEnabled(cpu >= 68040);
-            if (!internal->isEnabled() && internal->isChecked()) {
-                if (QAbstractButton *none = fpuButtons->button(0)) {
-                    none->setChecked(true);
-                }
+        const bool compatible = moreCompatible && moreCompatible->isChecked();
+        const bool external = cpu < 68040 && (cpu >= 68020 || !compatible);
+        for (const int id : { 68881, 68882 }) {
+            if (QAbstractButton *button = fpuButtons->button(id)) {
+                button->setEnabled(external);
             }
         }
+        if (QAbstractButton *internal = fpuButtons->button(FpuInternal)) {
+            internal->setEnabled(cpu >= 68040);
+        }
+    }
+
+    void remapFpuSelection()
+    {
+        const int cpu = selectedCpuModel();
+        const int checked = fpuButtons->checkedId();
+        const bool compatible = moreCompatible && moreCompatible->isChecked();
+        const bool memoryCycleExact = chipsetCycleExactMemory && chipsetCycleExactMemory->isChecked();
+        int target = checked;
+        if (cpu >= 68040) {
+            if (checked == 68881 || checked == 68882) {
+                target = FpuInternal;
+            }
+        } else {
+            if (checked == FpuInternal) {
+                target = 68881;
+            }
+            if (cpu <= 68010 && (compatible || memoryCycleExact)) {
+                target = 0;
+            }
+        }
+        if (target != checked) {
+            if (QAbstractButton *button = fpuButtons->button(target)) {
+                button->setChecked(true);
+            }
+        }
+    }
+
+    void handleCpuModelSelected()
+    {
+        const int cpu = selectedCpuModel();
+        if (cpu != lastSelectedCpuModel) {
+            if (cpu24Bit) {
+                if (cpu <= 68010) {
+                    cpu24Bit->setChecked(true);
+                } else if (cpu >= 68030) {
+                    cpu24Bit->setChecked(false);
+                }
+            }
+            remapFpuSelection();
+        }
+        updateFpuControls();
+        updateCpuControlState();
     }
 
     int chipMemConfigValue() const
@@ -14739,8 +14929,7 @@ private:
         WinUaeQtConfig::Settings settings;
         const int cpu = selectedCpuModel();
         const int fpu = fpuModelConfigValue(cpu);
-        const bool z3Rtg = rtgNeeds32BitAddressSpace();
-        const bool cpu24BitAddressing = !z3Rtg && cpu24Bit && cpu24Bit->isChecked();
+        const bool cpu24BitAddressing = cpu24Bit && cpu24Bit->isChecked();
         const int requestedJitCacheSize = jitCache ? jitCacheSizeFromPosition(jitCache->value()) : 0;
         const bool jitActive = jit && jit->isChecked() && unixJitBackendAvailable()
             && cpu >= 68020 && !cpu24BitAddressing && requestedJitCacheSize > 0;
@@ -16036,6 +16225,9 @@ private:
         updateOutputControlState();
         updateMountButtons();
         refreshInputMappingList();
+        updateFpuControls();
+        updateCpuControlState();
+        updateAdvancedChipsetControlState();
         loadedConfig = config;
         refreshHardwareInfoPage();
         configPath->setText(expandedPath);
