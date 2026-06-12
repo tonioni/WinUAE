@@ -208,6 +208,13 @@ set(WINUAE_LZMA_SDK_SYSTEM_PATHS
 set(WINUAE_QEMU_UAE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qemu-uae-v11.0"
     CACHE PATH "QEMU-UAE plugin source directory")
 set(WINUAE_QEMU_UAE_PLUGIN_FILE "" CACHE FILEPATH "Prebuilt qemu-uae.so plugin to install or bundle")
+set(WINUAE_QEMU_UAE_BUILDER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../uae-ppc-plugin"
+    CACHE PATH "uae-ppc-plugin builder checkout used to build qemu-uae.so")
+set(WINUAE_QEMU_UAE_BUILDER_URL "https://github.com/reinauer/uae-ppc-plugin.git"
+    CACHE STRING "Git URL cloned at build time when the builder checkout is missing")
+option(WINUAE_QEMU_UAE_BUILDER_FETCH "Clone the uae-ppc-plugin builder when no local copy is found" ON)
+set(WINUAE_QEMU_UAE_QEMU_TARBALL "" CACHE FILEPATH
+    "Local QEMU source tarball for offline qemu-uae plugin builds")
 set(WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE "${CMAKE_INSTALL_LIBDIR}/winuae/plugins"
     CACHE STRING "Relative Unix install directory for runtime plugins")
 
@@ -1703,30 +1710,84 @@ if(WINUAE_QEMU_UAE_PLUGIN_FILE)
 else()
     set(WINUAE_QEMU_UAE_PLUGIN_PATH "${CMAKE_BINARY_DIR}/qemu-uae.so")
 endif()
+# On Linux the plugin is part of the default build so that plain
+# `cmake --build` + `cmake --install` flows (distro packaging) always
+# produce the mandatory qemu-uae.so. macOS keeps it behind the app/dmg
+# and package targets.
+set(WINUAE_QEMU_UAE_PLUGIN_ALL)
+if(UNIX AND NOT APPLE)
+    set(WINUAE_QEMU_UAE_PLUGIN_ALL ALL)
+endif()
 if(UNIX
     AND WINUAE_UNIX_WITH_PPC_QEMU
     AND WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN
-    AND EXISTS "${WINUAE_QEMU_UAE_SOURCE_DIR}/configure-qemu-uae")
-    add_custom_target(winuae_unix_qemu_uae_plugin
-        COMMAND "${CMAKE_COMMAND}" -E env
-            "WINUAE_MACOS_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
-            "QEMU_UAE_DEPS_PREFIX=${WINUAE_QEMU_UAE_DEPS_PREFIX}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tools/build-qemu-uae.sh"
-            "${WINUAE_QEMU_UAE_SOURCE_DIR}"
-            "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
-        WORKING_DIRECTORY "${WINUAE_QEMU_UAE_SOURCE_DIR}"
-        COMMENT "Building QEMU-UAE PPC plugin"
-        VERBATIM
-    )
+    AND NOT WINUAE_QEMU_UAE_PLUGIN_FILE)
+    if(EXISTS "${WINUAE_QEMU_UAE_SOURCE_DIR}/configure-qemu-uae")
+        message(STATUS
+            "QEMU-UAE plugin: building from sibling source ${WINUAE_QEMU_UAE_SOURCE_DIR}")
+        add_custom_target(winuae_unix_qemu_uae_plugin ${WINUAE_QEMU_UAE_PLUGIN_ALL}
+            COMMAND "${CMAKE_COMMAND}" -E env
+                "WINUAE_MACOS_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+                "QEMU_UAE_DEPS_PREFIX=${WINUAE_QEMU_UAE_DEPS_PREFIX}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/build-qemu-uae.sh"
+                "${WINUAE_QEMU_UAE_SOURCE_DIR}"
+                "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            WORKING_DIRECTORY "${WINUAE_QEMU_UAE_SOURCE_DIR}"
+            COMMENT "Building QEMU-UAE PPC plugin"
+            VERBATIM
+        )
+    elseif(EXISTS "${WINUAE_QEMU_UAE_BUILDER_DIR}/build-qemu-uae-plugin.sh"
+        OR WINUAE_QEMU_UAE_BUILDER_FETCH)
+        if(EXISTS "${WINUAE_QEMU_UAE_BUILDER_DIR}/build-qemu-uae-plugin.sh")
+            message(STATUS
+                "QEMU-UAE plugin: building through ${WINUAE_QEMU_UAE_BUILDER_DIR}")
+        else()
+            message(STATUS
+                "QEMU-UAE plugin: builder will be cloned from ${WINUAE_QEMU_UAE_BUILDER_URL}")
+        endif()
+        # OUTPUT-based so repeated `all` builds (e.g. the CPack preinstall
+        # step) skip the builder once the plugin exists; the external
+        # builder's configure step is not re-entrant.
+        add_custom_command(OUTPUT "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            COMMAND "${CMAKE_COMMAND}" -E env
+                "WINUAE_MACOS_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+                "QEMU_UAE_DEPS_PREFIX=${WINUAE_QEMU_UAE_DEPS_PREFIX}"
+                "QEMU_UAE_WORK_DIR=${CMAKE_BINARY_DIR}/_deps/qemu-uae"
+                "WINUAE_QEMU_UAE_BUILDER_DIR=${WINUAE_QEMU_UAE_BUILDER_DIR}"
+                "WINUAE_QEMU_UAE_BUILDER_URL=${WINUAE_QEMU_UAE_BUILDER_URL}"
+                "WINUAE_QEMU_UAE_BUILDER_FETCH=$<BOOL:${WINUAE_QEMU_UAE_BUILDER_FETCH}>"
+                "WINUAE_QEMU_UAE_QEMU_TARBALL=${WINUAE_QEMU_UAE_QEMU_TARBALL}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/build-qemu-uae-via-builder.sh"
+                "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/build-qemu-uae-via-builder.sh"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            COMMENT "Building QEMU-UAE PPC plugin through uae-ppc-plugin"
+            VERBATIM
+        )
+        add_custom_target(winuae_unix_qemu_uae_plugin ${WINUAE_QEMU_UAE_PLUGIN_ALL}
+            DEPENDS "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+        )
+    endif()
 endif()
 
-if(WINUAE_UNIX_WITH_PPC_QEMU)
+if(UNIX AND WINUAE_UNIX_WITH_PPC_QEMU)
     if(WINUAE_QEMU_UAE_PLUGIN_FILE)
         if(NOT EXISTS "${WINUAE_QEMU_UAE_PLUGIN_PATH}")
             message(FATAL_ERROR
                 "WINUAE_QEMU_UAE_PLUGIN_FILE does not exist: "
                 "${WINUAE_QEMU_UAE_PLUGIN_PATH}")
         endif()
+        message(STATUS
+            "QEMU-UAE plugin: using prebuilt ${WINUAE_QEMU_UAE_PLUGIN_PATH}")
+    elseif(NOT TARGET winuae_unix_qemu_uae_plugin)
+        message(FATAL_ERROR
+            "WINUAE_UNIX_WITH_PPC_QEMU requires the QEMU-UAE PPC plugin, but no "
+            "way to provide qemu-uae.so was found. Provide one of:\n"
+            "  -DWINUAE_QEMU_UAE_PLUGIN_FILE=/path/to/qemu-uae.so (prebuilt plugin)\n"
+            "  -DWINUAE_QEMU_UAE_BUILDER_DIR=/path/to/uae-ppc-plugin (builder checkout; "
+            "offline builds also want -DWINUAE_QEMU_UAE_QEMU_TARBALL=/path/to/qemu-11.0.1.tar.xz)\n"
+            "  -DWINUAE_QEMU_UAE_BUILDER_FETCH=ON to clone ${WINUAE_QEMU_UAE_BUILDER_URL} at build time\n"
+            "  a qemu-uae source tree at ${WINUAE_QEMU_UAE_SOURCE_DIR}")
     endif()
     set(WINUAE_UNIX_QEMU_UAE_PACKAGE_CHECK_DEPS)
     if(TARGET winuae_unix_qemu_uae_plugin)

@@ -184,17 +184,29 @@ when found under `WINUAE_LZMA_SDK_SYSTEM_PATHS` (or an explicit
 SHA-verified `lzma1604.7z` archive. Pass `-DWINUAE_LZMA_SDK_FETCH=OFF` for
 offline distribution builds.
 
-To build a package from a prebuilt QEMU-UAE plugin, pass:
+The `qemu-uae.so` PPC plugin is a mandatory part of Unix packages. CMake
+resolves it at configure time, in this order, and fails the configure with
+instructions when none applies:
 
-```sh
-tools/debian-build-package.sh -- \
-  -DWINUAE_QEMU_UAE_PLUGIN_FILE=/path/to/qemu-uae.so \
-  -DWINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN=OFF
-```
+1. `-DWINUAE_QEMU_UAE_PLUGIN_FILE=/path/to/qemu-uae.so` — a prebuilt plugin.
+2. A patched `qemu-uae` source tree at `WINUAE_QEMU_UAE_SOURCE_DIR`
+   (default: sibling `../qemu-uae-v11.0`) — the developer path.
+3. The `uae-ppc-plugin` builder at `WINUAE_QEMU_UAE_BUILDER_DIR`
+   (default: sibling `../uae-ppc-plugin`). The builder downloads a
+   SHA-verified QEMU source tarball, applies the UAE patch deck, and builds
+   the plugin during the WinUAE build. For offline builds (distribution
+   packaging), declare the QEMU tarball as a package source and pass
+   `-DWINUAE_QEMU_UAE_QEMU_TARBALL=/path/to/qemu-11.0.1.tar.xz`.
+4. When no builder checkout is found and `WINUAE_QEMU_UAE_BUILDER_FETCH` is
+   `ON` (the default), the builder is cloned at build time from
+   `WINUAE_QEMU_UAE_BUILDER_URL`.
 
-Package builds fail when `WINUAE_UNIX_WITH_PPC_QEMU=ON` and the resolved
-`qemu-uae.so` path does not exist. Disable `WINUAE_UNIX_WITH_PPC_QEMU` for a
-deliberately reduced package without PPC plugin support.
+On Linux the plugin target is part of the default build, so plain
+`cmake --build` + `cmake --install` flows always produce and install the
+plugin. A distribution package build needs `meson`, `ninja`, GLib and libfdt
+development headers for the embedded QEMU build, plus the builder checkout
+and QEMU tarball as additional sources when the build host has no network
+access.
 
 The Linux install/package metadata can be checked on any Unix host:
 
@@ -280,11 +292,14 @@ CMake also exposes this as:
 cmake --build /tmp/winuae_cmake_build --target winuae_unix_qemu_uae_plugin -j
 ```
 
-`WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN` controls whether the sibling plugin target
+`WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN` controls whether the plugin build target
 is enabled, and `WINUAE_QEMU_UAE_SOURCE_DIR` can point at a different
 `qemu-uae` source tree. `WINUAE_QEMU_UAE_PLUGIN_FILE` can point at an already
-built plugin, which is useful for CI jobs that build the plugin through the
-release-oriented `uae-ppc-plugin` wrapper. `WINUAE_QEMU_UAE_DEPS_PREFIX`
+built plugin. Without a patched source tree, the target builds through the
+release-oriented `uae-ppc-plugin` builder (`WINUAE_QEMU_UAE_BUILDER_DIR`,
+cloned from `WINUAE_QEMU_UAE_BUILDER_URL` when missing and
+`WINUAE_QEMU_UAE_BUILDER_FETCH` is enabled; `WINUAE_QEMU_UAE_QEMU_TARBALL`
+supplies a local QEMU tarball for offline builds). `WINUAE_QEMU_UAE_DEPS_PREFIX`
 defaults to the private macOS dependency prefix and is passed to the plugin
 helper as `QEMU_UAE_DEPS_PREFIX`. Set `QEMU_UAE_NINJA=/path/to/ninja` if QEMU
 configure cannot find Ninja itself. On macOS, the app bundler copies
