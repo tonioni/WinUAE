@@ -539,7 +539,19 @@ int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_pref
             }
             return WINUAE_QT_LAUNCHER_ERROR;
         }
-        return WINUAE_QT_LAUNCHER_START;
+        return result.hardReset ? WINUAE_QT_LAUNCHER_RESET : WINUAE_QT_LAUNCHER_START;
+    }
+    if (result.status == WinUaeQtLauncherStatus::QuitRequested) {
+        if (exitCode) {
+            *exitCode = 0;
+        }
+        return WINUAE_QT_LAUNCHER_QUIT;
+    }
+    if (result.status == WinUaeQtLauncherStatus::RestartRequested) {
+        if (exitCode) {
+            *exitCode = 0;
+        }
+        return WINUAE_QT_LAUNCHER_RESTART;
     }
     if (result.status == WinUaeQtLauncherStatus::Error) {
         QByteArray error = result.error.toLocal8Bit();

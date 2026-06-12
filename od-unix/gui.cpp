@@ -273,12 +273,19 @@ void gui_display(int shortcut)
             unlink(snapshot_path);
         }
 
-        if (action == WINUAE_QT_LAUNCHER_START) {
+        if (action == WINUAE_QT_LAUNCHER_START || action == WINUAE_QT_LAUNCHER_RESET) {
             fixup_prefs(&changed_prefs, true);
             reset_sound();
             inputdevice_copyconfig(&changed_prefs, &currprefs);
             inputdevice_config_change_test();
             set_config_changed();
+            if (action == WINUAE_QT_LAUNCHER_RESET) {
+                uae_reset(1, 1);
+            }
+        } else if (action == WINUAE_QT_LAUNCHER_QUIT) {
+            uae_quit();
+        } else if (action == WINUAE_QT_LAUNCHER_RESTART) {
+            uae_restart(&changed_prefs, -1, nullptr);
         } else if (action == WINUAE_QT_LAUNCHER_ERROR) {
             write_log("Unix Qt runtime UI exited with error code %d\n", exit_code);
         }

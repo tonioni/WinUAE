@@ -9,11 +9,14 @@ class QApplication;
 enum class WinUaeQtLauncherStatus {
     Canceled,
     StartRequested,
+    QuitRequested,
+    RestartRequested,
     Error
 };
 
 struct WinUaeQtLauncherResult {
     WinUaeQtLauncherStatus status = WinUaeQtLauncherStatus::Canceled;
+    bool hardReset = false;
     int exitCode = 0;
     QString error;
     WinUaeQtConfig config;

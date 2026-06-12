@@ -7,7 +7,12 @@ struct uae_prefs;
 enum {
     WINUAE_QT_LAUNCHER_EXIT = 1,
     WINUAE_QT_LAUNCHER_START = 2,
-    WINUAE_QT_LAUNCHER_ERROR = 3
+    WINUAE_QT_LAUNCHER_ERROR = 3,
+    /* Runtime (F12) GUI results, matching the Windows GUI buttons. */
+    WINUAE_QT_LAUNCHER_QUIT = 4,
+    WINUAE_QT_LAUNCHER_RESTART = 5,
+    /* Apply the edited config like START, then hard-reset the Amiga. */
+    WINUAE_QT_LAUNCHER_RESET = 6
 };
 
 int winUaeQtLauncherArgumentsSpecifyConfig(int argc, char **argv);

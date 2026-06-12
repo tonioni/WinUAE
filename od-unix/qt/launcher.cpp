@@ -5349,19 +5349,35 @@ public:
         content->addWidget(navigation);
         content->addWidget(outerFrame, 1);
 
+        runtimeMode = hardwareProvider.pollHostWindowEvents != nullptr;
         QPushButton *reset = new QPushButton(QStringLiteral("Reset"));
         QPushButton *quit = new QPushButton(QStringLiteral("Quit"));
         QPushButton *restart = new QPushButton(QStringLiteral("Restart"));
         QPushButton *errorLog = new QPushButton(QStringLiteral("Error log"));
-        QPushButton *start = new QPushButton(QStringLiteral("Start"));
+        QPushButton *start = new QPushButton(runtimeMode ? QStringLiteral("OK") : QStringLiteral("Start"));
         QPushButton *cancel = new QPushButton(QStringLiteral("Cancel"));
         QPushButton *help = new QPushButton(QStringLiteral("Help"));
-        restart->setVisible(false);
+        restart->setVisible(runtimeMode);
         errorLog->setVisible(false);
         start->setDefault(true);
 
-        connect(reset, &QPushButton::clicked, this, [this]() { resetDefaults(); });
-        connect(quit, &QPushButton::clicked, this, &QDialog::reject);
+        connect(reset, &QPushButton::clicked, this, [this]() {
+            if (runtimeMode) {
+                /* Windows: hard-reset the Amiga with the edited config and
+                 * resume (IDC_RESETAMIGA sends IDOK after uae_reset). */
+                requestStart(true);
+            } else {
+                resetDefaults();
+            }
+        });
+        connect(quit, &QPushButton::clicked, this, [this]() {
+            result.status = WinUaeQtLauncherStatus::QuitRequested;
+            accept();
+        });
+        connect(restart, &QPushButton::clicked, this, [this]() {
+            result.status = WinUaeQtLauncherStatus::RestartRequested;
+            accept();
+        });
         connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
         connect(start, &QPushButton::clicked, this, [this]() { startEmulator(); });
         connect(help, &QPushButton::clicked, this, [this]() { openHelp(); });
@@ -5425,6 +5441,7 @@ private:
     QTreeWidget *navigation = nullptr;
     QStackedWidget *pageStack = nullptr;
     QLabel *status = nullptr;
+    bool runtimeMode = false;
 
     QComboBox *configName = nullptr;
     QLineEdit *configPath = nullptr;
@@ -14636,9 +14653,9 @@ private:
             const int driveType = dfEnable[i]->isChecked() ? floppyTypeConfigValue(dfType[i]->currentText()) : -1;
             settings.insert(QStringLiteral("floppy%1type").arg(i), QString::number(driveType));
             settings.insert(QStringLiteral("floppy%1wp").arg(i), dfWriteProtect[i]->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
-            if (driveType >= 0 && !dfPath[i]->currentText().isEmpty()) {
-                settings.insert(QStringLiteral("floppy%1").arg(i), dfPath[i]->currentText());
-            }
+            /* Always write the path, empty included, so ejecting a disk in
+             * the runtime GUI reaches the core's disk-change detection. */
+            settings.insert(QStringLiteral("floppy%1").arg(i), driveType >= 0 ? dfPath[i]->currentText() : QString());
         }
         settings.insert(QStringLiteral("nr_floppies"), QString::number(enabledFloppyCount()));
         settings.insert(QStringLiteral("floppy_speed"), QString::number(floppySpeedConfigValue(floppySpeed->value())));
@@ -15042,7 +15059,9 @@ private:
         settings.insert(QStringLiteral("gfx_filter_enable_lace"), filterStateFromUi(2).enable ? QStringLiteral("1") : QStringLiteral("0"));
         for (int i = 0; i < MaxCdSlots; i++) {
             const QString value = cdSlotConfigValue(cdSlotState(i));
-            if (!value.isEmpty()) {
+            /* Slot 0 is always written, empty included, so ejecting the CD
+             * in the runtime GUI reaches the core. */
+            if (!value.isEmpty() || i == 0) {
                 settings.insert(QStringLiteral("cdimage%1").arg(i), value);
             }
         }
@@ -16702,6 +16721,11 @@ private:
 
     void startEmulator()
     {
+        requestStart(false);
+    }
+
+    void requestStart(bool hardReset)
+    {
         const WinUaeQtConfig config = mergedConfig();
         const QStringList validationErrors = config.validateForLaunch();
         if (!validationErrors.isEmpty()) {
@@ -16711,6 +16735,7 @@ private:
         }
 
         result.status = WinUaeQtLauncherStatus::StartRequested;
+        result.hardReset = hardReset;
         result.config = config;
         accept();
     }
