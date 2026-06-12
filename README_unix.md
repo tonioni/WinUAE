@@ -177,6 +177,13 @@ options can be passed after `--`, for example:
 tools/debian-build-package.sh -- -DWINUAE_UNIX_WITH_QT_UI=OFF
 ```
 
+Archive and CHD support compile the 7-Zip/LZMA SDK sources. A system SDK
+source package (for example the openSUSE `lzma-sdk-devel` package) is used
+when found under `WINUAE_LZMA_SDK_SYSTEM_PATHS` (or an explicit
+`-DWINUAE_LZMA_SDK_DIR=`); otherwise `WINUAE_LZMA_SDK_FETCH` downloads the
+SHA-verified `lzma1604.7z` archive. Pass `-DWINUAE_LZMA_SDK_FETCH=OFF` for
+offline distribution builds.
+
 To build a package from a prebuilt QEMU-UAE plugin, pass:
 
 ```sh

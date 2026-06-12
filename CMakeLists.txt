@@ -84,12 +84,18 @@ function(winuae_unix_macos_find_qt_frameworks out_var)
 endfunction()
 
 function(winuae_unix_find_lzma_sdk out_var)
+    # A system lzma-sdk source package (e.g. openSUSE lzma-sdk-devel) is
+    # preferred over fetching the vendored archive; it must provide the SDK
+    # C sources, not just headers.
     set(WINUAE_LZMA_SDK_CANDIDATES
         "${WINUAE_LZMA_SDK_DIR}/C"
         "${WINUAE_LZMA_SDK_DIR}"
     )
+    foreach(prefix IN LISTS WINUAE_LZMA_SDK_SYSTEM_PATHS)
+        list(APPEND WINUAE_LZMA_SDK_CANDIDATES "${prefix}/C" "${prefix}")
+    endforeach()
     foreach(candidate IN LISTS WINUAE_LZMA_SDK_CANDIDATES)
-        if(EXISTS "${candidate}/7z/7zVersion.h")
+        if(EXISTS "${candidate}/7z/7zVersion.h" AND EXISTS "${candidate}/7z/7zCrc.c")
             set(WINUAE_LZMA_SDK_SOURCE_DIR "${candidate}")
             break()
         endif()
@@ -195,6 +201,9 @@ set(WINUAE_LZMA_SDK_SHA256 "edf8690e9d5ae0dbe80751e3df247bb4e1b497b100c4af5b95fc
     CACHE STRING "Expected SHA-256 for the 7-Zip/LZMA SDK archive")
 set(WINUAE_LZMA_SDK_DIR "${CMAKE_BINARY_DIR}/_deps/lzma-sdk/${WINUAE_LZMA_SDK_VERSION}"
     CACHE PATH "Local cache directory for the 7-Zip/LZMA SDK")
+set(WINUAE_LZMA_SDK_SYSTEM_PATHS
+    "/usr/share/lzma-sdk;/usr/include/lzma-sdk;/usr/src/lzma-sdk;/usr/include/lzma"
+    CACHE STRING "System prefixes probed for an installed 7-Zip/LZMA SDK source tree")
 
 set(WINUAE_QEMU_UAE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qemu-uae-v11.0"
     CACHE PATH "QEMU-UAE plugin source directory")
