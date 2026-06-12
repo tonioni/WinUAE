@@ -2544,7 +2544,8 @@ static const ConfigChoice filterTargetChoices[] = {
 };
 
 static const ConfigChoice filterModeChoices[] = {
-    { "None", "none" }
+    { "None", "none" },
+    { "Scale2x (EPX)", "scale2x" }
 };
 
 static const ConfigChoice filterModeHChoices[] = {
@@ -15431,6 +15432,7 @@ private:
             settings.insert(filterKey(QStringLiteral("gfx_filter_scanlineoffset"), i), QString::number(state.scanlineOffset));
         }
         settings.insert(QStringLiteral("gfx_filter_enable_lace"), filterStateFromUi(2).enable ? QStringLiteral("1") : QStringLiteral("0"));
+        settings.insert(QStringLiteral("unix.gfx_shader"), filterStateFromUi(0).filter);
         for (int i = 0; i < MaxCdSlots; i++) {
             const QString value = cdSlotConfigValue(cdSlotState(i));
             /* Slot 0 is always written, empty included, so ejecting the CD
@@ -15915,6 +15917,7 @@ private:
             QStringLiteral("gfx_filter_scanlinelevel_lace"),
             QStringLiteral("gfx_filter_scanlineoffset_lace"),
             QStringLiteral("gfx_filter_enable_lace"),
+            QStringLiteral("unix.gfx_shader"),
             QStringLiteral("cdimage0"),
             QStringLiteral("cdimage1"),
             QStringLiteral("cdimage2"),
@@ -17098,6 +17101,12 @@ private:
             displayKeepAspect->setChecked(configBoolValue(value));
         } else if (key == QStringLiteral("gfx_ntscpixels")) {
             filterNtscPixels->setChecked(configBoolValue(value));
+        } else if (key == QStringLiteral("unix.gfx_shader")) {
+            const QString shader = value.trimmed();
+            filterStates[0].filter = shader.isEmpty() ? QStringLiteral("none") : shader;
+            if (currentFilterTarget == 0) {
+                loadFilterStateToUi(0);
+            }
         } else if (applyFilterSetting(key, value)) {
         }
     }
