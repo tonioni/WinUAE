@@ -116,6 +116,9 @@ struct WinUaeQtBoardCatalog {
 
 struct WinUaeQtHardwareInfoProvider {
     void *context = nullptr;
+    bool (*hostSettingGet)(void *context, const char *key, char *out, int outLen) = nullptr;
+    void (*hostSettingSet)(void *context, const char *key, const char *value) = nullptr;
+    void (*hostSettingsFlush)(void *context) = nullptr;
     WinUaeQtBoardCatalog (*boardCatalog)(void *context) = nullptr;
     bool (*applyConfig)(void *context, const WinUaeQtConfig &config) = nullptr;
     QVector<WinUaeQtHardwareBoard> (*boards)(void *context) = nullptr;

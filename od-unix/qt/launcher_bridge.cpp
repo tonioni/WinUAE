@@ -29,6 +29,7 @@
 #include "zfile.h"
 #include "gfxboard.h"
 #include "ethernet.h"
+#include "registry.h"
 #ifdef PROWIZARD
 #include "moduleripper.h"
 #endif
@@ -480,10 +481,30 @@ static void bridgePollHostWindowEvents(void *)
     unix_host_check_quit();
 }
 
+static bool bridgeHostSettingGet(void *, const char *key, char *out, int outLen)
+{
+    int size = outLen;
+    out[0] = 0;
+    return regquerystr(nullptr, key, out, &size) != 0;
+}
+
+static void bridgeHostSettingSet(void *, const char *key, const char *value)
+{
+    regsetstr(nullptr, key, value);
+}
+
+static void bridgeHostSettingsFlush(void *)
+{
+    registry_flush();
+}
+
 static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *prefs, bool runtimeActions)
 {
     WinUaeQtHardwareInfoProvider provider;
     provider.context = prefs;
+    provider.hostSettingGet = bridgeHostSettingGet;
+    provider.hostSettingSet = bridgeHostSettingSet;
+    provider.hostSettingsFlush = bridgeHostSettingsFlush;
     provider.boardCatalog = bridgeBoardCatalog;
     provider.applyConfig = bridgeApplyHardwareConfig;
     provider.boards = bridgeHardwareBoards;

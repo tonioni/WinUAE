@@ -13336,6 +13336,9 @@ private:
         relativePaths->setChecked(false);
         portableMode->setChecked(false);
         pathDefaultType->setCurrentText(QStringLiteral("User data directory"));
+        /* Paths and path flags are host settings: restore the persisted
+         * values instead of the factory defaults. */
+        loadHostSettings();
         logSelect->setCurrentText(QStringLiteral("winuaebootlog.txt"));
         fullLogging->setChecked(false);
         logWindow->setChecked(false);
@@ -13350,6 +13353,85 @@ private:
         updateOutputControlState();
         refreshConfigList();
         status->setText(QStringLiteral("Ready"));
+    }
+
+    struct HostPathBinding {
+        const char *key;
+        QLineEdit *edit;
+    };
+
+    QVector<HostPathBinding> hostPathBindings() const
+    {
+        return {
+            { "KickstartPath", romsPath },
+            { "ConfigurationPath", configsPath },
+            { "NVRAMPath", nvramPath },
+            { "ScreenshotPath", screenshotsPath },
+            { "StatefilePath", stateFilesPath },
+            { "VideoPath", videosPath },
+            { "SaveimagePath", saveImagesPath },
+            { "RipperPath", ripsPath },
+            { "DataPath", dataPath },
+        };
+    }
+
+    struct HostFlagBinding {
+        const char *key;
+        QCheckBox *box;
+    };
+
+    QVector<HostFlagBinding> hostFlagBindings() const
+    {
+        return {
+            { "RecursiveROMScan", recursiveRoms },
+            { "ConfigurationCache", cacheConfigurations },
+            { "ArtCache", cacheBoxArt },
+            { "SaveImageOriginalPath", saveImageOriginalPath },
+        };
+    }
+
+    void loadHostSettings()
+    {
+        if (!hardwareProvider.hostSettingGet) {
+            return;
+        }
+        char value[4096];
+        for (const HostPathBinding &binding : hostPathBindings()) {
+            if (binding.edit && hardwareProvider.hostSettingGet(hardwareProvider.context, binding.key, value, sizeof value)) {
+                binding.edit->setText(QString::fromLocal8Bit(value));
+            }
+        }
+        for (const HostFlagBinding &binding : hostFlagBindings()) {
+            if (binding.box && hardwareProvider.hostSettingGet(hardwareProvider.context, binding.key, value, sizeof value)) {
+                binding.box->setChecked(QString::fromLocal8Bit(value).toInt() != 0);
+            }
+        }
+    }
+
+    void saveHostSettings()
+    {
+        if (!hardwareProvider.hostSettingSet) {
+            return;
+        }
+        for (const HostPathBinding &binding : hostPathBindings()) {
+            if (binding.edit) {
+                hardwareProvider.hostSettingSet(hardwareProvider.context, binding.key, binding.edit->text().toLocal8Bit().constData());
+            }
+        }
+        for (const HostFlagBinding &binding : hostFlagBindings()) {
+            if (binding.box) {
+                hardwareProvider.hostSettingSet(hardwareProvider.context, binding.key, binding.box->isChecked() ? "1" : "0");
+            }
+        }
+        if (hardwareProvider.hostSettingsFlush) {
+            hardwareProvider.hostSettingsFlush(hardwareProvider.context);
+        }
+    }
+
+    void done(int result) override
+    {
+        saveHostSettings();
+        QDialog::done(result);
     }
 
     void applyModelPreset(const QString &model)

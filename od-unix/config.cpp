@@ -13,6 +13,7 @@ extern int video_recording_active;
 static int unix_avi_audio_codec = AVIAUDIO_AVI;
 #endif
 #include "path_expand.h"
+#include "registry.h"
 #include "romscan.h"
 #include "savestate.h"
 #include "sound_unix.h"
@@ -770,27 +771,38 @@ static void fetch_user_data_path(TCHAR *out, int size, const char *subdir)
     fixtrailing(out);
 }
 
-static void fetch_user_data_path_override(TCHAR *out, int size, const TCHAR *override_path, const char *subdir)
+static void fetch_user_data_path_override(TCHAR *out, int size, const TCHAR *override_path, const char *regkey, const char *subdir)
 {
     if (override_path && override_path[0]) {
         uae_tcslcpy(out, override_path, size);
         fixtrailing(out);
-    } else {
-        fetch_user_data_path(out, size, subdir);
+        return;
     }
+    /* Per-config overrides win; otherwise consult the persistent host
+     * settings (winuae.ini) before falling back to built-in defaults. */
+    if (regkey) {
+        TCHAR stored[MAX_DPATH];
+        int stored_size = MAX_DPATH;
+        if (regquerystr(NULL, regkey, stored, &stored_size) && stored[0]) {
+            target_expand_environment(stored, out, size);
+            fixtrailing(out);
+            return;
+        }
+    }
+    fetch_user_data_path(out, size, subdir);
 }
 
-void fetch_saveimagepath(TCHAR *out, int size, int) { fetch_user_data_path_override(out, size, path_saveimage, "SaveImages"); }
-void fetch_configurationpath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_configuration, "Configuration"); }
-void fetch_nvrampath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_nvram, "NVRAMs"); }
+void fetch_saveimagepath(TCHAR *out, int size, int) { fetch_user_data_path_override(out, size, path_saveimage, "SaveimagePath", "SaveImages"); }
+void fetch_configurationpath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_configuration, "ConfigurationPath", "Configuration"); }
+void fetch_nvrampath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_nvram, "NVRAMPath", "NVRAMs"); }
 void fetch_luapath(TCHAR *out, int size) { fetch_home_path(out, size); }
-void fetch_screenshotpath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_screenshot, "Screenshots"); }
-void fetch_ripperpath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_ripper, "Rips"); }
-void fetch_statefilepath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_statefile, "Save States"); }
+void fetch_screenshotpath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_screenshot, "ScreenshotPath", "Screenshots"); }
+void fetch_ripperpath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_ripper, "RipperPath", "Rips"); }
+void fetch_statefilepath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_statefile, "StatefilePath", "Save States"); }
 void fetch_inputfilepath(TCHAR *out, int size) { fetch_home_path(out, size); }
-void fetch_datapath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_data, NULL); }
-void fetch_rompath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_rom, "Kickstarts"); }
-void fetch_videopath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_video, "Videos"); }
+void fetch_datapath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_data, "DataPath", NULL); }
+void fetch_rompath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_rom, "KickstartPath", "Kickstarts"); }
+void fetch_videopath(TCHAR *out, int size) { fetch_user_data_path_override(out, size, path_video, "VideoPath", "Videos"); }
 
 void target_getdate(int *y, int *m, int *d)
 {

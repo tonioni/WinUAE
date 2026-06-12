@@ -11,6 +11,7 @@
 #include "custom.h"
 #include "inputdevice.h"
 #include "gui.h"
+#include "registry.h"
 #include "target.h"
 #include "target_main.h"
 #include "savestate.h"
@@ -69,7 +70,10 @@ int gui_init(void)
 #endif
 }
 int gui_update(void) { return 1; }
-void gui_exit(void) {}
+void gui_exit(void)
+{
+    registry_flush();
+}
 void gui_led(int led, int on, int brightness)
 {
     if (on >= 0 && led >= 0 && led < int(sizeof(gui_ledstate) * 8)) {

@@ -334,6 +334,15 @@ When the integrated Qt UI is built, `winuae_unix` opens the configuration UI by 
 
 The executable also tries to load `default.uae` from the configuration path by default, and the Qt configuration UI starts with it loaded when it exists — save a configuration named `default` to set your startup defaults, like on Windows. Configs given on the command line take precedence. A missing default config is ignored silently; explicit `-config` / `-f` load failures are still reported.
 
+Host settings (the Paths page directories and flags) persist in `winuae.ini`:
+a `winuae.ini` next to the executable is used when present (portable mode,
+matching Windows); otherwise `$XDG_CONFIG_HOME/winuae/winuae.ini` on Linux
+(default `~/.config/winuae/winuae.ini`) and
+`~/Library/Application Support/WinUAE/winuae.ini` on macOS. The `WINUAE_INI`
+environment variable overrides the location. Configs loaded per session can
+still override individual paths through the `unix.*_path` settings, which win
+over the stored host defaults.
+
 Unix path expansion is supported for `~/`, `$VAR`, and `${VAR}` in core config paths and Qt file/config boundaries. Relative config and media paths are resolved against the process working directory, matching the non-relative Windows save mode; the Windows-style relative-path save option is not enabled on Unix yet. The Qt Paths page saves runtime-visible target path settings such as `unix.screenshot_path`, `unix.rip_path`, `unix.video_path`, and `statefile_path`; legacy `unix.ui.*` path settings are still accepted when loading older configs. `~user` expansion is not implemented; use an absolute path for another user's home directory.
 
 For SANA-II `uaenet.device` startup testing, add `-s sana2=true` or use the smoke target below. Guest TCP/IP stack validation is still pending.

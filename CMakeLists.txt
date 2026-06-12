@@ -1389,6 +1389,7 @@ set(WINUAE_CORE_SOURCES
     od-unix/mman.cpp
     od-unix/path_expand.cpp
     od-unix/parallel.cpp
+    od-unix/registry.cpp
     od-unix/romscan.cpp
     od-unix/rtg.cpp
     od-unix/screenshot.cpp
@@ -1466,6 +1467,18 @@ target_include_directories(winuae_unix_path_expand_test PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 winuae_unix_register_test(winuae_unix_path_expand_test)
+
+add_executable(winuae_unix_registry_test EXCLUDE_FROM_ALL
+    od-unix/registry.cpp
+    od-unix/registry_test.cpp
+    ini.cpp
+    missing.cpp
+)
+target_include_directories(winuae_unix_registry_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+winuae_unix_register_test(winuae_unix_registry_test)
 
 add_executable(winuae_unix_threading_test EXCLUDE_FROM_ALL
     od-unix/threading.cpp
