@@ -105,7 +105,9 @@
 static bool systemPrefersDarkMode();
 static void applyApplicationColors(QApplication &app, bool dark);
 
-static constexpr int FpuInternal = -1;
+/* QButtonGroup ids must not be -1 (it means auto-assign, and checkedId()
+ * returns -1 for "no selection"). */
+static constexpr int FpuInternal = 1;
 static constexpr int MaxMountEntries = 8;
 static constexpr int MaxControllerUnits = 8;
 static constexpr int MaxCdSlots = 8;
@@ -5432,6 +5434,17 @@ public:
         loadConfig(path);
         raise();
         activateWindow();
+    }
+
+    bool exportMergedConfig(const QString &path)
+    {
+        WinUaeQtConfig config = mergedConfig();
+        QString error;
+        if (!config.save(path, &error)) {
+            std::fprintf(stderr, "config roundtrip export failed: %s\n", error.toLocal8Bit().constData());
+            return false;
+        }
+        return true;
     }
 
 private:
@@ -15916,6 +15929,16 @@ private:
         inputMappingSettings.clear();
         inputOwnedMappingKeys.clear();
         hardwareOrderOwnedKeys.clear();
+        /* A config without a quickstart line is a full configuration: leave
+         * quickstart mode off so no quickstart key gets synthesized into the
+         * merged config. The quickstart key handler re-enables it. */
+        if (quickstartMode) {
+            const QSignalBlocker quickstartBlocker(quickstartMode);
+            quickstartMode->setChecked(false);
+            if (quickstartSetConfig) {
+                quickstartSetConfig->setVisible(true);
+            }
+        }
         moveQuickstartBeforeOverrides(config);
         for (const WinUaeQtConfig::Setting &setting : config.orderedSettings()) {
             applySetting(setting.key, setting.value);
@@ -16134,7 +16157,14 @@ private:
             chipset->setCurrentText(chipsetText(value));
         } else if (key == QStringLiteral("chipset_compatible")) {
             chipsetCompatible->setCurrentText(value);
-            quickModel->setCurrentText(value);
+            /* Sync the quickstart model display only; applying the model
+             * preset here would overwrite the explicit settings of the
+             * config being loaded. */
+            {
+                const QSignalBlocker modelBlocker(quickModel);
+                quickModel->setCurrentText(value);
+            }
+            refreshQuickstartConfigurationChoices();
         } else if (key == QStringLiteral("ntsc")) {
             chipsetNtsc->setChecked(configBoolValue(value));
             ntsc->setChecked(configBoolValue(value));
@@ -16262,6 +16292,11 @@ private:
             updateCpuControlState();
         } else if (key == QStringLiteral("fpu_model")) {
             setFpuButton(value.toInt());
+        } else if (key == QStringLiteral("nr_floppies")) {
+            const int count = qBound(0, value.toInt(), 4);
+            for (int i = 0; i < 4; i++) {
+                dfEnable[i]->setChecked(i < count);
+            }
         } else if (key == QStringLiteral("cpu_24bit_addressing")) {
             cpu24Bit->setChecked(value.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
             updateCpuControlState();
@@ -16969,6 +17004,20 @@ WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QSt
         qtApp->setConfigOpenHandler([&dialog](const QString &path) {
             dialog.openConfigFile(path);
         });
+    }
+    /* Test hook: load the initial config, immediately export the merged
+     * config, and exit. Lets the smoke tests verify that configuration
+     * values survive the trip through the UI widgets. */
+    const QByteArray roundtripOut = qgetenv("WINUAE_QT_CONFIG_ROUNDTRIP_OUT");
+    if (!roundtripOut.isEmpty()) {
+        WinUaeQtLauncherResult roundtripResult;
+        roundtripResult.status = WinUaeQtLauncherStatus::Canceled;
+        if (!dialog.exportMergedConfig(QString::fromLocal8Bit(roundtripOut))) {
+            roundtripResult.status = WinUaeQtLauncherStatus::Error;
+            roundtripResult.exitCode = 1;
+            roundtripResult.error = QStringLiteral("config roundtrip export failed");
+        }
+        return roundtripResult;
     }
     armQtSmokeExit(dialog);
     if (dialog.exec() == QDialog::Accepted) {

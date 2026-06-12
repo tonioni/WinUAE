@@ -1450,11 +1450,13 @@ if(WINUAE_UNIX_BUILD_EXECUTABLE)
     add_winuae_unix_smoke_target(winuae_unix_smoke_ripple_hdf unix-smoke-ripple-hdf.sh)
     add_winuae_unix_smoke_target(winuae_unix_smoke_serial_tcp unix-smoke-serial-tcp.sh)
     add_winuae_unix_smoke_target(winuae_unix_smoke_path_config unix-smoke-path-config.sh)
+    add_winuae_unix_smoke_target(winuae_unix_smoke_config_roundtrip unix-smoke-config-roundtrip.sh)
     if(WINUAE_UNIX_ENABLE_JIT)
         add_winuae_unix_smoke_target(winuae_unix_smoke_jit unix-smoke-jit.sh)
     endif()
     add_custom_target(winuae_unix_smoke_basic
         DEPENDS winuae_unix_smoke_a1200 winuae_unix_smoke_path_config
+            winuae_unix_smoke_config_roundtrip
     )
 endif()
 
