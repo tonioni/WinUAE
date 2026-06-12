@@ -1406,6 +1406,10 @@ target_sources(winuae_core PRIVATE ${WINUAE_CORE_SOURCES})
 
 if(WINUAE_UNIX_BUILD_EXECUTABLE)
     add_executable(winuae_unix $<TARGET_OBJECTS:winuae_core>)
+    # Keep the developer-facing target name stable; the produced binary is
+    # named winuae to match the installed name, the .desktop files, the
+    # WinUAE.app bundle, and winuae.exe on Windows.
+    set_target_properties(winuae_unix PROPERTIES OUTPUT_NAME winuae)
     if(WINUAE_UNIX_EXTRA_LIBRARY_DIRS)
         target_link_directories(winuae_unix PRIVATE ${WINUAE_UNIX_EXTRA_LIBRARY_DIRS})
     endif()
@@ -1699,7 +1703,6 @@ endif()
 if(TARGET winuae_unix AND NOT APPLE)
     install(PROGRAMS "$<TARGET_FILE:winuae_unix>"
         DESTINATION "${CMAKE_INSTALL_BINDIR}"
-        RENAME winuae
     )
     install(FILES README_unix.md
         DESTINATION "${CMAKE_INSTALL_DOCDIR}"

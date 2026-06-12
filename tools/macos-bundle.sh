@@ -8,7 +8,7 @@ Usage: $0 [build-dir] [output-dir]
 Creates a local WinUAE.app bundle from an existing macOS build tree.
 
 Arguments:
-  build-dir   CMake build directory containing winuae_unix.
+  build-dir   CMake build directory containing the winuae binary.
               Defaults to WINUAE_BUILD_DIR or the current directory.
   output-dir  Directory that will receive WinUAE.app.
               Defaults to <build-dir>/package.
@@ -37,7 +37,11 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source_dir="$(cd "${script_dir}/.." && pwd)"
 build_dir="${1:-${WINUAE_BUILD_DIR:-$(pwd)}}"
 output_dir="${2:-${build_dir}/package}"
-executable="${build_dir}/winuae_unix"
+executable="${build_dir}/winuae"
+if [[ ! -x "${executable}" && -x "${build_dir}/winuae_unix" ]]; then
+    # Build directories from before the binary rename.
+    executable="${build_dir}/winuae_unix"
+fi
 app_dir="${output_dir}/WinUAE.app"
 contents_dir="${app_dir}/Contents"
 macos_dir="${contents_dir}/MacOS"
@@ -50,7 +54,7 @@ fi
 
 if [[ ! -x "${executable}" ]]; then
     echo "error: executable not found: ${executable}" >&2
-    echo "hint: build winuae_unix first, or pass the CMake build directory" >&2
+    echo "hint: build the winuae_unix target first, or pass the CMake build directory" >&2
     exit 1
 fi
 

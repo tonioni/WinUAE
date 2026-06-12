@@ -3,7 +3,7 @@ set -eu
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 BUILD_DIR=${WINUAE_BUILD_DIR:-/tmp/winuae_cmake_build}
-EXE=${WINUAE_EXE:-"$BUILD_DIR/winuae_unix"}
+EXE=${WINUAE_EXE:-"$BUILD_DIR/winuae"}
 LOG=${WINUAE_SMOKE_LOG:-/tmp/winuae_unix_path_config_smoke.log}
 RUN_SECONDS=${WINUAE_SMOKE_SECONDS:-5}
 TMPBASE=${TMPDIR:-/tmp}

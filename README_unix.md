@@ -4,7 +4,7 @@ This is an early macOS/Linux port of the WinUAE source tree. The current Unix bu
 
 ## Current Status
 
-- Builds with CMake as `winuae_unix`.
+- Builds with CMake as the `winuae_unix` target, producing a `winuae` binary.
 - Uses `od-unix/` host abstractions.
 - SDL3 provides the current window, framebuffer presentation, mouse input, keyboard input, audio output, and playback-device selection.
 - SDL3 gamepads and non-gamepad joysticks are exposed through the WinUAE input-device layer for game-port use; the Qt Game Ports/Input pages have first remap/test dialogs backed by SDL3 device enumeration and WinUAE config keys.
@@ -137,7 +137,7 @@ cmake --build /tmp/winuae_cmake_build --target winuae_unix -j
 The executable will be:
 
 ```sh
-/tmp/winuae_cmake_build/winuae_unix
+/tmp/winuae_cmake_build/winuae
 ```
 
 On Linux, install the executable, shared resources, documentation, and desktop/MIME metadata into a prefix with:
@@ -147,9 +147,10 @@ cmake --install /tmp/winuae_cmake_build --prefix /opt/winuae
 ```
 
 This installs the desktop entry, `.uae` MIME type, and hicolor icons. The
-installed Linux command is `winuae`; the build-tree executable remains
-`winuae_unix` to keep the existing developer targets stable. On macOS, use the
-`.app` and DMG targets below instead of installing the raw executable.
+binary is named `winuae` everywhere — build tree, installed command, and app
+bundle; only the CMake target keeps the `winuae_unix` name for developer
+stability. On macOS, use the `.app` and DMG targets below instead of
+installing the raw executable.
 
 On Linux, CPack can create packages from the same install rules:
 
@@ -312,7 +313,7 @@ cmake --build /tmp/winuae_cmake_build --target winuae_unix -j
 The port accepts normal WinUAE command-line `-s` configuration overrides. A minimal A1200 example:
 
 ```sh
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -s kickstart_rom_file=/path/to/A1200.rom \
   -s floppy0=/path/to/disk.adf \
   -s nr_floppies=1 \
@@ -326,7 +327,7 @@ The port accepts normal WinUAE command-line `-s` configuration overrides. A mini
 When the integrated Qt UI is built, `winuae_unix` opens the configuration UI by default. To boot directly from a config or command-line settings, disable the GUI:
 
 ```sh
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -f /path/to/config.uae \
   -s use_gui=no
 ```
@@ -342,7 +343,7 @@ For SANA-II `uaenet.device` startup testing, add `-s sana2=true` or use the smok
 SDL3 audio uses the WinUAE `sound_output`, `sound_frequency`, `sound_channels`, `sound_volume*`, and floppy drive sound config keys. Unix playback device selection follows the same target-prefixed style as Windows:
 
 ```sh
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -s unix.soundcard=0 \
   -s 'unix.soundcardname=SDL:Default Audio Device'
 ```
@@ -361,12 +362,12 @@ The Unix serial backend follows the same target-prefixed config style as Windows
 
 ```sh
 # Real serial device
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -s unix.serial_port=/dev/cu.usbserial-0001 \
   -s serial_hardware_ctsrts=true
 
 # Telnet-style TCP listener on all local interfaces, port 1234
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -s unix.serial_port=TCP://0.0.0.0:1234
 ```
 
@@ -440,7 +441,7 @@ FireStorm, Mediator 4000, and G-REX PCI bridges.
 For manual A4091 autoconfig smoke tests, use an A4000/A4000T-style config, disable 24-bit CPU addressing, and provide a real A4091 ROM:
 
 ```sh
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -s use_gui=no \
   -s kickstart_rom_file=/path/to/A4000.rom \
   -s a4091_rom_file=/path/to/a4091.rom \
@@ -524,7 +525,7 @@ Optional overrides:
 
 ```sh
 export WINUAE_BUILD_DIR=/tmp/winuae_cmake_build
-export WINUAE_EXE=/tmp/winuae_cmake_build/winuae_unix
+export WINUAE_EXE=/tmp/winuae_cmake_build/winuae
 export WINUAE_SMOKE_SECONDS=5
 export WINUAE_SMOKE_LOG=/tmp/winuae_unix_smoke.log
 ```
