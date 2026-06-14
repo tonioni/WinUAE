@@ -137,8 +137,8 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 	35.B if mono stream, bit mask that selects output channels. (0=default, redirect to left and right channels)
 	(Can be used for example when playing tracker modules by using 4 single channel streams)
 	stereo or higher: channel mode.
-	36.W horizontal panning (-32767 to 32767). Not yet implemented  Must be zero.
-	38.W front to back panning (-32767 to 32767). Not yet implemented. Must be zero.
+	36.W horizontal panning (-32767 to 32767). Implemented for mono streams.
+	38.W front to back panning (-32767 to 32767). Reserved. Must be zero.
 	40.L original address (RO)
 	44.L original length (RO)
 
@@ -426,11 +426,20 @@ static bool get_indirect(struct uaesndboard_stream *s, uaecptr saddr)
 	return true;
 }
 
+static int uaesnd_sample_bytes(uae_u8 bitmode)
+{
+	switch (bitmode & 7)
+	{
+	case 3: return 4;
+	case 2: return 3;
+	case 1: return 2;
+	default: return 1;
+	}
+}
+
 static bool uaesnd_validate(struct uaesndboard_data *data, struct uaesndboard_stream *s)
 {
-	int samplebits = (s->bitmode & 1) ? 16 : 8;
-
-	s->framesize = samplebits * s->ch / 8;
+	s->framesize = uaesnd_sample_bytes(s->bitmode) * s->ch;
 
 	if (s->flags != 0) {
 		write_log(_T("UAESND: Flags must be zero (%08x)\n"), s->flags);
@@ -484,8 +493,8 @@ static bool uaesnd_validate(struct uaesndboard_data *data, struct uaesndboard_st
 			return false;
 		}
 	}
-	if (s->panx || s->pany) {
-		write_log(_T("UAESND: Panning values must be zeros\n"));
+	if (s->pany) {
+		write_log(_T("UAESND: depth panning must be zero\n"));
 		return false;
 	}
 	uaesnd_setfreq(data, s);
@@ -493,6 +502,17 @@ static bool uaesnd_validate(struct uaesndboard_data *data, struct uaesndboard_st
 		s->sample[i] = 0;
 	}
 	return true;
+}
+
+static void uaesnd_apply_mono_pan(struct uaesndboard_stream *s, int *highestch)
+{
+	if (s->ch != 1 || !s->panx)
+		return;
+	int smp = s->sample[0];
+	s->sample[0] = smp * (32768 - s->panx) / 32768;
+	s->sample[1] = smp * (32768 + s->panx) / 32768;
+	if (*highestch < 2)
+		*highestch = 2;
 }
 
 static void uaesnd_load(struct uaesndboard_stream *s, uaecptr addr)
@@ -566,6 +586,10 @@ static bool uaesnd_directload(struct uaesndboard_data *data, struct uaesndboard_
 		// repeat count + volume share a long word; reload volume so
 		// current-set volume writes take effect while playing
 		s->volume = get_word_host(s->io + 26);
+	}
+	if (reg < 0 || reg == 36 || reg == 38) {
+		s->panx = get_word_host(s->io + 36);
+		s->pany = get_word_host(s->io + 38);
 	}
 	return uaesnd_validate(data, s);
 }
@@ -777,8 +801,8 @@ static bool audio_state_sndboard_uae(int streamid, void *params)
 		for (int i = 1; i < MAX_UAE_CHANNELS; i++) {
 			if ((1 << i) & s->chmode) {
 				s->sample[i] = smp;
-				if (i > highestch)
-					highestch = i;
+				if (i + 1 > highestch)
+					highestch = i + 1;
 			}
 		}
 	} else if (s->ch == 4 && s->chmode == 1) {
@@ -801,6 +825,7 @@ static bool audio_state_sndboard_uae(int streamid, void *params)
 		s->sample[6] = c;
 		s->sample[7] = lfe;
 	}
+	uaesnd_apply_mono_pan(s, &highestch);
 	audio_state_stream_state(streamid, s->sample, highestch, s->event_time);
 	return true;
 }
