@@ -3528,6 +3528,8 @@ static IMMDevice *pDevice = NULL;
 static IAudioClient *pAudioClient = NULL;
 static IAudioCaptureClient *pCaptureClient = NULL;
 static bool capture_started;
+static int capture_read_count;
+static bool capture_nonzero_seen;
 
 static uae_u8 *sndboard_get_buffer(int *frames)
 {	
@@ -3545,6 +3547,28 @@ static uae_u8 *sndboard_get_buffer(int *frames)
 		return NULL;
 	}
 	*frames = numFramesAvailable;
+	if (numFramesAvailable > 0) {
+		capture_read_count++;
+		if (flags & AUDCLNT_BUFFERFLAGS_SILENT) {
+			if (capture_read_count <= 5)
+				write_log(_T("sndboard capture read %u silent frames from host input\n"), numFramesAvailable);
+		} else if (!capture_nonzero_seen) {
+			bool has_signal = false;
+			int bytes = numFramesAvailable * 4;
+			for (int i = 0; i < bytes; i++) {
+				if (pData[i] != 0) {
+					has_signal = true;
+					break;
+				}
+			}
+			if (has_signal) {
+				capture_nonzero_seen = true;
+				write_log(_T("sndboard capture received first non-silent buffer after %d reads\n"), capture_read_count);
+			} else if (capture_read_count <= 5) {
+				write_log(_T("sndboard capture read %u silent frames from host input\n"), numFramesAvailable);
+			}
+		}
+	}
 	return pData;
 }
 
@@ -3566,6 +3590,8 @@ static void sndboard_free_capture(int owner)
 	if (capture_started)
 		pAudioClient->Stop();
 	capture_started = false;
+	capture_read_count = 0;
+	capture_nonzero_seen = false;
 	capture_owner = SNDBOARD_CAPTURE_OWNER_NONE;
 	SAFE_RELEASE(pEnumerator)
 	SAFE_RELEASE(pDevice)
@@ -3581,8 +3607,11 @@ static bool sndboard_init_capture(int freq, int owner)
 	WAVEFORMATEX *wavfmt;
 	bool init = false;
 
+	if (capture_started && capture_owner != owner)
+		return false;
 	if (capture_started)
-		return capture_owner == owner;
+		sndboard_free_capture(owner);
+	capture_owner = owner;
 
 	wavfmt2 = NULL;
 
@@ -3646,7 +3675,8 @@ static bool sndboard_init_capture(int freq, int owner)
 	hr = pAudioClient->Start();
 	EXIT_ON_ERROR(hr)
 	capture_started = true;
-	capture_owner = owner;
+	capture_read_count = 0;
+	capture_nonzero_seen = false;
 
 	CoTaskMemFree(wavfmt2);
 
