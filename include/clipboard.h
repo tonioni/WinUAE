@@ -12,5 +12,6 @@ extern void amiga_clipboard_task_start(TrapContext *ctx, uaecptr);
 extern void clipboard_disable(bool);
 extern void clipboard_vsync(void);
 extern void clipboard_unsafeperiod(void);
+extern void clipboard_host_changed(void);
 
 #endif /* UAE_CLIPBOARD_H */

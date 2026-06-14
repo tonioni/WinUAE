@@ -54,6 +54,7 @@ decompress
 *.recipe
 packages
 packages.config
+/.deps/
 *.sqlite
 *.db-shm
 *.db-wal
