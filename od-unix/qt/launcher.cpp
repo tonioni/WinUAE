@@ -875,7 +875,12 @@ static QString mountControllerDisplay(const WinUaeQtBoardCatalog &catalog, const
     const QString display = mountControllerDisplayForConfigValue(catalog, value);
     const WinUaeQtMountControllerChoice choice = mountControllerChoiceByDisplay(catalog, display);
     if (choice.valid && !choice.boardKey.isEmpty()) {
-        return QStringLiteral("%1:%2").arg(mountControllerBaseDisplay(display)).arg(mountControllerUnit(entry, fallback));
+        QString board = mountControllerBaseDisplay(display);
+        const QString busSuffix = QStringLiteral(" (%1)").arg(mountControllerBusName(choice.bus));
+        if (board.endsWith(busSuffix)) {
+            board.chop(busSuffix.size());
+        }
+        return QStringLiteral("%1:%2").arg(board).arg(mountControllerUnit(entry, fallback));
     }
     const QString upper = value.toUpper();
     if (upper.startsWith(QStringLiteral("IDE"))) {
@@ -908,10 +913,7 @@ static QStringList hardfileGeometryParts(const WinUaeQtMountEntry &entry)
 
 static bool hardfileIsRdb(const WinUaeQtMountEntry &entry)
 {
-    const QStringList geometry = hardfileGeometryParts(entry);
-    return geometry.value(0).toInt() == 0
-        && geometry.value(1).toInt() == 0
-        && geometry.value(2).toInt() == 0;
+    return winUaeQtHardfileIsRdb(entry);
 }
 
 static bool hardfileHasPhysicalGeometry(const WinUaeQtMountEntry &entry)
@@ -13855,7 +13857,16 @@ private:
             normalized.device = winUaeQtSanitizedAmigaName(normalized.device, nextMountDeviceName(), true);
             normalized.volume = winUaeQtSanitizedAmigaName(normalized.volume, winUaeQtDefaultVolumeName(normalized.path), false);
         } else if (normalized.kind == QStringLiteral("hdf")) {
-            normalized.device = winUaeQtSanitizedAmigaName(normalized.device, nextMountDeviceName(), true);
+            if (winUaeQtHardfileIsRdb(normalized)
+                && winUaeQtHardfileUsesNonUaeController(normalized)) {
+                normalized.device.clear();
+                normalized.bootPri = 0;
+            } else {
+                normalized.device = winUaeQtSanitizedAmigaName(
+                    normalized.device,
+                    nextMountDeviceName(),
+                    true);
+            }
         } else if (normalized.kind == QStringLiteral("cd")) {
             normalized.device.clear();
             normalized.volume = QStringLiteral("CD");
@@ -13890,6 +13901,11 @@ private:
         } else if (normalized.kind == QStringLiteral("hdf")) {
             const QStringList geometry = normalized.hardfileGeometry.split(QLatin1Char(','));
             blockSizeText = geometry.value(3, QStringLiteral("512"));
+            if (winUaeQtHardfileUsesNonUaeController(normalized)) {
+                deviceText = mountControllerDisplay(boardCatalog, normalized);
+                volumeText = QStringLiteral("HDF");
+                bootPriText = QStringLiteral("n/a");
+            }
         }
 
         item->setText(0, QString());
@@ -14184,7 +14200,10 @@ private:
         QLineEdit *path = new QLineEdit(entry->path);
         QLineEdit *geometryFile = new QLineEdit(hardfileTailGeometryFile(*entry));
         QLineEdit *filesys = new QLineEdit(mountControllerParts(entry->hardfileTail).value(0));
-        QLineEdit *device = new QLineEdit(entry->device.isEmpty() ? nextMountDeviceName() : entry->device);
+        const bool controllerBackedRdb = hardfileIsRdb(*entry)
+            && winUaeQtHardfileUsesNonUaeController(*entry);
+        QLineEdit *device = new QLineEdit(
+            entry->device.isEmpty() && !controllerBackedRdb ? nextMountDeviceName() : entry->device);
         QSpinBox *bootPri = new QSpinBox;
         bootPri->setRange(-129, 127);
         bootPri->setValue(entry->bootPri);
@@ -14244,9 +14263,11 @@ private:
         fields->addWidget(label(QStringLiteral("FileSys:")), 2, 0);
         fields->addWidget(filesys, 2, 1, 1, 2);
         fields->addWidget(filesysBrowse, 2, 3);
-        fields->addWidget(label(QStringLiteral("Device:")), 3, 0);
+        QLabel *deviceLabel = label(QStringLiteral("Device:"));
+        QLabel *bootPriLabel = label(QStringLiteral("Boot priority:"));
+        fields->addWidget(deviceLabel, 3, 0);
         fields->addWidget(device, 3, 1);
-        fields->addWidget(label(QStringLiteral("Boot priority:")), 3, 2);
+        fields->addWidget(bootPriLabel, 3, 2);
         fields->addWidget(bootPri, 3, 3);
         fields->addWidget(readWrite, 4, 1);
         fields->addWidget(autoboot, 4, 2);
@@ -14323,12 +14344,40 @@ private:
             readWrite->setEnabled(!nativeDrive);
             browse->setEnabled(!nativeDrive);
         };
+        auto updateControllerBackedRdbControls =
+            [this, controller, sectors, surfaces, reserved, device,
+             deviceLabel, bootPri, bootPriLabel, autoboot, doNotMount]() {
+            const WinUaeQtMountControllerBus bus =
+                mountControllerBusFromDisplay(boardCatalog, controller->currentText());
+            const bool controllerBacked = sectors->value() == 0
+                && surfaces->value() == 0
+                && reserved->value() == 0
+                && bus != MountControllerBusUae
+                && bus != MountControllerBusUnknown;
+
+            if (controllerBacked) {
+                QSignalBlocker blockDevice(device);
+                QSignalBlocker blockBootPri(bootPri);
+                device->clear();
+                bootPri->setValue(0);
+            } else if (device->text().trimmed().isEmpty()) {
+                QSignalBlocker blockDevice(device);
+                device->setText(nextMountDeviceName());
+            }
+            deviceLabel->setEnabled(!controllerBacked);
+            device->setEnabled(!controllerBacked);
+            bootPriLabel->setVisible(!controllerBacked);
+            bootPri->setVisible(!controllerBacked);
+            autoboot->setVisible(!controllerBacked);
+            doNotMount->setVisible(!controllerBacked);
+        };
 
         updateBootChecks();
         updatePhysicalControls();
         updateControllerUnitRange(controllerUnit, controller->currentText());
         setFeatureItems(hardfileFeatureText(boardCatalog, *entry, controller->currentText()));
         updateNativeDriveControls();
+        updateControllerBackedRdbControls();
 
         connect(browse, &QPushButton::clicked, this, [this, path]() {
             const QString initialPath = fileDialogInitialPath(path->text());
@@ -14370,7 +14419,9 @@ private:
                 bootPri->setValue(-128);
             }
         });
-        connect(rdbMode, &QCheckBox::toggled, this, [sectors, surfaces, reserved, blockSize, device, filesys, bootPri](bool checked) {
+        connect(rdbMode, &QCheckBox::toggled, this,
+            [sectors, surfaces, reserved, blockSize, device, filesys,
+             bootPri, updateControllerBackedRdbControls](bool checked) {
             if (checked) {
                 sectors->setValue(0);
                 surfaces->setValue(0);
@@ -14385,12 +14436,20 @@ private:
                 reserved->setValue(2);
                 blockSize->setValue(512);
             }
+            updateControllerBackedRdbControls();
         });
         connect(manualGeometry, &QCheckBox::toggled, this, updatePhysicalControls);
-        connect(controller, &QComboBox::currentTextChanged, this, [this, controllerUnit, setFeatureItems](const QString &text) {
+        connect(controller, &QComboBox::currentTextChanged, this,
+            [this, controllerUnit, setFeatureItems,
+             updateControllerBackedRdbControls](const QString &text) {
             updateControllerUnitRange(controllerUnit, text);
             setFeatureItems(QStringLiteral("Default"));
+            updateControllerBackedRdbControls();
         });
+        for (QSpinBox *spin : { sectors, surfaces, reserved }) {
+            connect(spin, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, updateControllerBackedRdbControls);
+        }
         connect(path, &QLineEdit::editingFinished, this, updateNativeDriveControls);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -14400,9 +14459,7 @@ private:
         }
 
         entry->kind = QStringLiteral("hdf");
-        entry->device = winUaeQtSanitizedAmigaName(device->text(), nextMountDeviceName(), true);
         entry->path = path->text().trimmed();
-        entry->bootPri = bootPri->value();
         entry->readOnly = !readWrite->isChecked() || entry->path.startsWith(QLatin1Char(':'));
         entry->hardfileGeometry = QStringLiteral("%1,%2,%3,%4")
             .arg(sectors->value())
@@ -14432,6 +14489,13 @@ private:
         }
         tailFields.append(hardfilePreservedTailExtras(*entry));
         entry->hardfileTail = winUaeQtConfigJoinFields(tailFields);
+        const bool acceptedControllerBackedRdb = winUaeQtHardfileIsRdb(*entry)
+            && winUaeQtHardfileUsesNonUaeController(*entry);
+        entry->device = winUaeQtSanitizedAmigaName(
+            device->text(),
+            acceptedControllerBackedRdb ? QString() : nextMountDeviceName(),
+            true);
+        entry->bootPri = acceptedControllerBackedRdb ? 0 : bootPri->value();
         return true;
     }
 

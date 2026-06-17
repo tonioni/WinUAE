@@ -22,6 +22,8 @@ QStringList winUaeQtConfigFieldList(QString value);
 QString winUaeQtConfigJoinFields(const QStringList &fields);
 QString winUaeQtSanitizedAmigaName(QString value, const QString &fallback, bool uppercase);
 QString winUaeQtDefaultVolumeName(const QString &path);
+bool winUaeQtHardfileIsRdb(const WinUaeQtMountEntry &entry);
+bool winUaeQtHardfileUsesNonUaeController(const WinUaeQtMountEntry &entry);
 bool parseWinUaeQtUaehfMountValue(const QString &value, WinUaeQtMountEntry *entry);
 bool parseWinUaeQtFilesystem2MountValue(const QString &value, WinUaeQtMountEntry *entry);
 bool parseWinUaeQtHardfile2MountValue(const QString &value, WinUaeQtMountEntry *entry);
