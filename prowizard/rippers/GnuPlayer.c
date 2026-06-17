@@ -290,7 +290,7 @@ void Depack_GnuPlayer ( void )
 
   /* sample stuff */
   free ( Whatever );
-  Whatever = (uint8_t *) malloc (65436);
+  Whatever = (uint8_t *) malloc (65536);
   /*printf ( "\nNbrSmp : %ld\n",NbrSmp);*/
   l=0;
   for ( i=0 ; i<NbrSmp ; i++ )
