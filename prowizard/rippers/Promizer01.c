@@ -12,7 +12,7 @@ bugfix : test #5 was fake since first pat addy can be != $00000000
 #include "extern.h"
 
 
-short testPM01 ( void )
+int16_t	 testPM01 ( void )
 {
   /* test #1 */
   if ( (PW_i < 3) || ((PW_Start_Address + 766)>PW_in_size) )
@@ -163,17 +163,17 @@ void Rip_PM01 ( void )
 */
 void Depack_PM01 ( void )
 {
-  Uchar c1=0x00,c2=0x00,c3=0x00;
-  Uchar Pat_Pos;
-  Uchar poss[37][2];
-  Uchar *Whatever;
-  Uchar *PatternData;
-  Uchar Smp_Fine_Table[31];
-  Uchar Old_Smp_Nbr[4];
-  long i=0,j=0,k=0,l=0;
-  long WholeSampleSize=0;
-  long Pattern_Address[128];
-  long Where = PW_Start_Address;
+  uint8_t c1=0x00,c2=0x00,c3=0x00;
+  uint8_t Pat_Pos;
+  uint8_t poss[37][2];
+  uint8_t *Whatever;
+  uint8_t *PatternData;
+  uint8_t Smp_Fine_Table[31];
+  uint8_t Old_Smp_Nbr[4];
+  int32_t	 i=0,j=0,k=0,l=0;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 Pattern_Address[128];
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   #include "tuning.h"
@@ -186,11 +186,11 @@ void Depack_PM01 ( void )
   BZERO ( Smp_Fine_Table , 31 );
   BZERO ( Old_Smp_Nbr , 4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* write title */
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO ( Whatever , 1024 );
   /* title */
   fwrite ( Whatever , 20 , 1 , out );
@@ -261,8 +261,8 @@ void Depack_PM01 ( void )
 
   /* read and XOR pattern data */
   free ( Whatever );
-  Whatever = (Uchar *) malloc ( j );
-  PatternData = (Uchar *) malloc ( j );
+  Whatever = (uint8_t *) malloc ( j );
+  PatternData = (uint8_t *) malloc ( j );
   for ( k=0 ; k<j ; k++ )
   {
     if ( k%4 == 3 )

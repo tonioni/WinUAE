@@ -5,7 +5,7 @@
 #include "globals.h"
 #include "extern.h"
 
-short testPPbk ( void )
+int16_t	 testPPbk ( void )
 {
   PW_Start_Address = PW_i;
 

@@ -8,12 +8,12 @@
 
 /* start : if mod can possibly fit from the beginning of the file */
 /* e.g. M.K. before 1080th byte */
-short test_1_start ( Ulong LIMIT )
+int16_t test_1_start ( uint32_t LIMIT )
 {
   return ( PW_i < LIMIT) ? BAD : GOOD;
 }
 
-short test_smps ( long smpsiz, long lstart, long lsiz, Uchar vol, Uchar fine )
+int16_t test_smps ( int32_t smpsiz, int32_t lstart, int32_t lsiz, uint8_t vol, uint8_t fine )
 {
   if ( lstart > smpsiz )
     return BAD;
@@ -21,7 +21,7 @@ short test_smps ( long smpsiz, long lstart, long lsiz, Uchar vol, Uchar fine )
     return BAD;
   if ( (lstart + lsiz) > smpsiz+2 )
     return BAD;
-  if ( (lstart != 0) && ( lsiz <= 2 ) )
+  if ( (lstart != 0) && ( lsiz < 2 ) )
     return BAD;
   if ( ((lstart != 0) || (lsiz > 2)) && (smpsiz = 0) )
     return BAD;

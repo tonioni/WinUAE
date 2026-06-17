@@ -15,7 +15,7 @@
 #include "extern.h"
 
 
-short testUNIC_withID ( void )
+int16_t	 testUNIC_withID ( void )
 {
   /* test 1 */
   if ( PW_i < 1080 )
@@ -109,7 +109,7 @@ short testUNIC_withID ( void )
 }
 
 
-short testUNIC_withemptyID ( void )
+int16_t	 testUNIC_withemptyID ( void )
 {
   /* test 1 */
   if ( (PW_i < 45) || ((PW_i-45+1084)>=PW_in_size) )
@@ -270,7 +270,7 @@ short testUNIC_withemptyID ( void )
 
 
 
-short testUNIC_noID ( void )
+int16_t	 testUNIC_noID ( void )
 {
   /* test 1 */
   if ( (PW_i < 45) || ((PW_i-45+1083)>=PW_in_size) )
@@ -494,17 +494,17 @@ void Rip_UNIC_noID ( void )
 
 void Depack_UNIC ( void )
 {
-  Uchar c1=0x00,c2=0x00,c3=0x00,c4=0x00;
-  Uchar NumberOfPattern=0x00;
-  Uchar poss[37][2];
-  Uchar Max=0x00;
-  Uchar Smp,Note,Fx,FxVal;
-  Uchar fine=0x00;
-  Uchar Pattern[1025];
-  Uchar LOOP_START_STATUS=OFF;  /* standard /2 */
-  long i=0,j=0,k=0,l=0;
-  long WholeSampleSize=0;
-  long Where=PW_Start_Address;   /* main pointer to prevent fread() */
+  uint8_t c1=0x00,c2=0x00,c3=0x00,c4=0x00;
+  uint8_t NumberOfPattern=0x00;
+  uint8_t poss[37][2];
+  uint8_t Max=0x00;
+  uint8_t Smp,Note,Fx,FxVal;
+  uint8_t fine=0x00;
+  uint8_t Pattern[1025];
+  uint8_t LOOP_START_STATUS=OFF;  /* standard /2 */
+  uint32_t	 i=0,j=0,k=0,l=0;
+  uint32_t	 WholeSampleSize=0;
+  uint32_t	 Where=PW_Start_Address;   /* main pointer to prevent fread() */
   FILE *out;
 
   fillPTKtable(poss);
@@ -512,7 +512,7 @@ void Depack_UNIC ( void )
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* title */
@@ -529,19 +529,28 @@ void Depack_UNIC ( void )
     fwrite ( &c1 , 1 , 1 , out );
     Where += 20;
 
-    /* fine on ? */
+    /* fine  */
     c1 = in_data[Where++];
     c2 = in_data[Where++];
     j = (c1*256)+c2;
     if ( j != 0 )
     {
       if ( j < 256 )
-        fine = 0x10-c2;
+        fine = 0x10-(c2%7);
       else
-        fine = 0x100-c2;
+      {
+        /* fine = 0x100-(c2%7);*/
+        /* 20130827 - fix for case that are *7 ... weird */
+        j = 0x10000 - j;
+        if (j > 8)
+          fine = j / 7;
+        else
+         fine = j;
+      }
     }
     else
       fine = 0x00;
+    
 
     /* smp size */
     c1 = in_data[Where++];

@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testQuadraComposer ( void )
+int16_t	 testQuadraComposer ( void )
 {
   /* test #1 */
   if ( PW_i < 8 )
@@ -69,22 +69,22 @@ void Rip_QuadraComposer ( void )
 */
 void Depack_QuadraComposer ( void )
 {
-  Uchar c1=0x00,c2=0x00,c3=0x00,c4=0x00,c5=0x00;
-  Uchar Pat_Pos;
-  Uchar Pat_Max=0x00;
-  Uchar Real_Pat_Max=0x00;
-  Uchar *Whatever;
-  /*Uchar Row[16];*/
-  Uchar Pattern[1024];
-  Uchar NbrSample=0x00;
-  Uchar RealNbrSample=0x00;
-  Uchar NbrRow[128];
-  Uchar poss[37][2];    /* <------ Ptk's pitch table */
-  long  SmpAddresses[32];
-  long  SmpSizes[32];
-  long  PatAddresses[128];
-  long  i=0,j=0,k=0;
-  long  Where = PW_Start_Address;
+  uint8_t c1=0x00,c2=0x00,c3=0x00,c4=0x00,c5=0x00;
+  uint8_t Pat_Pos;
+  uint8_t Pat_Max=0x00;
+  uint8_t Real_Pat_Max=0x00;
+  uint8_t *Whatever;
+  /*uint8_t Row[16];*/
+  uint8_t Pattern[1024];
+  uint8_t NbrSample=0x00;
+  uint8_t RealNbrSample=0x00;
+  uint8_t NbrRow[128];
+  uint8_t poss[37][2];    /* <------ Ptk's pitch table */
+  int32_t	  SmpAddresses[32];
+  int32_t	  SmpSizes[32];
+  int32_t	  PatAddresses[128];
+  int32_t	  i=0,j=0,k=0;
+  int32_t	  Where = PW_Start_Address;
   FILE  *out;
 
   if ( Save_Status == BAD )
@@ -92,7 +92,7 @@ void Depack_QuadraComposer ( void )
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
 
@@ -123,7 +123,7 @@ void Depack_QuadraComposer ( void )
   /*fread ( &NbrSample , 1 , 1 , in );*/
 
   /* write empty 930 sample header */
-  Whatever = (Uchar *) malloc ( 1024 );
+  Whatever = (uint8_t *) malloc ( 1024 );
   BZERO ( Whatever , 1024 );
   Whatever[29] = 0x01;
   for ( i=0 ; i<31 ; i++ )

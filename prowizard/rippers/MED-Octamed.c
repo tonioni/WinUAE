@@ -6,7 +6,7 @@
 
 
 /* valid for MMD0 & MMD1 */
-short testMMD0 ( void )
+int16_t	 testMMD0 ( void )
 {
   PW_Start_Address = PW_i;
   if ( (PW_Start_Address + 52) > PW_in_size )

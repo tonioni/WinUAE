@@ -11,7 +11,7 @@
 #include "extern.h"
 
 
-short testGnuPlayer ( void )
+int16_t	 testGnuPlayer ( void )
 {
   /* test #1 */
   if ( PW_i < 0x92 )
@@ -84,23 +84,23 @@ void Rip_GnuPlayer ( void )
 
 void Depack_GnuPlayer ( void )
 {
-  Uchar *Whatever;
-  long i=0,j=0,k=0,l=0;
-  long Where = PW_Start_Address;
-  Uchar * Pattern;
-  Uchar poss[37][2];
+  uint8_t *Whatever;
+  int32_t i=0,j=0,k=0,l=0;
+  int32_t Where = PW_Start_Address;
+  uint8_t * Pattern;
+  uint8_t poss[37][2];
   FILE *out;/*,*info;*/
-  long SizOfTrack,len1,len2;
-  long SmpSizes[31];
-  long NbrSmp = 0;
-  short SfxNbr=0;
+  int32_t SizOfTrack,len1,len2;
+  int32_t SmpSizes[31];
+  int32_t NbrSmp = 0;
+  int16_t SfxNbr=0;
 
   if ( Save_Status == BAD )
     return;
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
   /*info = fopen ( "info", "w+b" );*/
 
@@ -115,9 +115,9 @@ void Depack_GnuPlayer ( void )
   */
 
   /*take care of pattern right now*/
-  Pattern = (Uchar *) malloc (65536);
+  Pattern = (uint8_t *) malloc (65536);
   BZERO (Pattern, 65536);
-  Where = PW_Start_Address + 0x96;
+  Where += 0x96;
   /* track 1 & 2 */
   SizOfTrack = (in_data[Where]*256) + in_data[Where+1]; /* size of track 1 */
   /*fprintf ( info, "Size of track 1 : %ld (%x)\n", SizOfTrack,SizOfTrack );*/
@@ -127,57 +127,57 @@ void Depack_GnuPlayer ( void )
     switch (in_data[Where+i])
     {
       case 0: /* track end */
-	/*fprintf ( info, "[%3ld][%4ld] <-- end of track\n\n", i,l );*/
-	i = SizOfTrack;
-	break;
+	    /*fprintf ( info, "[%3ld][%4ld] <-- end of track\n\n", i,l );*/
+	    i = SizOfTrack;
+	    break;
       case 1: /* set volume */
-	SfxNbr += 1;
-	/*fprintf ( info, "[%3ld][%4ld] C fx (arg:%2d) [sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
-	Pattern[l+2] |= 0x0C;
-	Pattern[l+3] = in_data[Where+1+i];
-	Pattern[l+6] |= 0x0C;
-	Pattern[l+7] = in_data[Where+1+i];
-	break;
+	    SfxNbr += 1;
+	    /*fprintf ( info, "[%3ld][%4ld] C fx (arg:%2d) [sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
+	    Pattern[l+2] |= 0x0C;
+	    Pattern[l+3] = in_data[Where+1+i];
+	    Pattern[l+6] |= 0x0C;
+	    Pattern[l+7] = in_data[Where+1+i];
+	    break;
       case 2: /* same a A */
-	SfxNbr += 1;
-	/*fprintf ( info, "[%3ld][%4ld] A fx (arg:%2d) [sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
-	Pattern[l+2] += 0x0A;
-	Pattern[l+3] = in_data[Where+1+i];
-	Pattern[l+6] += 0x0A;
-	Pattern[l+7] = in_data[Where+1+i];
-	break;
+	    SfxNbr += 1;
+	    /*fprintf ( info, "[%3ld][%4ld] A fx (arg:%2d) [sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
+	    Pattern[l+2] += 0x0A;
+	    Pattern[l+3] = in_data[Where+1+i];
+	    Pattern[l+6] += 0x0A;
+	    Pattern[l+7] = in_data[Where+1+i];
+	    break;
       case 3: /* set speed */
-	SfxNbr += 1;
-	/*fprintf ( info, "[%3ld][%4ld] F fx (arg:%2d) [sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
-	if ( SfxNbr == 1 )
-	{
-	  Pattern[l+2] |= 0x0f;
-	  Pattern[l+3] = in_data[Where+1+i];
-	}
-	else /* if SfxNbr == 3, I'm in trouble :( */
-	{
-	  Pattern[l+6] |= 0x0f;
-	  Pattern[l+7] = in_data[Where+1+i];
-	}
-	break;
+	    SfxNbr += 1;
+	    /*fprintf ( info, "[%3ld][%4ld] F fx (arg:%2d) [sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
+	    if ( SfxNbr == 1 )
+	    {
+	      Pattern[l+2] |= 0x0f;
+	      Pattern[l+3] = in_data[Where+1+i];
+	    }
+	    else /* if SfxNbr == 3, I'm in trouble :( */
+	    {
+	      Pattern[l+6] |= 0x0f;
+	      Pattern[l+7] = in_data[Where+1+i];
+	    }
+	    break;
       case 4: /* bypass rows */
-	/*fprintf ( info, "[%3ld][%4ld] bypass rows : %d\n",i,l,in_data[Where+1+i]);*/
-	l += (in_data[Where+i+1] * 16);
-	SfxNbr = 0;
-	break;
+	    /*fprintf ( info, "[%3ld][%4ld] bypass rows : %d\n",i,l,in_data[Where+1+i]);*/
+	    l += (in_data[Where+i+1] * 16);
+	    SfxNbr = 0;
+        break;
       case 5: /* set note */
-	/*fprintf ( info, "[%3ld][%4ld] set note with smp nbr %d\n",i,l,in_data[Where+1+i]);*/
-	Pattern[l] = (in_data[Where+1+i]&0xf0);
-	Pattern[l] |= in_data[PW_Start_Address + 0x90];
-	Pattern[l+1] = in_data[PW_Start_Address + 0x91];
-	Pattern[l+4] = (in_data[Where+1+i]&0xf0);
-	Pattern[l+4] |= in_data[PW_Start_Address + 0x90];
-	Pattern[l+5] = in_data[PW_Start_Address + 0x91];
-	Pattern[l+2] |= (in_data[Where+1+i]<<4);
-	Pattern[l+6] |= (in_data[Where+1+i]<<4);
-	break;
+	    /*fprintf ( info, "[%3ld][%4ld] set note with smp nbr %d\n",i,l,in_data[Where+1+i]);*/
+	    Pattern[l] = (in_data[Where+1+i]&0xf0);
+     	Pattern[l] |= in_data[PW_Start_Address + 0x90];
+      	Pattern[l+1] = in_data[PW_Start_Address + 0x91];
+       	Pattern[l+4] = (in_data[Where+1+i]&0xf0);
+        Pattern[l+4] |= in_data[PW_Start_Address + 0x90];
+        Pattern[l+5] = in_data[PW_Start_Address + 0x91];
+        Pattern[l+2] |= (in_data[Where+1+i]<<4);
+	    Pattern[l+6] |= (in_data[Where+1+i]<<4);
+	    break;
       default :
-	printf ( "\nunsupported case in Depack_GnuPlayer(). Please send this file to \"asle@free.fr\" :)\n" );
+	    printf ( "\nunsupported case in Depack_GnuPlayer(). Please send this file to \"asle@free.fr\" :)\n" );
 	break;
     }
   }
@@ -193,57 +193,57 @@ void Depack_GnuPlayer ( void )
     switch (in_data[Where+i])
     {
       case 0: /* track end */
-	/*fprintf ( info, "[%3ld][%4ld] <-- end of track\n\n", i,l );*/
-	i = SizOfTrack;
-	break;
+        /*fprintf ( info, "[%3ld][%4ld] <-- end of track\n\n", i,l );*/
+	    i = SizOfTrack;
+	    break;
       case 1: /* set volume */
-	SfxNbr += 1;
-	/*fprintf ( info, "[%3ld][%4ld] C fx (arg:%d) [Sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
-	Pattern[l+10] |= 0x0C;
-	Pattern[l+11] = in_data[Where+1+i];
-	Pattern[l+14] |= 0x0C;
-	Pattern[l+15] = in_data[Where+1+i];
-	break;
+	    SfxNbr += 1;
+	    /*fprintf ( info, "[%3ld][%4ld] C fx (arg:%d) [Sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
+	    Pattern[l+10] |= 0x0C;
+     	Pattern[l+11] = in_data[Where+1+i];
+      	Pattern[l+14] |= 0x0C;
+       	Pattern[l+15] = in_data[Where+1+i];
+        break;
       case 2: /* same a A */
-	SfxNbr += 1;
-	/*fprintf ( info, "[%3ld][%4ld] A fx (arg:%2d) [Sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
-	Pattern[l+10] |= 0x0A;
-	Pattern[l+11] = in_data[Where+1+i];
-	Pattern[l+14] |= 0x0A;
-	Pattern[l+15] = in_data[Where+1+i];
-	break;
+	    SfxNbr += 1;
+     	/*fprintf ( info, "[%3ld][%4ld] A fx (arg:%2d) [Sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
+      	Pattern[l+10] |= 0x0A;
+       	Pattern[l+11] = in_data[Where+1+i];
+        Pattern[l+14] |= 0x0A;
+        Pattern[l+15] = in_data[Where+1+i];
+	    break;
       case 3: /* set speed */
-	SfxNbr += 1;
-	/*fprintf ( info, "[%3ld][%4ld] F fx (arg:%2d) [Sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
-	if ( SfxNbr == 1 )
-	{
-	  Pattern[l+10] |= 0x0f;
-	  Pattern[l+11] = in_data[Where+1+i];
-	}
-	else
-	{
-	  Pattern[l+14] |= 0x0f;
-	  Pattern[l+15] = in_data[Where+1+i];
-	}
-	break;
+      	SfxNbr += 1;
+       	/*fprintf ( info, "[%3ld][%4ld] F fx (arg:%2d) [Sfx %d]\n",i,l,in_data[Where+1+i],SfxNbr);*/
+        if ( SfxNbr == 1 )
+        {
+	      Pattern[l+10] |= 0x0f;
+       	  Pattern[l+11] = in_data[Where+1+i];
+        }
+        else
+	    {
+	      Pattern[l+14] |= 0x0f;
+	      Pattern[l+15] = in_data[Where+1+i];
+        }
+	    break;
       case 4: /* bypass rows */
-	/*fprintf ( info, "[%3ld][%4ld] bypass rows : %d\n",i,l,in_data[Where+1+i]);*/
-	l += (in_data[Where+i+1] * 16);
-	SfxNbr = 0;
-	break;
+	    /*fprintf ( info, "[%3ld][%4ld] bypass rows : %d\n",i,l,in_data[Where+1+i]);*/
+     	l += (in_data[Where+i+1] * 16);
+        SfxNbr = 0;
+	    break;
       case 5: /* set note */
-	/*fprintf ( info, "[%3ld][%4ld] set note with smp nbr %d\n",i,l,in_data[Where+1+i]);*/
-	Pattern[l+8] = (in_data[Where+1+i]&0xf0);
-	Pattern[l+8] |= in_data[PW_Start_Address + 0x90];
-	Pattern[l+9] = in_data[PW_Start_Address + 0x91];
-	Pattern[l+12] = (in_data[Where+1+i]&0xf0);
-	Pattern[l+12] |= in_data[PW_Start_Address + 0x90];
-	Pattern[l+13] = in_data[PW_Start_Address + 0x91];
-	Pattern[l+10] |= (in_data[Where+1+i]<<4);
-	Pattern[l+14] |= (in_data[Where+1+i]<<4);
-	break;
+	    /*fprintf ( info, "[%3ld][%4ld] set note with smp nbr %d\n",i,l,in_data[Where+1+i]);*/
+     	Pattern[l+8] = (in_data[Where+1+i]&0xf0);
+      	Pattern[l+8] |= in_data[PW_Start_Address + 0x90];
+       	Pattern[l+9] = in_data[PW_Start_Address + 0x91];
+        Pattern[l+12] = (in_data[Where+1+i]&0xf0);
+        Pattern[l+12] |= in_data[PW_Start_Address + 0x90];
+        Pattern[l+13] = in_data[PW_Start_Address + 0x91];
+        Pattern[l+10] |= (in_data[Where+1+i]<<4);
+        Pattern[l+14] |= (in_data[Where+1+i]<<4);
+        break;
       default :
-	printf ( "\nunsupported case in Depack_GnuPlayer(). Please send this file to \"asle@free.fr\" :)\n" );
+	    printf ( "\nunsupported case in Depack_GnuPlayer(). Please send this file to \"asle@free.fr\" :)\n" );
 	break;
     }
   }
@@ -252,15 +252,17 @@ void Depack_GnuPlayer ( void )
   /*fprintf ( info, "\nWhere before first sample : %ld (%x)\n", Where,Where );*/
 
   /* sample header stuff */
-  Whatever = (Uchar *) malloc ( 2048 );
+  Whatever = (uint8_t *) malloc ( 2048 );
   BZERO (Whatever, 2048);
   /*get nbr of non-null samples */
+  l = 0;
   for ( i=0 ; i< 31 ; i++)
   {
     k = (in_data[PW_Start_Address + 20 + (i*4)]*256) + in_data[PW_Start_Address + 21 + (i*4)];
     if ( k != 0 )
       NbrSmp += 1;
-    SmpSizes[i] = k;
+    SmpSizes[i] = k*2;
+    l += SmpSizes[i];
 
     Whatever[22+(i*30)] = in_data[PW_Start_Address + 20 + (i*4)];
     Whatever[23+(i*30)] = in_data[PW_Start_Address + 21 + (i*4)];
@@ -269,11 +271,12 @@ void Depack_GnuPlayer ( void )
     Whatever[27+(i*30)] = in_data[PW_Start_Address + 23 + (i*4)];
     Whatever[29+(i*30)] = 0x01;
   }
+  /*printf ("\nwhole sample size : %ld\n",l);*/
   k = MAXI(len1,len2);
   Whatever[930] = k;
   Whatever[931] = 0x7f;
   for ( i=0; i<k ;i++ )
-    Whatever[i+932] = (Uchar) i;
+    Whatever[i+932] = (uint8_t) i;
   Whatever[1060] = 'M';
   Whatever[1061] = '.';
   Whatever[1062] = 'K';
@@ -287,31 +290,41 @@ void Depack_GnuPlayer ( void )
 
   /* sample stuff */
   free ( Whatever );
-  Whatever = (Uchar *) malloc (65436);
+  Whatever = (uint8_t *) malloc (65436);
+  /*printf ( "\nNbrSmp : %ld\n",NbrSmp);*/
+  l=0;
   for ( i=0 ; i<NbrSmp ; i++ )
   {
-    long out_end;
+    int32_t out_end;
     char samp;
     k = 0;
     BZERO (Whatever,65536);
     j = (in_data[Where]*256) + in_data[Where+1];
     Where += 2;
     out_end = (j*2);
-    /*fprintf ( info, "sample %ld : siz:%ld where:%ld\n" , i,out_end,Where);*/
+    /*printf ( "sample %ld : siz:%ld where:%ld (%ld -> %ld)\n" , i,out_end,Where,l+24636,ftell(out));*/
+    l += SmpSizes[i];
     /*fflush ( info );*/
     Whatever[k++] = in_data[Where++];
     while ( k < out_end )
     {
       samp = (in_data[Where]>>4)&0x0f;
       if ( samp & 0x08 ) samp -= 0x10;
-      Whatever[k++] = (Whatever[k-1] + samp);
+      k+=1;
+      Whatever[k] = (Whatever[k-1] + samp);
       samp = in_data[Where] & 0x0f;
       if ( samp & 0x08 ) samp -= 0x10;
-      Whatever[k++] = (Whatever[k-1] + samp);
+      k+=1;
+      Whatever[k] = (Whatever[k-1] + samp);
       Where += 1;
     }
     Where -= 1;
-    fwrite ( &Whatever[0], out_end, 1, out );
+    /*printf ("output pos:%ld, sizeout:%ld\n",ftell(out), SmpSizes[i]);*/
+    /*fwrite ( &Whatever[0], out_end, 1, out );*/
+    /*printf ("%ld then ",ftell(out));*/
+    fwrite ( &Whatever[0], SmpSizes[i], 1, out );
+    fflush(out);
+    /*printf ("%ld (%ld)\n",ftell(out),SmpSizes[i]);*/
   }
   free ( Whatever );
 

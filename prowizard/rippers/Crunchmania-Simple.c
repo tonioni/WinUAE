@@ -5,7 +5,7 @@
 #include "extern.h"
 
 
-short testcrunchmaniaSimple ( void )
+int16_t	 testcrunchmaniaSimple ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -76,8 +76,8 @@ void Rip_CrunchmaniaSimple ( void )
 {
   /* PW_l is still the whole size */
 
-  Uchar * Amiga_EXE_Header_Block;
-  Uchar * Whatever;
+  uint8_t * Amiga_EXE_Header_Block;
+  uint8_t * Whatever;
 
   OutputSize = PW_l;
 
@@ -92,7 +92,7 @@ void Rip_CrunchmaniaSimple ( void )
 	     in_data[PW_Start_Address+367] );
 
     OutputSize -= 36;
-    Amiga_EXE_Header_Block = (Uchar *) malloc ( 36 );
+    Amiga_EXE_Header_Block = (uint8_t *) malloc ( 36 );
     BZERO ( Amiga_EXE_Header_Block , 36 );
     Amiga_EXE_Header_Block[2]  = Amiga_EXE_Header_Block[30] = 0x03;
     Amiga_EXE_Header_Block[3]  = 0xF3;
@@ -109,7 +109,7 @@ void Rip_CrunchmaniaSimple ( void )
     /* 68k machines code : c2 = *(Whatever+3); */
     PW_j = PW_l - 48;
     PW_j /= 4;
-    Whatever = (Uchar *) &PW_j;
+    Whatever = (uint8_t *) &PW_j;
     Amiga_EXE_Header_Block[32] = *(Whatever+3);
     Amiga_EXE_Header_Block[33] = *(Whatever+2);
     Amiga_EXE_Header_Block[34] = *(Whatever+1);
@@ -119,7 +119,7 @@ void Rip_CrunchmaniaSimple ( void )
       PW_n += 2;
     PW_n += 372;
     PW_n /= 4;
-    Whatever = (Uchar *) &PW_n;
+    Whatever = (uint8_t *) &PW_n;
     Amiga_EXE_Header_Block[20] = *(Whatever+3);
     Amiga_EXE_Header_Block[21] = *(Whatever+2);
     Amiga_EXE_Header_Block[22] = *(Whatever+1);

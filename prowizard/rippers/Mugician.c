@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "extern.h"
 
-short testMUGICIAN ( void )
+int16_t	 testMUGICIAN ( void )
 {
   if ( PW_i<2 )
   {

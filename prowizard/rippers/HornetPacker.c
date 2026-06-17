@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testHRT ( void )
+int16_t	 testHRT ( void )
 {
   /* test 1 */
   if ( PW_i < 1080 )
@@ -67,12 +67,12 @@ void Rip_HRT ( void )
 
 void Depack_HRT ( void )
 {
-  Uchar *Whatever;
-  Uchar poss[37][2];
-  Uchar Max=0x00;
-  long WholeSampleSize=0;
-  long i=0,j=0;
-  long Where = PW_Start_Address;
+  uint8_t *Whatever;
+  uint8_t poss[37][2];
+  uint8_t Max=0x00;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 i=0,j=0;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -80,11 +80,11 @@ void Depack_HRT ( void )
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* read header */
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO ( Whatever , 1024 );
   for ( i=0 ; i<950 ; i++ )
     Whatever[i] = in_data[Where++];

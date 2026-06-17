@@ -9,7 +9,7 @@
 #include "extern.h"
 
 
-short testSkizzo ( void )
+int16_t	 testSkizzo ( void )
 {
   /* test #1 */
   PW_Start_Address = PW_i-24;
@@ -44,7 +44,7 @@ void Rip_Skizzo ( void )
   OutputSize = PW_WholeSampleSize + (PW_j*8) + (PW_k*768) + PW_m + 28;
 
   CONVERT = GOOD;
-  Save_Rip ( "Skizzo Packed music", Skizzo );
+  Save_Rip ( "GnoiPacker Packed music", GnoiPacker );
   
   if ( Save_Status == GOOD )
     PW_i += 1;
@@ -55,16 +55,18 @@ void Rip_Skizzo ( void )
  *   Skizzo.c   2007 (c) Asle / ReDoX
  *
  * 20070525 : doesn't convert pattern data
+ * ???????? : pattern data converted
+ * 20121022 : real player name : GnoiPacker by Tax/Gnu Design (1991)
 */
 void Depack_Skizzo ( void )
 {
-  Uchar *Whatever;
-  long i=0,k=0;
-  short BODYaddy, SAMPaddy, nbr_sample, siz_patlist, nbr_patstored;
-  long Total_Sample_Size=0;
-  long Where = PW_Start_Address;
-  Uchar poss[37][2];
-  FILE *out,*DEBUG;
+  uint8_t *Whatever;
+  int32_t	 i=0,k=0;
+  int16_t	 nbr_sample, siz_patlist, nbr_patstored;
+  int32_t	 Total_Sample_Size=0;
+  int32_t	 Where = PW_Start_Address;
+  uint8_t poss[37][2];
+  FILE *out;/*,*DEBUG;*/
 
   /* filling up the possible PTK notes */
   fillPTKtable(poss);
@@ -74,11 +76,11 @@ void Depack_Skizzo ( void )
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* title */
-  Whatever = (Uchar *) malloc (2048);
+  Whatever = (uint8_t *) malloc (2048);
   BZERO ( Whatever , 2048 );
   /* write title */
   fwrite ( &in_data[Where], 20, 1, out );
@@ -128,7 +130,7 @@ void Depack_Skizzo ( void )
     Where += 1;
   }
   Whatever[i+1] = (nbr_patstored - 1);
-  Whatever[0] = (Uchar)(siz_patlist&0x7f);
+  Whatever[0] = (uint8_t)(siz_patlist&0x7f);
   Whatever[1] = 0x7F;
   fwrite ( Whatever , 130 , 1 , out );
   
@@ -168,7 +170,8 @@ fprintf(DEBUG,"@ in file : %ld\n",Where);*/
 
   fwrite ( &in_data[Where] , Total_Sample_Size , 1 , out );
 
-  Crap ( "       Skizzo     " , BAD , BAD , out );
+/*  Crap ( "       Skizzo     " , BAD , BAD , out );*/
+  Crap ( "    GnoiPacker    " , BAD , BAD , out );
 
 /*  fflush ( DEBUG );
   fclose ( DEBUG );*/

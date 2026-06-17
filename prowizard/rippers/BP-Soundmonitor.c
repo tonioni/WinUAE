@@ -5,7 +5,7 @@
 #include "extern.h"
 
 
-short testBP ( void )
+int16_t	 testBP ( void )
 {
   /* test 1 */
   if ( (PW_i < 26) || ((PW_Start_Address+512)>PW_in_size) )
@@ -39,18 +39,22 @@ short testBP ( void )
 
   for ( PW_k=0 ; PW_k<PW_l ; PW_k++ )
   {
-    if ( (in_data[PW_Start_Address+512+PW_k*16]*256 +
-	  in_data[PW_Start_Address+513+PW_k*16]) > PW_j )
+    if ( (in_data[PW_Start_Address+512+PW_k*16]*256 + in_data[PW_Start_Address+513+PW_k*16]) > PW_j )
+    {
       PW_j = (in_data[PW_Start_Address+512+PW_k*16]*256 + in_data[PW_Start_Address+513+PW_k*16]);
-    if ( (in_data[PW_Start_Address+516+PW_k*16]*256 +
-	  in_data[PW_Start_Address+517+PW_k*16]) > PW_j )
+    }
+    if ( (in_data[PW_Start_Address+516+PW_k*16]*256 + in_data[PW_Start_Address+517+PW_k*16]) > PW_j )
+    {
       PW_j = (in_data[PW_Start_Address+516+PW_k*16]*256 + in_data[PW_Start_Address+517+PW_k*16]);
-    if ( (in_data[PW_Start_Address+520+PW_k*16]*256 +
-	  in_data[PW_Start_Address+521+PW_k*16]) > PW_j )
+    }
+    if ( (in_data[PW_Start_Address+520+PW_k*16]*256 + in_data[PW_Start_Address+521+PW_k*16]) > PW_j )
+    {
       PW_j = (in_data[PW_Start_Address+520+PW_k*16]*256 + in_data[PW_Start_Address+521+PW_k*16]);
-    if ( (in_data[PW_Start_Address+524+PW_k*16]*256 +
-	  in_data[PW_Start_Address+525+PW_k*16]) > PW_j )
+    }
+    if ( (in_data[PW_Start_Address+524+PW_k*16]*256 + in_data[PW_Start_Address+525+PW_k*16]) > PW_j )
+    {
       PW_j = (in_data[PW_Start_Address+524+PW_k*16]*256 + in_data[PW_Start_Address+525+PW_k*16]);
+    }
   }
 
   return GOOD;

@@ -9,7 +9,7 @@
 #include "globals.h"
 #include "extern.h"
 
-short testFC14 ( void )
+int16_t	 testFC14 ( void )
 {
   PW_Start_Address = PW_i;
 

@@ -12,7 +12,7 @@
 #include "extern.h"
 
 
-short testMOD ( int nbrchannels )
+int16_t	 testMOD ( int nbrchannels )
 {
   /* test 1 */
   if ( PW_i < 1080 )

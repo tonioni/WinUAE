@@ -1,28 +1,20 @@
+#ifndef _GLOBALS_H
+#define _GLOBALS_H
+
 /*
  * ProWizard PC include file
 */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+/* #include <inttypes.h>*/ 
 #include <string.h>
-//#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-/*#include <gtk/gtk.h>*/
-#ifdef DOS
-#include <winsock2.h>
-#endif
-#ifdef DMALLOC
-#include "dmalloc.h"
-#endif
-
-
-typedef unsigned char Uchar;
-typedef unsigned long Ulong;
-typedef unsigned short Ushort;
 
 #ifdef _WIN32
-__inline Ulong htonlx (Ulong v)
+__inline uint32_t htonlx (uint32_t v)
 {
     return (v >> 24) | ((v >> 8) & 0xff00) | (v << 24) | ((v << 8) & 0xff0000);
 }
@@ -32,7 +24,6 @@ __inline Ulong htonlx (Ulong v)
 #endif
 #endif
 
-#define _KNOWN_FORMATS      135
 #define _TYPES_FILENAME     "_types_"
 #define _TYPES_LINE_LENGHT  256
 #define MINIMAL_FILE_LENGHT 64
@@ -183,6 +174,44 @@ enum
   TitanicsPlayer,
   NewtronOld,
   NovoTrade,
-  Skizzo,
+  GnoiPacker,
   StoneArtsPlayer,
+  SLAM,
+  S3M,
+  MOSH,
+  BNR,
+  HCD,
+  TPACK101,
+  STRUGGLE,
+  BKCloneFLT,
+  Oktalizer,
+  AHX,
+  Sidmon1,
+  Sidmon2,
+  PerfSong,
+  MASMDataCruncher,
+  ImpulseTracker,
+  HighPresCruncher,
+  SP20,
+  B9AB,
+  HVL,
+  BKClone5,
+  xVdg,
+  Diet,
+  LSDDataCruncher,
+  JamDataCruncher,
+  MentalImage,
+  BHC3CruncherData,
+  IFF,
+  SA,
+  DM1,
+  PMd3,
+  PMD3,
+  BHC2CruncherData,
+  Pac1,
+
+  /* Must be the last : */
+  _KNOWN_FORMATS
 };
+
+#endif /* _GLOBALS_H */

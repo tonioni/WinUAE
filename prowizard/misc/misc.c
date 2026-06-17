@@ -5,10 +5,9 @@
  *  at now, when this fonction is called, no global var has been used ...
  * and can be here :). (save for the input file pointer ...)
 */
-#if 0
 void Support_Types ( void )
 {
-  long types_file_size, cpt;
+  int32_t types_file_size, cpt;
   char read_line[_TYPES_LINE_LENGHT];
   FILE *types_file;
 
@@ -37,7 +36,7 @@ void Support_Types ( void )
       continue;
     if ( sizeof ( read_line ) < 2 )
     {
-      printf ( "!!! Damaged \"%s\" file at non-commented line %ld\n"
+      printf ( "!!! Damaged \"%s\" file at non-commented line %u\n"
              , _TYPES_FILENAME , PW_i+1 );
       PW_i = 99999l;
       break;
@@ -56,7 +55,7 @@ void Support_Types ( void )
 
   if ( PW_i != _KNOWN_FORMATS )
   {
-    printf ( "!!! Damaged \"%s\" file. Missing up %ld extensions definitions\n"
+    printf ( "!!! Damaged \"%s\" file. Missing up %u extensions definitions\n"
              , _TYPES_FILENAME , _KNOWN_FORMATS-(PW_i+1));
     Support_Types_FileDefault ();
     return;
@@ -64,9 +63,8 @@ void Support_Types ( void )
 
   fclose ( types_file );
 }
-#endif
 
-/*Uchar *XighExtensions[_KNOWN_FORMATS+1];*/
+/*uint8_t *XighExtensions[_KNOWN_FORMATS+1];*/
 
 /*
  * fill the global "Extension" with default extensions if a pb happened
@@ -205,7 +203,7 @@ void Support_Types_FileDefault ( void )
   strcpy ( Extensions[123], "SPv3" );
   strcpy ( Extensions[124], "AtomikPackerData" );
   strcpy ( Extensions[125], "AutomationPackerData" );
-  //  strcpy ( Extensions[125], "TreasurePattern" );
+  /*  strcpy ( Extensions[125], "TreasurePattern" );*/
   strcpy ( Extensions[126], "SGTPacker" );
   strcpy ( Extensions[127], "GNUPacker12" );
   strcpy ( Extensions[128], "CrunchmaniaSimple" );
@@ -213,9 +211,42 @@ void Support_Types_FileDefault ( void )
   strcpy ( Extensions[130], "TitanicsPlayer" );
   strcpy ( Extensions[131], "NewtronOld" );
   strcpy ( Extensions[132], "NovoTrade" );
-  strcpy ( Extensions[133], "Skizzo" );
+  strcpy ( Extensions[133], "GnoiPacker" );
   strcpy ( Extensions[134], "StoneArtsPlayer" );
-  strcpy ( Extensions[135], "---" );
+  strcpy ( Extensions[135], "SLAM" );
+  strcpy ( Extensions[136], "S3M" );
+  strcpy ( Extensions[137], "MOSH" );
+  strcpy ( Extensions[138], "BinaryPacker" );
+  strcpy ( Extensions[139], "HCD" );
+  strcpy ( Extensions[140], "Tetrapack101" );
+  strcpy ( Extensions[141], "StruggleGame" );
+  strcpy ( Extensions[142], "BKCloneFLT" );
+  strcpy ( Extensions[143], "Oktalizer" );
+  strcpy ( Extensions[144], "AHX" );
+  strcpy ( Extensions[145], "Sidmon1" );
+  strcpy ( Extensions[146], "Sidmon2" );
+  strcpy ( Extensions[147], "PerfSong" );
+  strcpy ( Extensions[148], "MASMDataCruncher" );
+  strcpy ( Extensions[149], "ImpulseTracker" );
+  strcpy ( Extensions[150], "HighPresCruncher" );
+  strcpy ( Extensions[151], "SP20" );
+  strcpy ( Extensions[152], "B9AB" );
+  strcpy ( Extensions[153], "HVL" );
+  strcpy ( Extensions[154], "BKClone5" );
+  strcpy ( Extensions[155], "xVdg" );
+  strcpy ( Extensions[156], "DAT" );
+  strcpy ( Extensions[157], "LSDDataCruncher" );
+  strcpy ( Extensions[158], "JamDataCruncher" );
+  strcpy ( Extensions[159], "MI10" );
+  strcpy ( Extensions[160], "BHC3CruncherData" );
+  strcpy ( Extensions[161], "IFF" );
+  strcpy ( Extensions[162], "SA" );
+  strcpy ( Extensions[163], "DM1" );
+  strcpy ( Extensions[164], "PMd3" );
+  strcpy ( Extensions[165], "PMD3" );
+  strcpy ( Extensions[166], "BHC2CruncherData" );
+  strcpy ( Extensions[167], "Pac1" );
+  strcpy ( Extensions[168], "---" );
 }
 
 
@@ -225,26 +256,27 @@ void Support_Types_FileDefault ( void )
  * saving what's found. Mainly music file here.
  * PW_Start_Address & OutputSize are global .. not everybody likes
  * that :(. I just cant seem to manage it otherwise.
+ *
+ * 20070825 : catching NULL off PW__fopen() for WinUAE
 */
 void Save_Rip ( char * format_to_save, int FMT_EXT )
 {
   Save_Status = BAD;
-  pw_write_log ( "%s found at %ld !. its size is : %ld\n", format_to_save , PW_Start_Address , OutputSize );
-  if ( (PW_Start_Address + (long)OutputSize) > PW_in_size )
+  pw_write_log ( "%s found at %d !. its size is : %u\n", format_to_save , PW_Start_Address , OutputSize );
+  if ( (PW_Start_Address + (int32_t)OutputSize) > PW_in_size )
   {
-    pw_write_log ( "!!! Truncated, missing (%ld byte(s) !)\n"
+    pw_write_log ( "!!! Truncated, missing (%u byte(s) !)\n"
              , (PW_Start_Address+OutputSize)-PW_in_size );
     PW_i += 2 ;
     return;
   }
   BZERO ( OutName_final, sizeof OutName_final);
-  sprintf ( OutName_final , "%ld.%s" , Cpt_Filename , Extensions[FMT_EXT] );
+  sprintf ( OutName_final , "%d.%s" , Cpt_Filename , Extensions[FMT_EXT] );
   pw_write_log ( "  saving in file \"%s\" ... " , OutName_final );
   Cpt_Filename += 1;
-  PW_out = moduleripper2_fopen ( OutName_final , "w+b", format_to_save, PW_Start_Address, OutputSize);
-  //PW_out = PW_fopen ( OutName_final , "w+b" );
-  if (!PW_out)
-      return;
+  PW_out = moduleripper2_fopen ( OutName_final , "w+b", format_to_save, PW_Start_Address, OutputSize );
+  if (PW_out == NULL)
+    return;
   fwrite ( &in_data[PW_Start_Address] , OutputSize , 1 , PW_out );
   fclose ( PW_out );
   pw_write_log ( "done\n" );
@@ -252,7 +284,6 @@ void Save_Rip ( char * format_to_save, int FMT_EXT )
   {
     pw_write_log ( "  converting to Protracker ... " );
   }
-  //fflush ( stdout );
   Save_Status = GOOD;
 }
 
@@ -260,23 +291,24 @@ void Save_Rip ( char * format_to_save, int FMT_EXT )
  * Special cases for files with header to rebuild ...
  *
 */
-void Save_Rip_Special ( char * format_to_save, int FMT_EXT, Uchar * Header_Block , Ulong Block_Size )
+void Save_Rip_Special ( char * format_to_save, int FMT_EXT, uint8_t * Header_Block , uint32_t Block_Size )
 {
   Save_Status = BAD;
-  pw_write_log ( "%s found at %ld !. its size is : %ld\n", format_to_save , PW_Start_Address , OutputSize );
-  if ( (PW_Start_Address + (long)OutputSize) > PW_in_size )
+  pw_write_log ( "%s found at %d !. its size is : %u\n", format_to_save , PW_Start_Address , OutputSize );
+  if ( (PW_Start_Address + (int32_t)OutputSize) > PW_in_size )
   {
-    pw_write_log ( "!!! Truncated, missing (%ld byte(s) !)\n"
+    pw_write_log ( "!!! Truncated, missing (%u byte(s) !)\n"
              , (PW_Start_Address+OutputSize)-PW_in_size );
     PW_i += 2 ;
     return;
   }
   BZERO (OutName_final, sizeof OutName_final);
-  sprintf ( OutName_final , "%ld.%s" , Cpt_Filename , Extensions[FMT_EXT] );
+  sprintf ( OutName_final , "%d.%s" , Cpt_Filename , Extensions[FMT_EXT] );
   pw_write_log ( "  saving in file \"%s\" ... " , OutName_final );
   Cpt_Filename += 1;
-//  PW_out = PW_fopen ( OutName_final , "w+b" );
   PW_out = moduleripper2_fopen ( OutName_final , "w+b", format_to_save, PW_Start_Address, OutputSize );
+  if (PW_out == NULL)
+    return;
   fwrite ( Header_Block , Block_Size  , 1 , PW_out );
   fwrite ( &in_data[PW_Start_Address] , OutputSize , 1 , PW_out );
   fclose ( PW_out );
@@ -287,8 +319,7 @@ void Save_Rip_Special ( char * format_to_save, int FMT_EXT, Uchar * Header_Block
   }
   pw_write_log ( "  Header of this file was missing and has been rebuilt !\n" );
   if ( FMT_EXT == DragPack252)
-    pw_write_log ( "  WARNING !: it's a fake header since in this case !!\n" );
-  //fflush ( stdout );
+    pw_write_log ( "  WARNING !: it's a fake header in this case !!\n" );
   Amiga_EXE_Header = GOOD;
   Save_Status = GOOD;
 }
@@ -296,7 +327,7 @@ void Save_Rip_Special ( char * format_to_save, int FMT_EXT, Uchar * Header_Block
 
 
 /* writing craps in converted MODs */
-void Crap ( char *Format , Uchar Delta , Uchar Pack , FILE *out )
+void Crap ( char *Format , uint8_t Delta , uint8_t Pack , FILE *out )
 {
   fseek ( out , 560 , SEEK_SET );
   fprintf ( out , "[  Converted with  ]" );
@@ -323,7 +354,7 @@ void Crap ( char *Format , Uchar Delta , Uchar Pack , FILE *out )
 }
 
 /* writing craps in converted MODs */
-void Crap15 ( char *Format , Uchar Delta , Uchar Pack , FILE *out )
+void Crap15 ( char *Format , uint8_t Delta , uint8_t Pack , FILE *out )
 {
   fseek ( out , 260 , SEEK_SET );
   fprintf ( out , "[  Converted with  ]" );
@@ -342,13 +373,13 @@ void Crap15 ( char *Format , Uchar Delta , Uchar Pack , FILE *out )
  * Special version of Test() for cruncher data (Ice! etc...)
  * only one file and not hundreds ...
 */
-short testSpecialCruncherData ( long Pack_addy , long Unpack_addy )
+int16_t testSpecialCruncherData ( int32_t Pack_addy , int32_t Unpack_addy )
 {
   PW_Start_Address = PW_i;
 
   /* a small test preventing hangover :) ... */
   /* e.g. addressing of unassigned data */
-  if ( ( (long)PW_i + Pack_addy ) > PW_in_size )
+  if ( ( (int32_t)PW_i + Pack_addy ) > PW_in_size )
   {
 /*printf ( "#0\n" );*/
     return BAD;
@@ -408,6 +439,7 @@ void Rip_SpecialCruncherData ( char *Packer_Name , int Header_Size , int Packer_
       PW_l *= 4;
       PW_l += 10;
       OutputSize = PW_l;
+      Header_Size = 6;
       break;
     default:
       OutputSize = PW_l + Header_Size;
@@ -422,7 +454,7 @@ void Rip_SpecialCruncherData ( char *Packer_Name , int Header_Size , int Packer_
   Save_Rip ( Packer_Name, Packer_Extension_Define );
   
   if ( Save_Status == GOOD )
-//    PW_i += (OutputSize - 2);  /* 0 should do but call it "just to be sure" :) */
+/*    PW_i += (OutputSize - 2); */ /* 0 should do but call it "just to be sure" :) */
     PW_i += (Header_Size + 1);  /* test to overcome fake datas */
   PW_WholeSampleSize = 0;
 
@@ -430,40 +462,40 @@ void Rip_SpecialCruncherData ( char *Packer_Name , int Header_Size , int Packer_
 
 
 /* yet again on Xigh's suggestion. How to handle 'correctly' a file size */
-long PWGetFileSize (char * infile)
+int32_t PWGetFileSize (char * infile)
 {
-  long i;
-  struct stat *Stat;
-  Stat = (struct stat *) malloc ( sizeof (struct stat));
-  stat ( infile, Stat );
-  i = (long)Stat->st_size;
-  free ( Stat );
-  return i;
+  struct stat sb;
+  
+  if (stat ( infile, &sb ) < 0) {
+      /* xigh: TODO: Error */
+      return -1;
+  }
+  return (int32_t) sb.st_size;
 }
 
-#if 0
 /* Same as fopen() but saves a lot of tests, done only here. */
 /* Done to check if the output file could be created */
-FILE * PW_fopen (char *filename, char fopenargs[3] )
+FILE * PW_fopen (char *filename, char *fopenargs )
 {
-  FILE *local_out;
-  local_out = fopen (filename, fopenargs);
-  if (local_out == NULL)
-  {
-    printf ("!!couldn't create the file \"%s\"!\nexiting...",filename);
-    exit (-1);
-  }
-  return local_out;
+  return moduleripper_fopen (filename, fopenargs);
 }
-#endif 
-FILE * PW_fopen (char *filename, char *fopenargs)
+
+/* replacement for printf() for WinUAE */
+/* written by Toni Wilen ... thx :) */
+/*void write_log (const char *format, ...)
 {
-    return moduleripper_fopen (filename, fopenargs);
-}
+char buffer[WRITE_LOG_BUF_SIZE];
+va_list parms;
+va_start (parms, format);
+
+count = _vsnprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
+printf(buffer);
+va_end (parms);
+}*/
 
 /* fills a var with all the pitch for PTK */
 /* doing a function instead of a lot of includes ...*/
-void fillPTKtable (Uchar poss[37][2])
+void fillPTKtable (uint8_t poss[37][2])
 {
   poss[0][0]=0x00,  poss[0][1]=0x00;
 
@@ -511,6 +543,51 @@ void fillPTKtable (Uchar poss[37][2])
 #ifndef htonl
 unsigned int htonl(unsigned int v)
 {
-	return ((v >> 24) & 0x000000ff) | ((v >> 8) & 0x0000ff00) | ((v << 8) & 0x00ff0000) | ((v << 24) & 0xff000000);
+  return ((v >> 24) & 0x000000ff) | ((v >> 8) & 0x0000ff00) | ((v << 8) & 0x00ff0000) | ((v << 24) & 0xff000000);
 }
 #endif
+
+
+
+int16_t	testDietDataPacker ( void )
+{
+  PW_Start_Address = PW_i;
+
+  PW_l = (in_data[PW_Start_Address+9]*256*256) +
+         (in_data[PW_Start_Address+11]*256) +
+         in_data[PW_Start_Address+10] + 5 + 12;
+
+  if ( PW_l > PW_in_size )
+  {
+    /* should be enough :))) */
+    /*printf ( "#2 Start:%ld\n" , PW_Start_Address );*/
+    return BAD;
+  }
+
+  return GOOD;
+  /* PW_l is the size of the pack */
+}
+
+
+void Rip_DietDataPacker ( void )
+{
+  /* PW_l is still the whole size */
+
+  OutputSize = PW_l;
+
+  CONVERT = BAD;
+
+  if ((in_data[PW_Start_Address+6] == 0x45) &&
+      (in_data[PW_Start_Address+7] == 0x4F) &&
+      (in_data[PW_Start_Address+8] == 0x53))
+  {
+    in_data[PW_Start_Address+6] = 0x64;
+    in_data[PW_Start_Address+7] = 0x6C;
+    in_data[PW_Start_Address+8] = 0x7A;
+  }
+
+  Save_Rip ( "Diet Packer Data-file", Diet );
+
+  if ( Save_Status == GOOD )
+    PW_i += 1;
+}

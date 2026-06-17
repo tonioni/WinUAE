@@ -10,7 +10,7 @@
 #include "extern.h"
 
 
-short testP50A ( void )
+int16_t	 testP50A ( void )
 {
   int nbr_notes=0;
   if ( PW_i < 7 )
@@ -35,6 +35,8 @@ short testP50A ( void )
     /*printf ( "#2\n" );*/
     return BAD;
   }
+  
+  /* 0 or more than 31 samples ? */
   if ( ((PW_k&0x3f) > 0x1F) || ((PW_k&0x3F) == 0) )
   {
     /*printf ( "#2,1 Start:%ld\n" , PW_Start_Address );*/
@@ -88,6 +90,13 @@ short testP50A ( void )
         return BAD;
       }
     }
+  }
+  
+  /* test whole size */
+  if (PW_WholeSampleSize <= 4)
+  {
+    /*printf ( "#5,3 Start $ld, whole sample size : %ld\n",PW_Start_Address,PW_WholeSampleSize );*/
+    return BAD;
   }
 
   /* test sample data address */
@@ -276,25 +285,25 @@ void Rip_P50A ( void )
 
 void Depack_P50A ( void )
 {
-  Uchar c1,c2,c3,c4,c5,c6;
-  long Max;
-  Uchar *Whatever;
+  uint8_t c1,c2,c3,c4,c5,c6;
+  int32_t	 Max;
+  uint8_t *Whatever;
   signed char *SmpDataWork;
-  Uchar PatPos = 0x00;
-  Uchar PatMax = 0x00;
-  Uchar Nbr_Sample = 0x00;
-  Uchar poss[37][2];
-  Uchar Track_Data[512][256];
-  Uchar SmpSizes[31][2];
-  Uchar GLOBAL_DELTA=OFF;
-  long Track_Address[128][4];
-  long Track_Data_Address = 0;
-  long Sample_Data_Address = 0;
-  long WholeSampleSize = 0;
-  long i=0,j,k,l,a,b,z;
-  long SampleSizes[31];
-  long SampleAddresses[32];
-  long Where = PW_Start_Address;
+  uint8_t PatPos = 0x00;
+  uint8_t PatMax = 0x00;
+  uint8_t Nbr_Sample = 0x00;
+  uint8_t poss[37][2];
+  uint8_t Track_Data[512][256];
+  uint8_t SmpSizes[31][2];
+  uint8_t GLOBAL_DELTA=OFF;
+  int32_t	 Track_Address[128][4];
+  int32_t	 Track_Data_Address = 0;
+  int32_t	 Sample_Data_Address = 0;
+  int32_t	 WholeSampleSize = 0;
+  int32_t	 i=0,j,k,l,a,b,z;
+  int32_t	 SampleSizes[31];
+  int32_t	 SampleAddresses[32];
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -308,7 +317,7 @@ void Depack_P50A ( void )
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* read sample data address */
@@ -329,7 +338,7 @@ void Depack_P50A ( void )
   Nbr_Sample &= 0x3F;
 
   /* write title */
-  Whatever = (Uchar *) malloc ( 1024 );
+  Whatever = (uint8_t *) malloc ( 1024 );
   BZERO ( Whatever , 1024 );
   fwrite ( Whatever , 20 , 1 , out );
 
@@ -380,8 +389,8 @@ void Depack_P50A ( void )
 
     /* use of htonl() suggested by Xigh !.*/
     z = htonl(l);
-    c1 = *((Uchar *)&z+2);
-    c2 = *((Uchar *)&z+3);
+    c1 = *((uint8_t *)&z+2);
+    c2 = *((uint8_t *)&z+3);
     fwrite ( &c1 , 1 , 1 , out );
     fwrite ( &c2 , 1 , 1 , out );
 

@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testTitanicsPlayer ( void )
+int16_t	 testTitanicsPlayer ( void )
 {
   if ( PW_i < 7 )
     return BAD;
@@ -58,6 +58,11 @@ short testTitanicsPlayer ( void )
       /*printf ("#4 : (start : %ld)\n",PW_Start_Address);*/
       return BAD;
     }
+    if ( (PW_j != 0) && (PW_j == PW_l))
+    {
+      /*printf ("#4.1 : (start : %ld)\n",PW_Start_Address);*/
+      return BAD;
+    }
     PW_WholeSampleSize += PW_j;
   }
   if (PW_WholeSampleSize < 2)
@@ -99,10 +104,10 @@ short testTitanicsPlayer ( void )
 
 
 /* With the help of Xigh :) .. thx */
-int _cdecl cmplong(const void * a, const void * b)
+int cmpint32_t	(const void * a, const void * b)
 {
-  long * aa = (long *) a;
-  long * bb = (long *) b;
+  int32_t	 * aa = (int32_t	 *) a;
+  int32_t	 * bb = (int32_t	 *) b;
   if (*aa == *bb)
     return 0;
   if(*aa > *bb)
@@ -110,6 +115,9 @@ int _cdecl cmplong(const void * a, const void * b)
   return -1;
 }
 
+/* 20100101 : little fix in a test of the nbr of row being too big
+ * pb pointed out by Claudio of XMP team. Thanks !
+*/
 
 void Rip_TitanicsPlayer ( void )
 {
@@ -148,18 +156,18 @@ void Rip_TitanicsPlayer ( void )
 
 void Depack_TitanicsPlayer ( void )
 {
-  Uchar *Whatever;
-  Uchar c1=0x00,c2=0x00,c3=0x00,c4=0x00;
-  long Pat_Addresses[128];
-  long Pat_Addresses_ord[128];
-  long Pat_Addresses_final[128];
-  long Max=0l;
-  Uchar poss[37][2];
-  Uchar PatPos;
-  long Where=PW_Start_Address;
-  long SmpAddresses[15];
-  long SampleSizes[15];
-  unsigned long i=0,j=0,k=0,l;
+  uint8_t *Whatever;
+  uint8_t c1=0x00;
+  int32_t Pat_Addresses[128];
+  int32_t Pat_Addresses_ord[128];
+  int32_t Pat_Addresses_final[128];
+  int32_t Max=0l;
+  uint8_t poss[37][2];
+  uint8_t PatPos;
+  int32_t Where=PW_Start_Address;
+  int32_t SmpAddresses[15];
+  int32_t SampleSizes[15];
+  uint32_t i=0,j=0,k=0;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -171,11 +179,11 @@ void Depack_TitanicsPlayer ( void )
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.stk" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.stk" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* title */
-  Whatever = (Uchar *) malloc ( 2048 );
+  Whatever = (uint8_t *) malloc ( 2048 );
   BZERO ( Whatever , 2048 );
   fwrite ( &Whatever[0] , 20 , 1 , out );
 
@@ -224,11 +232,11 @@ void Depack_TitanicsPlayer ( void )
   fwrite ( &PatPos , 1 , 1 , out );
 
   /* restart byte */
-  c1 = 0x00;
+  c1 = 0x78;    /* 20130420 fix submitted by Warren Willmey */
   fwrite ( &c1 , 1 , 1 , out );
 
   /* With the help of Xigh :) .. thx */
-  qsort (Pat_Addresses_ord,PatPos,sizeof(long),cmplong);
+  qsort (Pat_Addresses_ord,PatPos,sizeof(int32_t	),cmpint32_t	);
   j=0;
   for (i=0;i<PatPos;i++)
   {
@@ -272,7 +280,7 @@ void Depack_TitanicsPlayer ( void )
  
       if ((in_data[Where]&0x7f) != 0x00)
         k += (in_data[Where]&0x7f);
-      if (k > 1024)
+      if (k > 64)
       {
         /*printf ("pat %ld too big\n",i);*/
         break;

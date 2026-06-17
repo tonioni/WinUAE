@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testFC_M ( void )
+int16_t	 testFC_M ( void )
 {
   /* test 1 */
   PW_Start_Address = PW_i;
@@ -70,16 +70,16 @@ void Rip_FC_M ( void )
 */
 void Depack_FC_M ( void )
 {
-  Uchar *Whatever;
-  long i=0;
-  long WholeSampleSize=0;
-  long Where = PW_Start_Address;
+  uint8_t *Whatever;
+  int32_t	 i=0;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* bypass "FC-M" ID */
@@ -93,7 +93,7 @@ void Depack_FC_M ( void )
   Where += 34;
 
   /* read and write sample descriptions */
-  Whatever = (Uchar *)malloc(256);
+  Whatever = (uint8_t *)malloc(256);
   BZERO ( Whatever , 256 );
   for ( i=0 ; i<31 ; i++ )
   {
@@ -111,7 +111,7 @@ void Depack_FC_M ( void )
   }
   /*printf ( "Whole sample size : %ld\n" , WholeSampleSize );*/
 
-  /* bypass "LONG" chunk */
+  /* bypass "int32_t	" chunk */
   Where += 4;
 
   /* read and write pattern table lenght */

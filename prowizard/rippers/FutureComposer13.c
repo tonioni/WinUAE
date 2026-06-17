@@ -11,7 +11,7 @@
 #include "extern.h"
 
 
-short testFC13 ( void )
+int16_t	 testFC13 ( void )
 {
   PW_Start_Address = PW_i;
 

@@ -1,15 +1,15 @@
-/* testAC1D() */
-/* Rip_AC1D() */
+/* testAC1D()    */
+/* Rip_AC1D()    */
 /* Depack_AC1D() */
 
 #include "globals.h"
 #include "extern.h"
 
 
-short testAC1D ( void )
+int16_t	 testAC1D ( void )
 {
   /* test #1 */
-  /* if ( PW_i<2 )*/
+  /*  if ( PW_i<2 )*/
   if ( test_1_start(2) == BAD )
     return BAD;
 
@@ -23,6 +23,7 @@ short testAC1D ( void )
   {
     return BAD;
   }
+
 
   /* test #4 */
   for ( PW_k = 0 ; PW_k < 31 ; PW_k ++ )
@@ -62,44 +63,44 @@ void Rip_AC1D ( void )
   Save_Rip ( "AC1D Packed module", AC1D_packer );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 4); /* 3 should do but call it "just to be sure" :) */
+    PW_i += (OutputSize - 4);  /* 3 should do but call it "just to be sure" :) */
 }
 
 
 
 /*
-* ac1d.c 1996-1997 (c) Asle / ReDoX
-*
-* Converts AC1D packed MODs back to PTK MODs
-* thanks to Gryzor and his ProWizard tool ! ... without it, this prog
-* would not exist !!!
-*
-* Last update: 30/11/99
-* - removed open() (and other fread()s and the like)
-* - general Speed & Size Optmizings
-* 20051002 : testing fopen() ...
+ *   ac1d.c   1996-1997 (c) Asle / ReDoX
+ *
+ * Converts AC1D packed MODs back to PTK MODs
+ * thanks to Gryzor and his ProWizard tool ! ... without it, this prog
+ * would not exist !!!
+ *
+ * Last update: 30/11/99
+ *   - removed open() (and other fread()s and the like)
+ *   - general Speed & Size Optmizings
+ * 20051002 : testing fopen() ...
 */
 void Depack_AC1D ( void )
 {
-  Uchar NO_NOTE=0xff;
-  Uchar c1,c2,c3,c4;
-  Uchar *Whatever;
-  Uchar Nbr_Pat;
-  Uchar poss[37][2];
-  Uchar Note,Smp,Fx,FxVal;
-  long Sample_Data_Address;
-  long WholeSampleSize=0;
-  long Pattern_Addresses[128];
-  long Pattern_Sizes[128];
-  long siztrack1,siztrack2,siztrack3;
-  long i,j,k;
-  long Where = PW_Start_Address;
+  uint8_t NO_NOTE=0xff;
+  uint8_t c1,c2,c3,c4;
+  uint8_t *Whatever;
+  uint8_t Nbr_Pat;
+  uint8_t poss[37][2];
+  uint8_t Note,Smp,Fx,FxVal;
+  int32_t	 Sample_Data_Address;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 Pattern_Addresses[128];
+  int32_t	 Pattern_Sizes[128];
+  int32_t	 siztrack1,siztrack2,siztrack3;
+  int32_t	 i,j,k;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   memset (Pattern_Addresses , 0 , 128*4);
@@ -118,7 +119,7 @@ void Depack_AC1D ( void )
   /*printf ( "adress of sample datas : %ld\n" , Sample_Data_Address );*/
 
   /* write title */
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO ( Whatever , 1024 );
   fwrite ( Whatever , 20 , 1 , out );
 
@@ -244,7 +245,7 @@ void Depack_AC1D ( void )
   fwrite ( &in_data[Where] , WholeSampleSize , 1 , out );
 
   /* crap ... */
-  Crap ( " AC1D Packer " , BAD , BAD , out );
+  Crap ( "   AC1D Packer    " , BAD , BAD , out );
 
   fflush ( out );
   fclose ( out );

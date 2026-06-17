@@ -7,7 +7,7 @@
 
 
 
-short testPM10c ( void )
+int16_t	 testPM10c ( void )
 {
   /* test 1 */
   if ( (PW_Start_Address + 4452) > PW_in_size )
@@ -78,7 +78,10 @@ void Rip_PM10c ( void )
  *
  * update 20 mar 2003 (it's war time again .. brrrr)
  * - removed all open() funcs.
- * - optimized more than quite a bit (src is 5kb shorter !)
+ * - optimized more than quite a bit (src is 5kb int16_t	er !)
+ *
+ * update 08 jan 2010
+ * - bug fix in patternlist generation
 */
 
 #define ON  0
@@ -88,25 +91,25 @@ void Rip_PM10c ( void )
 
 void Depack_PM10c ( void )
 {
-  Uchar c1=0x00,c2=0x00;
-  short Ref_Max=0;
-  long Pats_Address[128];
-  long Read_Pats_Address[128];
-  Uchar NOP=0x00; /* number of pattern */
-  Uchar *ReferenceTable;
-  Uchar *Pattern;
-  long i=0,j=0,k=0,l=0,m=0;
-  long Total_Sample_Size=0;
-  long PatDataSize=0l;
-  long SDAV=0l;
-  Uchar FLAG=OFF;
-  Uchar Smp_Fine_Table[31];
-  Uchar poss[37][2];
-  Uchar OldSmpValue[4];
-  Uchar *Whatever;
-  Uchar *WholePatternData;
-  long Where = PW_Start_Address;
-  short Period;
+  uint8_t c1=0x00,c2=0x00;
+  int16_t	 Ref_Max=0;
+  int32_t	 Pats_Address[128];
+  int32_t	 Read_Pats_Address[128];
+  uint8_t NOP=0x00; /* number of pattern */
+  uint8_t *ReferenceTable;
+  uint8_t *Pattern;
+  int32_t	 i=0,j=0,k=0,l=0,m=0;
+  int32_t	 Total_Sample_Size=0;
+  int32_t	 PatDataSize=0l;
+  int32_t	 SDAV=0l;
+  uint8_t FLAG=OFF;
+  uint8_t Smp_Fine_Table[31];
+  uint8_t poss[37][2];
+  uint8_t OldSmpValue[4];
+  uint8_t *Whatever;
+  uint8_t *WholePatternData;
+  int32_t	 Where = PW_Start_Address;
+  int16_t	 Period;
   FILE *out;/*,*info;*/
 
   #include "tuning.h"
@@ -120,15 +123,14 @@ void Depack_PM10c ( void )
   BZERO ( OldSmpValue , 4 );
   BZERO ( Pats_Address , 128*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
   /*info = fopen ( "info", "w+b");*/
 
-  Whatever = (Uchar *) malloc (128);
-  BZERO (Whatever,128);
-
+  Whatever = (uint8_t *) malloc (1085);
+  BZERO (Whatever, 1085);
   /* title */
-  fwrite ( &Whatever[32] , 20 , 1 , out );
+  /*fwrite ( &Whatever[32] , 20 , 1 , out );*/
 
   /* bypass replaycode routine */
   Where = PW_Start_Address + 4460;
@@ -136,9 +138,16 @@ void Depack_PM10c ( void )
   for ( i=0 ; i<31 ; i++ )
   {
     /*sample name*/
-    fwrite ( &Whatever[32] ,22 , 1 , out );
-
-    fwrite ( &in_data[Where], 8, 1, out );
+    /*fwrite ( &Whatever[32] ,22 , 1 , out );*/
+    Whatever[42+30*i] = in_data[Where];
+    Whatever[43+30*i] = in_data[Where+1];
+    Whatever[44+30*i] = in_data[Where+2];
+    Whatever[45+30*i] = in_data[Where+3];
+    Whatever[46+30*i] = in_data[Where+4];
+    Whatever[47+30*i] = in_data[Where+5];
+    Whatever[48+30*i] = in_data[Where+6];
+    Whatever[49+30*i] = in_data[Where+7];
+    /*fwrite ( &in_data[Where], 8, 1, out );*/
     /* whole sample size */
     Total_Sample_Size += (((in_data[Where]*256)+in_data[Where+1])*2);
     /* finetune */
@@ -165,7 +174,7 @@ void Depack_PM10c ( void )
   Where = PW_Start_Address + PATTERN_DATA_ADDY;
 
   /* now, reading all pattern data to get the max value of note */
-  WholePatternData = (Uchar *) malloc (PatDataSize+1);
+  WholePatternData = (uint8_t *) malloc (PatDataSize+1);
   BZERO (WholePatternData, PatDataSize+1);
   for ( j=0 ; j<PatDataSize ; j+=2 )
   {
@@ -180,8 +189,8 @@ void Depack_PM10c ( void )
 
   /* read "reference Table" */
   Ref_Max += 1;  /* coz 1st value is 0 ! */
-  i = Ref_Max * 4; /* coz each block is 4 bytes long */
-  ReferenceTable = (Uchar *) malloc ( i+1 );
+  i = Ref_Max * 4; /* coz each block is 4 bytes int32_t	 */
+  ReferenceTable = (uint8_t *) malloc ( i+1 );
   BZERO ( ReferenceTable, i+1 );
   for ( j=0 ; j<i ; j++) ReferenceTable[j] = in_data[Where+j];
 
@@ -189,7 +198,7 @@ void Depack_PM10c ( void )
 
   c1=0; /* will count patterns */
   k=0; /* current note number */
-  Pattern = (Uchar *) malloc (65536);
+  Pattern = (uint8_t *) malloc (65536);
   BZERO (Pattern, 65536);
   i=0;
   for ( j=0 ; j<PatDataSize ; j+=2 )
@@ -251,30 +260,38 @@ void Depack_PM10c ( void )
   /* pattern table lenght */
   Where = PW_Start_Address + 4708;
   NOP = ((in_data[Where]*256)+in_data[Where+1])/4;
-  fwrite ( &NOP , 1 , 1 , out );
+  Whatever[950] = NOP;
+  /*fwrite ( &NOP , 1 , 1 , out );*/
 
-  Whatever[0] = 0x7f;
-  fwrite ( &Whatever[0], 1, 1, out );
+  Whatever[951] = 0x7f;
+  /*Whatever[0] = 0x7f;*/
+  /*fwrite ( &Whatever[0], 1, 1, out );*/
 
   /* write pattern table */
-  BZERO ( Whatever, 128 );
+  /*BZERO ( Whatever, 128 );*/
   for ( c2=0; c2<128 ; c2+=0x01 )
-    for ( i=0 ; i<NOP ; i++ )
+    for ( i=0 ; i<c1 ; i++ )
       if ( Pats_Address[c2] == Read_Pats_Address[i])
-	Whatever[c2] = (Uchar) i;
-  while ( i<128 )
-    Whatever[i++] = 0x00;
-  fwrite ( &Whatever[0], 128, 1, out );
+	    Whatever[952+c2] = (uint8_t) i;
+	    /*Whatever[c2] = (uint8_t) i;*/
+  while ( NOP<128 )
+  {
+    Whatever[952+NOP] = 0x00;
+    NOP++;
+  }
+  /*fwrite ( &Whatever[0], 128, 1, out );*/
 
   /* write tag */
-  Whatever[0] = 'M';
-  Whatever[1] = '.';
-  Whatever[2] = 'K';
+  Whatever[1080] = 'M';
+  Whatever[1081] = '.';
+  Whatever[1082] = 'K';
+  Whatever[1083] = '.';
 
-  fwrite ( &Whatever[0] , 1 , 1 , out );
+  /*fwrite ( &Whatever[0] , 1 , 1 , out );
   fwrite ( &Whatever[1] , 1 , 1 , out );
   fwrite ( &Whatever[2] , 1 , 1 , out );
-  fwrite ( &Whatever[1] , 1 , 1 , out );
+  fwrite ( &Whatever[1] , 1 , 1 , out );*/
+  fwrite (Whatever, 1, 1084, out);
 
   free ( Whatever );
 

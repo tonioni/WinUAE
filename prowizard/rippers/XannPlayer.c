@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testXANN ( void )
+int16_t	 testXANN ( void )
 {
   /* test 1 */
   if ( PW_i < 3 )
@@ -146,14 +146,14 @@ void Rip_XANN ( void )
 
 void Depack_XANN ( void )
 {
-  Uchar c1=0x00,c2=0x00;
-  Uchar poss[37][2];
-  Uchar Max=0x00;
-  Uchar Note,Smp,Fx,FxVal;
-  Uchar *Whatever;
-  long i=0,j=0,l=0,z;
-  long WholeSampleSize=0;
-  long Where=PW_Start_Address;   /* main pointer to prevent fread() */
+  uint8_t c1=0x00,c2=0x00;
+  uint8_t poss[37][2];
+  uint8_t Max=0x00;
+  uint8_t Note,Smp,Fx,FxVal;
+  uint8_t *Whatever;
+  int32_t	 i=0,j=0,l=0,z;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 Where=PW_Start_Address;   /* main pointer to prevent fread() */
   FILE *out;
 
   fillPTKtable(poss);
@@ -161,11 +161,11 @@ void Depack_XANN ( void )
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* title */
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO ( Whatever , 1024 );
   fwrite ( Whatever , 20 , 1 , out );
 
@@ -202,8 +202,8 @@ void Depack_XANN ( void )
     /* use of htonl() suggested by Xigh !.*/
     j/=2;
     z = htonl(j);
-    Whatever[0] = *((Uchar *)&z+2);
-    Whatever[1] = *((Uchar *)&z+3);
+    Whatever[0] = *((uint8_t *)&z+2);
+    Whatever[1] = *((uint8_t *)&z+3);
     fwrite ( Whatever , 2 , 1 , out );
 
     /* write loop size */

@@ -9,7 +9,7 @@
 #include "extern.h"
 
 /* void testViruz2_60 (void)*/
-short testViruz2_60 ()
+int16_t	 testViruz2_60 ()
 {
   PW_Start_Address = PW_i; /* bypass the 20 bytes already tested */
 
@@ -41,9 +41,9 @@ short testViruz2_60 ()
    return GOOD;
 }
 
-short testViruz2_80 ()
+int16_t	 testViruz2_80 ()
 {
-  Uchar MYTEST = BAD;
+  uint8_t MYTEST = BAD;
   PW_Start_Address = PW_i; /* bypass the 20 bytes already tested */
 
   /* test 1 */
@@ -99,7 +99,7 @@ short testViruz2_80 ()
    return GOOD;
 }
 
-short testViruz2_E0 ()
+int16_t	 testViruz2_E0 ()
 {
   PW_Start_Address = PW_i; /* bypass the 20 bytes already tested */
 

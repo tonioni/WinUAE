@@ -2,14 +2,18 @@
 /* testByteKiller_20()   */
 /* testByteKiller30()    */
 /* testbytekillerpro10() */
+/* testBKCloneFLT        */
+/* testBKClone5          20130416*/
 /* Rip_ByteKiller()      */
 /* Rip_ByteKiller30()    */
 /* Rip_bytekillerpro10   */
+/* Rip_BKCloneFLT        */
+/* Rip_BKClone5          20130416*/
 
 #include "globals.h"
 #include "extern.h"
 
-short testByteKiller_13 ( void )
+int16_t	 testByteKiller_13 ( void )
 {
   /*  if ( PW_i < 135 )*/
   if ( test_1_start (135) == BAD )
@@ -91,7 +95,7 @@ short testByteKiller_13 ( void )
 
 
 
-short testByteKiller_20 ( void )
+int16_t	 testByteKiller_20 ( void )
 {
   if ( test_1_start(127) == BAD )
   {
@@ -107,8 +111,6 @@ short testByteKiller_20 ( void )
        (in_data[PW_Start_Address+4]  != 0x4D ) ||
        (in_data[PW_Start_Address+5]  != 0xF9 ) ||
        (in_data[PW_Start_Address+6]  != 0x00 ) ||
-       (in_data[PW_Start_Address+7]  != 0xDF ) ||
-       (in_data[PW_Start_Address+8]  != 0xF1 ) ||
        (in_data[PW_Start_Address+10] != 0x41 ) ||
        (in_data[PW_Start_Address+11] != 0xFA ) ||
        (in_data[PW_Start_Address+12] != 0x00 ) ||
@@ -168,7 +170,7 @@ short testByteKiller_20 ( void )
 }
 
 
-short testByteKiller30 ( void )
+int16_t	 testByteKiller30 ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -238,7 +240,7 @@ short testByteKiller30 ( void )
   /* PW_l is the size of the pack */
 }
 
-short testbytekillerpro10 ( void )
+int16_t	 testbytekillerpro10 ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -307,12 +309,152 @@ short testbytekillerpro10 ( void )
 }
 
 
+int16_t	 testBKCloneFLT ( void )
+{
+  PW_Start_Address = PW_i;
+
+  if ((PW_i + 308) > PW_in_size)
+    return BAD;
+
+  if ( (in_data[PW_Start_Address+14] != 0x24 ) ||
+       (in_data[PW_Start_Address+15] != 0x60 ) ||
+       (in_data[PW_Start_Address+16] != 0xd5 ) ||
+       (in_data[PW_Start_Address+17] != 0xc9 ) ||
+       (in_data[PW_Start_Address+18] != 0x4a ) ||
+       (in_data[PW_Start_Address+19] != 0xa0 ) ||
+       (in_data[PW_Start_Address+20] != 0x20 ) ||
+       (in_data[PW_Start_Address+21] != 0x20 ) ||
+       (in_data[PW_Start_Address+22] != 0x13 ) ||
+       (in_data[PW_Start_Address+23] != 0xf9 ) ||
+       (in_data[PW_Start_Address+24] != 0x00 ) ||
+       (in_data[PW_Start_Address+25] != 0xdf ) ||
+       (in_data[PW_Start_Address+26] != 0xf0 ) ||
+       (in_data[PW_Start_Address+27] != 0x06 ) ||
+       (in_data[PW_Start_Address+28] != 0x00 ) ||
+       (in_data[PW_Start_Address+29] != 0xdf ) )
+  {
+    /* should be enough :))) */
+/*printf ( "#2 Start:%ld\n" , PW_Start_Address );*/
+    return BAD;
+    
+  }
+
+
+  /* packed size */
+  PW_l = ( (in_data[PW_Start_Address+304]*256*256*256) +
+           (in_data[PW_Start_Address+305]*256*256) +
+           (in_data[PW_Start_Address+306]*256) +
+           in_data[PW_Start_Address+307] );
+
+  PW_l += 348;
+
+
+  if ( PW_i >= 36 )
+  {
+    if ( (in_data[PW_Start_Address-36]  != 0x00 ) ||
+         (in_data[PW_Start_Address-35]  != 0x00 ) ||
+         (in_data[PW_Start_Address-34]  != 0x03 ) ||
+         (in_data[PW_Start_Address-33]  != 0xF3 ) ||
+         (in_data[PW_Start_Address-32]  != 0x00 ) ||
+         (in_data[PW_Start_Address-31]  != 0x00 ) ||
+         (in_data[PW_Start_Address-30]  != 0x00 ) ||
+         (in_data[PW_Start_Address-29]  != 0x00 ) ||
+         (in_data[PW_Start_Address-28]  != 0x00 ) ||
+         (in_data[PW_Start_Address-27]  != 0x00 ) ||
+         (in_data[PW_Start_Address-26]  != 0x00 ) ||
+         (in_data[PW_Start_Address-25]  != 0x02 ) ||
+         (in_data[PW_Start_Address-24]  != 0x00 ) ||
+         (in_data[PW_Start_Address-23]  != 0x00 ) ||
+         (in_data[PW_Start_Address-22]  != 0x00 ) ||
+         (in_data[PW_Start_Address-21]  != 0x00 ) )
+    {
+      Amiga_EXE_Header = BAD;
+    }
+    else
+      Amiga_EXE_Header = GOOD;
+  }
+  else
+    Amiga_EXE_Header = BAD;
+
+  return GOOD;
+  /* PW_l is the size of the pack */
+}
+
+/* exe found in Anarchy demo Seeing Is Believing */
+/* added 20130415 */
+int16_t	 testBKClone5 ( void )
+{
+  PW_Start_Address = PW_i;
+
+  if ((PW_i + 284) > PW_in_size)
+    return BAD;
+
+  if ( (in_data[PW_Start_Address+18] != 0xD5 ) ||
+       (in_data[PW_Start_Address+19] != 0xC9 ) ||
+       (in_data[PW_Start_Address+20] != 0x20 ) ||
+       (in_data[PW_Start_Address+21] != 0x20 ) ||
+       (in_data[PW_Start_Address+22] != 0x47 ) ||
+       (in_data[PW_Start_Address+23] != 0xFA ) ||
+       (in_data[PW_Start_Address+24] != 0x00 ) ||
+       (in_data[PW_Start_Address+25] != 0xE0 ) ||
+       (in_data[PW_Start_Address+26] != 0x72 ) ||
+       (in_data[PW_Start_Address+27] != 0x03 ) ||
+       (in_data[PW_Start_Address+28] != 0x4E ) ||
+       (in_data[PW_Start_Address+29] != 0x93 ) )
+  {
+    /* should be enough :))) */
+/*printf ( "#2 Start:%ld\n" , PW_Start_Address );*/
+    return BAD;
+    
+  }
+
+
+  /* packed size */
+  PW_l = ( (in_data[PW_Start_Address+6]*256*256*256) +
+           (in_data[PW_Start_Address+7]*256*256) +
+           (in_data[PW_Start_Address+8]*256) +
+           in_data[PW_Start_Address+9] );
+
+  PW_l += 284;
+
+
+  if ( PW_i >= 32 )
+  {
+    if ( (in_data[PW_Start_Address-32]  != 0x00 ) ||
+         (in_data[PW_Start_Address-31]  != 0x00 ) ||
+         (in_data[PW_Start_Address-30]  != 0x03 ) ||
+         (in_data[PW_Start_Address-29]  != 0xF3 ) ||
+         (in_data[PW_Start_Address-28]  != 0x00 ) ||
+         (in_data[PW_Start_Address-27]  != 0x00 ) ||
+         (in_data[PW_Start_Address-26]  != 0x00 ) ||
+         (in_data[PW_Start_Address-25]  != 0x00 ) ||
+         (in_data[PW_Start_Address-24]  != 0x00 ) ||
+         (in_data[PW_Start_Address-23]  != 0x00 ) ||
+         (in_data[PW_Start_Address-22]  != 0x00 ) ||
+         (in_data[PW_Start_Address-21]  != 0x01 ) ||
+         (in_data[PW_Start_Address-20]  != 0x00 ) ||
+         (in_data[PW_Start_Address-19]  != 0x00 ) ||
+         (in_data[PW_Start_Address-18]  != 0x00 ) ||
+         (in_data[PW_Start_Address-17]  != 0x00 ) )
+    {
+      Amiga_EXE_Header = BAD;
+    }
+    else
+      Amiga_EXE_Header = GOOD;
+  }
+  else
+    Amiga_EXE_Header = BAD;
+
+  return GOOD;
+  /* PW_l is the size of the pack */
+}
+
 void Rip_ByteKiller ( void )
 {
   /* PW_l is still the whole size */
 
-  Uchar * Amiga_EXE_Header_Block;
-  Uchar * Whatever;
+  uint8_t * Amiga_EXE_Header_Block;
+  uint8_t * Whatever;
 
   OutputSize = PW_l;
 
@@ -321,7 +463,7 @@ void Rip_ByteKiller ( void )
   if ( Amiga_EXE_Header == BAD )
   {
     OutputSize -= 36;
-    Amiga_EXE_Header_Block = (Uchar *) malloc ( 36 );
+    Amiga_EXE_Header_Block = (uint8_t *) malloc ( 36 );
     BZERO ( Amiga_EXE_Header_Block , 36 );
     Amiga_EXE_Header_Block[2]  = Amiga_EXE_Header_Block[30] = 0x03;
     Amiga_EXE_Header_Block[3]  = 0xF3;
@@ -335,7 +477,7 @@ void Rip_ByteKiller ( void )
     /* 68k machines code : c2 = *(Whatever+3); */
     PW_j = PW_l - 60;
     PW_j /= 4;
-    Whatever = (Uchar *) &PW_j;
+    Whatever = (uint8_t *) &PW_j;
     Amiga_EXE_Header_Block[20] = Amiga_EXE_Header_Block[32] = *(Whatever+3);
     Amiga_EXE_Header_Block[21] = Amiga_EXE_Header_Block[33] = *(Whatever+2);
     Amiga_EXE_Header_Block[22] = Amiga_EXE_Header_Block[34] = *(Whatever+1);
@@ -389,8 +531,8 @@ void Rip_ByteKiller30 ( void )
 {
   /* PW_l is still the whole size */
 
-  Uchar * Amiga_EXE_Header_Block;
-  Uchar * Whatever;
+  uint8_t * Amiga_EXE_Header_Block;
+  uint8_t * Whatever;
 
   OutputSize = PW_l;
 
@@ -399,7 +541,7 @@ void Rip_ByteKiller30 ( void )
   if ( Amiga_EXE_Header == BAD )
   {
     OutputSize -= 32;
-    Amiga_EXE_Header_Block = (Uchar *) malloc ( 32 );
+    Amiga_EXE_Header_Block = (uint8_t *) malloc ( 32 );
     BZERO ( Amiga_EXE_Header_Block , 32 );
     Amiga_EXE_Header_Block[2]  = Amiga_EXE_Header_Block[26] = 0x03;
     Amiga_EXE_Header_Block[3]  = 0xF3;
@@ -411,7 +553,7 @@ void Rip_ByteKiller30 ( void )
     /* 68k machines code : c2 = *(Whatever+3); */
     PW_j = PW_l - 36;
     PW_j /= 4;
-    Whatever = (Uchar *) &PW_j;
+    Whatever = (uint8_t *) &PW_j;
     Amiga_EXE_Header_Block[20] = Amiga_EXE_Header_Block[28] = *(Whatever+3);
     Amiga_EXE_Header_Block[21] = Amiga_EXE_Header_Block[29] = *(Whatever+2);
     Amiga_EXE_Header_Block[22] = Amiga_EXE_Header_Block[30] = *(Whatever+1);
@@ -434,8 +576,8 @@ void Rip_bytekillerpro10 ( void )
 {
   /* PW_l is still the whole size */
 
-  Uchar * Amiga_EXE_Header_Block;
-  Uchar * Whatever;
+  uint8_t * Amiga_EXE_Header_Block;
+  uint8_t * Whatever;
 
   OutputSize = PW_l;
 
@@ -444,7 +586,7 @@ void Rip_bytekillerpro10 ( void )
   if ( Amiga_EXE_Header == BAD )
   {
     OutputSize -= 50;
-    Amiga_EXE_Header_Block = (Uchar *) malloc ( 36 );
+    Amiga_EXE_Header_Block = (uint8_t *) malloc ( 36 );
     BZERO ( Amiga_EXE_Header_Block , 36 );
     Amiga_EXE_Header_Block[2]  = Amiga_EXE_Header_Block[30] = 0x03;
     Amiga_EXE_Header_Block[3]  = 0xF3;
@@ -458,7 +600,7 @@ void Rip_bytekillerpro10 ( void )
     /* 68k machines code : c2 = *(Whatever+3); */
     PW_j = PW_l - 60;
     PW_j /= 4;
-    Whatever = (Uchar *) &PW_j;
+    Whatever = (uint8_t *) &PW_j;
     Amiga_EXE_Header_Block[20] = Amiga_EXE_Header_Block[32] = *(Whatever+3);
     Amiga_EXE_Header_Block[21] = Amiga_EXE_Header_Block[33] = *(Whatever+2);
     Amiga_EXE_Header_Block[22] = Amiga_EXE_Header_Block[34] = *(Whatever+1);
@@ -508,3 +650,101 @@ void Rip_bytekillerpro10 ( void )
     PW_i += 54;  /* 51 should do but call it "just to be sure" :) */
 }
 
+
+void Rip_BKCloneFLT ( void )
+{
+  /* PW_l is still the whole size */
+
+  uint8_t * Amiga_EXE_Header_Block;
+  uint8_t * Whatever;
+
+  OutputSize = PW_l;
+
+  CONVERT = BAD;
+
+  if ( Amiga_EXE_Header == BAD )
+  {
+    OutputSize -= 40;
+    Amiga_EXE_Header_Block = (uint8_t *) malloc ( 36 );
+    BZERO ( Amiga_EXE_Header_Block , 36 );
+    Amiga_EXE_Header_Block[2]  = Amiga_EXE_Header_Block[30] = 0x03;
+    Amiga_EXE_Header_Block[3]  = 0xF3;
+    Amiga_EXE_Header_Block[11] = 0x02;
+    Amiga_EXE_Header_Block[19] = 0x01;
+    Amiga_EXE_Header_Block[27] = 0x01;
+    Amiga_EXE_Header_Block[31] = 0xE9;
+
+    /* WARNING !!! WORKS ONLY ON PC !!!       */
+    /* 68k machines code : c1 = *(Whatever+2); */
+    /* 68k machines code : c2 = *(Whatever+3); */
+    PW_j = PW_l - 40;
+    PW_j /= 4;
+    Whatever = (uint8_t *) &PW_j;
+    Amiga_EXE_Header_Block[20] = Amiga_EXE_Header_Block[32] = *(Whatever+3);
+    Amiga_EXE_Header_Block[21] = Amiga_EXE_Header_Block[33] = *(Whatever+2);
+    Amiga_EXE_Header_Block[22] = Amiga_EXE_Header_Block[34] = *(Whatever+1);
+    Amiga_EXE_Header_Block[23] = Amiga_EXE_Header_Block[35] = *Whatever;
+
+    /* also the last 4 bytes could have been 'removed' ... Here they are */
+    /* I know, now, it's not safe method ... */
+    in_data[PW_Start_Address+OutputSize-4]  = 0x00;
+    in_data[PW_Start_Address+OutputSize-3]  = 0x00;
+    in_data[PW_Start_Address+OutputSize-2]  = 0x03;
+    in_data[PW_Start_Address+OutputSize-1]  = 0xF2;
+
+    Save_Rip_Special ( "ByteKiller Clone FLT Exe-file", BKCloneFLT, Amiga_EXE_Header_Block , 36 );
+    free ( Amiga_EXE_Header_Block );
+  }
+  else
+  {
+    PW_Start_Address -= 36;
+    Save_Rip ( "ByteKiller Clone FLT Exe-file", BKCloneFLT );
+  }
+  
+  if ( Save_Status == GOOD )
+    PW_i += 37;
+}
+
+void Rip_BKClone5 ( void )
+{
+  /* PW_l is still the whole size */
+
+  uint8_t * Amiga_EXE_Header_Block;
+  uint8_t * Whatever;
+
+  OutputSize = PW_l + 36; /* + 36 for header/footer sizes */
+
+  CONVERT = BAD;
+
+  if ( Amiga_EXE_Header == BAD )
+  {
+    OutputSize -= 32;
+    Amiga_EXE_Header_Block = (uint8_t *) malloc ( 32 );
+    BZERO ( Amiga_EXE_Header_Block , 32 );
+    Amiga_EXE_Header_Block[2]  = Amiga_EXE_Header_Block[26] = 0x03;
+    Amiga_EXE_Header_Block[3]  = 0xF3;
+    Amiga_EXE_Header_Block[11] = 0x01;
+    Amiga_EXE_Header_Block[27] = 0xE9;
+
+    /* WARNING !!! WORKS ONLY ON PC !!!       */
+    /* 68k machines code : c1 = *(Whatever+2); */
+    /* 68k machines code : c2 = *(Whatever+3); */
+    PW_j = PW_l - 36;
+    PW_j /= 4;
+    Whatever = (uint8_t *) &PW_j;
+    Amiga_EXE_Header_Block[20] = Amiga_EXE_Header_Block[28] = *(Whatever+3);
+    Amiga_EXE_Header_Block[21] = Amiga_EXE_Header_Block[29] = *(Whatever+2);
+    Amiga_EXE_Header_Block[22] = Amiga_EXE_Header_Block[30] = *(Whatever+1);
+    Amiga_EXE_Header_Block[23] = Amiga_EXE_Header_Block[31] = *Whatever;
+    Save_Rip_Special ( "Unknown ByteKiller Clone 5 Exe-file", BKClone5,  Amiga_EXE_Header_Block , 32 );
+    free ( Amiga_EXE_Header_Block );
+  }
+  else
+  {
+    PW_Start_Address -= 32;
+    Save_Rip ( "Unknown ByteKiller Clone 5 Exe-file", BKClone5 );
+  }
+  
+  if ( Save_Status == GOOD )
+    PW_i += 36;  /* 32 should do but call it "just to be sure" :) */
+}

@@ -5,7 +5,7 @@
 #include "extern.h"
 
 
-short testDoubleAction10 ( void )
+int16_t	 testDoubleAction10 ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -74,7 +74,7 @@ void Rip_DoubleAction10 ( void )
 {
   /* PW_l is still the whole size */
 
-/*  Uchar * Amiga_EXE_Header_Block;*/
+/*  uint8_t * Amiga_EXE_Header_Block;*/
 
   OutputSize = PW_l;
 
@@ -82,7 +82,7 @@ void Rip_DoubleAction10 ( void )
   if ( Amiga_EXE_Header == BAD )
   {
 /*     OutputSize -= 24; */
-/*     Amiga_EXE_Header_Block = (Uchar *) malloc ( 24 ); */
+/*     Amiga_EXE_Header_Block = (uint8_t *) malloc ( 24 ); */
 /*     BZERO ( Amiga_EXE_Header_Block , 24 ); */
 /*     Amiga_EXE_Header_Block[2]  = 0x03; */
 /*     Amiga_EXE_Header_Block[3]  = 0xF3; */
@@ -94,7 +94,7 @@ void Rip_DoubleAction10 ( void )
 
 /*     Save_Rip_Special ( "Double Action 1.0 Exe-file", Double_Action, Amiga_EXE_Header_Block , 24 ); */
 /*     free ( Amiga_EXE_Header_Block ); */
-    printf ("Double Action 1.0 Exe-file without header detected at %ld. Can't rebuild it, sorry\n", PW_Start_Address);
+    printf ("Double Action 1.0 Exe-file without header detected at %d. Can't rebuild it, sorry\n", PW_Start_Address);
   }
   else
   {

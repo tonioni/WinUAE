@@ -7,7 +7,7 @@
 #include "extern.h"
 
 
-short testTheDarkDemon ( void )
+int16_t	 testTheDarkDemon ( void )
 {
   /* test #1 */
   if ( PW_i < 137 )
@@ -42,6 +42,13 @@ short testTheDarkDemon ( void )
           + in_data[PW_Start_Address+PW_j*14+141];
     /* loop size (replen) */
     PW_n = (((in_data[PW_Start_Address+PW_j*14+142]*256)+in_data[PW_Start_Address+PW_j*14+143])*2);
+
+    /* volume > 40h ? */
+    if ( in_data[PW_Start_Address+PW_j*14+136] > 0x0F )
+    {
+/*printf ( "#2,finetune (start:%ld)\n" , PW_Start_Address );*/
+      return BAD;
+    }
 
     /* volume > 40h ? */
     if ( in_data[PW_Start_Address+PW_j*14+137] > 0x40 )
@@ -217,16 +224,16 @@ void Rip_TheDarkDemon ( void )
 
 void Depack_TheDarkDemon ( void )
 {
-  Uchar c1=0x00,c2=0x00,c3=0x00;
-  Uchar poss[37][2];
-  Uchar *Whatever;
-  Uchar Pattern[1024];
-  Uchar PatMax=0x00;
-  long i=0,j=0,k=0,z;
-  long Whole_Sample_Size=0;
-  long SampleAddresses[31];
-  long SampleSizes[31];
-  long Where = PW_Start_Address;
+  uint8_t c1=0x00,c2=0x00,c3=0x00;
+  uint8_t poss[37][2];
+  uint8_t *Whatever;
+  uint8_t Pattern[1024];
+  uint8_t PatMax=0x00;
+  int32_t	 i=0,j=0,k=0,z;
+  int32_t	 Whole_Sample_Size=0;
+  int32_t	 SampleAddresses[31];
+  int32_t	 SampleSizes[31];
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -237,11 +244,11 @@ void Depack_TheDarkDemon ( void )
   BZERO ( SampleAddresses , 31*4 );
   BZERO ( SampleSizes , 31*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* write ptk header */
-  Whatever = (Uchar *) malloc ( 1080 );
+  Whatever = (uint8_t *) malloc ( 1080 );
   BZERO (Whatever , 1080);
   fwrite ( Whatever , 1080 , 1 , out );
 
@@ -289,8 +296,8 @@ void Depack_TheDarkDemon ( void )
     j /= 2;
     /* use of htonl() suggested by Xigh !.*/
     z = htonl(j);
-    c1 = *((Uchar *)&z+2);
-    c2 = *((Uchar *)&z+3);
+    c1 = *((uint8_t *)&z+2);
+    c2 = *((uint8_t *)&z+3);
 
     /* write loop start */
     fwrite ( &c1 , 1 , 1 , out );

@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testPMZ ( void )
+int16_t	 testPMZ ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -17,10 +17,10 @@ short testPMZ ( void )
   }
 
   /* test 2 */
-  if ( in_data[PW_Start_Address + 21] != 0xd2 )
+/*  if ( in_data[PW_Start_Address + 21] != 0xd2 )
   {
     return BAD;
-  }
+  }*/
 
   /* test 3 */
   PW_j = (in_data[PW_Start_Address+4456]*256*256*256)+(in_data[PW_Start_Address+4457]*256*256)+(in_data[PW_Start_Address+4458]*256)+in_data[PW_Start_Address+4459];
@@ -81,7 +81,7 @@ void Rip_PM18a ( void )
  *
  * update 20 mar 2003 (it's war time again .. brrrr)
  * - removed all open() funcs.
- * - optimized more than quite a bit (src is 5kb shorter !)
+ * - optimized more than quite a bit (src is 5kb int16_t	er !)
  *
  * update 07 jan 2010
  * - bug fix in patternlist generation
@@ -92,28 +92,28 @@ void Rip_PM18a ( void )
 
 void Depack_PM18a ( void )
 {
-  Uchar c1=0x00,c2=0x00;
-  short Ref_Max=0;
-  long Pats_Address[128];
-  long Read_Pats_Address[128];
-  Uchar NOP=0x00; /* number of pattern */
-  Uchar *ReferenceTable;
-  Uchar *Pattern;
-  long i=0,j=0,k=0,l=0,m=0;
-  long Total_Sample_Size=0;
-  long PatDataSize=0l;
-  long SDAV=0l;
-  Uchar FLAG=OFF;
-  Uchar Smp_Fine_Table[31];
-  Uchar poss[37][2];
-  Uchar OldSmpValue[4];
-  short Period;
-  Uchar *Whatever;
-  long Where = PW_Start_Address;
-  Uchar *WholePatternData;
+  uint8_t c1=0x00,c2=0x00;
+  int16_t	 Ref_Max=0;
+  int32_t	 Pats_Address[128];
+  int32_t	 Read_Pats_Address[128];
+  uint8_t NOP=0x00; /* number of pattern */
+  uint8_t *ReferenceTable;
+  uint8_t *Pattern;
+  int32_t	 i=0,j=0,k=0,l=0,m=0;
+  int32_t	 Total_Sample_Size=0;
+  int32_t	 PatDataSize=0l;
+  int32_t	 SDAV=0l;
+  uint8_t FLAG=OFF;
+  uint8_t Smp_Fine_Table[31];
+  uint8_t poss[37][2];
+  uint8_t OldSmpValue[4];
+  int16_t	 Period;
+  uint8_t *Whatever;
+  int32_t	 Where = PW_Start_Address;
+  uint8_t *WholePatternData;
   FILE *out;
-  /*FILE *info;*/
-  /*info = fopen ("info.txt","w+b");*/
+  /*FILE *info;
+  info = fopen ("info.txt","w+b");*/
 
   #include "tuning.h"
   fillPTKtable(poss);
@@ -121,14 +121,14 @@ void Depack_PM18a ( void )
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   BZERO ( Smp_Fine_Table , 31 );
   BZERO ( OldSmpValue , 4 );
   BZERO ( Pats_Address , 128*4 );
 
-  Whatever = (Uchar *) malloc (1085);
+  Whatever = (uint8_t *) malloc (1085);
   BZERO (Whatever, 1085);
   /* title */
   /*fwrite ( &Whatever[0] , 20 , 1 , out );*/
@@ -161,7 +161,7 @@ void Depack_PM18a ( void )
   Whatever[950] = NOP;
   Where += 2;
 
-  /*printf ( "Number of patterns : %d\n" , NOP );*/
+  /*printf ( "\nNumber of patterns : %d\n" , NOP );*/
 
   /* NoiseTracker restart byte */
   /*Whatever[0] = 0x7f;*/
@@ -177,17 +177,22 @@ void Depack_PM18a ( void )
     Where += 4;
   }
 
-
   /* a little pre-calc code ... no other way to deal with these unknown pattern data sizes ! :( */
   Where = PW_Start_Address + 4460;
   PatDataSize = (in_data[Where]*256*256*256)+
                 (in_data[Where+1]*256*256)+
                 (in_data[Where+2]*256)+
                 in_data[Where+3];
+
   /* go back to pattern data starting address */
   Where = PW_Start_Address + 5226;
   /* now, reading all pattern data to get the max value of note */
-  WholePatternData = (Uchar *) malloc (PatDataSize+1);
+  if (!(WholePatternData = (uint8_t *) malloc (PatDataSize+1)))
+  {
+    /*printf ("can't allocate %ld bytes\n",PatDataSize+1);*/
+    return;
+  }
+/*printf ("Where : %ld (PatDataSize:%ld)\n",Where,PatDataSize);*/
   BZERO (WholePatternData, PatDataSize+1);
   for ( j=0 ; j<PatDataSize ; j+=2 )
   {
@@ -197,19 +202,30 @@ void Depack_PM18a ( void )
       Ref_Max = ((WholePatternData[j]*256)+WholePatternData[j+1]);
   }
   Where += PatDataSize;
+/*printf ("Where : %ld (Ref_Max:%ld)\n",Where,Ref_Max);*/
 
   /* read "reference Table" */
   Ref_Max += 1;  /* coz 1st value is 0 ! */
-  i = Ref_Max * 4; /* coz each block is 4 bytes long */
-  ReferenceTable = (Uchar *) malloc ( i );
+  i = Ref_Max * 4; /* coz each block is 4 bytes int32_t	 */
+  if (!(ReferenceTable = (uint8_t *) malloc ( i+1 )))
+  {
+    /*printf ("can't allocate %ld bytes\n",i+1);*/
+    return;
+  }
+  
   BZERO ( ReferenceTable, i+1 );
   for ( j=0 ; j<i ; j++) ReferenceTable[j] = in_data[Where+j];
 
 
   c1=0; /* will count patterns */
   k=0; /* current note number */
-  Pattern = (Uchar *) malloc (65536);
-  BZERO (Pattern, 65536);
+  if (!(Pattern = (uint8_t *) malloc (64*1024)))
+  {
+    /*printf ("can't allocate 65536 bytes\n");*/
+    return;
+  }
+  /*BZERO (Pattern, 65536);*/
+  for (i=0;i<65536;i++) Pattern[i] = 0x00;
   i=0;
   for ( j=0 ; j<PatDataSize ; j+=2 )
   {
@@ -217,6 +233,7 @@ void Depack_PM18a ( void )
     {
       Read_Pats_Address[c1] = j;
       /*fprintf ( info, " -> new pattern %2d (addy :%ld)\n", c1, j+5226 );*/
+      fflush (stdout);
       c1 += 0x01;
     }
 
@@ -226,7 +243,7 @@ void Depack_PM18a ( void )
     Pattern[i+2] = ReferenceTable[m+2];
     Pattern[i+3] = ReferenceTable[m+3];
 
-    /*fprintf ( info, "[%4x][%3ld][%ld]: %2x %2x %2x %2x", j,i,k%4,Pattern[i],Pattern[i+1],Pattern[i+2],Pattern[i+3]);*/
+    /*printf ( "[%4x][%3ld][%ld]: %2x %2x %2x %2x", j,i,k%4,Pattern[i],Pattern[i+1],Pattern[i+2],Pattern[i+3]);*/
 
     c2 = ((Pattern[i+2]>>4)&0x0f) | (Pattern[i]&0xf0);
     if ( c2 != 0x00 )
@@ -272,7 +289,7 @@ void Depack_PM18a ( void )
   for ( c2=0; c2<128 ; c2+=0x01 )
     for ( i=0 ; i<c1 ; i++ )
       if ( Pats_Address[c2] == Read_Pats_Address[i])
-	    Whatever[952+c2] = (Uchar) i;
+	    Whatever[952+c2] = (uint8_t) i;
   while ( NOP<128 )
   {
     Whatever[952+NOP] = 0x00;

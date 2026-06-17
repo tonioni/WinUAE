@@ -9,7 +9,7 @@
 #include "globals.h"
 #include "extern.h"
 
-short testKRIS ( void )
+int16_t	 testKRIS ( void )
 {
   /* test 1 */
   if ( (PW_i<952) || ((PW_Start_Address+977)>PW_in_size) )
@@ -41,6 +41,8 @@ short testKRIS ( void )
 /*
  * Update: 20/12/2000
  *  - debug .. correct size calculated now.
+ * Update: 01/09/2010
+ *  - debug .. pattern data size scan only on patternlist size
 */
 void Rip_KRIS ( void )
 {
@@ -52,7 +54,9 @@ void Rip_KRIS ( void )
   /*printf ("\nKRIS:smpsiz:%ld\n", PW_WholeSampleSize);*/
   PW_l = 0;
   /*printf ("KRIS:");*/
-  for ( PW_k=0 ; PW_k<512 ; PW_k++ )
+  
+  /* 20100901 : 128 replaced by patternlist size */
+  for ( PW_k=0 ; PW_k<(in_data[PW_Start_Address+956]*4) ; PW_k++ )
   {
     /*printf ( "%2x-%2x ",in_data[PW_Start_Address+958+PW_k*2],in_data[PW_Start_Address+959+PW_k*2]);*/
     if ( (in_data[PW_Start_Address+958+PW_k*2]*256)+in_data[PW_Start_Address+959+PW_k*2] > PW_l )
@@ -66,7 +70,7 @@ void Rip_KRIS ( void )
   Save_Rip ( "KRIS Tracker module", KRIS_tracker );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 954);  /* 953 should do but call it "just to be sure" :) */
+    PW_i += 954;  /* 953 should do but call it "just to be sure" :) */
 }
 
 
@@ -88,26 +92,28 @@ void Rip_KRIS ( void )
 
 void Depack_KRIS ( void )
 {
-  Uchar *Whatever;
-  Uchar c1=0x00,c2=0x00;
-  Uchar poss[37][2];
-  Uchar Max=0x00;
-  Uchar Note,Smp,Fx,FxVal;
-  Uchar TrackData[512][256];
-  Uchar PatternTableSize=0x00;
-  Uchar PatternTable[128];
-  short TrackAddressTable[128][4];
-  long i=0,j=0,k=0;
-  long WholeSampleSize=0;
-  long Where = PW_Start_Address;
-  short MaxTrackAddress=0;
-  FILE *out; /*,*debug;*/
+  uint8_t *Whatever;
+  uint8_t c1=0x00,c2=0x00;
+  uint8_t poss[37][2];
+  uint8_t Max=0x00;
+  uint8_t Note,Smp,Fx,FxVal;
+  uint8_t TrackData[512][256];
+  uint8_t PatternTableSize=0x00;
+  uint8_t PatternTable[128];
+  int16_t	 TrackAddressTable[128][4];
+  int32_t	 i=0,j=0,k=0;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 Where = PW_Start_Address;
+  int16_t	 MaxTrackAddress=0;
+  FILE *out;
+  /*FILE *debug;*/
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
+  /*debug = fopen ( "debug.txt" , "w+b" );*/
 
   fillPTKtable(poss);
 
@@ -115,14 +121,13 @@ void Depack_KRIS ( void )
   BZERO ( TrackData , 512*256 );
   BZERO ( PatternTable , 128 );
 
-/*  debug = fopen ( "debug" , "w+b" );*/
 
   /* title */
   fwrite ( &in_data[Where] , 20 , 1 , out );
   Where += 22;  /* 20 + 2 */
 
   /* 31 samples */
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO (Whatever , 1024);
   for ( i=0 ; i<31 ; i++ )
   {
@@ -165,7 +170,7 @@ void Depack_KRIS ( void )
   /* pattern table (read,count and write) */
   c1 = 0x00;
   k=0;
-  for ( i=0 ; i<128 ; i++ , k++ )
+  for ( i=0 ; i<PatternTableSize ; i++ , k++ )
   {
 /*fprintf ( debug , "%-2ld" , i );*/
     for ( j=0 ; j<4 ; j++ )
@@ -209,6 +214,12 @@ void Depack_KRIS ( void )
   }
 
   Max = c1;
+  c1 = 0x00;
+  while (i++<128)
+  {
+    fwrite (&c1,1,1,out);
+    Where += 8;
+  }
   /*printf ( "Number of patterns : %d\n" , Max );*/
 
   /* ptk ID */
@@ -228,6 +239,7 @@ void Depack_KRIS ( void )
     for ( j=0 ; j<256 ; j++ )
       Whatever[j] = in_data[Where+j];
     Where += 256;
+    /*printf ("[track %ld] (%ld)\n",i,Where);*/
 
     for ( j=0 ; j<64 ; j++ )
     {
@@ -289,7 +301,7 @@ void Depack_KRIS ( void )
 
   fflush ( out );
   fclose ( out );
-/*  fclose ( debug );*/
+  /*fclose ( debug );*/
 
   printf ( "done\n" );
   return; /* useless ... but */

@@ -8,7 +8,7 @@
 #include "extern.h"
 
 
-short testP61A_nopack ( void )
+int16_t	 testP61A_nopack ( void )
 {
   if ( PW_i < 7 )
   {
@@ -267,7 +267,7 @@ short testP61A_nopack ( void )
 /******************/
 /* packed samples */
 /******************/
-short testP61A_pack ( void )
+int16_t	 testP61A_pack ( void )
 {
   if ( PW_i < 11 )
   {
@@ -570,29 +570,29 @@ void Rip_P61A ( void )
 
 void Depack_P61A ( void )
 {
-  Uchar c1,c2,c3,c4,c5,c6;
-  long Max;
-  Uchar *Whatever;
+  uint8_t c1,c2,c3,c4,c5,c6;
+  int32_t	 Max;
+  uint8_t *Whatever;
   signed char *SmpDataWork;
-  Uchar PatPos = 0x00;
-  Uchar PatMax = 0x00;
-  Uchar Nbr_Sample = 0x00;
-  Uchar poss[37][2];
-  Uchar Track_Data[512][256];
-  Uchar SmpSizes[31][2];
-  Uchar PACK[31];
-/*  Uchar DELTA[31];*/
-  Uchar GLOBAL_DELTA=OFF;
-  Uchar GLOBAL_PACK=OFF;
-  long Track_Address[128][4];
-  long Track_Data_Address = 0;
-  long Sample_Data_Address = 0;
-  long WholeSampleSize = 0;
-  long i=0,j,k,l,a,b,z,w;
-  long SampleSizes[31];
-  long SampleAddresses[32];
-  long Unpacked_Sample_Data_Size;
-  long Where=PW_Start_Address;
+  uint8_t PatPos = 0x00;
+  uint8_t PatMax = 0x00;
+  uint8_t Nbr_Sample = 0x00;
+  uint8_t poss[37][2];
+  uint8_t Track_Data[512][256];
+  uint8_t SmpSizes[31][2];
+  uint8_t PACK[31];
+/*  uint8_t DELTA[31];*/
+  uint8_t GLOBAL_DELTA=OFF;
+  uint8_t GLOBAL_PACK=OFF;
+  int32_t	 Track_Address[128][4];
+  int32_t	 Track_Data_Address = 0;
+  int32_t	 Sample_Data_Address = 0;
+  int32_t	 WholeSampleSize = 0;
+  int32_t	 i=0,j,k,l,a,b,z,w;
+  int32_t	 SampleSizes[31];
+  int32_t	 SampleAddresses[32];
+  int32_t	 Unpacked_Sample_Data_Size;
+  int32_t	 Where=PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -611,7 +611,7 @@ void Depack_P61A ( void )
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* read sample data address */
@@ -648,7 +648,7 @@ void Depack_P61A ( void )
   }
 
   /* write title */
-  Whatever = (Uchar *) malloc ( 1024 );
+  Whatever = (uint8_t *) malloc ( 1024 );
   BZERO ( Whatever , 1024 );
   fwrite ( Whatever , 20 , 1 , out );
 
@@ -706,8 +706,8 @@ void Depack_P61A ( void )
 
     /* use of htonl() suggested by Xigh !.*/
     w = htonl(l);
-    c1 = *((Uchar *)&w+2);
-    c2 = *((Uchar *)&w+3);
+    c1 = *((uint8_t *)&w+2);
+    c2 = *((uint8_t *)&w+3);
     fwrite ( &c1 , 1 , 1 , out );
     fwrite ( &c2 , 1 , 1 , out );
 

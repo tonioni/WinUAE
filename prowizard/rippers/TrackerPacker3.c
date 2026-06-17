@@ -7,7 +7,7 @@
 #include "extern.h"
 
 
-short testTP3 ( void )
+int16_t	 testTP3 ( void )
 {
 
   PW_Start_Address = PW_i;
@@ -28,7 +28,7 @@ short testTP3 ( void )
   {
     if ( in_data[PW_Start_Address+30+PW_k*8] > 0x0f )
     {
-/*printf ( "#3 Start: %ld\n" , PW_Start_Address );*/
+/*printf ( "#3 Start: %ld (PW_l:%ld) (Where:%ld)\n" , PW_Start_Address,PW_l,PW_Start_Address+30+PW_k*8 );*/
       return BAD;
     }
   }
@@ -189,17 +189,17 @@ void Rip_TP3 ( void )
 
 void Depack_TP3 ( void )
 {
-  Uchar c1=0x00,c2=0x00,c3=0x00;
-  Uchar poss[37][2];
-  Uchar *Whatever;
-  Uchar Note,Smp,Fx,FxVal;
-  Uchar PatMax=0x00;
-  long Track_Address[128][4];
-  long i=0,j=0,k;
-  long Start_Pat_Address=999999l;
-  long Whole_Sample_Size=0;
-  long Max_Track_Address=0;
-  long Where=PW_Start_Address;   /* main pointer to prevent fread() */
+  uint8_t c1=0x00,c2=0x00,c3=0x00;
+  uint8_t poss[37][2];
+  uint8_t *Whatever;
+  uint8_t Note,Smp,Fx,FxVal;
+  uint8_t PatMax=0x00;
+  int32_t	 Track_Address[128][4];
+  int32_t	 i=0,j=0,k;
+  int32_t	 Start_Pat_Address=999999l;
+  int32_t	 Whole_Sample_Size=0;
+  int32_t	 Max_Track_Address=0;
+  int32_t	 Where=PW_Start_Address;   /* main pointer to prevent fread() */
   FILE *out;
 
   fillPTKtable(poss);
@@ -209,7 +209,7 @@ void Depack_TP3 ( void )
 
   BZERO ( Track_Address , 128*4*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* title */
@@ -223,7 +223,7 @@ void Depack_TP3 ( void )
   j /= 8;
   /*printf ( "number of sample : %ld\n" , j );*/
 
-  Whatever = (Uchar *) malloc ( 1024 );
+  Whatever = (uint8_t *) malloc ( 1024 );
   BZERO ( Whatever , 1024 );
   for ( i=0 ; i<j ; i++ )
   {

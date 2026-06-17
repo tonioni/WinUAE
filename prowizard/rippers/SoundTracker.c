@@ -5,7 +5,10 @@
 #include "globals.h"
 #include "extern.h"
 
-short testSoundTracker ( void )
+/*
+ * 20100902: removed *2 for loop size and loop start. was too restrictive in some case.
+*/
+int16_t	 testSoundTracker ( void )
 {
   /* test 1 */
   /* start of stk before start of file ? */
@@ -24,9 +27,9 @@ short testSoundTracker ( void )
     /* size */
     PW_j = (((in_data[PW_Start_Address+42+PW_k*30]*256)+in_data[PW_Start_Address+43+PW_k*30])*2);
     /* loop start */
-    PW_m = (((in_data[PW_Start_Address+46+PW_k*30]*256)+in_data[PW_Start_Address+47+PW_k*30])*2);
+    PW_m = (((in_data[PW_Start_Address+46+PW_k*30]*256)+in_data[PW_Start_Address+47+PW_k*30]));
     /* loop size */
-    PW_n = (((in_data[PW_Start_Address+48+PW_k*30]*256)+in_data[PW_Start_Address+49+PW_k*30])*2);
+    PW_n = (((in_data[PW_Start_Address+48+PW_k*30]*256)+in_data[PW_Start_Address+49+PW_k*30]));
     /* all sample sizes */
     PW_WholeSampleSize += PW_j;
 
@@ -44,7 +47,7 @@ short testSoundTracker ( void )
       return BAD;
     }
     /* loop start > size ? */
-    if ( PW_m > PW_j )
+    if ( (PW_m >= PW_j) && (PW_j > 0) )
     {
 /*printf ( "#2,0 (Start:%ld) (smp:%ld) (size:%ld) (lstart:%ld)\n"
          , PW_Start_Address , PW_k+1 , PW_j , PW_m );*/
@@ -94,8 +97,9 @@ short testSoundTracker ( void )
     return BAD;
   }
   /* PW_l holds the size of the pattern list */
+  /* but let's ignore it as some STK have some pattern after the official size */
   PW_k=0;
-  for ( PW_j=0 ; PW_j<PW_l ; PW_j++ )
+  for ( PW_j=0 ; PW_j<128 ; PW_j++ )
   {
     if ( in_data[PW_Start_Address+472+PW_j] > PW_k )
       PW_k = in_data[PW_Start_Address+472+PW_j];
@@ -106,17 +110,6 @@ short testSoundTracker ( void )
     }
   }
   /* PW_k holds the highest pattern number */
-  /* test last patterns of the pattern list = 0 ? */
-  PW_j += 2; /* found some obscure stk :( */
-  while ( PW_j != 128 )
-  {
-    if ( in_data[PW_Start_Address+472+PW_j] != 0 )
-    {
-/*printf ( "#4,2 (Start:%ld) (PW_j:%ld) (at:%ld)\n" , PW_Start_Address,PW_j ,PW_Start_Address+472+PW_j );*/
-      return BAD;
-    }
-    PW_j += 1;
-  }
   /* PW_k is the number of pattern in the file (-1) */
   PW_k += 1;
 
@@ -129,16 +122,27 @@ short testSoundTracker ( void )
   }
   for ( PW_j=0 ; PW_j<(PW_k*256) ; PW_j++ )
   {
-    /* sample > 1f   or   pitch > 358 ? */
-    if ( in_data[PW_Start_Address+600+PW_j*4] > 0x13 )
+    /* sample > 1f ? */
+    if ( (in_data[PW_Start_Address+600+PW_j*4]&0xf0) > 0x10 )
     {
 /*printf ( "#5.1 (Start:%ld)\n" , PW_Start_Address );*/
+      return BAD;
+    }
+    if ( (in_data[PW_Start_Address+600+PW_j*4]&0x0f) > 0x03 )
+    {
+/*printf ( "#5.1,0 (Start:%ld)\n" , PW_Start_Address );*/
       return BAD;
     }
     PW_l = ((in_data[PW_Start_Address+600+PW_j*4]&0x0f)*256)+in_data[PW_Start_Address+601+PW_j*4];
     if ( (PW_l>0) && (PW_l<0x71) )
     {
 /*printf ( "#5,2 (Start:%ld)\n" , PW_Start_Address );*/
+      return BAD;
+    }
+    /*20120930 - additional test - there's a note but no sample ref */
+    if ( ((in_data[PW_Start_Address+600+PW_j*4]>0) || (in_data[PW_Start_Address+601+PW_j*4]>0)) && ((in_data[PW_Start_Address+602+PW_j*4]&0xf0)==0) )
+    {
+/*printf ( "#5.5 (Start:%ld)\n" , PW_Start_Address );*/
       return BAD;
     }
   }

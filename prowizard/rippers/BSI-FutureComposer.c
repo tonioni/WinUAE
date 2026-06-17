@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "extern.h"
 
-short testBSIFutureComposer ( void )
+int16_t	 testBSIFutureComposer ( void )
 {
   PW_Start_Address = PW_i;
 

@@ -5,7 +5,7 @@
 #include "globals.h"
 #include "extern.h"
 
-short testNoisepacker3 ( void )
+int16_t	 testNoisepacker3 ( void )
 {
   if ( PW_i < 9 )
   {
@@ -210,30 +210,33 @@ void Rip_Noisepacker3 ( void )
 */
 void Depack_Noisepacker3 ( void )
 {
-  Uchar *Whatever;
-  Uchar c1=0x00,c2=0x00,c3=0x00,c4=0x00;
-  Uchar Nbr_Pos;
-  Uchar Nbr_Smp;
-  Uchar poss[36][2];
-  Uchar Pat_Max=0x00;
-  long Where=PW_Start_Address;
-  long WholeSampleSize=0;
-  long TrackDataSize;
-  long Track_Addresses[128][4];
-  long Unknown1;
-  long i=0,j=0,k;
-  long Track_Data_Start_Address;
-  long SampleDataAddress=0;
+  uint8_t *Whatever;
+  uint8_t c1=0x00,c2=0x00,c3=0x00,c4=0x00;
+  uint8_t Nbr_Pos;
+  uint8_t Nbr_Smp;
+  uint8_t poss[37][2];
+  uint8_t Pat_Max=0x00;
+  int32_t	 Where=PW_Start_Address;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 TrackDataSize;
+  int32_t	 Track_Addresses[128][4];
+  int32_t	 Unknown1;
+  int32_t	 i=0,j=0,k;
+  int32_t	 Track_Data_Start_Address;
+  int32_t	 SampleDataAddress=0;
   FILE *out;
+/*  FILE *DEBUG;*/
 
   if ( Save_Status == BAD )
     return;
+
+/*  DEBUG = fopen ("debug.txt","w+b");*/
 
   fillPTKtable(poss);
 
   BZERO ( Track_Addresses , 128*4*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* read number of sample */
@@ -241,7 +244,7 @@ void Depack_Noisepacker3 ( void )
   /*printf ( "\nNumber of sample : %d (%x)\n" , Nbr_Smp , Nbr_Smp );*/
 
   /* write title */
-  Whatever = (Uchar *) malloc ( 1084 );
+  Whatever = (uint8_t *) malloc ( 1084 );
   BZERO ( Whatever , 1084 );
   /*fwrite ( Whatever , 20 , 1 , out );*/
 
@@ -335,6 +338,7 @@ void Depack_Noisepacker3 ( void )
   /* the track data now ... */
   for ( i=0 ; i<Pat_Max ; i++ )
   {
+/*fprintf (DEBUG,"\ni:%d\n",i);*/
     BZERO ( Whatever , 1084 );
     for ( j=0 ; j<4 ; j++ )
     {
@@ -352,10 +356,14 @@ void Depack_Noisepacker3 ( void )
         Where += 1;
         c3 = in_data[Where];
         Where += 1;
+/*fprintf (DEBUG,"[%2d][%2d](@%d) %2x-%2x-%2x - ",j,k,Where,c1,c2,c3);*/
 
         Whatever[k*16+j*4]   = (c1<<4)&0x10;
         c4 = (c1 & 0xFE)/2;
+/*fprintf (DEBUG,"(%2x) - \n",c4);*/
+/*fprintf (DEBUG,"= %2x -> ",Whatever[k*16+j*4]);*/
         Whatever[k*16+j*4] |= poss[c4][0];
+/*fprintf (DEBUG,"%2x (note:%2x)\n",Whatever[k*16+j*4],poss[c4][0]);*/
         Whatever[k*16+j*4+1] = poss[c4][1];
         if ( (c2&0x0f) == 0x08 )
           c2 &= 0xf0;
@@ -392,6 +400,7 @@ void Depack_Noisepacker3 ( void )
         }
         Whatever[k*16+j*4+2] = c2;
         Whatever[k*16+j*4+3] = c3;
+/*fprintf (DEBUG,"%2x-%2x-%2x\n",Whatever[k*16+j*4+1], Whatever[k*16+j*4+2], Whatever[k*16+j*4+3]);*/
         if ( (c2&0x0f) == 0x0D )
           k = 100; /* to leave the loop */
       }
@@ -411,6 +420,7 @@ void Depack_Noisepacker3 ( void )
 
   Crap ( "  NoisePacker v3  " , BAD , BAD , out );
 
+/*  fclose (DEBUG);*/
   fclose ( out );
 
   printf ( "done\n" );

@@ -12,7 +12,7 @@
 #include "extern.h"
 
 
-short testDI ( void )
+int16_t	 testDI ( void )
 {
   /* test #1 */
   if ( PW_i < 17 )
@@ -165,25 +165,26 @@ void Rip_DI ( void )
  *   - removed open() (and other fread()s and the like)
  *   - general Speed & Size Optmizings
  * 20051002 : testing fopen()
+ * 20100119 : cleaned up a bit - header is one fwrite.
 */
 void Depack_DI ( void )
 {
-  Uchar Note,Smp,Fx,FxVal;
-  Uchar poss[37][2];
-  Uchar *Whatever;
-  long i=0,k=0;
-  Ushort Pattern_Addresses_Table[128];
-  long Add_Pattern_Table=0;
-  long Add_Pattern_Data=0;
-  long Add_Sample_Data=0;
-  long Total_Sample_Size=0;
-  long Where = PW_Start_Address;
+  uint8_t Note,Smp,Fx,FxVal;
+  uint8_t poss[37][2];
+  uint8_t *Whatever, c1;
+  int32_t	 i=0,k=0;
+  uint16_t	 Pattern_Addresses_Table[128];
+  int32_t	 Add_Pattern_Table=0;
+  int32_t	 Add_Pattern_Data=0;
+  int32_t	 Add_Sample_Data=0;
+  int32_t	 Total_Sample_Size=0;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   fillPTKtable(poss);
@@ -191,9 +192,8 @@ void Depack_DI ( void )
   BZERO ( Pattern_Addresses_Table , 128*2 );
 
   /* title */
-  Whatever = (Uchar *) malloc (1024);
-  BZERO ( Whatever , 1024 );
-  fwrite ( Whatever , 20 , 1 , out );
+  Whatever = (uint8_t *) malloc (1085);
+  BZERO ( Whatever , 1085 );
 
   k = (in_data[Where]*256)+in_data[Where+1];
   Where += 2;
@@ -203,78 +203,72 @@ void Depack_DI ( void )
                       (in_data[Where+2]*256)+
                        in_data[Where+3];
   Where += 4;
-  /*printf ( "Pattern table address : %ld\n" , Add_Pattern_Table );*/
+  /*printf ( "Pattern table address : %d\n" , Add_Pattern_Table );*/
 
   Add_Pattern_Data = (in_data[Where+1]*256*256)+
                      (in_data[Where+2]*256)+
                       in_data[Where+3];
   Where += 4;
-  /*printf ( "Pattern data address : %ld\n" , Add_Pattern_Data );*/
+  printf ( "Pattern data address : %d\n" , Add_Pattern_Data );
 
   Add_Sample_Data = (in_data[Where+1]*256*256)+
                     (in_data[Where+2]*256)+
                      in_data[Where+3];
   Where += 4;
-  /*printf ( "Sample data address : %ld\n" , Add_Sample_Data );*/
+  printf ( "Sample data address : %d\n" , Add_Sample_Data );
 
 
   for ( i=0 ; i<k ; i++ )
   {
-    fwrite ( Whatever , 22 , 1 , out );
-
     Total_Sample_Size += (((in_data[Where]*256)+in_data[Where+1])*2);
-    fwrite ( &in_data[Where] , 8 , 1 , out );
+    Whatever[i*30 + 42] = in_data[Where];
+    Whatever[i*30 + 43] = in_data[Where+1];
+    Whatever[i*30 + 44] = in_data[Where+2];
+    Whatever[i*30 + 45] = in_data[Where+3];
+    Whatever[i*30 + 46] = in_data[Where+4];
+    Whatever[i*30 + 47] = in_data[Where+5];
+    Whatever[i*30 + 48] = in_data[Where+6];
+    Whatever[i*30 + 49] = in_data[Where+7];
     Where += 8;
   }
-  /*printf ( "Whole sample size : %ld\n" , Total_Sample_Size );*/
+  /*printf ( "Whole sample size : %d\n" , Total_Sample_Size );*/
 
-  Whatever[29] = 0x01;
   for ( i=k ; i<31 ; i++ )
-    fwrite ( Whatever , 30 , 1 , out );
+    Whatever[i*30 + 49] = 0x01;;
 
   k = Where;
 
   Where = PW_Start_Address + Add_Pattern_Table;
   i=0;
-  do
+  c1 = 0x00;
+  while ( in_data[Where] != 0xff )
   {
-    Whatever[200] = in_data[Where++];
-    Whatever[i]=Whatever[200];
-    i+=1;
-  }while ( Whatever[200] != 0xff );
-  Whatever[i-1] = 0x00;
-  Whatever[257] = i-1;
-  fwrite ( &Whatever[257] , 1 , 1 , out );
-
-  Whatever[256] = 0x7f;
-  fwrite ( &Whatever[256] , 1 , 1 , out );
-
-  Whatever[256] = 0;
-  for ( i=0 ; i<128 ; i++ )
-  {
-    if ( Whatever[i] > Whatever[256] )
-      Whatever[256] = Whatever[i];
+    Whatever[i+952]=in_data[Where];
+    if (in_data[Where] > c1)
+      c1 = in_data[Where];
+    i+=1;Where += 1;
   }
-  fwrite ( Whatever , 128 , 1 , out );
+  Whatever[950] = (uint8_t)i;
+  Whatever[951] = 0x7f;
 
-  /*printf ( "Number of pattern : %d\n" , Whatever[257] );*/
-  /*printf ( "Highest pattern number : %d\n" , Whatever[256] );*/
+  printf ( "\nHighest pattern number : %d (Where:%x)\n" , c1,Where );
 
-  Whatever[0] = 'M';
-  Whatever[1] = '.';
-  Whatever[2] = 'K';
-  Whatever[3] = '.';
-  fwrite ( Whatever , 4 , 1 , out );
+  Whatever[1080] = 'M';
+  Whatever[1081] = '.';
+  Whatever[1082] = 'K';
+  Whatever[1083] = '.';
+
+  fwrite ( Whatever , 1084 , 1 , out );
 
 
   Where = k;
-  for ( i=0 ; i<=Whatever[256] ; i++ )
+  for ( i=0 ; i<=c1 ; i++ )
   {
     Pattern_Addresses_Table[i] = (in_data[Where]*256)+in_data[Where+1];
     Where += 2;
   }
 
-  for ( i=0 ; i<=Whatever[256] ; i++ )
+  for ( i=0 ; i<=c1 ; i++ )
   {
     Where = PW_Start_Address + Pattern_Addresses_Table[i];
     for ( k=0 ; k<256 ; k++ )  /* 256 = 4(voices) * 64(rows) */
@@ -284,24 +278,24 @@ void Depack_DI ( void )
       if ( (Whatever[10] & 0x80) == 0 )
       {
         Whatever[11] = in_data[Where++];
-	Note = ( ((Whatever[10] << 4) & 0x30) | ( ( Whatever[11]>>4 ) & 0x0f ) );
-	Whatever[0] = poss[Note][0];
-	Whatever[1] = poss[Note][1];
-	Smp = (Whatever[10] >> 2) & 0x1f;
-	Whatever[0] |= (Smp & 0xf0);
-	Whatever[2] = (Smp << 4) & 0xf0;
-	Fx = Whatever[11] & 0x0f;
-	Whatever[2] |= Fx;
-	FxVal = 0x00;
-	Whatever[3] = FxVal;
-	fwrite ( Whatever , 4 , 1 , out );
-	continue;
+        Note = ( ((Whatever[10] << 4) & 0x30) | ( ( Whatever[11]>>4 ) & 0x0f ) );
+        Whatever[0] = poss[Note][0];
+        Whatever[1] = poss[Note][1];
+        Smp = (Whatever[10] >> 2) & 0x1f;
+        Whatever[0] |= (Smp & 0xf0);
+        Whatever[2] = (Smp << 4) & 0xf0;
+        Fx = Whatever[11] & 0x0f;
+        Whatever[2] |= Fx;
+        FxVal = 0x00;
+        Whatever[3] = FxVal;
+        fwrite ( Whatever , 4 , 1 , out );
+        continue;
       }
       if ( Whatever[10] == 0xff )
       {
         Whatever[0] = Whatever[1] = Whatever[2] = Whatever[3] = 0x00;
-	fwrite ( Whatever , 4 , 1 , out );
-	continue;
+        fwrite ( Whatever , 4 , 1 , out );
+        continue;
       }
       Whatever[11] = in_data[Where++];
       Whatever[12] = in_data[Where++];

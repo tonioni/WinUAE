@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testXM ( void )
+int16_t	 testXM ( void )
 {
   /* test #1 */
   PW_Start_Address = PW_i;
@@ -61,6 +61,7 @@ void Rip_XM ( void )
     /* getting siz of one pattern */
     PW_m = (in_data[PW_Start_Address+PW_l+8]*256) + in_data[PW_Start_Address+PW_l+7];
     /* adding it to current pointer + 9 being the pat header siz */
+    fflush (stdout);
     PW_l += (PW_m + 9);
   }
 
@@ -68,12 +69,14 @@ void Rip_XM ( void )
   /* get whole insts data siz */
   for ( PW_o=0 ; PW_o<PW_k ; PW_o++ )
   {
-    long siz=0;
+    int32_t	 siz=0;
     /* getting siz of one inst header */
     PW_m = (in_data[PW_Start_Address+PW_l+1]*256) + in_data[PW_Start_Address+PW_l];
     /* getting nbr of samples in this inst */
     PW_j = (in_data[PW_Start_Address+PW_l+28]*256) + in_data[PW_Start_Address+PW_l+27];
     /* getting sizes of samples */
+    /*printf ("inst %ld at %lx (inst:%ld)\n",(long)PW_o, (long)(PW_Start_Address+PW_l), (long)PW_j);*/
+    if (PW_j>16)break;
     PW_l += PW_m; /* so that it points on first sample header */
     for ( PW_n=0 ; PW_n<PW_j ; PW_n++ )
     {
@@ -83,6 +86,7 @@ void Rip_XM ( void )
 	       (in_data[PW_Start_Address+PW_l+1]*256) +
   	       in_data[PW_Start_Address+PW_l]);
       /* move pointer onto the next sample header if one exists*/
+      /*printf ("- smp %ld at %lx size is %lx\n",(long)PW_n, (long)(PW_Start_Address+PW_l), (long)siz );*/
       PW_l += 40;
     }
     /* add sample datas of this instrument now */

@@ -7,7 +7,7 @@
 
 
 
-short testTMK ( void )
+int16_t	 testTMK ( void )
 {
   /* test 1 */
   PW_Start_Address = PW_i;
@@ -120,23 +120,23 @@ void Rip_TMK ( void )
 
 void Depack_TMK ( void )
 {
-  Uchar *Pattern;
-  long i=0,j=0,k=0,l=0;
-  long Total_Sample_Size=0;
-  Uchar poss[37][2];
+  uint8_t *Pattern;
+  int32_t	 i=0,j=0,k=0,l=0;
+  int32_t	 Total_Sample_Size=0;
+  uint8_t poss[37][2];
 
   int   patdataaddy;
   int   reftableaddy;
   int   maxlineaddy;
   int   sizlastline;
-  long  *samplesizes;
-  Uchar patternlist[128];
-  Uchar maxpat = 0x00;
-  Uchar NOP=0x00; /* number of pattern */
-  Uchar NOS=0x00; /* number of sample */
-  Uchar *Whatever;
-  Uchar GLOBAL_DELTA = OFF;
-  long Where = PW_Start_Address;
+  int32_t	  *samplesizes;
+  uint8_t patternlist[128];
+  uint8_t maxpat = 0x00;
+  uint8_t NOP=0x00; /* number of pattern */
+  uint8_t NOS=0x00; /* number of sample */
+  uint8_t *Whatever;
+  uint8_t GLOBAL_DELTA = OFF;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;/*,*info;*/
 
   fillPTKtable(poss);
@@ -146,11 +146,11 @@ void Depack_TMK ( void )
 
   BZERO ( patternlist , 128 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
   /*info = fopen ( "info", "w+b");*/
 
-  Whatever = (Uchar *) malloc (128);
+  Whatever = (uint8_t *) malloc (128);
   BZERO (Whatever,128);
 
   /* title */
@@ -166,7 +166,7 @@ void Depack_TMK ( void )
   if ( (in_data[Where+1]&0x80) == 0x80 )
     GLOBAL_DELTA = ON;
   Where += 2;
-  samplesizes = (long *) malloc (NOS*sizeof(long));
+  samplesizes = (int32_t	 *) malloc (NOS*sizeof(int32_t	));
 
   /*fprintf ( info,"NOP:%d NOS %d (Where = %ld)\n",NOP,NOS,Where);*/
   for ( i=0 ; i<NOS ; i++ )
@@ -222,7 +222,7 @@ void Depack_TMK ( void )
   if ( (NOP/2)*2 != NOP )
     Where += 1;
   reftableaddy = Where;
-  patdataaddy = maxpat*128 + reftableaddy; /* one ref is a short:64*2 */
+  patdataaddy = maxpat*128 + reftableaddy; /* one ref is a int16_t	:64*2 */
   /*fprintf ( info,"reftableaddy:%x\n"
     "patdataaddy:%x\n",reftableaddy,patdataaddy);*/
 
@@ -252,7 +252,7 @@ void Depack_TMK ( void )
   /*fprintf (info,"sizlastline : %d\n",sizlastline);*/
 
   /* pat data */
-  Pattern = (Uchar *) malloc (1024);
+  Pattern = (uint8_t *) malloc (1024);
   for ( i=0 ; i<maxpat ; i+=1 )
   {
     BZERO (Pattern, 1024);
@@ -315,7 +315,7 @@ void Depack_TMK ( void )
 
   if ( GLOBAL_DELTA == ON )
   {
-    Uchar c1,c2,c3;
+    uint8_t c1,c2,c3;
     signed char *SmpDataWork;
     k = maxlineaddy+sizlastline;
     for ( i=0; i<NOS; i++ )
@@ -349,6 +349,5 @@ void Depack_TMK ( void )
   /*fclose ( info );*/
 
   printf ( "done\n" );
-  free( samplesizes );
   return; /* useless ... but */
 }

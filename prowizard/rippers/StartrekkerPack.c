@@ -11,7 +11,7 @@
 #include "extern.h"
 
 
-short testSTARPACK ( void )
+int16_t	 testSTARPACK ( void )
 {
   /* test 1 */
   if ( (PW_i < 23) || ((PW_i+269-23)>=PW_in_size) )
@@ -29,7 +29,7 @@ short testSTARPACK ( void )
 /*printf ( "#2,0 (Start:%ld)\n" , PW_Start_Address );*/
     return BAD;
   }
-  if ( PW_k>127 )
+  if ( PW_k>128 )
   {
 /*printf ( "#2,1 (Start:%ld)\n" , PW_Start_Address );*/
     return BAD;
@@ -205,17 +205,17 @@ void Rip_STARPACK ( void )
 */
 void Depack_STARPACK ( void )
 {
-  Uchar c1=0x00,c2=0x00;
-  Uchar Pat_Pos;
-  Uchar *Whatever;
-  Uchar *Pattern;
-  long i=0,j=0,k=0;
-  long Total_Sample_Size=0;
-  long Pats_Address[128];
-  long Read_Pats_Address[128];
-  long SampleDataAddress=0;
-  long Where = PW_Start_Address;
-  long MaxPatAddy=0;
+  uint8_t c1=0x00,c2=0x00;
+  uint8_t Pat_Pos;
+  uint8_t *Whatever;
+  uint8_t *Pattern;
+  int32_t	 i=0,j=0,k=0;
+  int32_t	 Total_Sample_Size=0;
+  int32_t	 Pats_Address[128];
+  int32_t	 Read_Pats_Address[128];
+  int32_t	 SampleDataAddress=0;
+  int32_t	 Where = PW_Start_Address;
+  int32_t	 MaxPatAddy=0;
   FILE /**in,*/*out;
 
   if ( Save_Status == BAD )
@@ -223,11 +223,11 @@ void Depack_STARPACK ( void )
 
   BZERO ( Pats_Address , 128*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
 
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO (Whatever, 1024);
 
   /* read and write title */
@@ -281,7 +281,7 @@ void Depack_STARPACK ( void )
 
   c1=0; /* will count patterns */
   k=0; /* current note number */
-  Pattern = (Uchar *) malloc (65536);
+  Pattern = (uint8_t *) malloc (65536);
   BZERO (Pattern, 65536);
   i=0;
   for ( j=0 ; j<(MaxPatAddy+0x400) ; j+=4 )
@@ -320,7 +320,7 @@ void Depack_STARPACK ( void )
     for ( i=0 ; i<128 ; i++ )
       if ( Pats_Address[c2] == Read_Pats_Address[i])
       {
-	Whatever[c2] = (Uchar) i;
+	Whatever[c2] = (uint8_t) i;
 	break;
       }
   fwrite ( &Whatever[0], 128, 1, out );

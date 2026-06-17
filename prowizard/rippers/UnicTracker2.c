@@ -10,7 +10,7 @@
 #include "extern.h"
 
 
-short testUNIC2 ( void )
+int16_t	 testUNIC2 ( void )
 {
   /* test 1 */
   if ( (PW_i < 25) || ((PW_i+1828)>=PW_in_size) ) /* 1828=Head+1 pat */
@@ -186,13 +186,13 @@ void Rip_UNIC2 ( void )
 
 void Depack_UNIC2 ( void )
 {
-  Uchar poss[37][2];
-  Uchar Smp,Note,Fx,FxVal;
-  Uchar *Whatever;
-/*  Uchar LOOP_START_STATUS=OFF;*/  /* standard /2 */
-  long i=0,j=0,k=0,l=0;
-  long WholeSampleSize=0;
-  long Where=PW_Start_Address;   /* main pointer to prevent fread() */
+  uint8_t poss[37][2];
+  uint8_t Smp,Note,Fx,FxVal;
+  uint8_t *Whatever;
+/*  uint8_t LOOP_START_STATUS=OFF;*/  /* standard /2 */
+  int32_t	 i=0,j=0,k=0,l=0;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 Where=PW_Start_Address;   /* main pointer to prevent fread() */
   FILE *out;
 
   fillPTKtable(poss);
@@ -200,11 +200,11 @@ void Depack_UNIC2 ( void )
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* title */
-  Whatever = (Uchar *) malloc (1028);
+  Whatever = (uint8_t *) malloc (1028);
   BZERO ( Whatever , 1028 );
   fwrite ( Whatever , 20 , 1 , out );
 

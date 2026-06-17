@@ -5,7 +5,7 @@
 #include "globals.h"
 #include "extern.h"
 
-short testNoisepacker2 ( void )
+int16_t	 testNoisepacker2 ( void )
 {
   if ( PW_i < 15 )
   {
@@ -88,7 +88,7 @@ short testNoisepacker2 ( void )
   /* PW_l is now the size of the header 'til the end of sample descriptions */
   if ( PW_l+PW_Start_Address > PW_in_size )
   {
-/* printf ( "#5,4 Start:%ld\n", PW_Start_Address);*/
+/*printf ( "#5,4 Start:%ld\n", PW_Start_Address);*/
     return BAD;
   }
 
@@ -114,7 +114,7 @@ short testNoisepacker2 ( void )
   /* PW_j is now available for use :) */
   if ( PW_l+PW_Start_Address>PW_in_size)
   {
-/* printf ( "#6,1 Start:%ld\n", PW_Start_Address);*/
+/*printf ( "#6,1 Start:%ld\n", PW_Start_Address);*/
     return BAD;
   }
 
@@ -132,7 +132,7 @@ short testNoisepacker2 ( void )
   {
     if ( PW_Start_Address + PW_l + PW_m > PW_in_size )
     {
-      /* printf ( "#8,0 Start:%ld\n", PW_Start_Address);*/
+      /*printf ( "#8,0 Start:%ld\n", PW_Start_Address);*/
       return BAD;
     }
     if ( in_data[PW_Start_Address+PW_l+PW_m] > 0x49 )
@@ -143,7 +143,7 @@ short testNoisepacker2 ( void )
     if ( (((in_data[PW_Start_Address+PW_l+PW_m]<<4)&0x10)|
 	 ((in_data[PW_Start_Address+PW_l+PW_m+1]>>4)&0x0f)) > PW_j )
     {
-/*printf ( "#8,1 Start:%ld (at %x)(PW_k:%x)(PW_l:%x)(PW_m:%x)(PW_j:%ld)\n" , PW_Start_Address,PW_Start_Address+PW_l+PW_m,PW_k,PW_l,PW_m,PW_j );*/
+/*printf ( "NP2#8,1 Start:%ld (at %x)(PW_k:%x)(PW_l:%x)(PW_m:%x)(PW_j:%ld)\n" , PW_Start_Address,PW_Start_Address+PW_l+PW_m,PW_k,PW_l,PW_m,PW_j );*/
       return BAD;
     }
     PW_n = (in_data[PW_Start_Address+PW_l+PW_m+1]&0x0F);
@@ -187,20 +187,20 @@ void Rip_Noisepacker2 ( void )
 */
 void Depack_Noisepacker2 ( void )
 {
-  Uchar *Whatever;
-  Uchar c1=0x00,c2=0x00,c3=0x00,c4=0x00;
-  Uchar Nbr_Pos;
-  Uchar Nbr_Smp;
-  Uchar poss[37][2];
-  Uchar Pat_Max=0x00;
-  long Where=PW_Start_Address;
-  long Max_Add=0;
-  long WholeSampleSize=0;
-  long TrackDataSize;
-  long Track_Addresses[128][4];
-  long Unknown1;
-  long i=0,j=0,k;
-  long Track_Data_Start_Address;
+  uint8_t *Whatever;
+  uint8_t c1=0x00,c2=0x00,c3=0x00,c4=0x00;
+  uint8_t Nbr_Pos;
+  uint8_t Nbr_Smp;
+  uint8_t poss[37][2];
+  uint8_t Pat_Max=0x00;
+  int32_t	 Where=PW_Start_Address;
+  int32_t	 Max_Add=0;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 TrackDataSize;
+  int32_t	 Track_Addresses[128][4];
+  int32_t	 Unknown1;
+  int32_t	 i=0,j=0,k;
+  int32_t	 Track_Data_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -210,7 +210,7 @@ void Depack_Noisepacker2 ( void )
 
   BZERO ( Track_Addresses , 128*4*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* read number of sample */
@@ -218,7 +218,7 @@ void Depack_Noisepacker2 ( void )
   /*printf ( "Number of sample : %d (%x)\n" , Nbr_Smp , Nbr_Smp );*/
 
   /* write title */
-  Whatever = (Uchar *) malloc ( 1024 );
+  Whatever = (uint8_t *) malloc ( 1024 );
   BZERO ( Whatever , 1024 );
   fwrite ( Whatever , 20 , 1 , out );
 
@@ -271,6 +271,8 @@ void Depack_Noisepacker2 ( void )
 
   /* read pattern table */
   Pat_Max = 0x00;
+  /* 20100823 - BZERO ... */
+  BZERO (Whatever,1024);
   for ( i=0 ; i<Nbr_Pos ; i++ )
   {
     Whatever[i] = ((in_data[Where+(i*2)]*256)+in_data[Where+(i*2)+1])/8;

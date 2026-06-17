@@ -14,7 +14,7 @@
  * (30/08/10)
  *   changed #4.3 as the "remaining" patternlist isn't always 0x00
 */
-short testEUREKA ( void )
+int16_t	 testEUREKA ( void )
 {
   /* test 1 */
   if ( (PW_i < 45) || ((PW_Start_Address+950)>=PW_in_size) )
@@ -188,20 +188,20 @@ void Rip_EUREKA ( void )
 
 void Depack_EUREKA ( void )
 {
-  Uchar *Whatever;
-  Uchar c1=0x00;
-  Uchar Pat_Max=0x00;
-  long Sample_Start_Address=0;
-  long WholeSampleSize=0;
-  long Track_Address[128][4];
-  long i=0,j=0,k;
-  long Where = PW_Start_Address;
+  uint8_t *Whatever;
+  uint8_t c1=0x00;
+  uint8_t Pat_Max=0x00;
+  int32_t	 Sample_Start_Address=0;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 Track_Address[128][4];
+  int32_t	 i=0,j=0,k;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* read header ... same as ptk */
@@ -227,7 +227,7 @@ void Depack_EUREKA ( void )
   /*printf ( "Number of patterns : %d\n" , Pat_Max );*/
 
   /* write ptk's ID */
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO ( Whatever , 1024 );
   Whatever[0] = 'M';
   Whatever[1] = '.';
