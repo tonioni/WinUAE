@@ -28,6 +28,7 @@
 #include "inputdevice.h"
 #include "keybuf.h"
 #include "gui.h"
+#include "target_main.h"
 #include "zfile.h"
 #include "autoconf.h"
 #include "native2amiga.h"
@@ -1340,6 +1341,10 @@ void real_main (int argc, TCHAR **argv)
 #ifndef NO_MAIN_IN_MAIN_C
 int main (int argc, TCHAR **argv)
 {
+	target_main_set_args(argc, argv);
+	const int early_exit = target_main_handle_early(argc, argv);
+	if (early_exit >= 0)
+		return early_exit;
 	real_main (argc, argv);
 	return 0;
 }

@@ -3,6 +3,7 @@
 #include "uae/api.h"
 #include "uae/dlopen.h"
 #include "uae/log.h"
+#include "target_dlopen.h"
 
 #ifdef _WIN32
 #include "windows.h"
@@ -76,13 +77,16 @@ UAE_DLHANDLE uae_dlopen_plugin(const TCHAR *name)
 	_tcscat(path, LT_MODULE_EXT);
 	UAE_DLHANDLE handle = WIN32_LoadLibrary(path);
 #else
-	TCHAR path[MAX_DPATH];
-	_tcscpy(path, name);
+	TCHAR path[MAX_DPATH] = { 0 };
+	UAE_DLHANDLE handle;
+	if (!target_dlopen_plugin(name, path, MAX_DPATH, &handle)) {
+		_tcscpy(path, name);
 #ifdef _WIN64
-	_tcscat(path, _T("_x64"));
+		_tcscat(path, _T("_x64"));
 #endif
-	_tcscat(path, LT_MODULE_EXT);
-	UAE_DLHANDLE handle = uae_dlopen(path);
+		_tcscat(path, LT_MODULE_EXT);
+		handle = uae_dlopen(path);
+	}
 #endif
 	if (handle) {
 		write_log(_T("DLOPEN: Loaded plugin %s\n"), path);
