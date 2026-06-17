@@ -35,8 +35,8 @@ static void snd_init(void);
 static void sndboard_rethink(void);
 static uae_u8 *sndboard_get_buffer(int *frames);
 static void sndboard_release_buffer(uae_u8 *buffer, int frames);
-static void sndboard_free_capture(void);
-static bool sndboard_init_capture(int freq);
+static void sndboard_free_capture(int owner);
+static bool sndboard_init_capture(int freq, int owner);
 static void uaesndboard_reset(int hardreset);
 static void sndboard_reset(int hardreset);
 
@@ -47,6 +47,38 @@ static float base_event_clock;
 
 #define MAX_UAE_CHANNELS 8
 #define MAX_UAE_STREAMS 8
+#define UAESND_CAP_24_32BIT 1
+#define UAESND_CAP_MONO_HPAN 2
+#define UAESND_CAP_DIAGNOSTICS 4
+#define UAESND_CAP_CAPTURE 8
+#define UAESND_CAP_CAPTURE_BLOCK 16
+#define UAESND_DIAG_VERSION 1
+#define UAESND_ERR_NONE 0
+#define UAESND_ERR_INVALID_SET 1
+#define UAESND_ERR_STREAM_ALLOC 2
+#define UAESND_ERR_CAPTURE_BLOCK_ADDRESS 3
+#define SNDBOARD_CAPTURE_OWNER_NONE 0
+#define SNDBOARD_CAPTURE_OWNER_TOCCATA 1
+#define SNDBOARD_CAPTURE_OWNER_UAESND 2
+#define UAESND_CAPTURE_REG_DATA 0xc0
+#define UAESND_CAPTURE_REG_OVERRUNS 0xc4
+#define UAESND_CAPTURE_REG_INTREQ 0xc8
+#define UAESND_CAPTURE_REG_THRESHOLD 0xcc
+#define UAESND_CAPTURE_REG_CONTROL 0xd0
+#define UAESND_CAPTURE_REG_STATUS 0xd4
+#define UAESND_CAPTURE_REG_FREQUENCY 0xd8
+#define UAESND_CAPTURE_REG_AVAILABLE 0xdc
+#define UAESND_CAPTURE_CONTROL_ENABLE 1
+#define UAESND_CAPTURE_CONTROL_IRQ_ENABLE 2
+#define UAESND_CAPTURE_BLOCK_REG_ADDRESS 0x900
+#define UAESND_CAPTURE_BLOCK_REG_FRAMES 0x904
+#define UAESND_CAPTURE_BLOCK_REG_DONE 0x908
+#define UAESND_CAPTURE_BLOCK_REG_COMMAND 0x90c
+#define UAESND_CAPTURE_BLOCK_COMMAND_COPY 1
+#define UAESND_CAPTURE_STATUS_UNAVAILABLE 1
+#define UAESND_CAPTURE_STATUS_ACTIVE 2
+#define UAESND_CAPTURE_STATUS_OVERRUN 4
+
 struct uaesndboard_stream
 {
 	int streamid;
@@ -84,6 +116,27 @@ struct uaesndboard_stream
 	int timer_event_time;
 	int sample[MAX_UAE_CHANNELS];
 };
+
+struct uaesnd_capture_state
+{
+	uae_u32 control;
+	uae_u32 status;
+	uae_u32 frequency;
+	uae_u32 available;
+	uae_u32 overrun_count;
+	uae_u32 intreq;
+	uae_u32 threshold;
+	uae_u32 frame_count;
+	uae_u32 dropped_byte_count;
+	uae_u32 block_address;
+	uae_u32 block_frames;
+	uae_u32 block_done;
+	int buffer_size;
+	int read_index;
+	int write_index;
+	uae_u8 *buffer;
+};
+
 struct uaesndboard_data
 {
 	bool enabled;
@@ -98,9 +151,310 @@ struct uaesndboard_data
 	int volume[MAX_UAE_CHANNELS];
 	struct uaesndboard_stream stream[MAX_UAE_STREAMS];
 	uae_u8 info[256];
+	uae_u32 invalid_set_count;
+	uae_u32 stream_alloc_failure_count;
+	uae_u32 stream_start_count;
+	uae_u32 stream_stop_count;
+	uae_u32 stream_irq_count;
+	uae_u32 timer_irq_count;
+	uae_u32 last_error_code;
+	struct uaesnd_capture_state capture;
 };
 
 static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
+static int capture_owner = SNDBOARD_CAPTURE_OWNER_NONE;
+
+static void uaesnd_update_info(struct uaesndboard_data *data)
+{
+	put_long_host(data->info + 24, UAESND_CAP_24_32BIT | UAESND_CAP_MONO_HPAN | UAESND_CAP_DIAGNOSTICS | UAESND_CAP_CAPTURE | UAESND_CAP_CAPTURE_BLOCK);
+	put_long_host(data->info + 28, UAESND_DIAG_VERSION);
+	put_long_host(data->info + 32, data->invalid_set_count);
+	put_long_host(data->info + 36, data->stream_alloc_failure_count);
+	put_long_host(data->info + 40, data->stream_start_count);
+	put_long_host(data->info + 44, data->stream_stop_count);
+	put_long_host(data->info + 48, data->stream_irq_count);
+	put_long_host(data->info + 52, data->timer_irq_count);
+	put_long_host(data->info + 56, data->last_error_code);
+	put_long_host(data->info + 60, data->capture.frame_count);
+	put_long_host(data->info + 64, data->capture.dropped_byte_count);
+}
+
+static void uaesnd_set_error(struct uaesndboard_data *data, uae_u32 error_code)
+{
+	data->last_error_code = error_code;
+}
+
+static bool uaesnd_capture_addr(uaecptr addr)
+{
+	addr &= 65535;
+	return addr >= UAESND_CAPTURE_REG_DATA && addr < 0xe0;
+}
+
+static bool uaesnd_capture_block_addr(uaecptr addr)
+{
+	addr &= 65535;
+	return addr >= UAESND_CAPTURE_BLOCK_REG_ADDRESS && addr < UAESND_CAPTURE_BLOCK_REG_COMMAND + 4;
+}
+
+static uae_u32 uaesnd_capture_available(struct uaesnd_capture_state *capture)
+{
+	if (!capture->buffer || capture->buffer_size <= 0)
+		return 0;
+	if (capture->write_index >= capture->read_index)
+		return capture->write_index - capture->read_index;
+	return capture->buffer_size - capture->read_index + capture->write_index;
+}
+
+static void uaesnd_capture_reset_buffer(struct uaesnd_capture_state *capture)
+{
+	capture->read_index = 0;
+	capture->write_index = 0;
+	capture->available = 0;
+}
+
+static void uaesnd_capture_start(struct uaesndboard_data *data)
+{
+	if (data->capture.status & UAESND_CAPTURE_STATUS_ACTIVE)
+		return;
+	if (data->capture.frequency == 0)
+		data->capture.frequency = currprefs.sound_freq;
+	data->capture.buffer_size = data->capture.frequency * 2 * 2;
+	if (data->capture.buffer_size < 4096)
+		data->capture.buffer_size = 4096;
+	data->capture.buffer = xcalloc(uae_u8, data->capture.buffer_size);
+	uaesnd_capture_reset_buffer(&data->capture);
+	data->capture.control |= UAESND_CAPTURE_CONTROL_ENABLE;
+	if (!sndboard_init_capture(data->capture.frequency, SNDBOARD_CAPTURE_OWNER_UAESND)) {
+		xfree(data->capture.buffer);
+		data->capture.buffer = NULL;
+		data->capture.buffer_size = 0;
+		data->capture.status = UAESND_CAPTURE_STATUS_UNAVAILABLE;
+		return;
+	}
+	data->capture.status = UAESND_CAPTURE_STATUS_ACTIVE;
+}
+
+static void uaesnd_capture_stop(struct uaesndboard_data *data)
+{
+	if (data->capture.status & UAESND_CAPTURE_STATUS_ACTIVE)
+		sndboard_free_capture(SNDBOARD_CAPTURE_OWNER_UAESND);
+	xfree(data->capture.buffer);
+	data->capture.buffer = NULL;
+	data->capture.buffer_size = 0;
+	data->capture.control &= ~UAESND_CAPTURE_CONTROL_ENABLE;
+	data->capture.status = 0;
+	data->capture.intreq = 0;
+	uaesnd_capture_reset_buffer(&data->capture);
+}
+
+static void uaesnd_capture_write_byte(struct uaesnd_capture_state *capture, uae_u8 value)
+{
+	if (!capture->buffer || capture->buffer_size <= 1)
+		return;
+	int next = (capture->write_index + 1) % capture->buffer_size;
+	if (next == capture->read_index) {
+		capture->read_index = (capture->read_index + 1) % capture->buffer_size;
+		capture->overrun_count++;
+		capture->dropped_byte_count++;
+		capture->status |= UAESND_CAPTURE_STATUS_OVERRUN;
+	}
+	capture->buffer[capture->write_index] = value;
+	capture->write_index = next;
+	capture->available = uaesnd_capture_available(capture);
+}
+
+static void uaesnd_capture_write_s16be(struct uaesnd_capture_state *capture, int sample)
+{
+	uaesnd_capture_write_byte(capture, sample >> 8);
+	uaesnd_capture_write_byte(capture, sample);
+}
+
+static void uaesnd_capture_process(struct uaesndboard_data *data)
+{
+	if (!(data->capture.status & UAESND_CAPTURE_STATUS_ACTIVE))
+		return;
+	int frames = 0;
+	uae_u8 *buffer = sndboard_get_buffer(&frames);
+	if (buffer && frames > 0) {
+		data->capture.frame_count += frames;
+		int samples = frames * 2;
+		for (int i = 0; i < samples; i++) {
+			int sample = (uae_s16)(buffer[i * 2 + 0] | (buffer[i * 2 + 1] << 8));
+			uaesnd_capture_write_s16be(&data->capture, sample);
+		}
+		if ((data->capture.control & UAESND_CAPTURE_CONTROL_IRQ_ENABLE) && data->capture.threshold > 0 && data->capture.available >= data->capture.threshold)
+			data->capture.intreq = 1;
+	}
+	sndboard_release_buffer(buffer, frames);
+}
+
+static bool uaesnd_capture_rethink(struct uaesndboard_data *data)
+{
+	uaesnd_capture_process(data);
+	return (data->capture.control & UAESND_CAPTURE_CONTROL_IRQ_ENABLE) && data->capture.intreq != 0;
+}
+
+static void uaesnd_capture_refresh_if_empty(struct uaesndboard_data *data)
+{
+	struct uaesnd_capture_state *capture = &data->capture;
+	if (!capture->buffer || capture->read_index == capture->write_index)
+		uaesnd_capture_process(data);
+}
+
+static uae_u8 uaesnd_capture_read_byte(struct uaesndboard_data *data)
+{
+	struct uaesnd_capture_state *capture = &data->capture;
+	uaesnd_capture_refresh_if_empty(data);
+	if (!capture->buffer || capture->read_index == capture->write_index) {
+		capture->available = 0;
+		return 0;
+	}
+	uae_u8 value = capture->buffer[capture->read_index];
+	capture->read_index = (capture->read_index + 1) % capture->buffer_size;
+	capture->available = uaesnd_capture_available(capture);
+	return value;
+}
+
+static void uaesnd_capture_block_copy(struct uaesndboard_data *data)
+{
+	uaesnd_capture_process(data);
+	data->capture.block_done = 0;
+	uae_u32 frames = data->capture.block_frames;
+	uae_u32 available_frames = data->capture.available / 4;
+	if (frames > available_frames)
+		frames = available_frames;
+	uae_u32 bytes = frames * 4;
+	if (bytes == 0)
+		return;
+	if (!valid_address(data->capture.block_address, bytes)) {
+		uaesnd_set_error(data, UAESND_ERR_CAPTURE_BLOCK_ADDRESS);
+		return;
+	}
+	for (uae_u32 i = 0; i < bytes; i++) {
+		put_byte(data->capture.block_address + i, uaesnd_capture_read_byte(data));
+	}
+	data->capture.block_done = frames;
+}
+
+static void uaesnd_capture_fill_regs(struct uaesndboard_data *data, uae_u8 *regs)
+{
+	uaesnd_capture_process(data);
+	put_long_host(regs + (UAESND_CAPTURE_REG_OVERRUNS - UAESND_CAPTURE_REG_DATA), data->capture.overrun_count);
+	put_long_host(regs + (UAESND_CAPTURE_REG_INTREQ - UAESND_CAPTURE_REG_DATA), data->capture.intreq);
+	put_long_host(regs + (UAESND_CAPTURE_REG_THRESHOLD - UAESND_CAPTURE_REG_DATA), data->capture.threshold);
+	put_long_host(regs + (UAESND_CAPTURE_REG_CONTROL - UAESND_CAPTURE_REG_DATA), data->capture.control);
+	put_long_host(regs + (UAESND_CAPTURE_REG_STATUS - UAESND_CAPTURE_REG_DATA), data->capture.status);
+	put_long_host(regs + (UAESND_CAPTURE_REG_FREQUENCY - UAESND_CAPTURE_REG_DATA), data->capture.frequency);
+	put_long_host(regs + (UAESND_CAPTURE_REG_AVAILABLE - UAESND_CAPTURE_REG_DATA), data->capture.available);
+}
+
+static uae_u8 uaesnd_capture_bget(struct uaesndboard_data *data, uaecptr addr)
+{
+	if ((addr & ~3) == UAESND_CAPTURE_REG_DATA)
+		return uaesnd_capture_read_byte(data);
+	uae_u8 regs[32] = {};
+	uaesnd_capture_fill_regs(data, regs);
+	return regs[(addr - UAESND_CAPTURE_REG_DATA) & 31];
+}
+
+static uae_u16 uaesnd_capture_wget(struct uaesndboard_data *data, uaecptr addr)
+{
+	return (uaesnd_capture_bget(data, addr) << 8) | uaesnd_capture_bget(data, addr + 1);
+}
+
+static uae_u32 uaesnd_capture_lget(struct uaesndboard_data *data, uaecptr addr)
+{
+	return (uaesnd_capture_wget(data, addr) << 16) | uaesnd_capture_wget(data, addr + 2);
+}
+
+static void uaesnd_capture_apply_reg(struct uaesndboard_data *data, int reg, uae_u32 value)
+{
+	if (reg == UAESND_CAPTURE_REG_CONTROL) {
+		data->capture.control = value;
+		if (value & UAESND_CAPTURE_CONTROL_ENABLE)
+			uaesnd_capture_start(data);
+		else
+			uaesnd_capture_stop(data);
+	} else if (reg == UAESND_CAPTURE_REG_FREQUENCY) {
+		data->capture.frequency = value;
+	} else if (reg == UAESND_CAPTURE_REG_INTREQ) {
+		data->capture.intreq &= value;
+	} else if (reg == UAESND_CAPTURE_REG_THRESHOLD) {
+		data->capture.threshold = value;
+	} else if (reg == UAESND_CAPTURE_REG_STATUS) {
+		data->capture.status &= value;
+	}
+}
+
+static void uaesnd_capture_put(struct uaesndboard_data *data, uaecptr addr, uae_u32 value, int size)
+{
+	uae_u8 regs[32] = {};
+	int offset = (addr - UAESND_CAPTURE_REG_DATA) & 31;
+	int reg = (addr & ~3) & 65535;
+	uaesnd_capture_fill_regs(data, regs);
+	if (size == 4) {
+		put_long_host(regs + offset, value);
+	} else if (size == 2) {
+		put_word_host(regs + offset, value);
+	} else {
+		regs[offset] = value;
+	}
+	uaesnd_capture_apply_reg(data, reg, get_long_host(regs + (reg - UAESND_CAPTURE_REG_DATA)));
+}
+
+static void uaesnd_capture_block_fill_regs(struct uaesndboard_data *data, uae_u8 *regs)
+{
+	put_long_host(regs + (UAESND_CAPTURE_BLOCK_REG_ADDRESS - UAESND_CAPTURE_BLOCK_REG_ADDRESS), data->capture.block_address);
+	put_long_host(regs + (UAESND_CAPTURE_BLOCK_REG_FRAMES - UAESND_CAPTURE_BLOCK_REG_ADDRESS), data->capture.block_frames);
+	put_long_host(regs + (UAESND_CAPTURE_BLOCK_REG_DONE - UAESND_CAPTURE_BLOCK_REG_ADDRESS), data->capture.block_done);
+	put_long_host(regs + (UAESND_CAPTURE_BLOCK_REG_COMMAND - UAESND_CAPTURE_BLOCK_REG_ADDRESS), 0);
+}
+
+static uae_u8 uaesnd_capture_block_bget(struct uaesndboard_data *data, uaecptr addr)
+{
+	uae_u8 regs[16] = {};
+	uaesnd_capture_block_fill_regs(data, regs);
+	return regs[(addr - UAESND_CAPTURE_BLOCK_REG_ADDRESS) & 15];
+}
+
+static uae_u16 uaesnd_capture_block_wget(struct uaesndboard_data *data, uaecptr addr)
+{
+	return (uaesnd_capture_block_bget(data, addr) << 8) | uaesnd_capture_block_bget(data, addr + 1);
+}
+
+static uae_u32 uaesnd_capture_block_lget(struct uaesndboard_data *data, uaecptr addr)
+{
+	return (uaesnd_capture_block_wget(data, addr) << 16) | uaesnd_capture_block_wget(data, addr + 2);
+}
+
+static void uaesnd_capture_block_apply_reg(struct uaesndboard_data *data, int reg, uae_u32 value)
+{
+	if (reg == UAESND_CAPTURE_BLOCK_REG_ADDRESS) {
+		data->capture.block_address = value;
+	} else if (reg == UAESND_CAPTURE_BLOCK_REG_FRAMES) {
+		data->capture.block_frames = value;
+	} else if (reg == UAESND_CAPTURE_BLOCK_REG_DONE) {
+		data->capture.block_done = value;
+	} else if (reg == UAESND_CAPTURE_BLOCK_REG_COMMAND && (value & UAESND_CAPTURE_BLOCK_COMMAND_COPY)) {
+		uaesnd_capture_block_copy(data);
+	}
+}
+
+static void uaesnd_capture_block_put(struct uaesndboard_data *data, uaecptr addr, uae_u32 value, int size)
+{
+	uae_u8 regs[16] = {};
+	int offset = (addr - UAESND_CAPTURE_BLOCK_REG_ADDRESS) & 15;
+	int reg = (addr & ~3) & 65535;
+	uaesnd_capture_block_fill_regs(data, regs);
+	if (size == 4) {
+		put_long_host(regs + offset, value);
+	} else if (size == 2) {
+		put_word_host(regs + offset, value);
+	} else {
+		regs[offset] = value;
+	}
+	uaesnd_capture_block_apply_reg(data, reg, get_long_host(regs + (reg - UAESND_CAPTURE_BLOCK_REG_ADDRESS)));
+}
 
 /*
 	autoconfig data:
@@ -137,8 +491,8 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 	35.B if mono stream, bit mask that selects output channels. (0=default, redirect to left and right channels)
 	(Can be used for example when playing tracker modules by using 4 single channel streams)
 	stereo or higher: channel mode.
-	36.W horizontal panning (-32767 to 32767). Not yet implemented  Must be zero.
-	38.W front to back panning (-32767 to 32767). Not yet implemented. Must be zero.
+	36.W horizontal panning (-32767 to 32767). Implemented for mono streams.
+	38.W front to back panning (-32767 to 32767). Reserved. Must be zero.
 	40.L original address (RO)
 	44.L original length (RO)
 
@@ -267,26 +621,28 @@ MEMORY_FUNCTIONS(uaesndboard_ram);
 
 static bool uaesnd_rethink(void)
 {
-	bool irq = false;
+	bool any_irq = false;
 	for (int j = 0; j < MAX_DUPLICATE_SOUND_BOARDS; j++) {
 		struct uaesndboard_data *data = &uaesndboard[j];
 		if (data->enabled) {
+			bool capture_irq = uaesnd_capture_rethink(data);
+			bool stream_irq = false;
 			for (int i = 0; i < MAX_UAE_STREAMS; i++) {
 				if (data->streamintenamask & (1 << i)) {
 					struct uaesndboard_stream *s = &uaesndboard[j].stream[i];
 					if (s->intreqmask & 0x80) {
 						data->streamintreqmask |= 1 << i;
-						irq = true;
-						break;
+						stream_irq = true;
+						continue;
 					}
 				}
-				if (!irq) {
-					data->streamintreqmask &= ~(1 << i);
-				}
+				data->streamintreqmask &= ~(1 << i);
 			}
+			if (capture_irq || stream_irq)
+				any_irq = true;
 		}
 	}
-	return irq;
+	return any_irq;
 }
 
 static void uaesndboard_stop(struct uaesndboard_data *data, struct uaesndboard_stream *s)
@@ -298,6 +654,7 @@ static void uaesndboard_stop(struct uaesndboard_data *data, struct uaesndboard_s
 	write_log("UAESND %d: STOP\n", s - data->stream);
 #endif
 
+	data->stream_stop_count++;
 	s->play = 0;
 	s->next = 0;
 	data->streammask &= ~(1 << (s - data->stream));
@@ -324,6 +681,8 @@ static void uaesndboard_maybe_alloc_stream(struct uaesndboard_data *data, struct
 #endif
 
 		if (!s->streamid) {
+			data->stream_alloc_failure_count++;
+			uaesnd_set_error(data, UAESND_ERR_STREAM_ALLOC);
 			uaesndboard_stop(data, s);
 		}
 	}
@@ -402,6 +761,7 @@ static void uaesndboard_start(struct uaesndboard_data *data, struct uaesndboard_
 #endif
 
 	s->play = 1;
+	data->stream_start_count++;
 	for (int i = 0; i < MAX_UAE_CHANNELS; i++) {
 		s->sample[i] = 0;
 	}
@@ -426,11 +786,20 @@ static bool get_indirect(struct uaesndboard_stream *s, uaecptr saddr)
 	return true;
 }
 
+static int uaesnd_sample_bytes(uae_u8 bitmode)
+{
+	switch (bitmode & 7)
+	{
+	case 3: return 4;
+	case 2: return 3;
+	case 1: return 2;
+	default: return 1;
+	}
+}
+
 static bool uaesnd_validate(struct uaesndboard_data *data, struct uaesndboard_stream *s)
 {
-	int samplebits = (s->bitmode & 1) ? 16 : 8;
-
-	s->framesize = samplebits * s->ch / 8;
+	s->framesize = uaesnd_sample_bytes(s->bitmode) * s->ch;
 
 	if (s->flags != 0) {
 		write_log(_T("UAESND: Flags must be zero (%08x)\n"), s->flags);
@@ -484,8 +853,8 @@ static bool uaesnd_validate(struct uaesndboard_data *data, struct uaesndboard_st
 			return false;
 		}
 	}
-	if (s->panx || s->pany) {
-		write_log(_T("UAESND: Panning values must be zeros\n"));
+	if (s->pany) {
+		write_log(_T("UAESND: depth panning must be zero\n"));
 		return false;
 	}
 	uaesnd_setfreq(data, s);
@@ -493,6 +862,17 @@ static bool uaesnd_validate(struct uaesndboard_data *data, struct uaesndboard_st
 		s->sample[i] = 0;
 	}
 	return true;
+}
+
+static void uaesnd_apply_mono_pan(struct uaesndboard_stream *s, int *highestch)
+{
+	if (s->ch != 1 || !s->panx)
+		return;
+	int smp = s->sample[0];
+	s->sample[0] = smp * (32768 - s->panx) / 32768;
+	s->sample[1] = smp * (32768 + s->panx) / 32768;
+	if (*highestch < 2)
+		*highestch = 2;
 }
 
 static void uaesnd_load(struct uaesndboard_stream *s, uaecptr addr)
@@ -567,13 +947,24 @@ static bool uaesnd_directload(struct uaesndboard_data *data, struct uaesndboard_
 		// current-set volume writes take effect while playing
 		s->volume = get_word_host(s->io + 26);
 	}
-	return uaesnd_validate(data, s);
+	if (reg < 0 || reg == 36 || reg == 38) {
+		s->panx = get_word_host(s->io + 36);
+		s->pany = get_word_host(s->io + 38);
+	}
+	if (!uaesnd_validate(data, s)) {
+		data->invalid_set_count++;
+		uaesnd_set_error(data, UAESND_ERR_INVALID_SET);
+		return false;
+	}
+	return true;
 }
 
 static bool uaesnd_next(struct uaesndboard_data *data, struct uaesndboard_stream *s, uaecptr addr)
 {
 	if ((addr & 3) || !valid_address(addr, STREAM_STRUCT_SIZE) || addr < 0x100) {
 		write_log(_T("UAESND: invalid sample set pointer %08x\n"), addr);
+		data->invalid_set_count++;
+		uaesnd_set_error(data, UAESND_ERR_INVALID_SET);
 		return false;
 	}
 
@@ -582,7 +973,12 @@ static bool uaesnd_next(struct uaesndboard_data *data, struct uaesndboard_stream
 	s->first = 10;
 	s->repeating = false;
 
-	return uaesnd_validate(data, s);
+	if (!uaesnd_validate(data, s)) {
+		data->invalid_set_count++;
+		uaesnd_set_error(data, UAESND_ERR_INVALID_SET);
+		return false;
+	}
+	return true;
 }
 
 static void uaesnd_stream_start(struct uaesndboard_data *data, struct uaesndboard_stream *s, bool always)
@@ -605,8 +1001,12 @@ static void uaesnd_stream_start(struct uaesndboard_data *data, struct uaesndboar
 
 static void uaesnd_irq(struct uaesndboard_stream *s, uae_u8 mask)
 {
+	struct uaesndboard_data *data = &uaesndboard[0];
 	uae_u8 enablemask = s->masterintenamask;
 	uae_u8 intenamask = s->intenamask | 0x10 | 0x20 | 0x40;
+	data->stream_irq_count++;
+	if (mask & 0x10)
+		data->timer_irq_count++;
 	s->intreqmask |= mask;
 	if ((intenamask & mask) && (enablemask & mask)) {
 		s->intreqmask |= 0x80;
@@ -777,8 +1177,8 @@ static bool audio_state_sndboard_uae(int streamid, void *params)
 		for (int i = 1; i < MAX_UAE_CHANNELS; i++) {
 			if ((1 << i) & s->chmode) {
 				s->sample[i] = smp;
-				if (i > highestch)
-					highestch = i;
+				if (i + 1 > highestch)
+					highestch = i + 1;
 			}
 		}
 	} else if (s->ch == 4 && s->chmode == 1) {
@@ -801,6 +1201,7 @@ static bool audio_state_sndboard_uae(int streamid, void *params)
 		s->sample[6] = c;
 		s->sample[7] = lfe;
 	}
+	uaesnd_apply_mono_pan(s, &highestch);
 	audio_state_stream_state(streamid, s->sample, highestch, s->event_time);
 	return true;
 }
@@ -966,8 +1367,13 @@ static uae_u32 REGPARAM2 uaesndboard_bget(uaecptr addr)
 				s->intreqmask = 0;
 			s->io[0x93] = (s->play ? 1 : 0) | (s->streamid > 0 ? 2 : 0) | (s->repeating ? 4 : 0);
 			v = get_byte_host(s->io + reg);
+		} else if (uaesnd_capture_addr(addr)) {
+			v = uaesnd_capture_bget(data, addr);
 		} else if (addr >= 0x80 && addr < 0xe0) {
+			uaesnd_update_info(data);
 			v = get_byte_host(data->info + (addr & 0x7f));
+		} else if (uaesnd_capture_block_addr(addr)) {
+			v = uaesnd_capture_block_bget(data, addr);
 		} else if (addr >= 0xe0 && addr <= 0xe3) {
 			v = data->streamallocmask >> (8 * (3 - (addr - 0xe0)));
 		} else if (addr >= 0xf0 && addr <= 0xf3) {
@@ -1008,8 +1414,13 @@ static uae_u32 REGPARAM2 uaesndboard_wget(uaecptr addr)
 				s->intreqmask = 0;
 			}
 			v = get_word_host(s->io + reg);
+		} else if (uaesnd_capture_addr(addr)) {
+			v = uaesnd_capture_wget(data, addr);
 		} else if (addr >= 0x80 && addr < 0xe0 - 1) {
+			uaesnd_update_info(data);
 			v = get_word_host(data->info + (addr & 0x7f));
+		} else if (uaesnd_capture_block_addr(addr)) {
+			v = uaesnd_capture_block_wget(data, addr);
 		} else if (addr == 0xe0) {
 			v = data->streamallocmask >> 16;
 		} else if (addr == 0xe2) {
@@ -1049,8 +1460,13 @@ static uae_u32 REGPARAM2 uaesndboard_lget(uaecptr addr)
 			if (reg == 0x84)
 				s->intreqmask = 0;
 			v = get_long_host(s->io + reg);
+		} else if (uaesnd_capture_addr(addr)) {
+			v = uaesnd_capture_lget(data, addr);
 		} else if (addr >= 0x80 && addr < 0xe0 - 3) {
+			uaesnd_update_info(data);
 			v = get_long_host(data->info + (addr & 0x7f));
+		} else if (uaesnd_capture_block_addr(addr)) {
+			v = uaesnd_capture_block_lget(data, addr);
 		} else if (addr == 0xe0) {
 			v = data->streamallocmask;
 		} else if (addr == 0xf0) {
@@ -1100,6 +1516,10 @@ static void REGPARAM2 uaesndboard_bput(uaecptr addr, uae_u32 b)
 			int reg = addr & 255;
 			put_byte_host(s->io + reg, b);
 			uaesnd_put(data, s, reg);
+		} else if (uaesnd_capture_addr(addr)) {
+			uaesnd_capture_put(data, addr, b, 1);
+		} else if (uaesnd_capture_block_addr(addr)) {
+			uaesnd_capture_block_put(data, addr, b, 1);
 		} else if (addr >= 0xe0 && addr <= 0xe3) {
 			uae_u32 v = data->streamallocmask;
 			int shift = 8 * (3 - (addr - 0xe0));
@@ -1148,6 +1568,10 @@ static void REGPARAM2 uaesndboard_wput(uaecptr addr, uae_u32 b)
 			int reg = addr & 255;
 			put_word_host(s->io + reg, b);
 			uaesnd_put(data, s, reg);
+		} else if (uaesnd_capture_addr(addr)) {
+			uaesnd_capture_put(data, addr, b, 2);
+		} else if (uaesnd_capture_block_addr(addr)) {
+			uaesnd_capture_block_put(data, addr, b, 2);
 		} else if (addr == 0xe4 + 2) {
 			uaesnd_latch_mask(data, b);
 		} else if (addr == 0xe8 + 2) {
@@ -1174,6 +1598,10 @@ static void REGPARAM2 uaesndboard_lput(uaecptr addr, uae_u32 b)
 			int reg = addr & 255;
 			put_long_host(s->io + reg, b);
 			uaesnd_put(data, s, reg);
+		} else if (uaesnd_capture_addr(addr)) {
+			uaesnd_capture_put(data, addr, b, 4);
+		} else if (uaesnd_capture_block_addr(addr)) {
+			uaesnd_capture_block_put(data, addr, b, 4);
 		} else if (addr == 0xe0) {
 			uaesnd_streammask(data, data->streammask & b);
 			data->streamallocmask = b;
@@ -1220,6 +1648,14 @@ bool uaesndboard_init (struct autoconfig_info *aci, int z)
 	if (!ert)
 		return false;
 	data->streammask = 0;
+	data->invalid_set_count = 0;
+	data->stream_alloc_failure_count = 0;
+	data->stream_start_count = 0;
+	data->stream_stop_count = 0;
+	data->stream_irq_count = 0;
+	data->timer_irq_count = 0;
+	data->last_error_code = UAESND_ERR_NONE;
+	memset(&data->capture, 0, sizeof data->capture);
 	for (int i = 0; i < MAX_UAE_CHANNELS; i++) {
 		data->volume[i] = 32768;
 	}
@@ -1231,6 +1667,7 @@ bool uaesndboard_init (struct autoconfig_info *aci, int z)
 	put_byte_host(data->info + 14, MAX_UAE_STREAMS);
 	put_long_host(data->info + 16, data->z3 ? 8 * 1024 * 1024 : 0x8000);
 	put_long_host(data->info + 20, data->z3 ? 8 * 1024 * 1024 : 0x8000);
+	uaesnd_update_info(data);
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = ert->autoconfig[i];
 		ew(data->acmemory, i * 4, b);
@@ -1254,6 +1691,7 @@ static void uaesndboard_free(void)
 {
 	for (int j = 0; j < MAX_DUPLICATE_SOUND_BOARDS; j++) {
 		struct uaesndboard_data *data = &uaesndboard[j];
+		uaesnd_capture_stop(data);
 		data->enabled = false;
 	}
 	mapped_free(&uaesndboard_ram_bank);
@@ -1273,6 +1711,7 @@ static void uaesndboard_reset(int hardreset)
 			}
 		}
 		data->streammask = 0;
+		uaesnd_capture_stop(data);
 	}
 	mapped_free(&uaesndboard_ram_bank);
 	sndboard_rethink();
@@ -1693,7 +2132,7 @@ static void codec_start(struct snddev_data *data)
 	if (data->snddev_active & STATUS_FIFO_RECORD) {
 		data->capture_buffer_size = 48000 * 2 * 2; // 1s at 48000/stereo/16bit
 		data->capture_buffer = xcalloc(uae_u8, data->capture_buffer_size);
-		if (!sndboard_init_capture(data->freq_adjusted)) {
+		if (!sndboard_init_capture(data->freq_adjusted, SNDBOARD_CAPTURE_OWNER_TOCCATA)) {
 			write_log(_T("SNDDEV capture unavailable, recording disabled\n"));
 			data->snddev_active &= ~STATUS_FIFO_RECORD;
 			xfree(data->capture_buffer);
@@ -1708,7 +2147,7 @@ static void codec_stop(struct snddev_data *data)
 		return;
 	write_log(_T("CODEC stop\n"));
 	data->snddev_active = 0;
-	sndboard_free_capture();
+	sndboard_free_capture(SNDBOARD_CAPTURE_OWNER_TOCCATA);
 	int streamid = data->streamid;
 	data->streamid = 0;
 	audio_enable_stream(false, streamid, 0, NULL, NULL);
@@ -3089,6 +3528,8 @@ static IMMDevice *pDevice = NULL;
 static IAudioClient *pAudioClient = NULL;
 static IAudioCaptureClient *pCaptureClient = NULL;
 static bool capture_started;
+static int capture_read_count;
+static bool capture_nonzero_seen;
 
 static uae_u8 *sndboard_get_buffer(int *frames)
 {	
@@ -3106,6 +3547,28 @@ static uae_u8 *sndboard_get_buffer(int *frames)
 		return NULL;
 	}
 	*frames = numFramesAvailable;
+	if (numFramesAvailable > 0) {
+		capture_read_count++;
+		if (flags & AUDCLNT_BUFFERFLAGS_SILENT) {
+			if (capture_read_count <= 5)
+				write_log(_T("sndboard capture read %u silent frames from host input\n"), numFramesAvailable);
+		} else if (!capture_nonzero_seen) {
+			bool has_signal = false;
+			int bytes = numFramesAvailable * 4;
+			for (int i = 0; i < bytes; i++) {
+				if (pData[i] != 0) {
+					has_signal = true;
+					break;
+				}
+			}
+			if (has_signal) {
+				capture_nonzero_seen = true;
+				write_log(_T("sndboard capture received first non-silent buffer after %d reads\n"), capture_read_count);
+			} else if (capture_read_count <= 5) {
+				write_log(_T("sndboard capture read %u silent frames from host input\n"), numFramesAvailable);
+			}
+		}
+	}
 	return pData;
 }
 
@@ -3120,24 +3583,35 @@ static void sndboard_release_buffer(uae_u8 *buffer, int frames)
 	}
 }
 
-static void sndboard_free_capture(void)
+static void sndboard_free_capture(int owner)
 {
+	if (capture_owner != owner)
+		return;
 	if (capture_started)
 		pAudioClient->Stop();
 	capture_started = false;
+	capture_read_count = 0;
+	capture_nonzero_seen = false;
+	capture_owner = SNDBOARD_CAPTURE_OWNER_NONE;
 	SAFE_RELEASE(pEnumerator)
 	SAFE_RELEASE(pDevice)
 	SAFE_RELEASE(pAudioClient)
 	SAFE_RELEASE(pCaptureClient)
 }
 
-static bool sndboard_init_capture(int freq)
+static bool sndboard_init_capture(int freq, int owner)
 {
 	HRESULT hr;
 	WAVEFORMATEX wavfmtsrc;
 	WAVEFORMATEX *wavfmt2;
 	WAVEFORMATEX *wavfmt;
 	bool init = false;
+
+	if (capture_started && capture_owner != owner)
+		return false;
+	if (capture_started)
+		sndboard_free_capture(owner);
+	capture_owner = owner;
 
 	wavfmt2 = NULL;
 
@@ -3179,10 +3653,12 @@ static bool sndboard_init_capture(int freq)
 	
 		if (hr == S_FALSE && wavfmt2) {
 			wavfmt = wavfmt2;
-			hr = pAudioClient->Initialize(exc, 0, time, 0, wavfmt, NULL);
-			if (SUCCEEDED(hr)) {
-				init = true;
-				break;
+			if (wavfmt->wFormatTag == WAVE_FORMAT_PCM && wavfmt->nChannels == 2 && wavfmt->wBitsPerSample == 16) {
+				hr = pAudioClient->Initialize(exc, 0, time, 0, wavfmt, NULL);
+				if (SUCCEEDED(hr)) {
+					init = true;
+					break;
+				}
 			}
 		}
 	}
@@ -3199,6 +3675,8 @@ static bool sndboard_init_capture(int freq)
 	hr = pAudioClient->Start();
 	EXIT_ON_ERROR(hr)
 	capture_started = true;
+	capture_read_count = 0;
+	capture_nonzero_seen = false;
 
 	CoTaskMemFree(wavfmt2);
 
@@ -3208,7 +3686,7 @@ static bool sndboard_init_capture(int freq)
 Exit:;
 	CoTaskMemFree(wavfmt2);
 	write_log(_T("sndboard capture init failed %08x\n"), hr);
-	sndboard_free_capture();
+	sndboard_free_capture(owner);
 	return false;
 }
 
@@ -3224,14 +3702,22 @@ static void sndboard_release_buffer(uae_u8 *buffer, int frames)
 	unix_sndboard_release_buffer(buffer, frames);
 }
 
-static void sndboard_free_capture(void)
+static void sndboard_free_capture(int owner)
 {
+	if (capture_owner != owner)
+		return;
 	unix_sndboard_free_capture();
+	capture_owner = SNDBOARD_CAPTURE_OWNER_NONE;
 }
 
-static bool sndboard_init_capture(int freq)
+static bool sndboard_init_capture(int freq, int owner)
 {
-	return unix_sndboard_init_capture(freq);
+	if (capture_owner != SNDBOARD_CAPTURE_OWNER_NONE)
+		return capture_owner == owner;
+	if (!unix_sndboard_init_capture(freq))
+		return false;
+	capture_owner = owner;
+	return true;
 }
 
 #endif
