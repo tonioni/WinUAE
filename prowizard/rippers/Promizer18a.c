@@ -201,7 +201,7 @@ void Depack_PM18a ( void )
   /* read "reference Table" */
   Ref_Max += 1;  /* coz 1st value is 0 ! */
   i = Ref_Max * 4; /* coz each block is 4 bytes long */
-  ReferenceTable = (Uchar *) malloc ( i );
+  ReferenceTable = (Uchar *) malloc ( i + 1 );
   BZERO ( ReferenceTable, i+1 );
   for ( j=0 ; j<i ; j++) ReferenceTable[j] = in_data[Where+j];
 
