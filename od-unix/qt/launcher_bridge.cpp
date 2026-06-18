@@ -552,13 +552,20 @@ int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_pref
         ? QString::fromLocal8Bit(initialConfigPath)
         : QString();
     WinUaeQtLauncherResult result = runWinUaeQtLauncherForConfig(argc, argv, initialPath, bridgeHardwareProvider(prefs, runtimeActions != 0));
-    if (result.status == WinUaeQtLauncherStatus::StartRequested) {
+    if (result.status == WinUaeQtLauncherStatus::StartRequested
+        || result.status == WinUaeQtLauncherStatus::RestartRequested) {
         if (!applyWinUaeQtConfigToPrefs(result.config, prefs)) {
             fprintf(stderr, "Unix Qt UI failed: no preferences target available\n");
             if (exitCode) {
                 *exitCode = 1;
             }
             return WINUAE_QT_LAUNCHER_ERROR;
+        }
+        if (result.status == WinUaeQtLauncherStatus::RestartRequested) {
+            if (exitCode) {
+                *exitCode = 0;
+            }
+            return WINUAE_QT_LAUNCHER_RESTART;
         }
         return result.hardReset ? WINUAE_QT_LAUNCHER_RESET : WINUAE_QT_LAUNCHER_START;
     }
@@ -567,12 +574,6 @@ int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_pref
             *exitCode = 0;
         }
         return WINUAE_QT_LAUNCHER_QUIT;
-    }
-    if (result.status == WinUaeQtLauncherStatus::RestartRequested) {
-        if (exitCode) {
-            *exitCode = 0;
-        }
-        return WINUAE_QT_LAUNCHER_RESTART;
     }
     if (result.status == WinUaeQtLauncherStatus::Error) {
         QByteArray error = result.error.toLocal8Bit();

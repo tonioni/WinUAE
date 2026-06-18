@@ -27,6 +27,22 @@ unsigned int gui_ledstate;
 static int unix_gui_argc;
 static TCHAR **unix_gui_argv;
 
+static bool is_runtime_config_snapshot(const TCHAR *path)
+{
+    const TCHAR *name = _tcsrchr(path, '/');
+    name = name ? name + 1 : path;
+
+    const TCHAR prefix[] = _T("winuae-runtime-");
+    const TCHAR suffix[] = _T(".uae");
+    const size_t len = _tcslen(name);
+    const size_t prefix_len = _tcslen(prefix);
+    const size_t suffix_len = _tcslen(suffix);
+
+    return len > prefix_len + suffix_len
+        && !_tcsncmp(name, prefix, prefix_len)
+        && !_tcscmp(name + len - suffix_len, suffix);
+}
+
 void target_main_set_args(int argc, TCHAR **argv)
 {
     unix_gui_argc = argc;
@@ -41,23 +57,34 @@ int target_main_handle_early(int argc, TCHAR **argv)
 int gui_init(void)
 {
 #ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
-    /* Seed the launcher from default.uae like the Windows GUI: the core
-     * already loaded it into the prefs (main.cpp real_main), but the Qt
-     * launcher builds its state from the configuration file. */
-    TCHAR default_config[MAX_DPATH];
-    fetch_configurationpath(default_config, sizeof default_config / sizeof default_config[0]);
-    _tcscat(default_config, OPTIONSFILENAME);
+    TCHAR initial_config[MAX_DPATH];
+    initial_config[0] = 0;
+
     /* Command-line configs are resolved by the launcher itself and win
-     * over default.uae, like on Windows. */
-    const bool have_default = !winUaeQtLauncherArgumentsSpecifyConfig(unix_gui_argc, unix_gui_argv)
-        && access(default_config, R_OK) == 0;
+     * over default.uae, like on Windows. Otherwise seed the launcher from the
+     * config the core just loaded, which may be a runtime restart snapshot. */
+    if (!winUaeQtLauncherArgumentsSpecifyConfig(unix_gui_argc, unix_gui_argv)) {
+        if (optionsfile[0] && access(optionsfile, R_OK) == 0) {
+            _tcscpy(initial_config, optionsfile);
+        } else {
+            fetch_configurationpath(initial_config, sizeof initial_config / sizeof initial_config[0]);
+            _tcscat(initial_config, OPTIONSFILENAME);
+            if (access(initial_config, R_OK) != 0) {
+                initial_config[0] = 0;
+            }
+        }
+    }
+
     const int action = runWinUaeQtLauncherForPrefsWithConfig(
         unix_gui_argc,
         unix_gui_argv,
         &changed_prefs,
-        have_default ? default_config : nullptr,
+        initial_config[0] ? initial_config : nullptr,
         0,
         nullptr);
+    if (initial_config[0] && is_runtime_config_snapshot(initial_config)) {
+        unlink(initial_config);
+    }
     if (action == WINUAE_QT_LAUNCHER_START) {
         return 1;
     }
@@ -262,7 +289,7 @@ void gui_display(int shortcut)
     if (shortcut == -1) {
         TCHAR snapshot_path[MAX_DPATH];
         snapshot_path[0] = 0;
-        const bool have_snapshot = write_runtime_config_snapshot(snapshot_path, sizeof snapshot_path / sizeof snapshot_path[0]);
+        bool have_snapshot = write_runtime_config_snapshot(snapshot_path, sizeof snapshot_path / sizeof snapshot_path[0]);
 
         int exit_code = 0;
         const int action = runWinUaeQtLauncherForPrefsWithConfig(
@@ -273,7 +300,12 @@ void gui_display(int shortcut)
             1,
             &exit_code);
 
-        if (have_snapshot) {
+        if (have_snapshot && action == WINUAE_QT_LAUNCHER_RESTART
+            && !write_runtime_config_snapshot(snapshot_path, sizeof snapshot_path / sizeof snapshot_path[0])) {
+            unlink(snapshot_path);
+            have_snapshot = false;
+        }
+        if (have_snapshot && action != WINUAE_QT_LAUNCHER_RESTART) {
             unlink(snapshot_path);
         }
 
@@ -289,7 +321,7 @@ void gui_display(int shortcut)
         } else if (action == WINUAE_QT_LAUNCHER_QUIT) {
             uae_quit();
         } else if (action == WINUAE_QT_LAUNCHER_RESTART) {
-            uae_restart(&changed_prefs, -1, nullptr);
+            uae_restart(&changed_prefs, -1, have_snapshot ? snapshot_path : nullptr);
         } else if (action == WINUAE_QT_LAUNCHER_ERROR) {
             write_log("Unix Qt runtime UI exited with error code %d\n", exit_code);
         }
