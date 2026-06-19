@@ -1164,6 +1164,7 @@
     <ClCompile Include="..\..\uaenative.cpp" />
     <ClCompile Include="..\..\vm.cpp" />
     <ClCompile Include="..\..\x86.cpp" />
+    <ClCompile Include="..\..\atonce.cpp" />
     <ClCompile Include="..\ahidsound_dsonly.cpp" />
     <ClCompile Include="..\ahidsound_new.cpp" />
     <ClCompile Include="..\avioutput.cpp" />
