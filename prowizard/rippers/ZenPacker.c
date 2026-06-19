@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testZEN ( void )
+int16_t testZEN ( void )
 {
   /* test #1 */
   if ( PW_i<9 )
@@ -151,18 +151,18 @@ void Rip_ZEN ( void )
 
 void Depack_ZEN ( void )
 {
-  Uchar PatPos;
-  Uchar *Whatever;
-  Uchar PatMax;
-  Uchar poss[37][2];
-  Uchar Note,Smp,Fx,FxVal;
-  long WholeSampleSize=0;
-  long Pattern_Address[128];
-  long Pattern_Address_Real[128];
-  long Pattern_Table_Address;
-  long Sample_Data_Address=999999l;
-  long i,j,k,z;
-  long Where=PW_Start_Address;   /* main pointer to prevent fread() */
+  uint8_t PatPos;
+  uint8_t *Whatever;
+  uint8_t PatMax;
+  uint8_t poss[37][2];
+  uint8_t Note,Smp,Fx,FxVal;
+  int32_t WholeSampleSize=0;
+  int32_t Pattern_Address[128];
+  int32_t Pattern_Address_Real[128];
+  int32_t Pattern_Table_Address;
+  int32_t Sample_Data_Address=999999l;
+  int32_t i,j,k,z;
+  int32_t Where=PW_Start_Address;   /* main pointer to prevent fread() */
   FILE *out;
 
   fillPTKtable(poss);
@@ -172,7 +172,7 @@ void Depack_ZEN ( void )
 
   BZERO ( Pattern_Address , 128*4);
   BZERO ( Pattern_Address_Real , 128*4);
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* read pattern table address */
@@ -190,7 +190,7 @@ void Depack_ZEN ( void )
   /*printf ( "Size of pattern list : %d\n" , PatPos );*/
 
   /* write title */
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO ( Whatever , 1024 );
   fwrite ( Whatever , 20 , 1 , out );
 
@@ -229,8 +229,8 @@ void Depack_ZEN ( void )
     /* write loop start */
     /* use of htonl() suggested by Xigh !.*/
     z = htonl(j);
-    Whatever[48] = *((Uchar *)&z+2);
-    Whatever[49] = *((Uchar *)&z+3);
+    Whatever[48] = *((uint8_t *)&z+2);
+    Whatever[49] = *((uint8_t *)&z+3);
     fwrite ( &Whatever[48] , 2 , 1 , out );
 
     /* write loop size */

@@ -5,47 +5,106 @@
 #include "extern.h"
 
 
-short testcrunchmaniaAddr ( void )
+/* 20091203 - update with yet another case */
+int16_t	 testcrunchmaniaAddr ( int PW_case )
 {
   /*PW_Start_Address = PW_i - 4;*/
   PW_Start_Address = PW_i;
 
-  if ( (in_data[PW_Start_Address+32] != 0x6F ) ||
-       (in_data[PW_Start_Address+33] != 0x14 ) ||
-       (in_data[PW_Start_Address+34] != 0x26 ) ||
-       (in_data[PW_Start_Address+35] != 0x4A ) ||
-       (in_data[PW_Start_Address+36] != 0x49 ) ||
-       (in_data[PW_Start_Address+37] != 0xE9 ) ||
-       (in_data[PW_Start_Address+42] != 0xE4 ) ||
-       (in_data[PW_Start_Address+43] != 0x8F ) ||
-       (in_data[PW_Start_Address+44] != 0x52 ) ||
-       (in_data[PW_Start_Address+45] != 0x87 ) ||
-       (in_data[PW_Start_Address+46] != 0x24 ) ||
-       (in_data[PW_Start_Address+47] != 0x4C ) ||
-       (in_data[PW_Start_Address+48] != 0x28 ) ||
-       (in_data[PW_Start_Address+49] != 0xDB ) ||
-       (in_data[PW_Start_Address+50] != 0x53 ) ||
-       (in_data[PW_Start_Address+51] != 0x87 ) ||
-       (in_data[PW_Start_Address+52] != 0x66 ) ||
-       (in_data[PW_Start_Address+53] != 0xFA ) )
-  { /* another case ...*/
-    if ( (in_data[PW_Start_Address+36] != 0x22 ) ||
-	 (in_data[PW_Start_Address+37] != 0x1A ) ||
-	 (in_data[PW_Start_Address+38] != 0x24 ) ||
-	 (in_data[PW_Start_Address+39] != 0x1A ) ||
-	 (in_data[PW_Start_Address+40] != 0x47 ) ||
-	 (in_data[PW_Start_Address+41] != 0xEA ) )
+  if (PW_case == 1)
+  {
+    if ( (in_data[PW_Start_Address+32] != 0x6F ) ||
+         (in_data[PW_Start_Address+33] != 0x14 ) ||
+         (in_data[PW_Start_Address+34] != 0x26 ) ||
+         (in_data[PW_Start_Address+35] != 0x4A ) ||
+         (in_data[PW_Start_Address+36] != 0x49 ) ||
+         (in_data[PW_Start_Address+37] != 0xE9 ) ||
+         (in_data[PW_Start_Address+42] != 0xE4 ) ||
+         (in_data[PW_Start_Address+43] != 0x8F ) ||
+         (in_data[PW_Start_Address+44] != 0x52 ) ||
+         (in_data[PW_Start_Address+45] != 0x87 ) ||
+         (in_data[PW_Start_Address+46] != 0x24 ) ||
+         (in_data[PW_Start_Address+47] != 0x4C ) ||
+         (in_data[PW_Start_Address+48] != 0x28 ) ||
+         (in_data[PW_Start_Address+49] != 0xDB ) ||
+         (in_data[PW_Start_Address+50] != 0x53 ) ||
+         (in_data[PW_Start_Address+51] != 0x87 ) ||
+         (in_data[PW_Start_Address+52] != 0x66 ) ||
+         (in_data[PW_Start_Address+53] != 0xFA ) )
+    { /* another case ...*/
+      if ( (in_data[PW_Start_Address+36] != 0x22 ) ||
+	     (in_data[PW_Start_Address+37] != 0x1A ) ||
+         (in_data[PW_Start_Address+38] != 0x24 ) ||
+         (in_data[PW_Start_Address+39] != 0x1A ) ||
+         (in_data[PW_Start_Address+40] != 0x47 ) ||
+         (in_data[PW_Start_Address+41] != 0xEA ) )
+      {
+        if ( (in_data[PW_Start_Address+36] != 0x00 ) ||
+           (in_data[PW_Start_Address+37] != 0x07 ) ||
+           (in_data[PW_Start_Address+38] != 0xf7 ) ||
+           (in_data[PW_Start_Address+39] != 0x00 ) ||
+           (in_data[PW_Start_Address+40] != 0x20 ) ||
+           (in_data[PW_Start_Address+41] != 0x4c ) )
+        {
+          /* should be enough :))) */
+          /*printf ( "#2 Start:%ld\n" , PW_Start_Address );*/
+          return BAD;
+        }
+      }
+    }
+    /* packed size */
+    PW_j = ( (in_data[PW_Start_Address+6]*256) +
+              in_data[PW_Start_Address+7] )+10;
+    if ((PW_Start_Address+PW_j) > PW_in_size)
+    {
+      return BAD;
+    }
+
+    PW_l = ( (in_data[PW_Start_Address+PW_j]*256*256*256) +
+	       (in_data[PW_Start_Address+PW_j+1]*256*256) +
+           (in_data[PW_Start_Address+PW_j+2]*256) +
+            in_data[PW_Start_Address+PW_j+3] );
+
+    PW_l += (40 + PW_j);
+    if ((PW_l%4) != 0)
+      PW_l += 2;
+
+  }
+  else if (PW_case == 2)
+  {
+    if ( (in_data[PW_Start_Address+36] != 0x00 ) ||
+         (in_data[PW_Start_Address+37] != 0x07 ) ||
+         (in_data[PW_Start_Address+38] != 0xf7 ) ||
+         (in_data[PW_Start_Address+39] != 0x00 ) ||
+         (in_data[PW_Start_Address+40] != 0x20 ) ||
+         (in_data[PW_Start_Address+41] != 0x4c ) )
     {
       /* should be enough :))) */
       /*printf ( "#2 Start:%ld\n" , PW_Start_Address );*/
       return BAD;
     }
+    PW_j = 374;
+    if ((PW_Start_Address+PW_j) > PW_in_size)
+    {
+      return BAD;
+    }
+
+    PW_l = ( (in_data[PW_Start_Address+PW_j]*256*256*256) +
+             (in_data[PW_Start_Address+PW_j+1]*256*256) +
+             (in_data[PW_Start_Address+PW_j+2]*256) +
+              in_data[PW_Start_Address+PW_j+3] );
+    PW_l += 378;
+    if (((PW_l/4)*4) != PW_l)
+      PW_l += 2;
   }
+  else
+    return BAD;
 
 
-  /* packed size */
-  PW_j = ( (in_data[PW_Start_Address+6]*256) +
-	   in_data[PW_Start_Address+7] )+10;
+  if ((PW_Start_Address+PW_j) > PW_in_size)
+  {
+    return BAD;
+  }
 
   PW_l = ( (in_data[PW_Start_Address+PW_j]*256*256*256) +
 	   (in_data[PW_Start_Address+PW_j+1]*256*256) +
@@ -93,8 +152,8 @@ void Rip_CrunchmaniaAddr ( void )
 {
   /* PW_l is still the whole size */
 
-  Uchar * Amiga_EXE_Header_Block;
-  Uchar * Whatever;
+  uint8_t * Amiga_EXE_Header_Block;
+  uint8_t * Whatever;
 
   OutputSize = PW_l;
 
@@ -103,7 +162,7 @@ void Rip_CrunchmaniaAddr ( void )
   if ( Amiga_EXE_Header == BAD )
   {
     OutputSize -= 32;
-    Amiga_EXE_Header_Block = (Uchar *) malloc ( 32 );
+    Amiga_EXE_Header_Block = (uint8_t *) malloc ( 32 );
     BZERO ( Amiga_EXE_Header_Block , 32 );
     Amiga_EXE_Header_Block[2]  = Amiga_EXE_Header_Block[26] = 0x03;
     Amiga_EXE_Header_Block[3]  = 0xF3;
@@ -115,7 +174,7 @@ void Rip_CrunchmaniaAddr ( void )
     /* 68k machines code : c2 = *(Whatever+3); */
     PW_j = PW_l - 36;
     PW_j /= 4;
-    Whatever = (Uchar *) &PW_j;
+    Whatever = (uint8_t *) &PW_j;
     Amiga_EXE_Header_Block[20] = Amiga_EXE_Header_Block[28] = *(Whatever+3);
     Amiga_EXE_Header_Block[21] = Amiga_EXE_Header_Block[29] = *(Whatever+2);
     Amiga_EXE_Header_Block[22] = Amiga_EXE_Header_Block[30] = *(Whatever+1);

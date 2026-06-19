@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testKSM ( void )
+int16_t	 testKSM ( void )
 {
   PW_Start_Address = PW_i;
   if ( (PW_Start_Address + 1536) > PW_in_size)
@@ -99,23 +99,23 @@ void Rip_KSM ( void )
 
 void Depack_KSM ( void )
 {
-  Uchar *Whatever;
-  Uchar c1=0x00,c2=0x00,c5;
-  Uchar Track_Numbers[128][4];
-  Uchar Track_Numbers_Real[128][4];
-  Uchar Track_Datas[4][192];
-  Uchar Max=0x00;
-  Uchar poss[37][2];
-  Uchar PatPos;
-  Uchar Status=ON;
-  Uchar transco[]={'a','b','c','d','e','f','g','h','i','j'
+  uint8_t *Whatever;
+  uint8_t c1=0x00,c2=0x00,c5;
+  uint8_t Track_Numbers[128][4];
+  uint8_t Track_Numbers_Real[128][4];
+  uint8_t Track_Datas[4][192];
+  uint8_t Max=0x00;
+  uint8_t poss[37][2];
+  uint8_t PatPos;
+  uint8_t Status=ON;
+  uint8_t transco[]={'a','b','c','d','e','f','g','h','i','j'
                   ,'k','l','m','n','o','p','q','r','s','t'
                   ,'u','v','w','x','y','z'
                   ,'-',':','!','~','1','2','3','4','5','6'
                   ,'7','8','9','0',' ',';'};
-  long Where=PW_Start_Address;
-  long WholeSampleSize=0;
-  unsigned long i=0,j=0,k=0,l;
+  int32_t	 Where=PW_Start_Address;
+  int32_t	 WholeSampleSize=0;
+  uint32_t	 i=0,j=0,k=0,l;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -126,11 +126,11 @@ void Depack_KSM ( void )
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* title */
-  Whatever = (Uchar *) malloc ( 1024 );
+  Whatever = (uint8_t *) malloc ( 1024 );
   BZERO ( Whatever , 1024 );
   fwrite ( &in_data[Where+2] , 13 , 1 , out );
   fwrite ( Whatever , 7 , 1 , out );  /* fill-up there */
@@ -192,8 +192,8 @@ void Depack_KSM ( void )
       /* use of htonl() suggested by Xigh !.*/
       j/=2;
       l = htonl(j);
-      c1 = *((Uchar *)&l+2);
-      c2 = *((Uchar *)&l+3);
+      c1 = *((uint8_t *)&l+2);
+      c2 = *((uint8_t *)&l+3);
       fwrite ( &c1 , 1 , 1 , out );
       fwrite ( &c2 , 1 , 1 , out );
     }

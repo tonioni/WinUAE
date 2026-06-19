@@ -6,7 +6,7 @@
 #include "globals.h"
 #include "extern.h"
 
-short testTP1 ( void )
+int16_t	 testTP1 ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -119,19 +119,19 @@ void Rip_TP1 ( void )
 
 void Depack_TP1 ( void )
 {
-  Uchar c1=0x00,c2=0x00,c3=0x00;
-  Uchar poss[37][2];
-  Uchar *Whatever;
-  Uchar Note,Smp,Fx,FxVal;
-  Uchar Patternlist[128];
-  Uchar PatPos;
-  long Pats_Address[128];
-  long i=0,j=0,k;
-  long Pats_Address_read[128];
-  long Start_Pat_Address;
-  long Whole_Sample_Size=0;
-  long Sample_Data_Address;
-  long Where=PW_Start_Address;
+  uint8_t c1=0x00,c2=0x00,c3=0x00;
+  uint8_t poss[37][2];
+  uint8_t *Whatever;
+  uint8_t Note,Smp,Fx,FxVal;
+  uint8_t Patternlist[128];
+  uint8_t PatPos;
+  int32_t	 Pats_Address[128];
+  int32_t	 i=0,j=0,k;
+  int32_t	 Pats_Address_read[128];
+  int32_t	 Start_Pat_Address;
+  int32_t	 Whole_Sample_Size=0;
+  int32_t	 Sample_Data_Address;
+  int32_t	 Where=PW_Start_Address;
   FILE *out;
 
   fillPTKtable(poss);
@@ -141,11 +141,11 @@ void Depack_TP1 ( void )
 
   BZERO ( Pats_Address , 128*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* title */
-  Whatever = (Uchar *) malloc (65536);
+  Whatever = (uint8_t *) malloc (65536);
   BZERO ( Whatever , 65536 );
   fwrite ( &in_data[Where+8] , 20 , 1 , out );
 
@@ -261,7 +261,7 @@ void Depack_TP1 ( void )
     for ( j=0 ; j<k ; j++ )
       if ( Pats_Address[i] == Pats_Address_read[j] )
       {
-	Patternlist[i] = (Uchar)j;
+	Patternlist[i] = (uint8_t)j;
       }
 
   /* write pattern list */

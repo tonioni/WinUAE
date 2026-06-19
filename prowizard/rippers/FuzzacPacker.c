@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testFUZZAC ( void )
+int16_t	 testFUZZAC ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -93,17 +93,17 @@ void Rip_Fuzzac ( void )
 
 void Depack_Fuzzac ( void )
 {
-  Uchar c5;
-  Uchar PatPos;
-  Uchar *Whatever;
-  Uchar NbrTracks;
-  Uchar Track_Numbers[128][16];
-  Uchar Track_Numbers_Real[128][4];
-  Uchar Track_Datas[4][256];
-  Uchar Status=ON;
-  long WholeSampleSize=0;
-  long i,j,k,l;
-  long Where = PW_Start_Address;
+  uint8_t c5;
+  uint8_t PatPos;
+  uint8_t *Whatever;
+  uint8_t NbrTracks;
+  uint8_t Track_Numbers[128][16];
+  uint8_t Track_Numbers_Real[128][4];
+  uint8_t Track_Datas[4][256];
+  uint8_t Status=ON;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 i,j,k,l;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -112,7 +112,7 @@ void Depack_Fuzzac ( void )
   BZERO ( Track_Numbers , 128*16 );
   BZERO ( Track_Numbers_Real , 128*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* bypass ID */
@@ -120,7 +120,7 @@ void Depack_Fuzzac ( void )
   Where += 6;
 
   /* write title */
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO ( Whatever , 1024 );
   fwrite ( Whatever , 20 , 1 , out );
 

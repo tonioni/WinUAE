@@ -10,7 +10,7 @@
 
 
 /* Power Music */
-short testPM ( void )
+int16_t	 testPM ( void )
 {
   /* test 1 */
   if ( PW_i < 1080 )
@@ -80,17 +80,17 @@ void Rip_PM ( void )
 void Depack_PM ( void )
 {
   signed char *Smp_Data;
-  Uchar c1=0x00,c2=0x00;
-  Uchar Max=0x00;
-  long WholeSampleSize=0;
-  long i=0,j;
-  long Where = PW_Start_Address;
+  uint8_t c1=0x00,c2=0x00;
+  uint8_t Max=0x00;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 i=0,j;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* write whole header */

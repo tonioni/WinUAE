@@ -7,7 +7,7 @@
 
 
 
-short testFuchsTracker ( void )
+int16_t	 testFuchsTracker ( void )
 {
   /* test #1 */
   if ( PW_i<192 )
@@ -79,7 +79,7 @@ short testFuchsTracker ( void )
 
   /* PW_m is the size of all samples (in descriptions) */
   /* PW_k is the highest pattern data -1 */
-  /* input file not long enough ? */
+  /* input file not int32_t	 enough ? */
   PW_k += 1;
   PW_k *= 1024;
   if ( (PW_k+200) > PW_in_size )
@@ -131,13 +131,13 @@ void Rip_FuchsTracker ( void )
 
 void Depack_FuchsTracker ( void )
 {
-  Uchar *Whatever;
-  Uchar c1=0x00;
-  long WholeSampleSize=0;
-  long SampleSizes[16];
-  long LoopStart[16];
-  unsigned long i=0,j=0,k;
-  long Where = PW_Start_Address;
+  uint8_t *Whatever;
+  uint8_t c1=0x00;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 SampleSizes[16];
+  int32_t	 LoopStart[16];
+  uint32_t	 i=0,j=0,k;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -146,11 +146,11 @@ void Depack_FuchsTracker ( void )
   BZERO ( SampleSizes , 16*4 );
   BZERO ( LoopStart , 16*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* write empty ptk header */
-  Whatever = (Uchar *) malloc ( 1080 );
+  Whatever = (uint8_t *) malloc ( 1080 );
   BZERO ( Whatever , 1080 );
   fwrite ( Whatever , 1080 , 1 , out );
 
@@ -240,8 +240,8 @@ void Depack_FuchsTracker ( void )
     j /= 2;
     /* use of htonl() suggested by Xigh !.*/
     k = htonl(j);
-    Whatever[0] = *((Uchar *)&k+2);
-    Whatever[1] = *((Uchar *)&k+3);
+    Whatever[0] = *((uint8_t *)&k+2);
+    Whatever[1] = *((uint8_t *)&k+3);
     fwrite ( Whatever , 2 , 1 , out );
   }
 
@@ -299,7 +299,7 @@ void Depack_FuchsTracker ( void )
  
   /* read pattern data */
   free ( Whatever );
-  Whatever = (Uchar *) malloc ( j );
+  Whatever = (uint8_t *) malloc ( j );
 
   /* convert shits */
   for ( i=0 ; i<j ; i+=4 )

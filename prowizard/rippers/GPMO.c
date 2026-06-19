@@ -7,7 +7,7 @@
 #include "extern.h"
 
 
-short testGPMO ( void )
+int16_t	 testGPMO ( void )
 {
   /* test 1 */
   if ( PW_i < 1080 )
@@ -133,17 +133,17 @@ void Rip_GPMO ( void )
 
 void Depack_GPMO ( void )
 {
-  Uchar *Whatever;
-  Uchar Max=0x00;
-  long WholeSampleSize=0;
-  long i=0;
-  long Where=PW_Start_Address;
+  uint8_t *Whatever;
+  uint8_t Max=0x00;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 i=0;
+  int32_t	 Where=PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* get whole sample size and patch vols (/2)*/
@@ -160,7 +160,7 @@ void Depack_GPMO ( void )
   Where += 952;
 
   /* write ID */
-  Whatever = (Uchar *) malloc (4);
+  Whatever = (uint8_t *) malloc (4);
   Whatever[0] = 'M';
   Whatever[1] = '.';
   Whatever[2] = 'K';

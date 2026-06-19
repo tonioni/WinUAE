@@ -8,7 +8,7 @@
 
 /* Noise from Heaven Chipdisk (21 oct 2001) by Iris */
 
-short testNFH ( void )
+int16_t	 testNFH ( void )
 {
   /* test 1 */
   if ( PW_i < 1080 )
@@ -119,12 +119,12 @@ void Rip_NFH ( void )
 */
 void Depack_NFH ( void )
 {
-  Uchar *Whatever;
-  Uchar poss[37][2];
-  Uchar Max=0x00;
-  long WholeSampleSize=0;
-  long i=0,j=0;
-  long Where=PW_Start_Address;
+  uint8_t *Whatever;
+  uint8_t poss[37][2];
+  uint8_t Max=0x00;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 i=0,j=0;
+  int32_t	 Where=PW_Start_Address;
   FILE *out;
 
   fillPTKtable(poss);
@@ -132,7 +132,7 @@ void Depack_NFH ( void )
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* read and write whole header */
@@ -148,7 +148,7 @@ void Depack_NFH ( void )
   Where += 952 /* after size of pattern list .. before pattern list itself */;
 
   /* write ID */
-  Whatever = (Uchar *) malloc (4);
+  Whatever = (uint8_t *) malloc (4);
   Whatever[0] = 'M';
   Whatever[1] = '.';
   Whatever[2] = 'K';

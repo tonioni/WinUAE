@@ -11,8 +11,10 @@
 #include "extern.h"
 
 
-short testMP_noID ( void )
+int16_t	 testMP_noID ( void )
 {
+ /* TODO : test notes */
+
   /* test #1 */
   if ( (PW_i < 3) || ((PW_i+375)>PW_in_size))
   {
@@ -34,7 +36,7 @@ short testMP_noID ( void )
 
     if ( test_smps(PW_k, PW_m, PW_n, in_data[PW_Start_Address+3+8*PW_j], in_data[PW_Start_Address+2+8*PW_j] ) == BAD )
     {
-      /*      printf ( "#2 Start:%ld (siz:%ld)(lstart:%ld)(lsiz:%ld)\n", PW_Start_Address,PW_k,PW_m,PW_n );*/
+            /*printf ( "#2 Start:%ld (siz:%ld)(lstart:%ld)(lsiz:%ld)\n", PW_Start_Address,PW_k,PW_m,PW_n );*/
       return BAD; 
     }
   }
@@ -61,15 +63,14 @@ short testMP_noID ( void )
       PW_k = in_data[PW_Start_Address+250+PW_j];
     if ( in_data[PW_Start_Address+250+PW_j] > 0x7f )
     {
-      /*printf(  "#4 (Start:%ld)\n",PW_Start_Address );*/
+/*printf(  "#4 (Start:%ld)\n",PW_Start_Address );*/
       return BAD;
     }
-    if ( PW_j > PW_l+3 )
-      if (in_data[PW_Start_Address+250+PW_j] != 0x00)
-      {
-	/*printf(  "#4,1 (Start:%ld)\n",PW_Start_Address );*/
-        return BAD;
-      }
+    if ( (PW_j > PW_l+10) && (in_data[PW_Start_Address+250+PW_j] != 0x00) )
+    {
+/*printf(  "#4,1 (Start:%ld)(unclean patternlist at %ld:%x)\n",PW_Start_Address, 250+PW_j,in_data[PW_Start_Address+250+PW_j]);*/
+      return BAD;
+    }
   }
   PW_k += 1;
 
@@ -84,9 +85,14 @@ short testMP_noID ( void )
   for ( PW_j=0 ; PW_j<((256*PW_k)-4) ; PW_j++ )
   {
     PW_l = in_data[PW_Start_Address+378+PW_j*4+4];
-    if ( PW_l > 19 )  /* 0x13 */
+    if ( (PW_l&0xf0) > 0x10 )
     {
-      /*printf(  "#5 (Start:%ld)(byte0:%x)(Where:%ld)\n",PW_Start_Address,in_data[PW_Start_Address+378+PW_j*4],PW_Start_Address+378+PW_j*4 );*/
+/*printf(  "#5 (Start:%ld)(byte0:%x)(Where:%ld)\n",PW_Start_Address,in_data[PW_Start_Address+378+PW_j*4],PW_Start_Address+378+PW_j*4 );*/
+      return BAD;
+    }
+    if ( (PW_l&0x0f) > 0x03 )
+    {
+/*printf(  "#5,0 (Start:%ld)(byte0:%x)(Where:%ld)\n",PW_Start_Address,in_data[PW_Start_Address+378+PW_j*4],PW_Start_Address+378+PW_j*4 );*/
       return BAD;
     }
     PW_l  = in_data[PW_Start_Address+378+PW_j*4]&0x0f;
@@ -97,16 +103,19 @@ short testMP_noID ( void )
       PW_m = 1;
     if ( PW_n != 0 )
       PW_o = 1;
-    if ( (PW_l > 0) && (PW_l<0x71) )
+    /*20100905 : more accurate test to lower fake finding */
+    if ( (PW_l<0x100) && (PW_l != 0x00) && (PW_l != 0x71) &&(PW_l != 0x78) &&(PW_l != 0x7f) &&(PW_l != 0x87) &&(PW_l != 0x8f) &&
+         (PW_l != 0x97) && (PW_l != 0xa0) &&(PW_l != 0xaa) &&(PW_l != 0xb4) &&(PW_l != 0xbe) &&(PW_l != 0xca) &&
+         (PW_l != 0xd6) && (PW_l != 0xe2) && (PW_l != 0xf0) && (PW_l != 0xfe))
     {
-      /*printf ( "#5,1 (Start:%ld)(where:%ld)(note:%ld)\n" , PW_Start_Address,PW_Start_Address+378+PW_j*4, PW_l );*/
+/*printf ( "#5,1 (Start:%ld)(where:%ld)(note:%lx)\n" , PW_Start_Address,PW_Start_Address+378+PW_j*4, PW_l );*/
       return BAD;
     }
   }
   if ( (PW_m == 0) || (PW_o == 0) )
   {
     /* no note ... odd */
-    /*printf ("#5,2 (Start:%ld)\n",PW_Start_Address);*/
+/*printf ("#5,2 (Start:%ld)\n",PW_Start_Address);*/
     return BAD;
   }
 
@@ -118,7 +127,7 @@ short testMP_noID ( void )
           +(((in_data[PW_Start_Address+6+PW_j*8]*256)+in_data[PW_Start_Address+7+PW_j*8])*2);
     if ( PW_l > (PW_k+2) )
     {
-      /*printf(  "#6 (Start:%ld)\n",PW_Start_Address );*/
+/*printf(  "#6 (Start:%ld)\n",PW_Start_Address );*/
       return BAD;
     }
   }
@@ -127,7 +136,7 @@ short testMP_noID ( void )
 }
 
 
-short testMP_withID ( void )
+int16_t	 testMP_withID ( void )
 {
   /* test #1 */
   PW_Start_Address = PW_i;
@@ -249,61 +258,68 @@ void Rip_MP_withID ( void )
  * Last update: 28/11/99
  *   - removed open() (and other fread()s and the like)
  *   - general Speed & Size Optmizings
+ *
+ * 20100119 : clean up - only one fwrite for header
 */
 
 void Depack_MP ( void )
 {
-  Uchar *Whatever;
-  long i=0;
-  long Total_Sample_Size=0;
-  long Where = PW_Start_Address;
+  uint8_t *Whatever;
+  int32_t	 i=0,j=0;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
-  Whatever = (Uchar *) malloc (64);
-  BZERO ( Whatever , 64 );
+  Whatever = (uint8_t *) malloc (1085);
+  BZERO ( Whatever , 1085 );
 
-  /* title */
-  fwrite ( Whatever , 20 , 1 , out );
+  /* empty title */
 
   if ( (in_data[Where] == 'T') && (in_data[Where+1] == 'R') && (in_data[Where+2] == 'K') && (in_data[Where+3] == '1') )
     Where += 4;
 
   for ( i=0 ; i<31 ; i++ )
   {
-    /*sample name*/
-    fwrite ( Whatever , 22 , 1 , out );
-
-    Total_Sample_Size += (((in_data[Where]*256)+in_data[Where+1])*2);
-    fwrite ( &in_data[Where] , 8 , 1 , out );
+    WholeSampleSize += (((in_data[Where]*256)+in_data[Where+1])*2);
+    Whatever[i*30 + 42] = in_data[Where];
+    Whatever[i*30 + 43] = in_data[Where+1];
+    Whatever[i*30 + 44] = in_data[Where+2];
+    Whatever[i*30 + 45] = in_data[Where+3];
+    Whatever[i*30 + 46] = in_data[Where+4];
+    Whatever[i*30 + 47] = in_data[Where+5];
+    Whatever[i*30 + 48] = in_data[Where+6];
+    Whatever[i*30 + 49] = in_data[Where+7];
     Where += 8;
   }
-  /*printf ( "Whole sample size : %ld\n" , Total_Sample_Size );*/
+  /*printf ( "Whole sample size : %ld\n" , WholeSampleSize );*/
 
   /* pattern table lenght & Ntk byte */
-  fwrite ( &in_data[Where] , 2 , 1 , out );
-  Where += 2;
+  Whatever[950] = in_data[Where++];
+  Whatever[951] = in_data[Where++];
 
-  Whatever[32] = 0x00;
+  j = 0;
   for ( i=0 ; i<128 ; i++ )
   {
-    if ( in_data[Where+i] > Whatever[32] )
-      Whatever[32] = in_data[Where+i];
+    Whatever[952+i] = in_data[Where+i];
+    if ( in_data[Where+i] > j )
+      j = in_data[Where+i];
   }
-  fwrite ( &in_data[Where] , 128 , 1 , out );
   Where += 128;
   /*printf ( "Number of pattern : %d\n" , Max+1 );*/
 
-  Whatever[0] = 'M';
-  Whatever[1] = '.';
-  Whatever[2] = 'K';
-  Whatever[3] = '.';
-  fwrite ( Whatever , 4 , 1 , out );
+  Whatever[1080] = 'M';
+  Whatever[1081] = '.';
+  Whatever[1082] = 'K';
+  Whatever[1083] = '.';
+
+  fwrite ( Whatever , 1084 , 1 , out );
+  free ( Whatever );
 
   /* bypass 4 unknown empty bytes */
   if ( (in_data[Where]==0x00)&&(in_data[Where+1]==0x00)&&(in_data[Where+2]==0x00)&&(in_data[Where+3]==0x00) )
@@ -312,13 +328,12 @@ void Depack_MP ( void )
     /*printf ( "! four empty bytes bypassed at the beginning of the pattern data\n" );*/
 
   /* pattern data */
-  i = (Whatever[32]+1)*1024;
+  i = (j+1)*1024;
   fwrite ( &in_data[Where] , i , 1 , out );
   Where += i;
-  free ( Whatever );
 
   /* sample data */
-  fwrite ( &in_data[Where] , Total_Sample_Size , 1 , out );
+  fwrite ( &in_data[Where] , WholeSampleSize , 1 , out );
 
   Crap ( " Module Protector " , BAD , BAD , out );
 

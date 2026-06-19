@@ -7,7 +7,7 @@
 #include "extern.h"
 
 
-short testPRUN1 ( void )
+int16_t	 testPRUN1 ( void )
 {
   /* test 1 */
   if ( PW_i < 1080 )
@@ -27,6 +27,26 @@ short testPRUN1 ( void )
   {
     return BAD;
   }
+
+  /* test 4 */
+  for ( PW_k=0 ; PW_k<31 ; PW_k++ )
+  {
+    /* size */
+    PW_j = (((in_data[PW_Start_Address+42+PW_k*30]*256)+in_data[PW_Start_Address+43+PW_k*30])*2);
+    /* loop start */
+    PW_m = (((in_data[PW_Start_Address+46+PW_k*30]*256)+in_data[PW_Start_Address+47+PW_k*30])*2);
+    /* loop size */
+    PW_n = (((in_data[PW_Start_Address+48+PW_k*30]*256)+in_data[PW_Start_Address+49+PW_k*30])*2);
+
+    if ( test_smps(PW_j*2, PW_m, PW_n, in_data[PW_Start_Address+45+30*PW_k], in_data[PW_Start_Address+44+30*PW_k] ) == BAD )
+    {
+      /*printf ( "start : %ld\n", PW_Start_Address );*/
+      return BAD; 
+    }
+
+    PW_WholeSampleSize += PW_j;
+  }
+
   return GOOD;
 }
 
@@ -34,9 +54,6 @@ short testPRUN1 ( void )
 
 void Rip_PRUN1 ( void )
 {
-  PW_WholeSampleSize = 0;
-  for ( PW_k=0 ; PW_k<31 ; PW_k++ )
-    PW_WholeSampleSize += (((in_data[PW_Start_Address+42+30*PW_k]*256)+in_data[PW_Start_Address+43+30*PW_k])*2);
   PW_l=0;
   for ( PW_k=0 ; PW_k<128 ; PW_k++ )
     if ( in_data[PW_Start_Address+952+PW_k] > PW_l )
@@ -48,7 +65,7 @@ void Rip_PRUN1 ( void )
   Save_Rip ( "Prorunner 1 module", ProRunner_v1 );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 1083); /* 1080 could be enough */
+    PW_i += 1; /* 1080 could be enough */
 }
 
 
@@ -64,12 +81,12 @@ void Rip_PRUN1 ( void )
 */
 void Depack_PRUN1 ( void )
 {
-  Uchar *Whatever;
-  Uchar poss[37][2];
-  Uchar Max=0x00;
-  long WholeSampleSize=0;
-  long i=0,j=0;
-  long Where=PW_Start_Address;
+  uint8_t *Whatever;
+  uint8_t poss[37][2];
+  uint8_t Max=0x00;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 i=0,j=0;
+  int32_t	 Where=PW_Start_Address;
   FILE *out;
 
   fillPTKtable(poss);
@@ -77,7 +94,7 @@ void Depack_PRUN1 ( void )
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* read and write whole header */
@@ -96,7 +113,7 @@ void Depack_PRUN1 ( void )
   Where += 952;
 
   /* write ID */
-  Whatever = (Uchar *) malloc (4);
+  Whatever = (uint8_t *) malloc (4);
   Whatever[0] = 'M';
   Whatever[1] = '.';
   Whatever[2] = 'K';

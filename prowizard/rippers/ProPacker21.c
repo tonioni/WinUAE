@@ -10,10 +10,15 @@
 #include "extern.h"
 
 
-short testPP21 ( void )
+int16_t	 testPP21 ( void )
 {
   /* test #1 */
-  if ( (PW_i < 3) || ((PW_i+891)>=PW_in_size))
+  if ( PW_i < 3 )
+  {
+/*printf ( "#1 (PW_i:%ld)\n" , PW_i );*/
+    return BAD;
+  }
+  if ( (PW_i+891) >= PW_in_size)
   {
 /*printf ( "#1 (PW_i:%ld)\n" , PW_i );*/
     return BAD;
@@ -119,7 +124,7 @@ void Rip_PP21 ( void )
   Save_Rip ( "ProPacker v2.1 module", Propacker_21 );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 4);  /* 3 should do but call it "just to be sure" :) */
+    PW_i += 4;  /* 3 should do but call it "just to be sure" :) */
 }
 
 
@@ -146,13 +151,13 @@ void Rip_PP21 ( void )
 
 void Depack_PP21 ( void )
 {
-  Uchar *Header, *Pattern;
-  Ulong ReadTrkPat[128][4], ReadPat[128];
-  long Highest_Track = 0;
-  long whereTableRef;
-  long i=0,j=0,k=0,l=0,m=0;
-  long Total_Sample_Size=0;
-  long Where=PW_Start_Address;
+  uint8_t *Header, *Pattern;
+  uint32_t	 ReadTrkPat[128][4], ReadPat[128];
+  int32_t	 Highest_Track = 0;
+  int32_t	 whereTableRef;
+  int32_t	 i=0,j=0,k=0,l=0,m=0;
+  int32_t	 Total_Sample_Size=0;
+  int32_t	 Where=PW_Start_Address;
   FILE *out;
   /*FILE *info;*/
 
@@ -160,12 +165,12 @@ void Depack_PP21 ( void )
     return;
 
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
   /*info = PW_fopen ( "info.txt" , "w+b");*/
 
-  Header = (Uchar *)malloc(1084);
-  Pattern = (Uchar *)malloc(1024);
+  Header = (uint8_t *)malloc(1084);
+  Pattern = (uint8_t *)malloc(1024);
   BZERO ( Header , 1084 );
   BZERO ( Pattern , 1024 );
 
@@ -195,7 +200,7 @@ void Depack_PP21 ( void )
   Where += 1;
 
   /* now, where = 0xFA*/
-  for (i=0;i<Header[950];i++)
+  for (i=0;i<128;i++)
   {
     ReadPat[i] = (in_data[Where+i]*256*256*256) + 
       (in_data[Where+i+128]*256*256) +
@@ -287,13 +292,13 @@ void Depack_PP21 ( void )
     }
     for (k=0;k<4;k++) /* loop on 4 tracks' refs*/
     {
-      long d;
+      int32_t	 d;
 
       /* loop on notes */
       for (d=0;d<64;d++)
       {
         /* read one ref value to be fetch in the reference table */
-        long val = (in_data[Where+(ReadTrkPat[j][k]*128)+(d*2)])*256
+        int32_t	 val = (in_data[Where+(ReadTrkPat[j][k]*128)+(d*2)])*256
              + in_data[Where+(ReadTrkPat[j][k]*128)+(d*2)+1];
 
 	    Pattern[k*4+d*16] = in_data[whereTableRef + (val*4)];

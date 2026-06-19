@@ -10,7 +10,7 @@
 #include "extern.h"
 
 
-short testNewtron ( void )
+int16_t	 testNewtron ( void )
 {
   /* test #1 */
   if ( (PW_i < 7) || ((PW_i+373+1024+2)>PW_in_size))
@@ -134,19 +134,19 @@ void Rip_Newtron ( void )
 
 void Depack_Newtron ( void )
 {
-  Uchar *Whatever;
-  long i=0;
-  long Total_Sample_Size=0;
-  long Where = PW_Start_Address;
+  uint8_t *Whatever;
+  int32_t	 i=0;
+  int32_t	 Total_Sample_Size=0;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
-  Whatever = (Uchar *) malloc (64);
+  Whatever = (uint8_t *) malloc (64);
   BZERO ( Whatever , 64 );
 
   /* title */

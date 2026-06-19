@@ -5,7 +5,7 @@
 #include "extern.h"
 
 
-short testDigiBooster17 ( void )
+int16_t	 testDigiBooster17 ( void )
 {
   PW_Start_Address = PW_i;
 

@@ -1,5 +1,44 @@
 /*
  * newtronold.c ... 21 jan 2007
+ 
+ Newtron Old format
+Created by ?!?
+Analysed by Sylvain "Asle" Chipaux (asle@free.fr)
+
+Source :
+ - Little Joe & Newtron Musicdisk
+
+
+Offset    size (byte)    Comment
+------    -----------    -------
+
+ 0             2         patternlist address (-8) [A]
+ 2             2         size of patternlist [B]
+ 4             4         ?
+
+      **************************************
+      * the following is repeated [A]/8 times *
+      * with 8 bytes description for 1 smp *
+******************************************************
+                                                     *
+ 8             2         Sample Size / 2             *
+ 10            1         Finetune (0 -> F)           *
+ 11            1         Volume (0 - 40h)            *
+ 12            2         Loop Start / 2              *
+ 14            2         Loop Size / 2               *
+                                                     *
+******************************************************
+
+[A]           [B]        Pattern table
+
+[A]+[B]        ?         Pattern datas
+                         (Pattern datas are stored like Ptk)
+                         (one pattern is 1024 ($400) bytes).
+
+
+ Follow the Sample datas stored like ProTracker.
+Nothing is packed..
+ 
 */
 /* testNewtronOld() */
 /* Rip_NewtronOld() */
@@ -9,8 +48,10 @@
 #include "globals.h"
 #include "extern.h"
 
-
-short testNewtronOld ( void )
+/*
+ * additional tests - 20100207
+*/
+int16_t	 testNewtronOld ( void )
 {
   /* test #1 */
   if ( (PW_i < 11) || ((PW_i+6+1+1024+2)>PW_in_size))
@@ -25,10 +66,10 @@ short testNewtronOld ( void )
     return BAD;
   }
 
-  /* test #2 */
   PW_l=(in_data[PW_Start_Address]*256)+in_data[PW_Start_Address+1]+8;
-  PW_l = (PW_l/8)-1;
+  /* test #2 samples */
   PW_WholeSampleSize = 0;
+  PW_l = (PW_l/8)-1;
   for ( PW_j=0 ; PW_j<PW_l ; PW_j+=1 )
   {
     /* size */
@@ -56,7 +97,7 @@ short testNewtronOld ( void )
     return BAD;
   }
 
-  /* test #4 */
+  /* test #4 - patternlist size */
   PW_l = in_data[PW_Start_Address+3];
   if ( (PW_l > 0x7f) || (PW_l == 0x00) )
   {
@@ -102,12 +143,18 @@ short testNewtronOld ( void )
   /* PW_WholeSampleSize is the whole sample size */
   PW_k += PW_l;
   /* PW_k is now the pat data addy */
+  /*printf ( "\nPW_k:%lx\n",PW_k );*/
   for ( PW_j=0 ; PW_j<(256*PW_m) ; PW_j++ )
   {
-    PW_l = in_data[PW_Start_Address+PW_k+PW_j*4];
-    if ( PW_l > 19 )  /* 0x13 */
+    unsigned char c = in_data[PW_Start_Address+PW_k+(PW_j*4)];
+    if ((c&0x0f) > 0x03)
     {
-      /*printf(  "#7,0\n" );*/
+      /*printf(  "#7,1 (start:%ld)(where:%lx)(c:%x)\n",PW_Start_Address,PW_Start_Address+PW_k+(PW_j*4),c );*/
+      return BAD;
+    }
+    if ((c&0xf0) > 0x10)
+    {
+      /*printf(  "#7,2 (start:%ld)(where:%lx)(c:%x)\n",PW_Start_Address,PW_Start_Address+PW_k+(PW_j*4),c );*/
       return BAD;
     }
     PW_n  = in_data[PW_Start_Address+PW_k+PW_j*4]&0x0f;
@@ -145,30 +192,30 @@ void Rip_NewtronOld ( void )
  *
  * Converts Newtron Old packed MODs back to PTK MODs
  *
+ * clean up - 20100207
 */
 
 void Depack_NewtronOld ( void )
 {
-  Uchar *Whatever;
-  long i=0,j=0;
-  long Total_Sample_Size=0;
-  long Where = PW_Start_Address;
-  long patlistaddy=0;
-  Uchar patsize = 0;
-  Uchar max=0x00;
+  uint8_t *Whatever;
+  int32_t	 i=0,j=0;
+  int32_t	 Total_Sample_Size=0;
+  int32_t	 Where = PW_Start_Address;
+  int32_t	 patlistaddy=0;
+  uint8_t patsize = 0;
+  uint8_t max=0x00;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
-  Whatever = (Uchar *) malloc (130);
-  BZERO ( Whatever , 130 );
+  Whatever = (uint8_t *) malloc (1085);
+  BZERO ( Whatever , 1085 );
 
   /* title */
-  fwrite ( Whatever , 20 , 1 , out );
 
   /* size of header */
   patlistaddy = (in_data[Where]*256)+in_data[Where+1]+8;
@@ -179,41 +226,44 @@ void Depack_NewtronOld ( void )
   
   for ( i=0 ; i<j ; i++ )
   {
-    /*sample name*/
-    fwrite ( Whatever , 22 , 1 , out );
-
+    Whatever[20+30*i+22] = in_data[Where];
+    Whatever[20+30*i+23] = in_data[Where+1];
+    Whatever[20+30*i+24] = in_data[Where+2];
+    Whatever[20+30*i+25] = in_data[Where+3];
+    Whatever[20+30*i+26] = in_data[Where+4];
+    Whatever[20+30*i+27] = in_data[Where+5];
+    Whatever[20+30*i+28] = in_data[Where+6];
+    Whatever[20+30*i+29] = in_data[Where+7];
     Total_Sample_Size += (((in_data[Where]*256)+in_data[Where+1])*2);
-    fwrite ( &in_data[Where] , 8 , 1 , out );
     Where += 8;
   }
-  Whatever[29] = 0x01;
-  while (i++<31)
-    fwrite (&Whatever[0],30,1,out);
+  while (i<31)
+  {
+    Whatever[20+30*i+29] = 0x01;
+    i++;
+  }
   /*printf ( "Whole sample size : %ld\n" , Total_Sample_Size );*/
 
   /* pattern table lenght & Ntk byte */
   patsize = in_data[PW_Start_Address+3];
-  fwrite ( &patsize , 1 , 1 , out );
-  Whatever[0] = 0x7f;
-  fwrite ( &Whatever[0] , 1 , 1 , out );
+  Whatever[950] = patsize;
+  Whatever[951] = 0x7f;
 
   Where = patlistaddy+PW_Start_Address;
-  BZERO ( Whatever , 130 );
   for ( i=0 ; i<patsize ; i++ )
   {
     if ( in_data[Where+i] > max )
       max = in_data[Where+i];
-    Whatever[i] = in_data[Where+i];
+    Whatever[952+i] = in_data[Where+i];
   }
-  fwrite ( &Whatever[0] , 128 , 1 , out );
   Where += patsize;
   /*printf ( "Number of pattern : %d\n" , Max+1 );*/
 
-  Whatever[0] = 'M';
-  Whatever[1] = '.';
-  Whatever[2] = 'K';
-  Whatever[3] = '.';
-  fwrite ( Whatever , 4 , 1 , out );
+  Whatever[1080] = 'M';
+  Whatever[1081] = '.';
+  Whatever[1082] = 'K';
+  Whatever[1083] = '.';
+  fwrite ( Whatever , 1084 , 1 , out );
 
   /* pattern data */
   i = (max+1)*1024;

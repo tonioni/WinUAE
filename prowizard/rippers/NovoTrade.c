@@ -1,4 +1,5 @@
 /* (5th of may 2007)
+   (1st of January 2010 - completed)
 */
 /* testNovoTrade() */
 /* Rip_NovoTrade() */
@@ -9,7 +10,7 @@
 #include "extern.h"
 
 
-short testNovoTrade ( void )
+int16_t	 testNovoTrade ( void )
 {
   /* test #1 */
   PW_Start_Address = PW_i;
@@ -79,18 +80,19 @@ void Rip_NovoTrade ( void )
 
 
 /*
- *   NovoTrade.c   2007 (c) Asle / ReDoX
+ *   NovoTrade.c   2007-2010 (c) Sylvain "Asle" Chipaux
  *
  * 20070505 : doesn't convert pattern data
+ * 20100101 : Thanks to Claudio of XMP team. It's ok now.
 */
 void Depack_NovoTrade ( void )
 {
-  Uchar *Whatever;
-  long i=0,k=0;
-  Ushort Pattern_Addresses_Table[128];
-  short BODYaddy, SAMPaddy, nbr_sample, siz_patlist, nbr_patstored;
-  long Total_Sample_Size=0;
-  long Where = PW_Start_Address;
+  uint8_t *Whatever, c1;
+  int32_t	 i=0,k=0;
+  uint16_t	 Pattern_Addresses_Table[128];
+  int16_t	 BODYaddy, SAMPaddy, nbr_sample, siz_patlist, nbr_patstored;
+  int32_t	 Total_Sample_Size=0;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;/*,*DEBUG;*/
   
   /*DEBUG = fopen("DEBUG.txt","w+b");*/
@@ -98,12 +100,12 @@ void Depack_NovoTrade ( void )
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   Where += 4;
   /* title */
-  Whatever = (Uchar *) malloc (2048);
+  Whatever = (uint8_t *) malloc (2048);
   BZERO ( Whatever , 2048 );
   fwrite ( &in_data[Where], 16, 1, out );
   fwrite ( Whatever, 4, 1, out);
@@ -159,9 +161,14 @@ void Depack_NovoTrade ( void )
     Whatever[i] = in_data[Where+1];
     Where += 2;
   }
-  Whatever[0] = (Uchar)siz_patlist;
+  Whatever[0] = (uint8_t)siz_patlist;
   Whatever[1] = 0x7F;
-  fwrite ( Whatever , 130 , 1 , out );
+  /* PTK's tag now*/
+  Whatever[130] = 'M';
+  Whatever[131] = '.';
+  Whatever[132] = 'K';
+  Whatever[133] = '.';
+  fwrite ( Whatever , 134 , 1 , out );
   
   /* pattern addresses now */
   /* Where is on it */
@@ -172,12 +179,6 @@ void Depack_NovoTrade ( void )
     Where += 2;
   }
   
-  /* PTK's tag now*/
-  Whatever[0] = 'M';
-  Whatever[1] = '.';
-  Whatever[2] = 'K';
-  Whatever[3] = '.';
-  fwrite ( Whatever , 4 , 1 , out );
 
 /*fprintf(DEBUG,"BODYaddy : %d\n",BODYaddy);
 fprintf(DEBUG,"SAMPaddy : %d\n",SAMPaddy);
@@ -190,56 +191,90 @@ fprintf(DEBUG,"nbr_patstored : %d\n\n",nbr_patstored);*/
   for ( i=0 ; i<nbr_patstored ; i++ )
 /*  for ( i=0 ; i<2 ; i++ )*/
   {
+    BZERO ( Whatever, 2048 );
 /*fprintf(DEBUG,"\n-------pat %ld----\n",i);*/
     Where = BODYaddy + 4 + Pattern_Addresses_Table[i];
 /*fprintf(DEBUG,"@ in file : %ld\n",Where);*/
-    for ( k=0; k<1024; k++ )
+    for ( k=0; k<64; k++ )
     {
-      if (in_data[Where+1] == 0x80)
+      c1 = in_data[Where+1];
+      if (c1 == 0x80)
       {
-/*fprintf(DEBUG,"[%-4ld] %2x-%2x <-- end of pattern\n",k,in_data[Where],in_data[Where+1]);/*
+/*fprintf(DEBUG,"[%-2ld] %2x-%2x <-- end of pattern\n",k,in_data[Where],in_data[Where+1]);*/
         /* pattern ends */
         Where += 2;
         k += 1;
         break;
       }
-      if (in_data[Where+1] == 0x01)
+      if (c1 == 0x00)
       {
-/*fprintf(DEBUG,"[%-4ld] %2x-%2x <-- ?!? unknown case\n",k,in_data[Where],in_data[Where+1]);*/
-        /* pattern ends */
-        Where += 2;
-        k += 1;
-        break;
-      }
-      if ((in_data[Where] == 0x00) && (in_data[Where+1]<=0x70)) 
-      {
-/*fprintf(DEBUG,"[%-4ld] %2x-%2x <-- bypass %ld notes\n",k,in_data[Where],in_data[Where+1],in_data[Where+1]+1);*/
-        /* bypass notes .. guess */
-        k += (in_data[Where+1]+1)-1;
+/*fprintf(DEBUG,"[%-2ld] %2x-%2x <-- empty line\n",k,in_data[Where],in_data[Where+1]);*/
+        /* empty line */
         Where += 2;
         continue;
       }
-/*fprintf(DEBUG,"[%-4ld] %2x-%2x-%2x-%2x\n",k,in_data[Where],in_data[Where+1],in_data[Where+2],in_data[Where+3]);*/
-      Whatever[k*4] = in_data[Where];
-      Whatever[k*4+1] = in_data[Where+1];
-      Whatever[k*4+2] = in_data[Where+2];
-      Whatever[k*4+3] = in_data[Where+3];
-      k += 3;
-      Where += 4;
+      if (c1 >0x0F) 
+      {
+/*fprintf(DEBUG,"[%-2ld] %2x-%2x <-- unknown case\n",k,in_data[Where],in_data[Where+1],in_data[Where+1]+1);*/
+        /* bypass notes .. guess */
+        Where += 2;
+        continue;
+      }
+/*fprintf(DEBUG,"[%-2ld] %2x-%2x\n",k,in_data[Where],in_data[Where+1]);*/
+      
+      Where += 2;
+      if ((c1 & 0x01) == 0x01)
+      {
+        Whatever[k*16] = in_data[Where];
+        Whatever[k*16+1] = in_data[Where+1];
+        Whatever[k*16+2] = in_data[Where+2];
+        Whatever[k*16+3] = in_data[Where+3];
+        Where += 4;
+      }
+      if ((c1 & 0x02) == 0x02)
+      {
+        Whatever[k*16+4] = in_data[Where];
+        Whatever[k*16+5] = in_data[Where+1];
+        Whatever[k*16+6] = in_data[Where+2];
+        Whatever[k*16+7] = in_data[Where+3];
+        Where += 4;
+      }
+      if ((c1 & 0x04) == 0x04)
+      {
+        Whatever[k*16+8] = in_data[Where];
+        Whatever[k*16+9] = in_data[Where+1];
+        Whatever[k*16+10] = in_data[Where+2];
+        Whatever[k*16+11] = in_data[Where+3];
+        Where += 4;
+      }
+      if ((c1 & 0x08) == 0x08)
+      {
+        Whatever[k*16+12] = in_data[Where];
+        Whatever[k*16+13] = in_data[Where+1];
+        Whatever[k*16+14] = in_data[Where+2];
+        Whatever[k*16+15] = in_data[Where+3];
+        Where += 4;
+      }
+/*fprintf(DEBUG,"[->] %2x%2x%2x%2x - %2x%2x%2x%2x - %2x%2x%2x%2x - %2x%2x%2x%2x\n"
+             ,Whatever[k*16],Whatever[k*16+1],Whatever[k*16+2],Whatever[k*16+3]
+             ,Whatever[k*16+4],Whatever[k*16+5],Whatever[k*16+6],Whatever[k*16+7]
+             ,Whatever[k*16+8],Whatever[k*16+9],Whatever[k*16+10],Whatever[k*16+11]
+             ,Whatever[k*16+12],Whatever[k*16+13],Whatever[k*16+14],Whatever[k*16+15]
+             );*/
     }
 /*fprintf(DEBUG,"\nEND OF LOOP ?!?\n");*/
-/*    fwrite ( Whatever , 1024 , 1 , out );*/
+    fwrite ( Whatever , 1024 , 1 , out );
   }
   free ( Whatever );
 
 
-  Where = PW_Start_Address + SAMPaddy;
+  Where = PW_Start_Address + SAMPaddy + 4;
   fwrite ( &in_data[Where] , Total_Sample_Size , 1 , out );
 
   Crap ( " NovoTrade Packer " , BAD , BAD , out );
 
-/*  fflush ( DEBUG );*/
-/*  fclose ( DEBUG );*/
+ /* fflush ( DEBUG );
+  fclose ( DEBUG );*/
   fflush ( out );
   fclose ( out );
 

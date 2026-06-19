@@ -9,7 +9,7 @@
 
 
 /* Soundtracker 2.6 & IceTracker 1.0 */
-short testSTK26 ( void )
+int16_t	 testSTK26 ( void )
 {
   /* test 1 */
   if ( PW_i < 1464 )
@@ -79,16 +79,16 @@ void Rip_STK26 ( void )
 */
 void Depack_STK26 ( void )
 {
-  Uchar *Whatever;
-  long WholeSampleSize=0;
-  long Where=PW_Start_Address;
-  long i=0,j,k;
+  uint8_t *Whatever;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 Where=PW_Start_Address;
+  int32_t	 i=0,j,k;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
 
@@ -101,7 +101,7 @@ void Depack_STK26 ( void )
   /*  printf ( "Whole sanple size : %ld\n" , WholeSampleSize );*/
 
   /* generate patlist */
-  Whatever = (Uchar *) malloc (1536);
+  Whatever = (uint8_t *) malloc (1536);
   BZERO ( Whatever , 1536 );
   Whatever[1024] = in_data[Where+950];
   for ( i=0 ; i<Whatever[1024] ; i++,Whatever[256] += 0x01 )

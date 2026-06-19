@@ -10,7 +10,7 @@
 #include "extern.h"
 
 
-short testHEATSEEKER ( void )
+int16_t	 testHEATSEEKER ( void )
 {
   int nbr_notes=0;
 
@@ -176,13 +176,13 @@ void Rip_HEATSEEKER ( void )
 
 void Depack_HEATSEEKER ( void )
 {
-  Uchar c1=0x00,c2=0x00,c3=0x00,c4=0x00;
-  Uchar Pat_Max=0x00;
-  Uchar *Whatever;
-  long Track_Addresses[512];
-  long i=0,j=0,k=0,l=0,m;
-  long WholeSampleSize=0;
-  long Where = PW_Start_Address;
+  uint8_t c1=0x00,c2=0x00,c3=0x00,c4=0x00;
+  uint8_t Pat_Max=0x00;
+  uint8_t *Whatever;
+  int32_t	 Track_Addresses[512];
+  int32_t	 i=0,j=0,k=0,l=0,m;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -190,11 +190,11 @@ void Depack_HEATSEEKER ( void )
 
   BZERO ( Track_Addresses , 512*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* write title */
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO ( Whatever , 1024 );
   fwrite ( Whatever , 20 , 1 , out );
 

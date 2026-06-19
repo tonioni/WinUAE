@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testP41A ( void )
+int16_t	 testP41A ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -70,19 +70,34 @@ short testP41A ( void )
 
 void Rip_P41A ( void )
 {
+  int32_t	 seed=0;
+  /* potential fake address if rip from memory - thus, start address*/
   PW_l = ( (in_data[PW_Start_Address+16]*256*256*256) +
 	   (in_data[PW_Start_Address+17]*256*256) +
 	   (in_data[PW_Start_Address+18]*256) +
 	   in_data[PW_Start_Address+19] );
+  PW_m = ( (in_data[PW_Start_Address+12]*256*256*256) +
+	   (in_data[PW_Start_Address+13]*256*256) +
+	   (in_data[PW_Start_Address+14]*256) +
+	   in_data[PW_Start_Address+15] );
+  /* check here for memory addresses, which are screwed up */
+  PW_j = (in_data[PW_Start_Address+6]*16)+4+12;
+  if ( PW_j != PW_m )
+  {
+    /* it's memory addresses then */
+    seed = (PW_m - PW_j);
+    PW_l -= seed;
+  }
 
   /* get whole sample size */
+  /* PW_k is the number of samples */
   PW_o = 0;
   for ( PW_j=0 ; PW_j<PW_k ; PW_j++ )
   {
     PW_m = ( (in_data[PW_Start_Address+20+PW_j*16]*256*256*256) +
 	     (in_data[PW_Start_Address+21+PW_j*16]*256*256) +
 	     (in_data[PW_Start_Address+22+PW_j*16]*256) +
-	     in_data[PW_Start_Address+23+PW_j*16] );
+	     in_data[PW_Start_Address+23+PW_j*16] ) - seed;
     if ( PW_m > PW_o )
     {
       PW_o = PW_m;
@@ -120,22 +135,22 @@ void Rip_P41A ( void )
 */
 void Depack_P41A ( void )
 {
-  Uchar c1,c2,c3,c4,c5;
-  Uchar *Whatever;
-  Uchar PatPos = 0x00;
-  Uchar Nbr_Sample = 0x00;
-  Uchar poss[37][2];
-  Uchar sample,note,Note[2];
-  Uchar Track_Data[512][256];
-  short Track_Addresses[128][4];
-  long Track_Data_Address = 0;
-  long Track_Table_Address = 0;
-  long Sample_Data_Address = 0;
-  long WholeSampleSize = 0;
-  long SampleAddress[31];
-  long SampleSize[31];
-  long i=0,j,k,l,a,c,z;
-  long Where = PW_Start_Address;
+  uint8_t c1,c2,c3,c4,c5;
+  uint8_t *Whatever;
+  uint8_t PatPos = 0x00;
+  uint8_t Nbr_Sample = 0x00;
+  uint8_t poss[37][2];
+  uint8_t sample,note,Note[2];
+  uint8_t Track_Data[512][256];
+  int16_t	 Track_Addresses[128][4];
+  int32_t	 Track_Data_Address = 0;
+  int32_t	 Track_Table_Address = 0;
+  int32_t	 Sample_Data_Address = 0;
+  int32_t	 WholeSampleSize = 0;
+  int32_t	 SampleAddress[31];
+  int32_t	 SampleSize[31];
+  int32_t	 i=0,j,k,l,a,c,z;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -148,7 +163,7 @@ void Depack_P41A ( void )
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* read check ID */
@@ -190,9 +205,19 @@ void Depack_P41A ( void )
                          in_data[Where+3];
   Where += 4;
 
+  /* check here for memory addresses, which are screwed up */
+  i = (Nbr_Sample*16)+4+12;
+  if ( i != Track_Table_Address )
+  {
+    /* it's memory addresses then */
+    int32_t	 seed = (Track_Table_Address - i);
+    Track_Data_Address -= seed;
+    Track_Table_Address -= seed;
+    Sample_Data_Address -= seed;
+  }
 
   /* write title */
-  Whatever = (Uchar *) malloc ( 1024 );
+  Whatever = (uint8_t *) malloc ( 1024 );
   BZERO ( Whatever , 1024 );
   fwrite ( Whatever , 20 , 1 , out );
 
@@ -204,7 +229,7 @@ void Depack_P41A ( void )
         (in_data[Where+1]*256*256)+
         (in_data[Where+2]*256)+
          in_data[Where+3];
-    SampleAddress[i] = j;
+    SampleAddress[i] = j - Sample_Data_Address; /* just a try with -*/
 
     /* write sample name */
     fwrite ( Whatever , 22 , 1 , out );
@@ -217,7 +242,7 @@ void Depack_P41A ( void )
     k = (in_data[Where+6]*256*256*256)+
         (in_data[Where+7]*256*256)+
         (in_data[Where+8]*256)+
-         in_data[Where+9];
+         in_data[Where+9] - Sample_Data_Address; /* just a try with -*/
 
     /* writing now */
     fwrite ( &in_data[Where+4] , 2 , 1 , out );
@@ -228,8 +253,8 @@ void Depack_P41A ( void )
     k /= 2;
     /* use of htonl() suggested by Xigh !.*/
     z = htonl(k);
-    c1 = *((Uchar *)&z+2);
-    c2 = *((Uchar *)&z+3);
+    c1 = *((uint8_t *)&z+2);
+    c2 = *((uint8_t *)&z+3);
     fwrite ( &c1 , 1 , 1 , out );
     fwrite ( &c2 , 1 , 1 , out );
     fwrite ( &in_data[Where+10] , 2 , 1 , out );
@@ -320,8 +345,8 @@ void Depack_P41A ( void )
             case 0x06:
             case 0x0A:
               c3 = (c3 > 0x7f) ? ((0x100-c3)<<4) : c3;
-//              if ( c3 >= 0x80 )
-//                c3 = (c3<<4)&0xf0;
+/*              if ( c3 >= 0x80 )*/
+/*                c3 = (c3<<4)&0xf0;*/
               break;
             default:
               break;
@@ -333,7 +358,7 @@ void Depack_P41A ( void )
 
           if ( (c4 > 0x00) && (c4 <0x80) )
             k += c4;
-          if ( (c4 > 0x7f) && (c4 <=0xff) )
+          if ( c4 > 0x7f ) /* && (c4 <=0xff) )*/
           {
             k+=1;
             for ( l=256 ; l>c4 ; l-- )
@@ -377,8 +402,8 @@ void Depack_P41A ( void )
               case 0x06:
               case 0x0A:
               c3 = (c3 > 0x7f) ? ((0x100-c3)<<4) : c3;
-//                if ( c3 >= 0x80 )
-//                  c3 = (c3<<4)&0xf0;
+/*                if ( c3 >= 0x80 )*/
+/*                  c3 = (c3<<4)&0xf0;*/
                 break;
               default:
                 break;
@@ -390,7 +415,7 @@ void Depack_P41A ( void )
 
             if ( (c4 > 0x00) && (c4 <0x80) )
               k += c4;
-            if ( (c4 > 0x7f) && (c4 <=0xff) )
+            if ( c4 > 0x7f ) /* && (c4 <=0xff) )*/
             {
               k+=1;
               for ( l=256 ; l>c4 ; l-- )

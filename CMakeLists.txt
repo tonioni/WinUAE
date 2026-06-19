@@ -1052,6 +1052,7 @@ if(WINUAE_UNIX_WITH_PROWIZARD)
         prowizard/prowiz.c
         prowizard/misc/testbag.c
         prowizard/rippers/AC1D_packer.c
+        prowizard/rippers/AMF.c
         prowizard/rippers/AMOS-MusicBank.c
         prowizard/rippers/AMOS-PowerPackerBank.c
         prowizard/rippers/BP-Soundmonitor.c
@@ -1065,6 +1066,7 @@ if(WINUAE_UNIX_WITH_PROWIZARD)
         prowizard/rippers/DigiBooster17.c
         prowizard/rippers/DigitalIllusion.c
         prowizard/rippers/DoubleAction.c
+        prowizard/rippers/DM1.c
         prowizard/rippers/Dragpack100.c
         prowizard/rippers/Dragpack252.c
         prowizard/rippers/EurekaPacker.c
@@ -1078,9 +1080,13 @@ if(WINUAE_UNIX_WITH_PROWIZARD)
         prowizard/rippers/GNUPacker12.c
         prowizard/rippers/GnuPlayer.c
         prowizard/rippers/GPMO.c
+        prowizard/rippers/HCD.c
         prowizard/rippers/HeatseekerMC10.c
+        prowizard/rippers/HighPresCr.c
         prowizard/rippers/HornetPacker.c
         prowizard/rippers/HQC2.c
+        prowizard/rippers/IFF.c
+        prowizard/rippers/IT.c
         prowizard/rippers/JamCracker.c
         prowizard/rippers/KefrensSoundMachine.c
         prowizard/rippers/MasterCruncher30-Address.c
@@ -1100,6 +1106,7 @@ if(WINUAE_UNIX_WITH_PROWIZARD)
         prowizard/rippers/NovoTrade.c
         prowizard/rippers/NP3.c
         prowizard/rippers/PhaPacker.c
+        prowizard/rippers/Perfsong.c
         prowizard/rippers/PolkaPacker.c
         prowizard/rippers/PowerMusic.c
         prowizard/rippers/PowerPacker23.c
@@ -1118,8 +1125,11 @@ if(WINUAE_UNIX_WITH_PROWIZARD)
         prowizard/rippers/Prorunner20.c
         prowizard/rippers/QuadraComposer.c
         prowizard/rippers/RelokIt10.c
+        prowizard/rippers/S3M.c
+        prowizard/rippers/SA.c
         prowizard/rippers/SGT-Packer.c
         prowizard/rippers/skizzo.c
+        prowizard/rippers/SlamPacker.c
         prowizard/rippers/SkytPacker.c
         prowizard/rippers/SoundFX.c
         prowizard/rippers/SoundTracker.c
@@ -1136,6 +1146,7 @@ if(WINUAE_UNIX_WITH_PROWIZARD)
         prowizard/rippers/StoneCracker310.c
         prowizard/rippers/SuperCruncher27.c
         prowizard/rippers/SyncroPacker46.c
+        prowizard/rippers/THX.c
         prowizard/rippers/TetraPack102.c
         prowizard/rippers/TetraPack21.c
         prowizard/rippers/TetraPack22.c
@@ -1160,6 +1171,13 @@ if(WINUAE_UNIX_WITH_PROWIZARD)
         prowizard/rippers/UnicTracker2.c
         prowizard/rippers/WantonPacker.c
         prowizard/rippers/XannPlayer.c
+        prowizard/rippers/bnr.c
+        prowizard/rippers/mosh.c
+        prowizard/rippers/okta.c
+        prowizard/rippers/pmd3.c
+        prowizard/rippers/sidmon1.c
+        prowizard/rippers/sidmon2.c
+        prowizard/rippers/struggle.c
         prowizard/rippers/ZenPacker.c
     )
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES

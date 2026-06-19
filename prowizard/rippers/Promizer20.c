@@ -1,5 +1,4 @@
 
-
 /* testPM2() */
 /* Rip_PM20() */
 /* Depack_PM20() */
@@ -8,7 +7,7 @@
 #include "extern.h"
 
 
-short testPM2 ( void )
+int16_t	 testPM2 ( void )
 {
   PW_Start_Address = PW_i;
   /* test 1 */
@@ -82,22 +81,22 @@ void Rip_PM20 ( void )
 
 void Depack_PM20 ( void )
 {
-  //Uchar c1=0x00;
-  short Ref_Max=0;
-  long Pats_Address[128],Pats_Address_infile[128];
-  Uchar NOP=0x00; /* number of pattern */
-  Uchar *ReferenceTable;
-  Uchar *Pattern;
-  long i=0,j;
-  long Total_Sample_Size=0;
-  long PatDataSize=0l;
-  //long SDAV=0l;
-  Uchar FLAG=OFF;
-  Uchar poss[37][2];
-  Uchar Note,Smp;
-  Uchar *Whatever;
-  Uchar *WholePatternData;
-  long Where = PW_Start_Address;
+  /*uint8_t c1=0x00;*/
+  int16_t	 Ref_Max=0;
+  int32_t	 Pats_Address[128],Pats_Address_infile[128];
+  uint8_t NOP=0x00; /* number of pattern */
+  uint8_t *ReferenceTable;
+  uint8_t *Pattern;
+  int32_t	 i=0,j;
+  int32_t	 Total_Sample_Size=0;
+  int32_t	 PatDataSize=0l;
+  /*int32_t	 SDAV=0l;*/
+  uint8_t FLAG=OFF;
+  uint8_t poss[37][2];
+  uint8_t Note,Smp;
+  uint8_t *Whatever;
+  uint8_t *WholePatternData;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;/*,*info;*/
 
   if ( Save_Status == BAD )
@@ -105,14 +104,14 @@ void Depack_PM20 ( void )
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
   /*info = fopen ( "info", "w+b");*/
 
   BZERO ( Pats_Address , 128*4 );
   BZERO ( Pats_Address_infile , 128*4 );
 
-  Whatever = (Uchar *) malloc (1085);
+  Whatever = (uint8_t *) malloc (1085);
   BZERO (Whatever, 1085);
 
   /* bypass replaycode routine */
@@ -151,7 +150,7 @@ void Depack_PM20 ( void )
   {
     Pats_Address[i] = (in_data[Where]*256)+in_data[Where+1];
     Where += 2;
-    //printf ( "[%3ld] : %ld\n", i, Pats_Address[i] );
+    /*printf ( "[%3ld] : %ld\n", i, Pats_Address[i] );*/
   }
 
   /* write pattern table */
@@ -196,7 +195,7 @@ void Depack_PM20 ( void )
   Where = PW_Start_Address + PATTERN_DATA;
 
   /* now, reading all pattern data to get the max value of note */
-  WholePatternData = (Uchar *) malloc (PatDataSize+1);
+  WholePatternData = (uint8_t *) malloc (PatDataSize+1);
   BZERO (WholePatternData, PatDataSize+1);
   for ( PW_j=0 ; PW_j<PatDataSize ; PW_j+=2 )
   {
@@ -212,8 +211,8 @@ void Depack_PM20 ( void )
   Where = PW_Start_Address + AFTER_REPLAY_CODE + PW_j;
 
   Ref_Max += 1;  /* coz 1st value is 0 ! */
-  i = Ref_Max * 4; /* coz each block is 4 bytes long */
-  ReferenceTable = (Uchar *) malloc ( i );
+  i = Ref_Max * 4; /* coz each block is 4 bytes int32_t	 */
+  ReferenceTable = (uint8_t *) malloc ( i );
   BZERO ( ReferenceTable, i );
   for ( PW_j=0 ; PW_j<i ; PW_j++) ReferenceTable[PW_j] = in_data[Where+PW_j];
 
@@ -222,7 +221,7 @@ void Depack_PM20 ( void )
 
 
   PW_k=0; /* current note number */
-  Pattern = (Uchar *) malloc (65536);
+  Pattern = (uint8_t *) malloc (65536);
   BZERO (Pattern, 65536);
   i=0;
   PW_l = 1; /* nbr of patterns stored */

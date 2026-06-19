@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testNoisepacker1 ( void )
+int16_t	 testNoisepacker1 ( void )
 {
   if ( PW_i < 15 )
   {
@@ -170,19 +170,19 @@ void Rip_Noisepacker1 ( void )
 */
 void Depack_Noisepacker1 ( void )
 {
-  Uchar *Whatever;
-  Uchar c1=0x00,c2=0x00,c3=0x00,c4=0x00;
-  Uchar Nbr_Pos;
-  Uchar poss[37][2];
-  Uchar Pat_Max=0x00;
-  long Max_Add=0;
-  long WholeSampleSize=0;
-  long TrackDataSize;
-  long Track_Addresses[128][4];
-  long Unknown1;
-  long i=0,j=0,k;
-  long Track_Data_Start_Address;
-  long Where = PW_Start_Address;
+  uint8_t *Whatever;
+  uint8_t c1=0x00,c2=0x00,c3=0x00,c4=0x00;
+  uint8_t Nbr_Pos;
+  uint8_t poss[37][2];
+  uint8_t Pat_Max=0x00;
+  int32_t	 Max_Add=0;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 TrackDataSize;
+  int32_t	 Track_Addresses[128][4];
+  int32_t	 Unknown1;
+  int32_t	 i=0,j=0,k;
+  int32_t	 Track_Data_Start_Address;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -192,11 +192,11 @@ void Depack_Noisepacker1 ( void )
 
   BZERO ( Track_Addresses , 128*4*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* read number of sample */
-  Whatever = (Uchar *) malloc ( 1024 );
+  Whatever = (uint8_t *) malloc ( 1024 );
   BZERO ( Whatever , 1024 );
   Whatever[128] = ((in_data[Where]<<4)&0xf0) | ((in_data[Where+1]>>4)&0x0f);
   Where += 3;

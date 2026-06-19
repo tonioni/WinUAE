@@ -9302,7 +9302,7 @@ private:
         root->addWidget(groupBox(QStringLiteral("Output Properties"), properties));
 
         QPushButton *saveScreenshot = new QPushButton(QStringLiteral("Save screenshot"));
-        QPushButton *proWizard = new QPushButton(QStringLiteral("Pro Wizard 1.62"));
+        QPushButton *proWizard = new QPushButton(QStringLiteral("Pro Wizard 1.70a"));
         QCheckBox *sampleRipper = new QCheckBox(QStringLiteral("Sample ripper"));
         if (hardwareProvider.saveScreenshot) {
             connect(saveScreenshot, &QPushButton::clicked, this, [this]() {

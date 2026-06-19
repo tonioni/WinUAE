@@ -14,7 +14,7 @@
 #include "extern.h"
 
 
-short testSKYT ( void )
+int16_t	 testSKYT ( void )
 {
   /* test 1 */
   if ( PW_i < 256 )
@@ -89,13 +89,13 @@ void Rip_SKYT ( void )
 
 void Depack_SKYT ( void )
 {
-  Uchar *Header, *Pattern;
-  Uchar poss[37][2];
-  long i=0,j=0,k=0,l=0,m=0;
-  long Total_Sample_Size=0;
-  unsigned long ReadTrkPat[128][4], ReadPat[128];
-  long Where=PW_Start_Address;
-  long Highest_Track = 0;
+  uint8_t *Header, *Pattern;
+  uint8_t poss[37][2];
+  int32_t i=0,j=0,k=0,l=0,m=0;
+  int32_t Total_Sample_Size=0;
+  uint32_t ReadTrkPat[128][4], ReadPat[128];
+  int32_t Where=PW_Start_Address;
+  int32_t Highest_Track = 0;
   FILE *out;
 
   fillPTKtable(poss);
@@ -103,11 +103,11 @@ void Depack_SKYT ( void )
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
-  Header = (Uchar *)malloc(1084);
-  Pattern = (Uchar *)malloc(1024);
+  Header = (uint8_t *)malloc(1084);
+  Pattern = (uint8_t *)malloc(1024);
   BZERO ( Header , 1084 );
   BZERO ( Pattern , 1024 );
 
@@ -205,7 +205,6 @@ void Depack_SKYT ( void )
   /* rebuild pattern data now */
   for (i=0;i<l-1;i++)
   {
-    long min=50,max=0;
     BZERO(Pattern,1024);
     /* which pattern is it now ? */
     for (j=0;j<Header[950];j++)
@@ -215,7 +214,7 @@ void Depack_SKYT ( void )
     }
     for (k=0;k<4;k++) /* loop on 4 tracks' refs*/
     {
-      long d;
+      int32_t d;
 
       /* empty track */
       if (ReadTrkPat[j][k] == 0xffffffff)

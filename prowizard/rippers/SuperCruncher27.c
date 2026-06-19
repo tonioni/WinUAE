@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testSuperCruncher27 ( void )
+int16_t	 testSuperCruncher27 ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -80,7 +80,7 @@ void Rip_SuperCruncher27 ( void )
 {
   /* PW_l is still the whole size */
 
-  Uchar * Amiga_EXE_Header_Block;
+  uint8_t * Amiga_EXE_Header_Block;
 
   OutputSize = PW_l;
 
@@ -89,7 +89,7 @@ void Rip_SuperCruncher27 ( void )
   if ( Amiga_EXE_Header == BAD )
   {
     OutputSize -= 36;
-    Amiga_EXE_Header_Block = (Uchar *) malloc ( 36 );
+    Amiga_EXE_Header_Block = (uint8_t *) malloc ( 36 );
     BZERO ( Amiga_EXE_Header_Block , 36 );
     Amiga_EXE_Header_Block[2]  = Amiga_EXE_Header_Block[30] = 0x03;
     Amiga_EXE_Header_Block[3]  = 0xF3;

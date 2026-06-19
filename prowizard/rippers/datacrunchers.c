@@ -5,7 +5,7 @@
 #include "extern.h"
 
 
-short testArcDDataCruncher ( void )
+int16_t	 testArcDDataCruncher ( void )
 {
   PW_Start_Address = PW_i;
   if ( (PW_Start_Address + 12) > PW_in_size )
@@ -45,7 +45,8 @@ short testArcDDataCruncher ( void )
 }
 
 
-short testCRND ( void )
+/* reminder : PW_l must get the packed size */
+int16_t	testCRND ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -59,6 +60,36 @@ short testCRND ( void )
     return BAD;
 
   testSpecialCruncherData ( 4 , in_data[PW_l-16] );
+
+  return GOOD;
+}
+
+/* reminder : PW_l must get the packed size */
+int16_t	testB9AB ( void )
+{
+  if (PW_i<13)
+    return BAD;
+  PW_Start_Address = PW_i-13;
+
+  /* packed size */
+  PW_l = ( (in_data[PW_Start_Address]*256*256*256) +
+           (in_data[PW_Start_Address+1]*256*256) +
+           (in_data[PW_Start_Address+2]*256) +
+           in_data[PW_Start_Address+3] );
+  /* unpacked size */
+  PW_m = ( (in_data[PW_Start_Address+8]*256*256*256) +
+           (in_data[PW_Start_Address+9]*256*256) +
+           (in_data[PW_Start_Address+10]*256) +
+           in_data[PW_Start_Address+11] );
+
+  if ( (PW_l + PW_i) > PW_in_size )
+    return BAD;
+  if ( PW_l > 0x989689 )
+    return BAD;
+  if ( PW_m > 0x989689 )
+    return BAD;
+  if ( (PW_l + PW_i) > PW_in_size )
+    return BAD;
 
   return GOOD;
 }

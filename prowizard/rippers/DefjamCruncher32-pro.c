@@ -7,7 +7,7 @@
 #include "extern.h"
 
 
-short testDefjam32 ( void )
+int16_t	 testDefjam32 ( void )
 {
   PW_Start_Address = PW_i-2;
 
@@ -55,6 +55,7 @@ short testDefjam32 ( void )
            in_data[PW_Start_Address+23] );
 
   PW_l += 692;
+  /*printf ( "testdefjam32():%ld (start:%ld)",PW_l,PW_Start_Address );*/
 
   if ( PW_i >= 32 )
   {
@@ -88,7 +89,7 @@ short testDefjam32 ( void )
 }
 
 
-short testDefjam32pro ( void )
+int16_t	 testDefjam32pro ( void )
 {
 
   PW_Start_Address = PW_i;
@@ -151,7 +152,7 @@ short testDefjam32pro ( void )
 }
 
 
-short testDefjam32t ( void )
+int16_t	 testDefjam32t ( void )
 {
 
   PW_Start_Address = PW_i;
@@ -217,8 +218,8 @@ void Rip_Defjam32 ( void )
 {
   /* PW_l is still the whole size */
 
-  Uchar * Amiga_EXE_Header_Block;
-  Uchar * Whatever;
+  uint8_t * Amiga_EXE_Header_Block;
+  uint8_t * Whatever;
 
   OutputSize = PW_l;
 
@@ -227,7 +228,7 @@ void Rip_Defjam32 ( void )
   if ( Amiga_EXE_Header == BAD )
   {
     OutputSize -= 32;
-    Amiga_EXE_Header_Block = (Uchar *) malloc ( 32 );
+    Amiga_EXE_Header_Block = (uint8_t *) malloc ( 32 );
     BZERO ( Amiga_EXE_Header_Block , 32 );
     Amiga_EXE_Header_Block[2]  = Amiga_EXE_Header_Block[26] = 0x03;
     Amiga_EXE_Header_Block[3]  = 0xF3;
@@ -239,17 +240,11 @@ void Rip_Defjam32 ( void )
     /* 68k machines code : c2 = *(Whatever+3); */
     PW_j = PW_l - 36;
     PW_j /= 4;
-    Whatever = (Uchar *) &PW_j;
+    Whatever = (uint8_t *) &PW_j;
     Amiga_EXE_Header_Block[20] = Amiga_EXE_Header_Block[28] = *(Whatever+3);
     Amiga_EXE_Header_Block[21] = Amiga_EXE_Header_Block[29] = *(Whatever+2);
     Amiga_EXE_Header_Block[22] = Amiga_EXE_Header_Block[30] = *(Whatever+1);
     Amiga_EXE_Header_Block[23] = Amiga_EXE_Header_Block[31] = *Whatever;
-
-    /* also the last 4 bytes are 'removed' frequently ... Here they are */
-    in_data[PW_Start_Address+OutputSize-4]  = 0x00;
-    in_data[PW_Start_Address+OutputSize-3]  = 0x00;
-    in_data[PW_Start_Address+OutputSize-2]  = 0x03;
-    in_data[PW_Start_Address+OutputSize-1]  = 0xF2;
 
     Save_Rip_Special ( "Defjam Cruncher 3.2 / pro / t Exe-file", Defjam_32, Amiga_EXE_Header_Block , 32 );
     free ( Amiga_EXE_Header_Block );

@@ -6,8 +6,11 @@
 #include "globals.h"
 #include "extern.h"
 
-
-short testPP10 ( void )
+/*
+ * 20100902 : better note test to lower the number of fake found
+ * 20100902 : test if patternlist ends with 0x00 values
+*/
+int16_t	 testPP10 ( void )
 {
   /* test #1 */
   if ( (PW_i < 3) || ((PW_i+246)>=PW_in_size))
@@ -25,6 +28,7 @@ short testPP10 ( void )
   }
 
   /* test #2 */
+  /* various test about sample headers */
   PW_WholeSampleSize = 0;
   for ( PW_j=0 ; PW_j<31 ; PW_j++ )
   {
@@ -79,6 +83,7 @@ short testPP10 ( void )
     }
   }
 
+  /* test if sample data is too small */
   if ( PW_WholeSampleSize <= 2 )
   {
 /*printf ( "#2,4 (start:%ld)\n" , PW_Start_Address );*/
@@ -87,25 +92,37 @@ short testPP10 ( void )
   /* PW_WholeSampleSize = whole sample size */
 
   /* test #3   about size of pattern list */
-  PW_l = in_data[PW_Start_Address+248];
-  if ( (PW_l > 127) || (PW_l==0) )
+  PW_m = in_data[PW_Start_Address+248];
+  if ( (PW_m > 127) || (PW_m==0) )
   {
 /*printf ( "#3 (start:%ld)\n" , PW_Start_Address );*/
     return BAD;
   }
 
   /* get the highest track value */
+  /* PW_m is the patterlist size */
   PW_k=0;
-  for ( PW_j=0 ; PW_j<512 ; PW_j++ )
+  for (PW_n=0; PW_n<4; PW_n++)
   {
-    PW_l = in_data[PW_Start_Address+250+PW_j];
-    if ( PW_l>PW_k )
-      PW_k = PW_l;
+    for ( PW_j=0 ; PW_j<128 ; PW_j++ )
+    {
+      PW_l = in_data[PW_Start_Address+250+PW_j+(PW_n*128)];
+      if ( PW_l>PW_k )
+        PW_k = PW_l;
+      /* 20100902:test if patternlist ends with 0x00 values */
+      if ( (PW_j>PW_m) && (in_data[PW_Start_Address+250+PW_j+(PW_n*128)]!=0x00))
+      {
+/*printf ( "#3 bis (start:%ld)(unclean patternlist at %ld:%x)(PW_j:%ld)(PW_n:%ld))\n"
+         , PW_Start_Address, 250+PW_j+(PW_n*128), in_data[PW_Start_Address+250+PW_j+(PW_n*128)],PW_j,PW_n);*/
+      return BAD;
+      }
+    }
   }
   /* PW_k is the highest track number */
   PW_k += 1;
   PW_k *= 64;
 
+  /* test if it's not outside the file */
   if ( PW_Start_Address + 762 + (PW_k*4) > PW_in_size )
   {
 /*printf ( "#4 (start:%ld)\n" , PW_Start_Address );*/
@@ -114,10 +131,15 @@ short testPP10 ( void )
   /* track data test */
   PW_l=0;
   for ( PW_j=0 ; PW_j<PW_k ; PW_j++ )
-  {
-    if ( in_data[PW_Start_Address+762+PW_j*4] > 0x13 )
+  { /*20010902:better note test*/
+    if ( (in_data[PW_Start_Address+762+(PW_j*4)]&0xf0) > 0x10 )
     {
-/*printf ( "#3,1 (start:%ld)\n" , PW_Start_Address );*/
+/*printf ( "#3,1 (start:%ld) (note[0]:%x)\n" , PW_Start_Address,in_data[PW_Start_Address+762+PW_j*4] );*/
+      return BAD;
+    }
+    if ( (in_data[PW_Start_Address+762+(PW_j*4)]&0x0f) > 0x03 )
+    { /*20010902:better note test*/
+/*printf ( "#3,1,0 (start:%ld)\n" , PW_Start_Address );*/
       return BAD;
     }
     if ( ((in_data[PW_Start_Address+762+PW_j*4]&0x0f) == 0x00 ) && (in_data[PW_Start_Address+763+PW_j*4] < 0x71) && (in_data[PW_Start_Address+763+PW_j*4] != 0x00))
@@ -153,7 +175,7 @@ void Rip_PP10 ( void )
   Save_Rip ( "ProPacker v1.0 Exe-file", PP10 );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 4);  /* 3 should do but call it "just to be sure" :) */
+    PW_i += 4;  /* 3 should do but call it "just to be sure" :) */
 }
 
 
@@ -176,22 +198,22 @@ void Rip_PP10 ( void )
 
 void Depack_PP10 ( void )
 {
-  Uchar *Header, *Pattern;
-  Ulong ReadTrkPat[128][4], ReadPat[128];
-  long Highest_Track = 0;
-  long i=0,j=0,k=0,l=0,m=0;
-  long WholeSampleSize=0;
-  long Where=PW_Start_Address;
+  uint8_t *Header, *Pattern;
+  uint32_t	 ReadTrkPat[128][4], ReadPat[128];
+  int32_t	 Highest_Track = 0;
+  int32_t	 i=0,j=0,k=0,l=0,m=0;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 Where=PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
-  Header = (Uchar *)malloc(1084);
-  Pattern = (Uchar *)malloc(1024);
+  Header = (uint8_t *)malloc(1084);
+  Pattern = (uint8_t *)malloc(1024);
   BZERO ( Header , 1084 );
   BZERO ( Pattern , 1024 );
 
@@ -273,8 +295,6 @@ void Depack_PP10 ( void )
     j--;
     l++;
   }
-  if ( l != Header[950] )
-    l -= 1;
 
 
   /* write ptk's ID */
@@ -300,13 +320,13 @@ void Depack_PP10 ( void )
     }
     for (k=0;k<4;k++) /* loop on 4 tracks' refs*/
     {
-      long d;
+      int32_t	 d;
 
       /* loop on notes */
       for (d=0;d<64;d++)
       {
         /* read one ref value to be fetch in the reference table */
-        long val = Where+(ReadTrkPat[j][k]*256)+(d*4);
+        int32_t	 val = Where+(ReadTrkPat[j][k]*256)+(d*4);
 
 	    Pattern[k*4+d*16] = in_data[val];
         Pattern[k*4+d*16+1] = in_data[val + 1];

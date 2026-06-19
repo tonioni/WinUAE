@@ -6,7 +6,7 @@
 #include "globals.h"
 #include "extern.h"
 
-short testSoundFX13 ( void )
+int16_t	 testSoundFX13 ( void )
 {
   /* test 1 */
   if ( PW_i < 0x3C )
@@ -157,23 +157,23 @@ void Rip_SoundFX13 ( void )
 
 void Depack_SoundFX13 ( void )
 {
-  Uchar *Whatever;
-  Uchar c0=0x00,c1=0x00,c2=0x00,c3=0x00;
-  Uchar Max=0x00;
-  Uchar PatPos;
-  long WholeSampleSize=0;
-  long i=0,j=0;
+  uint8_t *Whatever;
+  uint8_t c0=0x00,c1=0x00,c2=0x00,c3=0x00;
+  uint8_t Max=0x00;
+  uint8_t PatPos;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 i=0,j=0;
   FILE *in,*out;
 
   if ( Save_Status == BAD )
     return;
 
   in = fopen ( (char *)OutName_final , "r+b" ); /* +b is safe bcoz OutName's just been saved */
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* title */
-  Whatever = (Uchar *) malloc ( 20 );
+  Whatever = (uint8_t *) malloc ( 20 );
   BZERO ( Whatever , 20 );
   fwrite ( Whatever , 20 , 1 , out );
   free ( Whatever );
@@ -225,7 +225,7 @@ void Depack_SoundFX13 ( void )
     fwrite ( &c2 , 1 , 1 , out );
   }
   free ( Whatever );
-  Whatever = (Uchar *) malloc ( 30 );
+  Whatever = (uint8_t *) malloc ( 30 );
   BZERO ( Whatever , 30 );
   Whatever[29] = 0x01;
   for ( i=0 ; i<16 ; i++ )
@@ -269,7 +269,7 @@ void Depack_SoundFX13 ( void )
 
   /* pattern data */
   fseek ( in , 0x294 , 0 );
-  Whatever = (Uchar *) malloc ( 1024 );
+  Whatever = (uint8_t *) malloc ( 1024 );
   for ( i=0 ; i<=Max ; i++ )
   {
     BZERO ( Whatever , 1024 );
@@ -330,7 +330,7 @@ void Depack_SoundFX13 ( void )
 
 
   /* sample data */
-  Whatever = (Uchar *) malloc ( WholeSampleSize );
+  Whatever = (uint8_t *) malloc ( WholeSampleSize );
   BZERO ( Whatever , WholeSampleSize );
   fread ( Whatever , WholeSampleSize , 1 , in );
   fwrite ( Whatever , WholeSampleSize , 1 , out );

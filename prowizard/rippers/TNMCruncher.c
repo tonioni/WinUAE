@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testTNMCruncher11 ( void )
+int16_t	 testTNMCruncher11 ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -88,8 +88,8 @@ void Rip_TNMCruncher11 ( void )
   /* PW_l is still the whole size */
   /* PW_m is the decrunched size  (necessary to rebuild header) */
 
-  Uchar * Amiga_EXE_Header_Block;
-  Uchar * Whatever;
+  uint8_t * Amiga_EXE_Header_Block;
+  uint8_t * Whatever;
 
   OutputSize = PW_l;
 
@@ -98,7 +98,7 @@ void Rip_TNMCruncher11 ( void )
   if ( Amiga_EXE_Header == BAD )
   {
     OutputSize -= 40;
-    Amiga_EXE_Header_Block = (Uchar *) malloc ( 40 );
+    Amiga_EXE_Header_Block = (uint8_t *) malloc ( 40 );
     BZERO ( Amiga_EXE_Header_Block , 40 );
     Amiga_EXE_Header_Block[2]  = Amiga_EXE_Header_Block[34] = 0x03;
     Amiga_EXE_Header_Block[3]  = 0xF3;
@@ -112,13 +112,13 @@ void Rip_TNMCruncher11 ( void )
     /* 68k machines code : c2 = *(Whatever+3); */
     PW_j = PW_l - 680;
     PW_j /= 4;
-    Whatever = (Uchar *) &PW_j;
+    Whatever = (uint8_t *) &PW_j;
     Amiga_EXE_Header_Block[24] = *(Whatever+3);
     Amiga_EXE_Header_Block[25] = *(Whatever+2);
     Amiga_EXE_Header_Block[26] = *(Whatever+1);
     Amiga_EXE_Header_Block[27] = *Whatever;
     PW_j = PW_m / 4;
-    Whatever = (Uchar *) &PW_j;
+    Whatever = (uint8_t *) &PW_j;
     Amiga_EXE_Header_Block[28] = *(Whatever+3);
     Amiga_EXE_Header_Block[29] = *(Whatever+2);
     Amiga_EXE_Header_Block[30] = *(Whatever+1);

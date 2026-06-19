@@ -5,8 +5,10 @@
 #include "globals.h"
 #include "extern.h"
 
-
-short testGMC ( void )
+/*
+ * 20100902 - some test enhancements - less fake
+*/
+int16_t	 testGMC ( void )
 {
   /* test #1 */
   if ( (PW_i<7) || ((PW_Start_Address+444)>PW_in_size) )
@@ -15,6 +17,7 @@ short testGMC ( void )
     return BAD;
   }
   PW_Start_Address = PW_i-7;
+
 
   /* samples descriptions */
   PW_WholeSampleSize=0;
@@ -89,11 +92,27 @@ short testGMC ( void )
   {
     for ( PW_n=0 ; PW_n<256 ; PW_n++ )
     {
-      if ( ( in_data[PW_Start_Address+444+PW_k*1024+PW_n*4] > 0x03 ) ||
-	   ( (in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+2]&0x0f) >= 0x90 ))
+      if ( in_data[PW_Start_Address+444+(PW_k*1024)+(PW_n*4)] > 0x03 )
       {
-/*printf ( "#5,0 Start:%ld (PW_k:%ld)\n" , PW_Start_Address , PW_k);*/
-	return BAD;
+/*printf ( "#5,0 Start:%d (PW_k:%d)(where:%d)\n" , PW_Start_Address , PW_k,PW_Start_Address+444+(PW_k*1024)+(PW_n*4) );*/
+        return BAD;
+      }
+      /* 20010902:new test if note pitch too small */
+      if ( (in_data[PW_Start_Address+444+(PW_k*1024)+(PW_n*4)] == 0x00) && 
+           (in_data[PW_Start_Address+444+(PW_k*1024)+(PW_n*4)+1] < 0x71) &&
+           (in_data[PW_Start_Address+444+(PW_k*1024)+(PW_n*4)+1] > 0x00) )
+      {
+/*printf ( "#5,0,1 Start:%d (PW_k:%d)(PW_n:%d)(pitch:%x-%x)\n"
+       , PW_Start_Address , PW_k,PW_n,in_data[PW_Start_Address+444+(PW_k*1024)+(PW_n*4)],in_data[PW_Start_Address+444+(PW_k*1024)+(PW_n*4)+1]);*/
+        return BAD;
+      }
+      /* 20100902 - wrong test with 0x90 instead of 0x09 - less fake found now */
+      if ( ((in_data[PW_Start_Address+444+(PW_k*1024)+(PW_n*4)+2]&0x0f) >= 0x09 ) &&
+           ((in_data[PW_Start_Address+444+(PW_k*1024)+(PW_n*4)+2]&0x0f) != 0x0f ) )
+      {
+/*printf ( "#5,0,2 Start:%d (PW_k:%d)(PW_n:%d)(fx:%x)(Where:%d)\n"
+       , PW_Start_Address , PW_k,PW_n,in_data[PW_Start_Address+444+(PW_k*1024)+(PW_n*4)+2],444+(PW_k*1024)+(PW_n*4)+2);*/
+        return BAD;
       }
       /* 20100822 - following test is removed as there seem to exist GMC with 
          sample number higher than the actual number of sample saved ... 
@@ -103,41 +122,41 @@ short testGMC ( void )
 printf ( "#5,1 Start:%ld (PW_j:%ld) (where:%ld) (value:%x)\n"
          , PW_Start_Address , PW_j , PW_Start_Address+444+PW_k*1024+PW_n*4+2
          , ((in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+2]&0xf0)>>4) );
-	return BAD;
+	    return BAD;
       }*/
       /* test volume effect if value is > 64 */
       if ( ((in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+2]&0x0f) == 3) &&
            (in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+3] > 0x64) )
       {
-/*printf ( "#5,2 Start:%ld (PW_j:%ld)\n" , PW_Start_Address , PW_j);*/
-	return BAD;
+/*printf ( "#5,2 Start:%d (PW_j:%d)\n" , PW_Start_Address , PW_j);*/
+	    return BAD;
       }
       if ( ((in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+2]&0x0f) == 4) &&
            (in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+3] > 0x63) )
       {
-/*printf ( "#5,3 Start:%ld (PW_j:%ld)\n" , PW_Start_Address , PW_j);*/
-	return BAD;
+/*printf ( "#5,3 Start:%d (PW_j:%d)\n" , PW_Start_Address , PW_j);*/
+	    return BAD;
       }
       if ( ((in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+2]&0x0f) == 5) &&
            (in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+3] > PW_o+1) )
       {
-/*printf ( "#5,4 Start:%ld (effect:5)(PW_o:%ld)(4th note byte:%x)\n" , PW_Start_Address , PW_j , in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+3]);*/
-	return BAD;
+/*printf ( "#5,4 Start:%d (effect:5)(PW_o:%d)(4th note byte:%x)\n" , PW_Start_Address , PW_j , in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+3]);*/
+	    return BAD;
       }
       if ( ((in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+2]&0x0f) == 6) &&
            (in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+3] >= 0x02) )
       {
-/*printf ( "#5,5 Start:%ld (at:%ld)\n" , PW_Start_Address , PW_Start_Address+444+PW_k*1024+PW_n*4+3 );*/
-	return BAD;
+/*printf ( "#5,5 Start:%d (at:%d)\n" , PW_Start_Address , PW_Start_Address+444+PW_k*1024+PW_n*4+3 );*/
+	    return BAD;
       }
       if ( ((in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+2]&0x0f) == 7) &&
            (in_data[PW_Start_Address+444+PW_k*1024+PW_n*4+3] >= 0x02) )
       {
-/*printf ( "#5,6 Start:%ld (at:%ld)\n" , PW_Start_Address , PW_Start_Address+444+PW_k*1024+PW_n*4+3 );*/
-	return BAD;
+/*printf ( "#5,6 Start:%d (at:%d)\n" , PW_Start_Address , PW_Start_Address+444+PW_k*1024+PW_n*4+3 );*/
+	    return BAD;
       }
       if ( ((in_data[PW_Start_Address+444+PW_k*1024+PW_n*4]&0x0f) > 0x00) || (in_data[PW_Start_Address+445+PW_k*1024+PW_n*4] > 0x00) )
-	PW_m = 1;
+        PW_m = 1;
     }
   }
   if ( PW_m == 0 )
@@ -181,21 +200,21 @@ void Rip_GMC ( void )
 
 void Depack_GMC ( void )
 {
-  Uchar *Whatever;
-  Uchar Max=0x00;
-  long WholeSampleSize=0;
-  long i=0,j=0;
-  long Where = PW_Start_Address;
+  uint8_t *Whatever;
+  uint8_t Max=0x00;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 i=0,j=0;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* title */
-  Whatever = (Uchar *) malloc ( 1084 );
+  Whatever = (uint8_t *) malloc ( 1084 );
   BZERO ( Whatever , 1084 );
 
   /* read and write whole header */
@@ -270,6 +289,9 @@ void Depack_GMC ( void )
     {
       switch ( Whatever[(j*4)+2]&0x0f )
       {
+        case 0: /* no fx -> empty fxval */
+          Whatever[(j*4)+3] = 0x00;
+          break;
         case 3: /* replace by C */
           Whatever[(j*4)+2] += 0x09;
           break;

@@ -6,7 +6,7 @@
 #include "globals.h"
 #include "extern.h"
 
-short testPRUN2 ( void )
+int16_t	 testPRUN2 ( void )
 {
   PW_Start_Address = PW_i;
   PW_j = (in_data[PW_i+4]*256*256*256)+(in_data[PW_i+5]*256*256)+(in_data[PW_i+6]*256)+in_data[PW_i+7];
@@ -52,7 +52,7 @@ void Rip_PRUN2 ( void )
   Save_Rip ( "Prorunner 2 module", ProRunner_v2 );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 2);  /* -1 should do but call it "just to be sure" :) */
+    PW_i += 2;  /* -1 should do but call it "just to be sure" :) */
 }
 
 
@@ -69,7 +69,7 @@ void Rip_PRUN2 ( void )
  *
  * 28 Nov 1999 : Update
  *   - optimized code for size and speed (again :)
- *     Heh, 1/5 shorter now !.
+ *     Heh, 1/5 int16_t	er now !.
  *
  * 23 aug 2001 : debug
  *   - "repeat last note used bug" pointed out by Markus Jaegermeister !.
@@ -78,12 +78,12 @@ void Rip_PRUN2 ( void )
 
 void Depack_PRUN2 ( void )
 {
-  Uchar poss[37][2];
-  Uchar Voices[4][4];
-  Uchar *Whatever;
-  long WholeSampleSize=0;
-  long i=0,j=0;
-  long Where=PW_Start_Address;   /* main pointer to prevent fread() */
+  uint8_t poss[37][2];
+  uint8_t Voices[4][4];
+  uint8_t *Whatever;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 i=0,j=0;
+  int32_t	 Where=PW_Start_Address;   /* main pointer to prevent fread() */
   FILE *out;
 
   fillPTKtable(poss);
@@ -91,10 +91,10 @@ void Depack_PRUN2 ( void )
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO (Whatever , 1024);
   /* title */
   fwrite ( Whatever , 20 , 1 , out );

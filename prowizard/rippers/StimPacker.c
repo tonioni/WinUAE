@@ -4,13 +4,13 @@
 
 
 /* update on the 3rd of april 2000 */
-/* bug pointes out by Thomas Neumann ... thx */
+/* bug pointed out by Thomas Neumann ... thx */
 
 #include "globals.h"
 #include "extern.h"
 
 
-short testSTIM ( void )
+int16_t	 testSTIM ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -107,19 +107,19 @@ void Rip_STIM ( void )
 
 void Depack_STIM ( void )
 {
-  Uchar *Whatever;
-  Uchar c1=0x00,c2=0x00,c3=0x00,c4=0x00;
-  Uchar poss[36][2];
-  Uchar Max=0x00;
-  Uchar Note,Smp,Fx,FxVal;
-  short TracksAdd[4];
-  long i=0,j=0,k=0;
-  long WholeSampleSize=0;
-  long SmpDescAdd=0;
-  long PatAdds[64];
-  long SmpDataAdds[31];
-  long SmpSizes[31];
-  long Where=PW_Start_Address;   /* main pointer to prevent fread() */
+  uint8_t *Whatever;
+  uint8_t c1=0x00,c2=0x00,c3=0x00,c4=0x00;
+  uint8_t poss[36][2];
+  uint8_t Max=0x00;
+  uint8_t Note,Smp,Fx,FxVal;
+  int16_t	 TracksAdd[4];
+  int32_t	 i=0,j=0,k=0;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 SmpDescAdd=0;
+  int32_t	 PatAdds[64];
+  int32_t	 SmpDataAdds[31];
+  int32_t	 SmpSizes[31];
+  int32_t	 Where=PW_Start_Address;   /* main pointer to prevent fread() */
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -131,11 +131,11 @@ void Depack_STIM ( void )
   BZERO ( SmpDataAdds , 31*4 );
   BZERO ( SmpSizes , 31*4 );
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* write title */
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO ( Whatever , 1024 );
   fwrite ( Whatever , 20 , 1 , out );
 

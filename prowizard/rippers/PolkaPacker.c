@@ -10,7 +10,7 @@
 #include "extern.h"
 
 
-short testPolka ( void )
+int16_t	 testPolka ( void )
 {
   /* test #1 */
   if ( (PW_i < 0x438) || ((PW_i+0x830)>PW_in_size))
@@ -117,12 +117,12 @@ void Rip_Polka ( void )
 
 void Depack_Polka ( void )
 {
-  Uchar poss[37][2];
-  Uchar c1=0x00,c2=0x00;
-  Uchar Max=0x00;
-  long WholeSampleSize=0;
-  long i=0,j;
-  long Where = PW_Start_Address;
+  uint8_t poss[37][2];
+  uint8_t c1=0x00,c2=0x00;
+  uint8_t Max=0x00;
+  int32_t	 WholeSampleSize=0;
+  int32_t	 i=0,j;
+  int32_t	 Where = PW_Start_Address;
   FILE *out;
   unsigned char Whatever[4];
 
@@ -131,7 +131,7 @@ void Depack_Polka ( void )
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   /* takes care of header */

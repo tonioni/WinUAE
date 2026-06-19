@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testNoiserunner ( void )
+int16_t	 testNoiserunner ( void )
 {
   /* test 1 */
   if ( PW_i < 1080 )
@@ -135,13 +135,13 @@ void Rip_Noiserunner ( void )
 
 void Depack_Noiserunner ( void )
 {
-  Uchar poss[37][2];
-  Uchar Max=0x00;
-  Uchar Note,Smp,Fx,FxVal;
-  Uchar *Whatever;
-  long Where=PW_Start_Address;
-  long i=0,j=0,l=0,k;
-  long WholeSampleSize=0;
+  uint8_t poss[37][2];
+  uint8_t Max=0x00;
+  uint8_t Note,Smp,Fx,FxVal;
+  uint8_t *Whatever;
+  int32_t	 Where=PW_Start_Address;
+  int32_t	 i=0,j=0,l=0,k;
+  int32_t	 WholeSampleSize=0;
   FILE *out;
 
   if ( Save_Status == BAD )
@@ -149,10 +149,10 @@ void Depack_Noiserunner ( void )
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO ( Whatever , 1024 );
 
   /* title */
@@ -233,8 +233,8 @@ void Depack_Noiserunner ( void )
     /* use of htonl() suggested by Xigh !.*/
     j/=2;
     k = htonl(j);
-    Whatever[32] = *((Uchar *)&k+2);
-    Whatever[33] = *((Uchar *)&l+3);
+    Whatever[32] = *((uint8_t *)&k+2);
+    Whatever[33] = *((uint8_t *)&l+3);
     fwrite ( &Whatever[32] , 2 , 1 , out );
 
     /* write loop size */

@@ -1,26 +1,24 @@
 /*
  * Pro-Wizard_1.c
  *
- * 1997-2007 (c) Sylvain "Asle" Chipaux
+ * 1997-2016 (c) Sylvain "Asle" Chipaux
  *
 */
 
-#include "include/globals.h"
-#include "include/extern.h"
-#include "include/vars.h"
+#include "globals.h"
+#include "extern.h"
+#include "vars.h"
 
 
 #if 0
 int main ( int ac , char **av )
 #else
-int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
+int prowizard_search (uint8_t *in_data_p, int PW_in_size_p)
 #endif
 {
-  Support_Types_FileDefault ();
-  in_data = in_data_p;
-  PW_in_size = PW_in_size_p;
+
 #if 0
-  printf ( "\n\n-<([ Pro-Wizard v1.62 ])>-\n\n" );
+  printf ( "\n\n-<([ Pro-Wizard v1.70a ])>-\n\n" );
 
   if ( ac != 2 )
   {
@@ -43,7 +41,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
   /* get input file size */
   PW_in_size = PWGetFileSize (av[1]);
   fseek ( PW_in , 0 , 0 ); /* probably useless */
-  printf ( "input file size : %ld\n" , PW_in_size );
+  printf ( "input file size : %d\n" , PW_in_size );
   if ( PW_in_size < MINIMAL_FILE_LENGHT )
   {
     printf ( "! input file size is too small ...\n" );
@@ -52,7 +50,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
   }
 
   /* alloc mem */
-  in_data = (Uchar *) malloc ( PW_in_size );
+  in_data = (uint8_t *) malloc ( PW_in_size );
   if ( in_data == NULL )
   {
     perror ( "Couldn't allocate memory" );
@@ -60,7 +58,12 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
   }
   fread ( in_data , PW_in_size , 1 , PW_in );
   fclose ( PW_in );
+#else
+  Support_Types_FileDefault ();
+  in_data = in_data_p;
+  PW_in_size = PW_in_size_p;
 #endif
+
 
   /********************************************************************/
   /**************************   SEARCH   ******************************/
@@ -83,23 +86,25 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
     /* do ..).                                                         */
     /*******************************************************************/
 
+
     if ( in_data[PW_i] <= 0x40 )
     {
       /* try to get rid of those 00 hanging all the time everywhere :(
 	 */
       if ( in_data[PW_i] == 0x00 )
       {
-	for ( PW_j = 0 ; PW_j<MINIMAL_FILE_LENGHT ; PW_j++)
-	{
-	  if ( in_data[PW_j+PW_i] != 0x00 )
-	    break;
-	}
-	if ( PW_j == MINIMAL_FILE_LENGHT )
-	{
-	  PW_i += (MINIMAL_FILE_LENGHT-2);
-	  continue;
-	}
+	    for ( PW_j = 0 ; PW_j<MINIMAL_FILE_LENGHT ; PW_j++)
+	    {
+	      if ( in_data[PW_j+PW_i] != 0x00 )
+	        break;
+	    }
+	    if ( PW_j == MINIMAL_FILE_LENGHT )
+	    {
+	      PW_i += (MINIMAL_FILE_LENGHT-2);
+	      continue;
+	    }
       }
+
 
       /* first, let's take care of the formats with 'ID' value <= 0x40 */
       /* "!PM!" : ID of Power Music */
@@ -112,7 +117,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         {
           Rip_PM ();
           Depack_PM ();
-          continue;
         }
       }
       /* Treasure Patterns ?*/
@@ -124,7 +128,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         {
           Rip_Treasure ();
           Depack_Treasure ();
-          continue;
         }
       }
       */
@@ -134,12 +137,14 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
            (in_data[PW_i+1] == 0x09) &&
            (in_data[PW_i+2] == 0x0A) &&
           ((in_data[PW_i+3] == 0x08) || 
-	   (in_data[PW_i+3] == 0x0A)))
+           (in_data[PW_i+3] == 0x0A) ||
+           (in_data[PW_i+3] == 0x0B) ||
+           (in_data[PW_i+3] == 0x0E) ||
+           (in_data[PW_i+3] == 0x0D)))
       {
         if ( testSpecialCruncherData ( 8, 4 ) != BAD )
         {
           Rip_SpecialCruncherData ( "StoneCracker 2.92 Data Cruncher" , 12 , STC292data );
-          continue;
         }
       }
       /* "1AM" data cruncher */
@@ -150,7 +155,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         if ( testSpecialCruncherData( 12, 8 ) != BAD )
         {
           Rip_SpecialCruncherData ( "Amnesty Design (1AM) Data Cruncher" , 16 , AmnestyDesign1 );
-          continue;
         }
       }
       /* "2AM" data cruncher */
@@ -161,7 +165,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         if ( testSpecialCruncherData ( 8, 4 ) != BAD )
         {
           Rip_SpecialCruncherData ( "Amnesty Design (2AM) Data Cruncher" , 12 , AmnestyDesign2 );
-          continue;
         }
       }
 #endif
@@ -182,7 +185,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         if ( testMOD(in_data[PW_i]-0x30) != BAD )
         {
           Rip_MOD (in_data[PW_i]-0x30);
-          continue;
         }
       }
       /* "[10-32]CH" FastTracker v1/v2 */
@@ -206,7 +208,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         if ( testMOD((in_data[PW_i]-0x30)*10+in_data[PW_i+1]-0x30) != BAD )
         {
           Rip_MOD ((in_data[PW_i]-0x30)*10+in_data[PW_i+1]-0x30);
-          continue;
         }
       }
 #ifdef INCLUDEALL
@@ -219,7 +220,18 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         if ( testSpecialCruncherData ( 8, 4 ) != BAD )
         {
           Rip_SpecialCruncherData ( "=SB= Data Cruncher" , 12 , SB_DataCruncher );
-          continue;
+        }
+      }
+
+      /* B9AB data cruncher */
+      if ( (in_data[PW_i]   == 0x0B) &&
+           (in_data[PW_i+1] == 0x09) &&
+           (in_data[PW_i+2] == 0x0A) &&
+           (in_data[PW_i+3] == 0x0B) )
+      {
+        if ( testB9AB () != BAD )
+        {
+          Rip_SpecialCruncherData ( "B9AB Data Cruncher" , 274, B9AB );
         }
       }
 
@@ -232,11 +244,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         if ( testSpecialCruncherData ( 4, 8 ) != BAD )
         {
           Rip_SpecialCruncherData ( "-CJ- Data Cruncher" , 0 , CJ_DataCruncher );
-          continue;
         }
       }
 
-      /* -GD- Skizzo*/
+      /* -GD- GnoiPacker (Skizzo)*/
       if ( (in_data[PW_i]   == 0x2D) &&
            (in_data[PW_i+1] == 'G') &&
            (in_data[PW_i+2] == 'D') &&
@@ -246,7 +257,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         {
           Rip_Skizzo ();
           Depack_Skizzo ();
-          continue;
         }
       }
 
@@ -264,10 +274,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
          (in_data[PW_i+14] == 0xD1) &&
          (in_data[PW_i+15] == 0xFA) )
       {
-        if ( testMaxPacker12() == BAD )
-          break;
-        Rip_MaxPacker12 ();
-        continue;
+        if ( testMaxPacker12() != BAD )
+        {
+          Rip_MaxPacker12 ();
+        }
       }
 #endif
 
@@ -278,7 +288,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         {
           Rip_XANN ();
           Depack_XANN ();
-          continue;
         }
       }
 
@@ -289,7 +298,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_MP_noID ();
         Depack_MP ();
-        continue;
       }
 
       /* Digital Illusion */
@@ -297,7 +305,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_DI ();
         Depack_DI ();
-        continue;
       }
 
       /* SGTPacker */
@@ -306,7 +313,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_SGT ();
         Depack_SGT ();
-        continue;
       }
       */
       /* eureka packer */
@@ -314,7 +320,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_EUREKA ();
         Depack_EUREKA ();
-        continue;
       }
 
       /* The player 5.0a ? */
@@ -322,7 +327,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_P50A ();
         Depack_P50A ();
-        continue;
       }
 
       /* The player 6.0a ? */
@@ -330,16 +334,14 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_P60A ();
         Depack_P60A ();
-        continue;
       }
 
       /* The player 6.0a (packed samples)? */
       if ( testP60A_pack() != BAD )
       {
-        printf ( "\b\b\b\b\b\b\b\bThe Player 6.0A with PACKED samples found at %ld ... cant rip it!\n" , PW_Start_Address );
+        printf ( "\b\b\b\b\b\b\b\bThe Player 6.0A with PACKED samples found at %d ... cant rip it!\n" , PW_Start_Address );
         /*Rip_P60A ();*/
         /*Depack_P60A ();*/
-        continue;
       }
 
       /* The player 6.1a ? */
@@ -347,16 +349,14 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_P61A ();
         Depack_P61A ();
-        continue;
       }
 
       /* The player 6.1a (packed samples)? */
       if ( testP61A_pack() != BAD )
       {
-        printf ( "\b\b\b\b\b\b\b\bThe Player 6.1A with PACKED samples found at %ld ... cant rip it!\n" , PW_Start_Address );
+        printf ( "\b\b\b\b\b\b\b\bThe Player 6.1A with PACKED samples found at %d ... cant rip it!\n" , PW_Start_Address );
         /*Rip_P61A ();*/
         /*Depack_P61A ();*/
-        continue;
       }
 
       /* Propacker 1.0 */
@@ -364,7 +364,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_PP10 ();
         Depack_PP10 ();
-        continue;
       }
 
       /* Noise Packer v2 */
@@ -373,7 +372,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_Noisepacker2 ();
         Depack_Noisepacker2 ();
-        continue;
       }
 
       /* Noise Packer v1 */
@@ -381,7 +379,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_Noisepacker1 ();
         Depack_Noisepacker1 ();
-        continue;
       }
 
       /* Noise Packer v3 */
@@ -389,7 +386,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_Noisepacker3 ();
         Depack_Noisepacker3 ();
-        continue;
       }
 
       /* Promizer 0.1 */
@@ -397,7 +393,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_PM01 ();
         Depack_PM01 ();
-        continue;
       }
 
       /* ProPacker 2.1 */
@@ -405,7 +400,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_PP21 ();
         Depack_PP21 ();
-        continue;
       }
 
       /* ProPacker 3.0 */
@@ -413,7 +407,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_PP30 ();
         Depack_PP30 ();
-        continue;
       }
 
       /* StartTrekker pack */
@@ -421,7 +414,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_STARPACK ();
         Depack_STARPACK ();
-        continue;
       }
 
       /* Zen packer */
@@ -429,7 +421,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_ZEN ();
         Depack_ZEN ();
-        continue;
       }
 
       /* Unic tracker v1 ? */
@@ -437,7 +428,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_UNIC_withID ();
         Depack_UNIC ();
-        continue;
       }
 
       /* Unic tracker v1 ? */
@@ -445,7 +435,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_UNIC_noID ();
         Depack_UNIC ();
-        continue;
       }
 
       /* Unic trecker v2 ? */
@@ -453,7 +442,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_UNIC2 ();
         Depack_UNIC2 ();
-        continue;
       }
 
       /* Game Music Creator ? */
@@ -461,7 +449,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_GMC ();
         Depack_GMC ();
-        continue;
       }
 
       /* Heatseeker ? */
@@ -469,14 +456,12 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_HEATSEEKER ();
         Depack_HEATSEEKER ();
-        continue;
       }
 
       /* SoundTracker (15 smp) */
       if ( testSoundTracker() != BAD )
       {
         Rip_SoundTracker ();
-        continue;
       }
 
       /* The Dark Demon (group name) format */
@@ -484,7 +469,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_TheDarkDemon ();
         Depack_TheDarkDemon ();
-        continue;
       }
 
       /* Newtron */
@@ -492,7 +476,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_Newtron ();
         Depack_Newtron ();
-        continue;
       }
 
       /* Newtron Old */
@@ -500,16 +483,22 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
       {
         Rip_NewtronOld ();
         Depack_NewtronOld ();
-        continue;
       }
 
-      /* Titanics Packer ? */
+      /* Titanics Player ? */
       if ( testTitanicsPlayer() != BAD )
       {
         Rip_TitanicsPlayer ();
         Depack_TitanicsPlayer ();
-        continue;
       }
+
+      /* Struggle game ? */
+/*      if ( testSTRUGGLE() != BAD )
+      {
+        Rip_STRUGGLE ();
+        Depack_STRUGGLE ();
+        continue;
+      }*/
     }
 
 
@@ -524,10 +513,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'N') &&
              (in_data[PW_i+3] == '!') )
         {
-          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Imploder data" , 50 , IMP );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Imploder data" , 50 , IMP );
+          }
         }
 #endif
 	/* AMOS Music bank "AmBk" */
@@ -535,11 +524,19 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'B') &&
              (in_data[PW_i+3] == 'k') )
         {
-          if ( testAmBk() == BAD )
-            break;
-          Rip_AmBk();
-          Depack_AmBk();
-          break;
+          if ( testAmBk() != BAD )
+          {
+            Rip_AmBk();
+            Depack_AmBk();
+          }
+        }
+	/* Sidmon v1 */
+        if ( in_data[PW_i+1] == 0xFA )
+        {
+          if ( testSIDMON1() != BAD )
+          {
+            Rip_SIDMON1();
+          }
         }
 #ifdef INCLUDEALL
         /* Time Cruncher 1.7 */
@@ -557,50 +554,50 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+20] == 0x20) &&
              (in_data[PW_i+21] == 0x20) )
         {
-          if ( testTimeCruncher17() == BAD )
-            break;
-          Rip_TimeCruncher17 ();
-          break;
+          if ( testTimeCruncher17() != BAD )
+          {
+            Rip_TimeCruncher17 ();
+          }
         }
         /* IAM Cruncher 1.0 (another case (aka ICE)) */
         if ( (in_data[PW_i+1] == 'T') &&
              (in_data[PW_i+2] == 'M') &&
              (in_data[PW_i+3] == '5') )
         {
-          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "IAM Packer 1.0 (ATM5) data" , 12 , ICE );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "IAM Packer 1.0 (ATM5) data" , 12 , ICE );
+          }
         }
         /* ATOM - Atomik Packer (Atari ST) */
         if ( (in_data[PW_i+1] == 'T') &&
              (in_data[PW_i+2] == 'O') &&
              (in_data[PW_i+3] == 'M') )
         {
-          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Atomik Packer (ATOM) data" , 12 , AtomikPackerData );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Atomik Packer (ATOM) data" , 12 , AtomikPackerData );
+          }
         }
         /* ATM3 - Atomik Packer (Atari ST) */
         if ( (in_data[PW_i+1] == 'T') &&
              (in_data[PW_i+2] == 'M') &&
              (in_data[PW_i+3] == '3') )
         {
-          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Atomik Packer (ATOM) data" , 12 , AtomikPackerData );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Atomik Packer (ATM3) data" , 12 , AtomikPackerData );
+          }
         }
           /* "AU5!" - Automation Packer 5.* (Atari ST) */
         if ( (in_data[PW_i+1] == 'U') &&
              (in_data[PW_i+2] == '5') &&
              (in_data[PW_i+3] == '!') )
         {
-          if ( testSpecialCruncherData ( 4, 8 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Automation Packer v5.01 (data)" , 0 , AutomationPackerData );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Automation Packer v5.01 (data)" , 0 , AutomationPackerData );
+          }
         }
         /* Syncro Packer 4.6 */
         if ( (in_data[PW_i+1]  == 0xFA ) &&
@@ -622,9 +619,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testSyncroPacker() != BAD )
           {
             Rip_SyncroPacker ();
-            break;
           }
-          break;
         }
         /* Tetrapack 1.02 */
         if ( (in_data[PW_i+1]  == 0xFA ) &&
@@ -639,19 +634,38 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+18] == 0xD5 ) &&
              (in_data[PW_i+19] == 0xC9 ) )
         {
-          if ( testTetrapack102() == BAD )
-            break;
-          Rip_Tetrapack102 ();
+          if ( testTetrapack102() != BAD )
+          {
+            Rip_Tetrapack102 ();
+          }
+        }
+        /* Tetrapack 1.01 */
+        if ( (in_data[PW_i+1]  == 0xFA ) &&
+             (in_data[PW_i+2]  == 0x00 ) &&
+             (in_data[PW_i+3]  == 0xDE ) &&
+             (in_data[PW_i+4]  == 0xD1 ) &&
+             (in_data[PW_i+5]  == 0xFC ) &&
+             (in_data[PW_i+10] == 0x22 ) &&
+             (in_data[PW_i+11] == 0x7C ) &&
+             (in_data[PW_i+16] == 0x24 ) &&
+             (in_data[PW_i+17] == 0x60 ) &&
+             (in_data[PW_i+18] == 0xD5 ) &&
+             (in_data[PW_i+19] == 0xC9 ) )
+        {
+          if ( testTetrapack101() != BAD )
+          {
+            Rip_Tetrapack101 ();
+          }
         }
         /* "ArcD" data cruncher */
         if ( (in_data[PW_i+1]  == 'r') &&
              (in_data[PW_i+2]  == 'c') &&
              (in_data[PW_i+3]  == 'D'))
         {
-          if ( testArcDDataCruncher() == BAD )
-            break;
-          Rip_SpecialCruncherData ( "ArcD data Cruncher" , 0 , arcD );
-          break;
+          if ( testArcDDataCruncher() != BAD )
+          {
+            Rip_SpecialCruncherData ( "ArcD data Cruncher" , 0 , arcD );
+          }
         }
         /* HQC Cruncher 2.0 */
         if ( (in_data[PW_i+1]  == 0xFA ) &&
@@ -673,9 +687,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testHQCCruncher2() != BAD )
           {
             Rip_HQCCruncher2 ();
-            break;
           }
-          break;
         }
         /* ByteKillerPro 1.0 */
         if ( (in_data[PW_i+1]  == 0xFA) &&
@@ -692,22 +704,66 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+20] == 0x22) &&
              (in_data[PW_i+21] == 0x28) )
         {
-          if ( testbytekillerpro10() == BAD )
-            break;
-          Rip_bytekillerpro10 ();
-          break;
+          if ( testbytekillerpro10() != BAD )
+          {
+            Rip_bytekillerpro10 ();
+          }
+        }
+        /* Bytekiller Clone FLT */
+        if ( (in_data[PW_i+1] == 0xFA) &&
+             (in_data[PW_i+2] == 0x01) &&
+             (in_data[PW_i+3] == 0x32) &&
+             (in_data[PW_i+4] == 0xD1) &&
+             (in_data[PW_i+5] == 0xFA) &&
+             (in_data[PW_i+6] == 0x01) &&
+             (in_data[PW_i+7] == 0x2A) &&
+             (in_data[PW_i+8] == 0x22) &&
+             (in_data[PW_i+9] == 0x7c) )
+        {
+          if ( testBKCloneFLT() != BAD )
+          {
+            Rip_BKCloneFLT ();
+          }
+        }
+        /* unknown Bytekiller Clone 5 */
+        if ( (in_data[PW_i+1] == 0xFA) &&
+             (in_data[PW_i+2] == 0x01) &&
+             (in_data[PW_i+3] == 0x16) &&
+             (in_data[PW_i+4] == 0xD1) &&
+             (in_data[PW_i+5] == 0xFC) &&
+             (in_data[PW_i+10] == 0x43) &&
+             (in_data[PW_i+11] == 0xF9) &&
+             (in_data[PW_i+16] == 0x24) &&
+             (in_data[PW_i+17] == 0x60) )
+        {
+          if ( testBKClone5() != BAD )
+          {
+            Rip_BKClone5 ();
+          }
         }
 	/* Ace? (data cruncher) */
         if ( (in_data[PW_i+1] == 'c') &&
              (in_data[PW_i+2] == 'e') &&
              (in_data[PW_i+3] == '?') )
         {
-          if ( testSpecialCruncherData ( 4, 8 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "(Ace?) Data Cruncher" , 0 , ACECruncherData );
-          break;
+          if ( testSpecialCruncherData ( 4, 8 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "(Ace?) Data Cruncher" , 0 , ACECruncherData );
+          }
         }
 #endif
+        /* Delta Music 1 */
+        if ( (in_data[PW_i+1] == 'L') &&
+             (in_data[PW_i+2] == 'L') &&
+             (in_data[PW_i+3] == ' ') )
+        {
+          if ( testDM1() != BAD )
+          {
+            Rip_DM1();
+          }
+        }
+
+
         break;
 
       case 'B': /* BTB6 */
@@ -720,15 +776,32 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testByteKiller_13() != BAD )
           {
             Rip_ByteKiller ();
-            break;
           }
-          testByteKiller_20 ();
           if ( testByteKiller_20() != BAD )
           {
             Rip_ByteKiller ();
-            break;
           }
-          break;
+        }
+
+        /* BHC2 (data cruncher) */
+        if ( (in_data[PW_i+1] == 'H') &&
+             (in_data[PW_i+2] == 'C') &&
+             (in_data[PW_i+3] == '2') )
+        {
+          if ( testSpecialCruncherData ( 6, 10 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "(BHC2) Data Cruncher" , 0x3C , BHC2CruncherData );
+          }
+        }
+        /* BHC3 (data cruncher) */
+        if ( (in_data[PW_i+1] == 'H') &&
+             (in_data[PW_i+2] == 'C') &&
+             (in_data[PW_i+3] == '3') )
+        {
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "(BHC3) Data Cruncher" , 0xC8 , BHC3CruncherData );
+          }
         }
 #endif
         /* "BeEp" Jam Cracker */
@@ -736,10 +809,22 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'E') &&
              (in_data[PW_i+3] == 'p') )
         {
-          if ( testJamCracker() == BAD )
-            break;
-          Rip_JamCracker ();
-          break;
+          if ( testJamCracker() != BAD )
+          {
+            Rip_JamCracker ();
+          }
+        }
+
+        /* "BNR!" Binary Packer */
+        if ( (in_data[PW_i+1] == 'N') &&
+             (in_data[PW_i+2] == 'R') &&
+             (in_data[PW_i+3] == '!') )
+        {
+          if ( testBNR() != BAD )
+          {
+            Rip_BNR();
+            Depack_BNR();
+          }
         }
         break;
 
@@ -753,11 +838,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+6] == 'P') &&
              (in_data[PW_i+7] == '3') )
         {
-          if ( testTP3() == BAD )
-            break;
-          Rip_TP3 ();
-          Depack_TP3 ();
-          break;
+          if ( testTP3() != BAD )
+          {
+            Rip_TP3 ();
+            Depack_TP3 ();
+          }
         }
 #ifdef INCLUDEALL
         /* CrM2 | Crm2 | CrM! */
@@ -771,30 +856,30 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
               (in_data[PW_i+2] == 'M') &&
               (in_data[PW_i+3] == '!')) )
         {
-          if ( testSpecialCruncherData ( 10, 6 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Crunchmania / Normal data" , 14 , CRM1 );
-          break;
+          if ( testSpecialCruncherData ( 10, 6 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Crunchmania / Normal data" , 14 , CRM1 );
+          }
         }
         /* "CHFI"  another imploder case */
         if ( (in_data[PW_i+1] == 'H') &&
              (in_data[PW_i+2] == 'F') &&
              (in_data[PW_i+3] == 'I') )
         {
-          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Imploder data" , 50 , IMP );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Imploder data" , 50 , IMP );
+          }
         }
         /* "CRND" data cruncher */
         if ( (in_data[PW_i+1] == 'R') &&
              (in_data[PW_i+2] == 'N') &&
              (in_data[PW_i+3] == 'D') )
         {
-          if ( testCRND() == BAD )
-            break;
-          Rip_SpecialCruncherData ( "CRND data cruncher" , 20 , CRND );
-          break;
+          if ( testCRND() != BAD )
+          {
+            Rip_SpecialCruncherData ( "CRND data cruncher" , 20 , CRND );
+          }
         }
 	/* Defjam Cruncher 3.2 */
         if ( (in_data[PW_i+1] == 0xFA) &&
@@ -804,10 +889,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              ((in_data[PW_i+5] == 0xF9) || (in_data[PW_i+5] == 0xCD))&&
              ((in_data[PW_i+6] == 0x00) || (in_data[PW_i+6] == 0x4E)))
         {
-          if ( testDefjam32() == BAD )
-            break;
-          Rip_Defjam32 ();
-          break;
+          if ( testDefjam32() != BAD )
+          {
+            Rip_Defjam32 ();
+          }
         }
 #endif
         break;
@@ -818,10 +903,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
 	     (in_data[PW_i+2] == 'G') &&
 	     (in_data[PW_i+3] == 'I') )
         {
-          if ( testDigiBooster17() == BAD )
-            break;
-          Rip_DigiBooster17 ();
-          break;
+          if ( testDigiBooster17() != BAD )
+          {
+            Rip_DigiBooster17 ();
+          }
         }
         break;
 
@@ -831,11 +916,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'O') &&
              (in_data[PW_i+3] == 'D') )
         {
-          if ( testQuadraComposer() == BAD )
-            break;
-          Rip_QuadraComposer ();
-          Depack_QuadraComposer ();
-          break;
+          if ( testQuadraComposer() != BAD )
+          {
+            Rip_QuadraComposer ();
+            /*Depack_QuadraComposer ();*/
+          }
         }
           /* "Extended Module" : ID of FastTracker 2 XM */
         if ( (in_data[PW_i+1] == 'x') &&
@@ -849,10 +934,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+9] == 'M') &&
              (in_data[PW_i+10]== 'o') )
         {
-          if ( testXM() == BAD )
-            break;
-          Rip_XM ();
-          break;
+          if ( testXM() != BAD )
+          {
+            Rip_XM ();
+          }
         }
         break;
 
@@ -862,63 +947,73 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '-') &&
              (in_data[PW_i+3] == 'M') )
         {
-          if ( testFC_M() == BAD )
-            break;
-          Rip_FC_M ();
-          Depack_FC_M ();
-          break;
+          if ( testFC_M() != BAD )
+          {
+            Rip_FC_M ();
+            Depack_FC_M ();
+          }
         }
           /* "FLT4" : ID of StarTrekker */
         if ( (in_data[PW_i+1] == 'L') &&
              (in_data[PW_i+2] == 'T') &&
              (in_data[PW_i+3] == '4') )
         {
-          if ( testMOD(4) == BAD )
-            break;
-          Rip_MOD (4);
-          break;
+          if ( testMOD(4) != BAD )
+          {
+            Rip_MOD (4);
+          }
         }
           /* "FC14" : Future Composer 1.4 */
         if ( (in_data[PW_i+1] == 'C') &&
              (in_data[PW_i+2] == '1') &&
              (in_data[PW_i+3] == '4') )
         {
-          if ( testFC14() == BAD )
-            break;
-          Rip_FC14 ();
-          break;
+          if ( testFC14() != BAD )
+          {
+            Rip_FC14 ();
+          }
+        }
+          /* "FORM" : EA-IFF */
+        if ( (in_data[PW_i+1] == 'O') &&
+             (in_data[PW_i+2] == 'R') &&
+             (in_data[PW_i+3] == 'M') )
+        {
+          if ( testIFF() != BAD )
+          {
+            Rip_IFF ();
+          }
         }
           /* "FUCO" : ID of BSI Future Composer */
         if ( (in_data[PW_i+1] == 'U') &&
              (in_data[PW_i+2] == 'C') &&
              (in_data[PW_i+3] == 'O') )
         {
-          if ( testBSIFutureComposer() == BAD )
-            break;
-          Rip_BSIFutureComposer ();
-          break;
+          if ( testBSIFutureComposer() != BAD )
+          {
+            Rip_BSIFutureComposer ();
+          }
         }
          /* "Fuck" : ID of Noise From Heaven chiptunes */
         if ( (in_data[PW_i+1] == 'u') &&
              (in_data[PW_i+2] == 'c') &&
              (in_data[PW_i+3] == 'k') )
         {
-          if ( testNFH() == BAD )
-            break;
-          Rip_NFH ();
-	      Depack_NFH ();
-          break;
+          if ( testNFH() != BAD )
+          {
+            Rip_NFH ();
+            Depack_NFH ();
+          }
         }
     	  /* "FAST" : ID of Stone Arts Player */
         if ( (in_data[PW_i+1] == 'A') &&
              (in_data[PW_i+2] == 'S') &&
              (in_data[PW_i+3] == 'T') )
         {
-          if ( testStoneArtsPlayer() == BAD )
-            break;
-          Rip_StoneArtsPlayer ();
-	      Depack_StoneArtsPlayer ();
-          break;
+          if ( testStoneArtsPlayer() != BAD )
+          {
+            Rip_StoneArtsPlayer ();
+  	        Depack_StoneArtsPlayer ();
+          }
         }
 #ifdef INCLUDEALL
           /* FIRE (RNC clone) Cruncher */
@@ -926,10 +1021,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'R') &&
              (in_data[PW_i+3] == 'E') )
         {
-          if ( testSpecialCruncherData ( 4, 8 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "FIRE (RNC Clone) data Cruncher" , 0 , FIRE );
-          break;
+          if ( testSpecialCruncherData ( 4, 8 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "FIRE (RNC Clone) data Cruncher" , 0 , FIRE );
+          }
         }
 #endif
         break;
@@ -956,9 +1051,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testMegaCruncher10() != BAD )
           {
             Rip_MegaCruncher ();
-            break;
           }
-          break;
         }
 
         /* Mega Cruncher 1.2 */
@@ -978,10 +1071,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0xD1 ) &&
              (in_data[PW_i+15] == 0xC1 ) )
         {
-          if ( testMegaCruncher12() == BAD )
-	    break;
-	  Rip_MegaCruncher ();
-	  break;
+          if ( testMegaCruncher12() != BAD )
+	      {
+            Rip_MegaCruncher ();
+          }
         }
 
         /* Double Action v1.0 */
@@ -996,10 +1089,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+142]== 0x23 ) &&
              (in_data[PW_i+143]== 0x20 ) )
         {
-          if ( testDoubleAction10() == BAD )
-            break;
-          Rip_DoubleAction10 ();
-          break;
+          if ( testDoubleAction10() != BAD )
+          {
+            Rip_DoubleAction10 ();
+          }
         }
 #endif
 	/* GPMO (crunch player ?)*/
@@ -1007,11 +1100,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
            (in_data[PW_i+2] == 'M') &&
            (in_data[PW_i+3] == 'O') )
         {
-          if ( testGPMO() == BAD )
-            break;
-          Rip_GPMO ();
-          Depack_GPMO ();
-          break;
+          if ( testGPMO() != BAD )
+          {
+            Rip_GPMO ();
+            Depack_GPMO ();
+          }
         }
 
 	/* Gnu player */
@@ -1019,11 +1112,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
            (in_data[PW_i+2] == 'P') &&
            (in_data[PW_i+3] == 'l') )
         {
-          if ( testGnuPlayer() == BAD )
-            break;
-          Rip_GnuPlayer ();
-          Depack_GnuPlayer ();
-          break;
+          if ( testGnuPlayer() != BAD )
+          {
+            Rip_GnuPlayer ();
+            Depack_GnuPlayer ();
+          }
         }
 
         break;
@@ -1034,11 +1127,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
            (in_data[PW_i+2] == 'T') &&
            (in_data[PW_i+3] == '!') )
         {
-          if ( testHRT() == BAD )
-            break;
-          Rip_HRT ();
-          Depack_HRT ();
-          break;
+          if ( testHRT() != BAD )
+          {
+            Rip_HRT ();
+            Depack_HRT ();
+          }
         }
 
 #ifdef INCLUDEALL
@@ -1059,10 +1152,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0xD3) &&
              (in_data[PW_i+15] == 0xC9) )
         {
-          if ( testMasterCruncher30addr() == BAD )
-            break;
-          Rip_MasterCruncher30addr ();
-          break;
+          if ( testMasterCruncher30addr() != BAD )
+          {
+            Rip_MasterCruncher30addr ();
+          }
         }
 
         /* Powerpacker 4.0 library */
@@ -1082,10 +1175,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0x2C) &&
              (in_data[PW_i+15] == 0x78) )
         {
-          if ( testPowerpacker4lib() == BAD )
-            break;
-          Rip_Powerpacker4lib ();
-          break;
+          if ( testPowerpacker4lib() != BAD )
+          {
+            Rip_Powerpacker4lib ();
+          }
         }
         /* StoneCracker 2.70 */
         if ( (in_data[PW_i+1]  == 0xE7) &&
@@ -1104,10 +1197,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0x7A) &&
              (in_data[PW_i+15] == 0x00) )
         {
-          if ( testStoneCracker270() == BAD )
-            break;
-          Rip_StoneCracker270 ();
-          break;
+          if ( testStoneCracker270() != BAD )
+          {
+            Rip_StoneCracker270 ();
+          }
         }
 
         /* ByteKiller 3.0 */
@@ -1123,10 +1216,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0x4D) &&
              (in_data[PW_i+15] == 0xF9) )
         {
-          if ( testByteKiller30() == BAD )
-            break;
-          Rip_ByteKiller30 ();
-          break;
+          if ( testByteKiller30() != BAD )
+          {
+            Rip_ByteKiller30 ();
+          }
         }
 
         /* Powerpacker 2.3 */
@@ -1146,10 +1239,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0x4A) &&
              (in_data[PW_i+15] == 0x98) )
         {
-          if ( testPowerpacker23() == BAD )
-            break;
-          Rip_Powerpacker23 ();
-          break;
+          if ( testPowerpacker23() != BAD )
+          {
+            Rip_Powerpacker23 ();
+          }
         }
 
         /* Powerpacker 3.0 */
@@ -1169,10 +1262,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0xD1) &&
              (in_data[PW_i+15] == 0xC8) )
         {
-          if ( testPowerpacker30() == BAD )
-            break;
-          Rip_Powerpacker30 ();
-          break;
+          if ( testPowerpacker30() != BAD )
+          {
+            Rip_Powerpacker30 ();
+          }
         }
 
         /* Powerpacker 4.0 */
@@ -1192,10 +1285,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0xD1) &&
              (in_data[PW_i+15] == 0xC8) )
         {
-          if ( testPowerpacker40() == BAD )
-            break;
-          Rip_Powerpacker40 ();
-          break;
+          if ( testPowerpacker40() != BAD )
+          {
+            Rip_Powerpacker40 ();
+          }
         }
 
         /* Super Cruncher 2.7 */
@@ -1211,10 +1304,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0x41) &&
              (in_data[PW_i+15] == 0xFA) )
         {
-          if ( testSuperCruncher27() == BAD )
-            break;
-          Rip_SuperCruncher27 ();
-          break;
+          if ( testSuperCruncher27() != BAD )
+          {
+            Rip_SuperCruncher27 ();
+          }
         }
 
         /* Crunchmania Address */
@@ -1234,10 +1327,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
            (in_data[PW_i+30] == 0xB7) &&
            (in_data[PW_i+31] == 0xCA) )
         {
-          if ( testcrunchmaniaAddr() == BAD )
-            break;
-          Rip_CrunchmaniaAddr ();
-          continue;
+          if ( testcrunchmaniaAddr(1) != BAD )
+          {
+            Rip_CrunchmaniaAddr ();
+          }
         }
 
         /* Crunchmania Address (another)*/
@@ -1257,10 +1350,33 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
            (in_data[PW_i+30] == 0x43) &&
            (in_data[PW_i+31] == 0xF9) )
         {
-          if ( testcrunchmaniaAddr() == BAD )
-            break;
-          Rip_CrunchmaniaAddr ();
-          continue;
+          if ( testcrunchmaniaAddr(1) != BAD )
+          {
+            Rip_CrunchmaniaAddr ();
+          }
+        }
+
+        /* Crunchmania Address (another again)*/
+        if ((in_data[PW_i+1] == 0xe7) &&
+           (in_data[PW_i+14] == 0x1a) &&
+           (in_data[PW_i+15] == 0xbc) &&
+           (in_data[PW_i+16] == 0x00) &&
+           (in_data[PW_i+17] == 0xb9) &&
+           (in_data[PW_i+18] == 0x1a) &&
+           (in_data[PW_i+19] == 0xbc) &&
+           (in_data[PW_i+24] == 0x00) &&
+           (in_data[PW_i+25] == 0xe9) &&
+           (in_data[PW_i+26] == 0x1a) &&
+           (in_data[PW_i+27] == 0xbc) &&
+           (in_data[PW_i+28] == 0x00) &&
+           (in_data[PW_i+29] == 0xf1) &&
+           (in_data[PW_i+30] == 0x45) &&
+           (in_data[PW_i+31] == 0xfa) )
+        {
+          if ( testcrunchmaniaAddr(2) != BAD )
+          {
+            Rip_CrunchmaniaAddr ();
+          }
         }
 
         /* Crunchmania Simple */
@@ -1279,11 +1395,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
 	    (in_data[PW_i+13] == 0x4A) &&
 	    (in_data[PW_i+14] == 0x28) &&
 	    (in_data[PW_i+15] == 0x7A) )
-	{
-          if ( testcrunchmaniaSimple() == BAD )
-            break;
-          Rip_CrunchmaniaSimple();
-          continue;
+        {
+          if ( testcrunchmaniaSimple() != BAD )
+          {
+            Rip_CrunchmaniaSimple();
+          }
         }
 
         /* RelokIt 1.0 */
@@ -1303,10 +1419,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0x23) &&
              (in_data[PW_i+15] == 0xC0) )
         {
-          if ( testRelokIt10() == BAD )
-            break;
-          Rip_RelokIt10 ();
-          break;
+          if ( testRelokIt10() != BAD )
+          {
+            Rip_RelokIt10 ();
+          }
         }
 
         /* Mega Cruncher Obj */
@@ -1322,10 +1438,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+10] == 0x01) &&
              (in_data[PW_i+11] == 0xC0) )
         {
-          if ( testMegaCruncherObj() == BAD )
-            break;
-          Rip_MegaCruncherObj ();
-          break;
+          if ( testMegaCruncherObj() != BAD )
+          {
+            Rip_MegaCruncherObj ();
+          }
         }
 
         /* Turbo Squeezer 6.1 */
@@ -1341,10 +1457,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+10] == 0x20) &&
              (in_data[PW_i+11] == 0x7A) )
         {
-          if ( testTurboSqueezer61() == BAD )
-            break;
-          Rip_TurboSqueezer61 ();
-          break;
+          if ( testTurboSqueezer61() != BAD )
+          {
+            Rip_TurboSqueezer61 ();
+          }
         }
 
         /* DragPack 2.52 */
@@ -1364,10 +1480,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0x00) &&
              (in_data[PW_i+15] == 0x00) )
         {
-          if ( testDragpack252() == BAD )
-            break;
-          Rip_Dragpack252 ();
-          break;
+          if ( testDragpack252() != BAD )
+          {
+            Rip_Dragpack252 ();
+          }
         }
         /* DragPack 1.00 */
         if ( (in_data[PW_i+1]  == 0xE7) &&
@@ -1386,10 +1502,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0x00) &&
              (in_data[PW_i+15] == 0x00) )
         {
-          if ( testDragpack100() == BAD )
-            break;
-          Rip_Dragpack100 ();
-          break;
+          if ( testDragpack100() != BAD )
+          {
+            Rip_Dragpack100 ();
+          }
         }
         /* GNU Packer 1.2 */
         if ( (in_data[PW_i+1]  == 0xE7) &&
@@ -1408,12 +1524,22 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0x00) &&
              (in_data[PW_i+15] == 0x0C) )
         {
-          if ( testGNUPacker12() == BAD )
-            break;
-          Rip_GNUPacker12 ();
-          break;
+          if ( testGNUPacker12() != BAD )
+          {
+            Rip_GNUPacker12 ();
+          }
         }
 #endif
+        /* "HVL" - Hively tracker */
+        if ( ( in_data[PW_i+1] == 'V' ) &&
+             ( in_data[PW_i+2] == 'L' ) &&
+             (( in_data[PW_i+3] == 0x00 )||( in_data[PW_i+3] == 0x01 )) )
+        {
+          if ( testTHX() != BAD )
+          {
+            Rip_THX ();
+          }
+        }
         break;
 
       case 'I': /* 0x48 */
@@ -1423,30 +1549,40 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'E') &&
              (in_data[PW_i+3] == '!') )
         {
-          if ( testSpecialCruncherData ( 4, 8 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "IAM Packer 1.0 (ICE!) data" , 0 , ICE );
-          break;
+          if ( testSpecialCruncherData ( 4, 8 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "IAM Packer 1.0 (ICE!) data" , 0 , ICE );
+          }
         }
           /* "Ice!" : ID of Ice! Cruncher */
         if ( (in_data[PW_i+1] == 'c') &&
              (in_data[PW_i+2] == 'e') &&
              (in_data[PW_i+3] == '!') )
         {
-          if ( testSpecialCruncherData ( 4, 8 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Ice! Cruncher (data)" , 0 , ICE );
-          break;
+          if ( testSpecialCruncherData ( 4, 8 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Ice! Cruncher (data)" , 0 , ICE );
+          }
         }
           /* "IMP!" */
         if ( (in_data[PW_i+1] == 'M') &&
              (in_data[PW_i+2] == 'P') &&
              (in_data[PW_i+3] == '!') )
         {
-          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Imploder data" , 50 , IMP );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Imploder data" , 50 , IMP );
+          }
+        }
+          /* "IMPM" : ID of Impulse Tracker */
+        if ( (in_data[PW_i+1] == 'M') &&
+             (in_data[PW_i+2] == 'P') &&
+             (in_data[PW_i+3] == 'M') )
+        {
+          if ( testIT() != BAD )
+          {
+            Rip_IT ();
+          }
         }
 #endif
         if ( (in_data[PW_i+1] == 'T') &&
@@ -1454,11 +1590,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+3] == '0') )
         {
           /* Ice Tracker 1.0 */
-          if ( testSTK26() == BAD )
-            break;
-          Rip_STK26 ();
-          Depack_STK26 ();
-          break;
+          if ( testSTK26() != BAD )
+          {
+            Rip_STK26 ();
+            Depack_STK26 ();
+          }
         }
         break;
 
@@ -1468,11 +1604,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'I') &&
              (in_data[PW_i+3] == 'S') )
         {
-          if ( testKRIS() == BAD )
-            break;
-          Rip_KRIS ();
-          Depack_KRIS ();
-          break;
+          if ( testKRIS() != BAD )
+          {
+            Rip_KRIS ();
+            Depack_KRIS ();
+          }
         }
 #ifdef INCLUDEALL
         /* Try-It Cruncher 1.01 */
@@ -1492,15 +1628,52 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0x20) &&
              (in_data[PW_i+15] == 0x4A) )
         {
-          if ( testTryIt101() == BAD )
-            break;
-          Rip_TryIt101 ();
-          break;
+          if ( testTryIt101() != BAD )
+          {
+            Rip_TryIt101 ();
+          }
+        }
+#endif
+        break;
+
+      case 'L': /* 0x4C */
+#ifdef INCLUDEALL
+          /* "LSD!" : ID of Automation 2.3r packer (Atari ST) */
+        if ( (in_data[PW_i+1] == 'S') &&
+             (in_data[PW_i+2] == 'D') &&
+             (in_data[PW_i+3] == '!') )
+        {
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Automation 2.3r Data Cruncher" , 4 , LSDDataCruncher );
+          }
+        }
+
+          /* "LZH!" : ID of Jam Packer (LZH! compression) (Atari ST) */
+        if ( (in_data[PW_i+1] == 'Z') &&
+             (in_data[PW_i+2] == 'H') &&
+             (in_data[PW_i+3] == '!') )
+        {
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Jam Packer Data Cruncher" , 12 , JamDataCruncher );
+          }
         }
 #endif
         break;
 
       case 'M': /* 0x4D */
+        /* MASM data cruncher */
+        if ( (in_data[PW_i+1] == 'A') &&
+             (in_data[PW_i+2] == 'S') &&
+             (in_data[PW_i+3] == 'M') )
+        {
+          if ( testSpecialCruncherData ( 4, 8 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "MASM Data Cruncher" , 0 , MASMDataCruncher );
+          }
+        }
+
         if ( (in_data[PW_i+1] == '.') &&
              (in_data[PW_i+2] == 'K') &&
              (in_data[PW_i+3] == '.') )
@@ -1509,7 +1682,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testMOD(4) != BAD )
           {
             Rip_MOD(4);
-            break;
           }
 
           /* Unic tracker v1 ? */
@@ -1517,7 +1689,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_UNIC_withID ();
             Depack_UNIC ();
-            break;
           }
 
           /* Noiserunner ? */
@@ -1525,7 +1696,19 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_Noiserunner ();
             Depack_Noiserunner ();
-            break;
+          }
+
+          /* Mosh packer ? */
+          if ( testMOSH() != BAD )
+          {
+            Rip_MOSH ();
+            Depack_MOSH ();
+          }
+          /* HCD-protector ? */
+          if ( testHCD() != BAD )
+          {
+            Rip_HCD ();
+            Depack_HCD ();
           }
         }
 
@@ -1538,7 +1721,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_Fuzzac ();
             Depack_Fuzzac ();
-            break;
           }
         }
 
@@ -1551,14 +1733,12 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_TP2 ();
             Depack_TP2 ();
-            break;
           }
           /* tracker packer v1 */
           if ( testTP1() != BAD )
           {
             Rip_TP1 ();
             Depack_TP1 ();
-            break;
           }
         }
 
@@ -1569,22 +1749,21 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_KSM ();
             Depack_KSM ();
-            break;
           }
         }
 
-        /*if ( (in_data[PW_i+1] == 'O') &&
+        if ( (in_data[PW_i+1] == 'O') &&
              (in_data[PW_i+2] == 'D') &&
              (in_data[PW_i+3] == 'U') )
-        {*/
+        {
           /* NovoTrade */
-          /*if ( testNovoTrade() != BAD )
+          if ( testNovoTrade() != BAD )
           {
             Rip_NovoTrade ();
             Depack_NovoTrade ();
-            break;
+            continue;
           }
-        }*/
+        }
 
         if ( (in_data[PW_i+1] == 'T') &&
              (in_data[PW_i+2] == 'N') &&
@@ -1595,21 +1774,21 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_STK26 ();
             Depack_STK26 ();
-            break;
           }
         }
 
         if ( (in_data[PW_i+1] == 'M') &&
              (in_data[PW_i+2] == 'D') &&
              ((in_data[PW_i+3] == '0') ||
-             (in_data[PW_i+3] == '1') || 
+             (in_data[PW_i+3] == '1')) )/* || 
              (in_data[PW_i+3] == '2') ||
-             (in_data[PW_i+3] == '3')) )
+             (in_data[PW_i+3] == '3')) )*/
         {
           /* MED (MMD0) */
-          if ( testMMD0() == BAD )
-            break;
-          Rip_MMD0 ();
+          if ( testMMD0() != BAD )
+          {
+            Rip_MMD0 ();
+          }
         }
 
 #ifdef INCLUDEALL
@@ -1633,7 +1812,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testDefjam32pro() != BAD )
           {
             Rip_Defjam32 ();
-            break;
           }
         }
 
@@ -1657,7 +1835,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testSTC299d() != BAD )
           {
             Rip_STC299d ();
-            break;
           }
         }
 
@@ -1681,7 +1858,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testSTC299b() != BAD )
           {
             Rip_STC299b ();
-            break;
           }
         }
 
@@ -1706,7 +1882,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testSTC299() != BAD )
           {
             Rip_STC299 ();
-            break;
           }
         }
 
@@ -1730,7 +1905,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testSTC300() != BAD )
           {
             Rip_STC300 ();
-            break;
           }
         }
 
@@ -1754,10 +1928,64 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testSTC310() != BAD )
           {
             Rip_STC310 ();
-            break;
+          }
+        }
+
+          /* Mental Image Packer (data) */
+        if ( (in_data[PW_i+1] == 'I') &&
+             (in_data[PW_i+2] == '1') &&
+             (in_data[PW_i+3] == '0') )
+        {
+          if ( testSpecialCruncherData ( 12, 8 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Mental Image Packer" , 18 , MentalImage );
           }
         }
 #endif
+        break;
+
+      case 'N': /* Sonic Arranger (no hunk) */
+        if ( (in_data[PW_i+1] == 0xFA) &&
+             (in_data[PW_i+2] == 0x00) &&
+             (in_data[PW_i+4] == 'N') &&
+             (in_data[PW_i+5] == 0xFA) &&
+             (in_data[PW_i+8] == 'N') &&
+             (in_data[PW_i+9] == 0xFA) &&
+             (in_data[PW_i+12] == 'N') &&
+             (in_data[PW_i+13] == 0xFA) &&
+             (in_data[PW_i+16] == 'N') &&
+             (in_data[PW_i+17] == 0xFA) &&
+             (in_data[PW_i+20] == 'N') &&
+             (in_data[PW_i+21] == 0xFA) &&
+             (in_data[PW_i+24] == 'N') &&
+             (in_data[PW_i+25] == 0xFA))
+        {
+          if ( testSA() != BAD )
+          {
+            Rip_SA ();
+          }
+        }
+        break;
+
+      case 'O': /* 0x4F */
+          /* "OKTASONG" : ID of Oktalizer */
+        if ( (in_data[PW_i+1] == 'K') &&
+             (in_data[PW_i+2] == 'T') &&
+             (in_data[PW_i+3] == 'A') &&
+             (in_data[PW_i+4] == 'S') &&
+             (in_data[PW_i+5] == 'O') &&
+             (in_data[PW_i+6] == 'N') &&
+             (in_data[PW_i+7] == 'G') &&
+             (in_data[PW_i+8] == 'C') &&
+             (in_data[PW_i+9] == 'M') &&
+             (in_data[PW_i+10] == 'O') &&
+             (in_data[PW_i+11] == 'D') )
+        {
+          if ( testOkta() != BAD )
+          {
+            Rip_Okta ();
+          }
+        }
         break;
 
       case 'P': /* 0x50 */
@@ -1767,8 +1995,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '2') &&
              (in_data[PW_i+3] == '0') )
         {
-          printf ( "PowerPacker ID (PP20) found at %ld ... cant rip it!\n" , PW_i );
-          break;
+          printf ( "PowerPacker ID (PP20) found at %u ... cant rip it!\n" , PW_i );
         }
 #endif
           /* "P30A" : ID of The Player */
@@ -1776,22 +2003,23 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '0') &&
              (in_data[PW_i+3] == 'A') )
         {
-	  if ( testP40A() == BAD ) /* yep same tests apply */
-	    break;
-	  Rip_P30A ();
-          Depack_P30 ();
+          if ( testP40A() != BAD ) /* yep same tests apply */
+          {
+            Rip_P30A ();
+            Depack_P30 ();
+          }
         }
-
 
           /* "P22A" : ID of The Player */
         if ( (in_data[PW_i+1] == '2') &&
              (in_data[PW_i+2] == '2') &&
              (in_data[PW_i+3] == 'A') )
         {
-	  if ( testP40A() == BAD ) /* yep, same tests apply */
-	    break;
-	  Rip_P22A ();
-          Depack_P22 ();
+          if ( testP40A() != BAD ) /* yep, same tests apply */
+	      {
+            Rip_P22A ();
+            Depack_P22 ();
+          }
         }
 
           /* "P40A" : ID of The Player */
@@ -1799,10 +2027,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '0') &&
              (in_data[PW_i+3] == 'A') )
         {
-          if ( testP40A() == BAD )
-            break;
-          Rip_P40A ();
-          Depack_P40 ();
+          if ( testP40A() != BAD )
+          {
+            Rip_P40A ();
+            Depack_P40 ();
+          }
         }
 
           /* "P40B" : ID of The Player */
@@ -1810,10 +2039,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '0') &&
              (in_data[PW_i+3] == 'B') )
         {
-          if ( testP40A() == BAD )
-            break;
-          Rip_P40B ();
-          Depack_P40 ();
+          if ( testP40A() != BAD )
+          {
+            Rip_P40B ();
+            Depack_P40 ();
+          }
         }
 
           /* "P41A" : ID of The Player */
@@ -1821,11 +2051,23 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '1') &&
              (in_data[PW_i+3] == 'A') )
         {
-          if ( testP41A() == BAD )
-            break;
-          Rip_P41A ();
-          Depack_P41A ();
-          break;
+          if ( testP41A() != BAD )
+          {
+            Rip_P41A ();
+            Depack_P41A ();
+          }
+        }
+
+          /* "PMd3/PMD3 : ID of ?!? TSCC format - 8CHN */
+        if ( (in_data[PW_i+1] == 'M') &&
+             ((in_data[PW_i+2] == 'd') || (in_data[PW_i+2] == 'D')) &&
+             (in_data[PW_i+3] == '3') )
+        {
+          if ( testPMD3() != BAD ) /* yep, same tests apply */
+	      {
+            Rip_PMD3 ();
+            Depack_PMD3 ();
+          }
         }
 
           /* "PM40" : ID of Promizer 4 */
@@ -1833,11 +2075,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '4') &&
              (in_data[PW_i+3] == '0') )
         {
-          if ( testPM40() == BAD )
-            break;
-          Rip_PM40 ();
-          Depack_PM40 ();
-          break;
+          if ( testPM40() != BAD )
+          {
+            Rip_PM40 ();
+            Depack_PM40 ();
+          }
         }
 
 #ifdef INCLUDEALL
@@ -1846,10 +2088,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'b') &&
              (in_data[PW_i+3] == 'k') )
         {
-          if ( testPPbk() == BAD )
-            break;
-          Rip_PPbk ();
-          break;
+          if ( testPPbk() != BAD )
+          {
+            Rip_PPbk ();
+          }
         }
 
           /* PARA data Cruncher */
@@ -1857,10 +2099,21 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'R') &&
              (in_data[PW_i+3] == 'A') )
         {
-          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "PARA Data Cruncher" , 46 , PARA );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "PARA Data Cruncher" , 46 , PARA );
+          }
+        }
+
+          /* Pac1 data Cruncher */
+        if ( (in_data[PW_i+1] == 'a') &&
+             (in_data[PW_i+2] == 'c') &&
+             (in_data[PW_i+3] == '1') )
+        {
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Pac1 Data Cruncher" , 12 , Pac1 );
+          }
         }
 
           /* Master cruncher 3.0 data */
@@ -1872,10 +2125,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+6] == '.') &&
              (in_data[PW_i+7] == '2') )
         {
-          if ( testSpecialCruncherData ( 12, 8 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Master Cruncher 3.0 data" , 8 , MasterCruncher3data );
-          break;
+          if ( testSpecialCruncherData ( 12, 8 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Master Cruncher 3.0 data" , 8 , MasterCruncher3data );
+          }
         }
 #endif
           /* POLKA Packer */
@@ -1886,11 +2139,27 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'U') &&
 	     (in_data[PW_i+3] == 'X')))
         {
-          if ( testPolka() == BAD )
-            break;
-          Rip_Polka ();
-          Depack_Polka ();
-          break;
+          if ( testPolka() != BAD )
+          {
+            Rip_Polka ();
+            Depack_Polka ();
+          }
+        }
+
+          /* PERFSONG Packer */
+        if ( (in_data[PW_i+1] == 'E') &&
+             (in_data[PW_i+2] == 'R') &&
+             (in_data[PW_i+3] == 'F') &&
+             (in_data[PW_i+4] == 'S') &&
+             (in_data[PW_i+5] == 'O') &&
+             (in_data[PW_i+6] == 'N') &&
+             (in_data[PW_i+7] == 'G'))
+        {
+          if ( testPERFSONG() != BAD )
+          {
+            Rip_PERFSONG ();
+            Depack_PERFSONG ();
+          }
         }
         break;
 
@@ -1900,45 +2169,57 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'C') )
         {
           /* RNC */
-          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Propack (RNC) data" , 18 , RNC );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Propack (RNC) data" , 18 , RNC );
+          }
         }
           /* RLE Data Cruncher */
         if ( (in_data[PW_i+1] == 'L') &&
              (in_data[PW_i+2] == 'E') )
         {
-          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "RLE Data Cruncher" , 11 , RLE );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "RLE Data Cruncher" , 11 , RLE );
+          }
         }
 #endif
         break;
 
       case 'S':  /* 0x53 */
+#ifdef INCLUDEALL
+          /* SpeedPacker (SP20) Data Cruncher */
+        if ( (in_data[PW_i+1] == 'P') &&
+             (in_data[PW_i+2] == '2') &&
+             (in_data[PW_i+3] == '0') )
+        {
+          if ( testSpecialCruncherData ( 8, 12 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "SpeedPacker (SP20) Data Cruncher" , 16 , SP20 );
+          }
+        }
+#endif
           /* "SNT!" ProRunner 2 */
         if ( (in_data[PW_i+1] == 'N') &&
              (in_data[PW_i+2] == 'T') &&
              (in_data[PW_i+3] == '!') )
         {
-          if ( testPRUN2() == BAD )
-            break;
-          Rip_PRUN2 ();
-          Depack_PRUN2 ();
-          break;
+          if ( testPRUN2() != BAD )
+          {
+            Rip_PRUN2 ();
+            Depack_PRUN2 ();
+          }
         }
           /* "SNT." ProRunner 1 */
         if ( (in_data[PW_i+1] == 'N') &&
              (in_data[PW_i+2] == 'T') &&
              (in_data[PW_i+3] == '.') )
         {
-          if ( testPRUN1() == BAD )
-            break;
-          Rip_PRUN1 ();
-          Depack_PRUN1 ();
-          break;
+          if ( testPRUN1() != BAD )
+          {
+            Rip_PRUN1 ();
+            Depack_PRUN1 ();
+          }
         }
 
           /* SKYT packer */
@@ -1946,11 +2227,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'Y') &&
              (in_data[PW_i+3] == 'T') )
         {
-          if ( testSKYT() == BAD )
-            break;
-          Rip_SKYT ();
-          Depack_SKYT ();
-          break;
+          if ( testSKYT() != BAD )
+          {
+            Rip_SKYT ();
+            Depack_SKYT ();
+          }
         }
 
           /* SMOD Future Composer 1.0 - 1.3 */
@@ -1958,11 +2239,28 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'O') &&
              (in_data[PW_i+3] == 'D') )
         {
-          if ( testFC13() == BAD )
-            break;
-          Rip_FC13 ();
-          break;
+          if ( testFC13() != BAD )
+          {
+            Rip_FC13 ();
+          }
         }
+
+         /* SIDMON 2 */
+/*        if ( (in_data[PW_i+1] == 'I') &&
+             (in_data[PW_i+2] == 'D') &&
+             (in_data[PW_i+3] == 'M') &&
+             (in_data[PW_i+4] == 'O') &&
+             (in_data[PW_i+5] == 'N') &&
+             (in_data[PW_i+6] == ' ') &&
+             (in_data[PW_i+7] == 'I') &&
+             (in_data[PW_i+8] == 'I') &&
+             (in_data[PW_i+9] == ' ') )
+        {
+          if ( testSIDMON2() != BAD )
+          {
+            Rip_SIDMON2 ();
+          }
+        }*/
 
 #ifdef INCLUDEALL
           /* S404 StoneCracker 4.04 data */
@@ -1970,10 +2268,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '0') &&
              (in_data[PW_i+3] == '4') )
         {
-          if ( testSpecialCruncherData ( 12, 8 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "StoneCracker 4.04 data" , 18 , S404 );
-          break;
+          if ( testSpecialCruncherData ( 12, 8 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "StoneCracker 4.04 data" , 18 , S404 );
+          }
         }
 
           /* S403 StoneCracker 4.03 data */
@@ -1981,10 +2279,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '0') &&
              (in_data[PW_i+3] == '3') )
         {
-          if ( testSpecialCruncherData ( 12, 8 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "StoneCracker 4.03 data" , 20 , S404 );
-          break;
+          if ( testSpecialCruncherData ( 12, 8 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "StoneCracker 4.03 data" , 20 , S404 );
+          }
         }
 
           /* S401 StoneCracker 4.01 data */
@@ -1992,10 +2290,20 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '0') &&
              (in_data[PW_i+3] == '1') )
         {
-          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "StoneCracker 4.01 data" , 12 , S404 );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "StoneCracker 4.01 data" , 12 , S404 );
+          }
+        }
+          /* S400 StoneCracker 4.00 data */
+        if ( (in_data[PW_i+1] == '4') &&
+             (in_data[PW_i+2] == '0') &&
+             (in_data[PW_i+3] == '0') )
+        {
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "StoneCracker 4.00 data" , 12 , S404 );
+          }
         }
 
           /* S310 StoneCracker 3.10 data */
@@ -2003,10 +2311,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '1') &&
              (in_data[PW_i+3] == '0') )
         {
-          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "StoneCracker 3.10 data" , 16 , S404 );
-          break;
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "StoneCracker 3.10 data" , 16 , S404 );
+          }
         }
 
           /* S300 StoneCracker 3.00 data */
@@ -2014,38 +2322,67 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == '0') &&
              (in_data[PW_i+3] == '0') )
         {
-          if ( testSpecialCruncherData ( 12, 8 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "StoneCracker 3.00 data" , 16 , S404 );
-          break;
+          if ( testSpecialCruncherData ( 12, 8 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "StoneCracker 3.00 data" , 16 , S404 );
+          }
         }
 
+          /* "SCRM" : ID of ScreamTracker 3 S3M */
+        if ( (in_data[PW_i+1] == 'C') &&
+             (in_data[PW_i+2] == 'R') &&
+             (in_data[PW_i+3] == 'M') )
+        {
+          if ( testS3M() != BAD )
+          {
+            Rip_S3M ();
+          }
+        }
+
+          /* SC data cruncher */
+/*        if ( (in_data[PW_i+1] == 'A') )
+        {
+          if ( testSpecialCruncherData ( 10, 6 ) == BAD )
+            break;
+          Rip_SpecialCruncherData ( "SA Data Cruncher" , 182 , SF );
+          break;
+        }*/
+
+          /* SC data cruncher */
+/*        if ( (in_data[PW_i+1] == 'C') )
+        {
+          if ( testSpecialCruncherData ( 8, 4 ) == BAD )
+            break;
+          Rip_SpecialCruncherData ( "SC Data Cruncher" , 76 , SF );
+          break;
+        }*/
+
           /* SF data cruncher */
-        /*if ( (in_data[PW_i+1] == 'F') )
+/*        if ( (in_data[PW_i+1] == 'F') )
         {
           if ( testSpecialCruncherData ( 6, 2 ) == BAD )
             break;
           Rip_SpecialCruncherData ( "SF Data Cruncher" , 11 , SF );
           break;
-	  }*/
+        }*/
 
           /* SQ data cruncher */
-	/*        if ( (in_data[PW_i+1] == 'Q') )
+/*	    if ( (in_data[PW_i+1] == 'Q') )
         {
           if ( testSpecialCruncherData ( 6, 2 ) == BAD )
             break;
           Rip_SpecialCruncherData ( "SQ Data Cruncher" , 999991 , SQ );
           break;
-	  }*/
+	    }*/
 
           /* SP data cruncher */
-        /*if ( (in_data[PW_i+1] == 'P') )
+/*        if ( (in_data[PW_i+1] == 'P') )
         {
           if ( testSpecialCruncherData ( 8, 4 ) == BAD )
             break;
           Rip_SpecialCruncherData ( "SP Data Cruncher" , 12 , SP );
           break;
-	  }*/
+	    }*/
 #endif
           /* STIM Slamtilt */
         if ( (in_data[PW_i+1] == 'T') &&
@@ -2056,7 +2393,21 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_STIM ();
             Depack_STIM ();
-            break;
+          }
+        }
+
+        /* SA hunk */
+        if ( (in_data[PW_i+1] == 'O') &&
+             (in_data[PW_i+2] == 'A') &&
+             (in_data[PW_i+3] == 'R') &&
+             (in_data[PW_i+4] == 'V') &&
+             (in_data[PW_i+5] == '1') &&
+             (in_data[PW_i+6] == '.') &&
+             (in_data[PW_i+7] == '0') )
+        {
+          if ( testSAhunk() != BAD )
+          {
+            Rip_SA();
           }
         }
 
@@ -2066,10 +2417,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'v') &&
              (in_data[PW_i+3] == '3') )
         {
-          if ( testSpecialCruncherData ( 8, 12 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Speed Packer 3 data" , 0 , SpeedPacker3Data );
-          break;
+          if ( testSpecialCruncherData ( 8, 12 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Speed Packer 3 data" , 0 , SpeedPacker3Data );
+          }
         }
 #endif
           /* SONG Fuchs Tracker */
@@ -2081,7 +2432,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_FuchsTracker ();
             Depack_FuchsTracker ();
-            break;
           }
           /* Sound FX */
           if ( testSoundFX13() != BAD )
@@ -2090,7 +2440,43 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
 #ifndef UNIX
             Depack_SoundFX13 ();
 #endif
-            break;
+          }
+        }
+        break;
+
+      case 'T': /* "THX" - AHX */
+        if ( ( in_data[PW_i+1] == 'H' ) &&
+             ( in_data[PW_i+2] == 'X' ) &&
+             (( in_data[PW_i+3] == 0x00 )||( in_data[PW_i+3] == 0x01 )) )
+        {
+          if ( testTHX() != BAD )
+          {
+            Rip_THX ();
+          }
+        }
+
+          /* "TRK1" Module Protector */
+        if ( ( in_data[PW_i+1] == 'R' ) &&
+             ( in_data[PW_i+2] == 'K' ) &&
+             ( in_data[PW_i+3] == '1' ) )
+        {
+          /* Module Protector */
+          if ( testMP_withID() != BAD )
+          {
+            Rip_MP_withID ();
+            Depack_MP ();
+          }
+        }
+
+	  /* "TMK. Timetracker ?!? */
+        if ( ( in_data[PW_i+1] == 'M' ) &&
+             ( in_data[PW_i+2] == 'K' ) &&
+             ( in_data[PW_i+3] == 0x01 ) )
+        {
+          if ( testTMK() != BAD )
+          {
+            Rip_TMK ();
+            Depack_TMK ();
           }
         }
         break;
@@ -2105,7 +2491,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_UNIC_withID ();
             Depack_UNIC ();
-            break;
           }
         }
 	/* Mugician */
@@ -2117,7 +2502,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           if ( testMUGICIAN() != BAD )
           {
             Rip_MUGICIAN ();
-            break;
           }
         }
         break;
@@ -2129,10 +2513,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
               ( in_data[PW_i+2] == '3' )) )
         {
           /* Sound Monitor v2/v3 */
-          if ( testBP() == BAD )
-            break;
-          Rip_BP ();
-          break;
+          if ( testBP() != BAD )
+          {
+            Rip_BP ();
+          }
         }
 #ifdef INCLUDEALL
           /* Virtual Dreams VDCO data cruncher */
@@ -2140,39 +2524,12 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'C') &&
              (in_data[PW_i+3] == 'O') )
         {
-          if ( testSpecialCruncherData ( 12, 8 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "Virtual Dreams (VDCO) data cruncher" , 13 , VDCO );
-          break;
+          if ( testSpecialCruncherData ( 12, 8 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "Virtual Dreams (VDCO) data cruncher" , 13 , VDCO );
+          }
         }
 #endif
-        break;
-
-      case 'T':
-          /* "TRK1" Module Protector */
-        if ( ( in_data[PW_i+1] == 'R' ) &&
-             ( in_data[PW_i+2] == 'K' ) &&
-             ( in_data[PW_i+3] == '1' ) )
-        {
-          /* Module Protector */
-          if ( testMP_withID() == BAD )
-            break;
-          Rip_MP_withID ();
-          Depack_MP ();
-          break;
-        }
-
-	  /* "TMK. Timetracker ?!? */
-        if ( ( in_data[PW_i+1] == 'M' ) &&
-             ( in_data[PW_i+2] == 'K' ) &&
-             ( in_data[PW_i+3] == 0x01 ) )
-        {
-          if ( testTMK() == BAD )
-            break;
-          Rip_TMK ();
-          Depack_TMK ();
-          break;
-        }
         break;
 
       case 'W': /* 0x57 */
@@ -2180,11 +2537,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
         if ( (in_data[PW_i+1] == 'N') &&
              (in_data[PW_i+2] == 0x00 ) )
         {
-          if ( testWN() == BAD )
-            break;
-          Rip_WN ();
-          Depack_WN ();
-          break;
+          if ( testWN() != BAD )
+          {
+            Rip_WN ();
+            Depack_WN ();
+          }
         }
         break;
 
@@ -2195,10 +2552,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2] == 'K') &&
              (in_data[PW_i+3] == 'F') )
         {
-          if ( testSpecialCruncherData ( 4, 12 ) == BAD )
-            break;
-          Rip_SpecialCruncherData ( "XPK" , 8 , XPK );
-          break;
+          if ( testSpecialCruncherData ( 4, 12 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "XPK" , 8 , XPK );
+          }
         }
 #endif
         break;
@@ -2225,7 +2582,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_PM18a ();
             Depack_PM18a ();
-            break;
           }
 
           /* Promizer 1.0c */
@@ -2233,9 +2589,7 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_PM10c ();
             Depack_PM10c ();
-            break;
           }
-          break;
         }
 
           /* promizer 2.0 ? */
@@ -2255,11 +2609,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14]== 0x10) &&
              (in_data[PW_i+15]== 0x3a) )   /* gosh !, should be enough :) */
         {
-          if ( testPM2() == BAD )
-            break;
-          Rip_PM20 ();
-          Depack_PM20 ();
-          break;
+          if ( testPM2() != BAD )
+          {
+            Rip_PM20 ();
+            Depack_PM20 ();
+          }
         }
 
 #ifdef INCLUDEALL
@@ -2280,10 +2634,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+36] == 0x58) &&
              (in_data[PW_i+37] == 0x8B) )
         {
-          if ( testSpikeCruncher() == BAD )
-            break;
-          Rip_SpikeCruncher ();
-          break;
+          if ( testSpikeCruncher() != BAD )
+          {
+            Rip_SpikeCruncher ();
+          }
         }
 #endif
         break;
@@ -2307,10 +2661,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+14] == 0x00) &&
              (in_data[PW_i+15] == 0x04) )
         {
-          if ( testTNMCruncher11() == BAD )
-            break;
-          Rip_TNMCruncher11 ();
-          break;
+          if ( testTNMCruncher11() != BAD )
+          {
+            Rip_TNMCruncher11 ();
+          }
         }
 
           /* "arcD" data cruncher */
@@ -2318,10 +2672,10 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+2]  == 'c') &&
              (in_data[PW_i+3]  == 'D'))
         {
-          if ( testArcDDataCruncher() == BAD )
-            break;
-          Rip_SpecialCruncherData ( "arcD data Cruncher" , 0 , arcD );
-          break;
+          if ( testArcDDataCruncher() != BAD )
+          {
+            Rip_SpecialCruncherData ( "arcD data Cruncher" , 0 , arcD );
+          }
         }
 
         /* Tetrapack 2.1 */
@@ -2334,14 +2688,13 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+7]  == 0xF9) &&
              (in_data[PW_i+8]  == 0x00) &&
              (in_data[PW_i+9]  == 0xDF) &&
-             (in_data[PW_i+10] == 0xF1) &&
              (in_data[PW_i+12] == 0xD1) &&
              (in_data[PW_i+13] == 0xFC) )
         {
-          if ( testTetrapack_2_1() == BAD )
-            break;
-          Rip_Tetrapack_2_1 ();
-          break;
+          if ( testTetrapack_2_1() != BAD )
+          {
+            Rip_Tetrapack_2_1 ();
+          }
         }
 
         /* Tetrapack 2.2 */
@@ -2353,9 +2706,42 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+12] == 0x28) &&
              (in_data[PW_i+13] == 0x7A) )
         {
-          if ( testTetrapack_2_2() == GOOD )
+          if ( testTetrapack_2_2() != BAD )
             Rip_Tetrapack_2_2 ();
-          break;
+        }
+        /* High Pressure Cruncher */
+        if ( (in_data[PW_i+1]  == 0x00) &&
+             (in_data[PW_i+2]  == 0x00) &&
+             (in_data[PW_i+3]  == 0xA8) &&
+             (in_data[PW_i+4]  == 0x20) &&
+             (in_data[PW_i+5]  == 0x7C) &&
+             (in_data[PW_i+10] == 0x22) &&
+             (in_data[PW_i+11] == 0x7c) &&
+             (in_data[PW_i+16] == 0x24) &&
+             (in_data[PW_i+17] == 0x48) &&
+             (in_data[PW_i+18] == 0x26) &&
+             (in_data[PW_i+19] == 0x49) &&
+             (in_data[PW_i+20] == 0x61))
+        {
+          if ( testHighPressureCruncher() != BAD )
+          {
+            Rip_HighPressureCruncher ();
+          }
+        }
+#endif
+        break;
+
+      case 'x': /* xVdg */
+#ifdef INCLUDEALL
+          /* AMOS sub file */
+        if ( (in_data[PW_i+1] == 'V') &&
+             (in_data[PW_i+2] == 'd') &&
+             (in_data[PW_i+3] == 'g') )
+        {
+          if ( testSpecialCruncherData ( 8, 4 ) != BAD )
+          {
+            Rip_SpecialCruncherData ( "xVdg" , 12 , xVdg );
+          }
         }
 #endif
         break;
@@ -2371,12 +2757,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+12] == 0x28) &&
              (in_data[PW_i+13] == 0x7A) )
         {
-          if ( testTetrapack_2_2() == GOOD )
+          if ( testTetrapack_2_2() != BAD )
             Rip_Tetrapack_2_2 ();
-          break;
         }
 
-        /* Tetrapack 2.1 */
+        /* Tetrapack 2.1 case #2*/
         if ( (in_data[PW_i+1]  == 0x00) &&
              (in_data[PW_i+2]  == 0x41) &&
              (in_data[PW_i+3]  == 0xFA) &&
@@ -2384,14 +2769,12 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+5]  == 0xE4) &&
              (in_data[PW_i+6]  == 0x4B) &&
              (in_data[PW_i+7]  == 0xF9) &&
-             (in_data[PW_i+8]  == 0x00) &&
-             (in_data[PW_i+9]  == 0xDF) &&
-             (in_data[PW_i+10] == 0xF1))
+             (in_data[PW_i+8]  == 0x00))
         {
-          if ( testTetrapack_2_1() == BAD )
-            break;
-          Rip_Tetrapack_2_1 ();
-          break;
+          if ( testTetrapack_2_1() != BAD )
+          {
+            Rip_Tetrapack_2_1 ();
+          }
         }
 
         /* Defjam Cruncher 3.2T */
@@ -2406,13 +2789,13 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
              (in_data[PW_i+9]  == 0xDF) &&
              (in_data[PW_i+10] == 0xF1))
         {
-          if ( testDefjam32t() == BAD )
-            break;
-          Rip_Defjam32 ();
-          break;
+          if ( testDefjam32t() != BAD )
+          {
+            Rip_Defjam32 ();
+          }
         }
 #endif
-	break;
+       break;
      case 0x80:
           /* Viruz2 8000 */
 /*     if ( (in_data[PW_i+1] == 0x00) &&
@@ -2448,9 +2831,31 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_AC1D ();
             Depack_AC1D ();
-            break;
           }
         }
+        break;
+
+      case 0xB4:
+#ifdef INCLUDEALL
+          /* DIET PC data packer */
+        if ( (in_data[PW_i+1]  == 0x4C) &&
+             (in_data[PW_i+2]  == 0xCD) &&
+             (in_data[PW_i+3]  == 0x21) &&
+             (in_data[PW_i+4]  == 0x9D) &&
+             (in_data[PW_i+5]  == 0x89) &&
+             ( ( (in_data[PW_i+6]  == 0x64) &&
+             (in_data[PW_i+7]  == 0x6C) &&
+             (in_data[PW_i+8]  == 0x7A) ) ||
+             ( (in_data[PW_i+6]  == 0x45) &&
+             (in_data[PW_i+7]  == 0x4F) &&
+             (in_data[PW_i+8]  == 0x53) ) ) )
+        {
+          if ( testDietDataPacker() != BAD )
+          {
+            Rip_DietDataPacker ();
+          }
+        }
+#endif
         break;
 
       case 0xC0:
@@ -2461,7 +2866,6 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
           {
             Rip_PHA ();
             Depack_PHA ();
-            break;
           }
         }
         break;
@@ -2490,10 +2894,11 @@ int prowizard_search (Uchar *in_data_p, int PW_in_size_p)
 
     } /* end of switch */
   }
+
 #if 0
   free ( in_data );
   printf ( "\n" );
-  printf ( " 1997-2007 (c) Sylvain \"Asle\" Chipaux (asle@free.fr)\n\n");
+  printf ( " 1997-2016 (c) Sylvain \"Asle\" Chipaux (asle@free.fr)\n\n");
 /*  getchar();*/
   exit ( 0 );
 #endif

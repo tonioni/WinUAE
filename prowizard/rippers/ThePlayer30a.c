@@ -55,23 +55,23 @@ void Rip_P30A ( void )
 */
 void Depack_P30 ( void )
 {
-  Uchar c1,c2,c3,c4,c5;
-  Uchar *Whatever;
-  Uchar PatPos = 0x00;
-  Uchar Nbr_Sample = 0x00;
-  Uchar poss[37][2];
-  Uchar sample,note,Note[2];
-  Uchar Pattern_Data[128][1024];
-  short Pattern_Addresses[128];
-  long Track_Data_Address = 0;
-  long Track_Table_Address = 0;
-  long Sample_Data_Address = 0;
-  long WholeSampleSize = 0;
-  long SampleAddress[31];
-  long SampleSize[31];
-  long i=0,j,k,a,c,z;/*l*/
-  long voice[4];
-  long Where = PW_Start_Address;
+  uint8_t c1,c2,c3,c4,c5;
+  uint8_t *Whatever;
+  uint8_t PatPos = 0x00;
+  uint8_t Nbr_Sample = 0x00;
+  uint8_t poss[37][2];
+  uint8_t sample,note,Note[2];
+  uint8_t Pattern_Data[128][1024];
+  int16_t	 Pattern_Addresses[128];
+  int32_t	 Track_Data_Address = 0;
+  int32_t	 Track_Table_Address = 0;
+  int32_t	 Sample_Data_Address = 0;
+  int32_t	 WholeSampleSize = 0;
+  int32_t	 SampleAddress[31];
+  int32_t	 SampleSize[31];
+  int32_t	 i=0,j,k,a,c,z;/*l*/
+  int32_t	 voice[4];
+  int32_t	 Where = PW_Start_Address;
   FILE *out;/*,*debug;*/
 
   if ( Save_Status == BAD )
@@ -84,7 +84,7 @@ void Depack_P30 ( void )
 
   fillPTKtable(poss);
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
   if ( out == NULL)
   /*  debug = fopen ( "debug", "w+b" );*/
@@ -130,7 +130,7 @@ void Depack_P30 ( void )
 
 
   /* write title */
-  Whatever = (Uchar *) malloc ( 1024 );
+  Whatever = (uint8_t *) malloc ( 1024 );
   BZERO ( Whatever , 1024 );
   fwrite ( Whatever , 20 , 1 , out );
 
@@ -166,8 +166,8 @@ void Depack_P30 ( void )
     k /= 2;
     /* use of htonl() suggested by Xigh !.*/
     z = htonl(k);
-    c1 = *((Uchar *)&z+2);
-    c2 = *((Uchar *)&z+3);
+    c1 = *((uint8_t *)&z+2);
+    c2 = *((uint8_t *)&z+3);
     fwrite ( &c1 , 1 , 1 , out );
     fwrite ( &c2 , 1 , 1 , out );
     fwrite ( &in_data[Where+10] , 2 , 1 , out );

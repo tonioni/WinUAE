@@ -7,7 +7,7 @@
 #include "extern.h"
 
 
-short testPHA ( void )
+int16_t	 testPHA ( void )
 {
   /* test #1 */
   if ( PW_i < 11 )
@@ -141,23 +141,23 @@ void Rip_PHA ( void )
 */
 void Depack_PHA ( void )
 {
-  Uchar c1=0x00,c2=0x00,c3=0x00;
-  Uchar poss[37][2];
-  Uchar *Whole_Pattern_Data;
-  Uchar *Pattern;
-  Uchar *Whatever;
-  Uchar Old_Note_Value[4][4];
-  Uchar Note,Smp,Fx,FxVal;
-  Uchar PatMax=0x00;
-  long MyPatList[128];
-  long Pats_Address[128];
-  long i=0,j=0,k=0;
-  long Start_Pat_Address=9999999l;
-  long Whole_Pattern_Data_Size;
-  long Whole_Sample_Size=0;
-  long Sample_Data_Address;
-  long Where = PW_Start_Address;
-  short Old_cpt[4];
+  uint8_t c1=0x00,c2=0x00,c3=0x00;
+  uint8_t poss[37][2];
+  uint8_t *Whole_Pattern_Data;
+  uint8_t *Pattern;
+  uint8_t *Whatever;
+  uint8_t Old_Note_Value[4][4];
+  uint8_t Note,Smp,Fx,FxVal;
+  uint8_t PatMax=0x00;
+  int32_t	 MyPatList[128];
+  int32_t	 Pats_Address[128];
+  int32_t	 i=0,j=0,k=0;
+  int32_t	 Start_Pat_Address=9999999l;
+  int32_t	 Whole_Pattern_Data_Size;
+  int32_t	 Whole_Sample_Size=0;
+  int32_t	 Sample_Data_Address;
+  int32_t	 Where = PW_Start_Address;
+  int16_t	 Old_cpt[4];
   FILE *out;/*,*info;*/
 
   if ( Save_Status == BAD )
@@ -168,16 +168,16 @@ void Depack_PHA ( void )
   BZERO ( Pats_Address , 128*4 );
   BZERO ( Old_Note_Value , 4*4 );
   BZERO ( Old_cpt , 4*2 );
-  BZERO ( MyPatList, 128*sizeof(long));
+  BZERO ( MyPatList, 128*sizeof(int32_t	));
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
   /*  info = fopen ( "info", "w+b");*/
 
   for ( i=0 ; i<20 ; i++ )   /* title */
     fwrite ( &c1 , 1 , 1 , out );
 
-  Whatever = (Uchar *) malloc (64);
+  Whatever = (uint8_t *) malloc (64);
   for ( i=0 ; i<31 ; i++ )
   {
     BZERO ( Whatever, 64 );
@@ -190,7 +190,7 @@ void Depack_PHA ( void )
     Whole_Sample_Size += (((in_data[Where]*256)+in_data[Where+1])*2);
 
     /* finetune */
-    c1 = ( Uchar ) (((in_data[Where+12]*256)+in_data[Where+13])/0x48);
+    c1 = ( uint8_t ) (((in_data[Where+12]*256)+in_data[Where+13])/0x48);
     fwrite ( &c1 , 1 , 1 , out );
 
     /* volume */
@@ -223,11 +223,11 @@ void Depack_PHA ( void )
   /* pattern datas */
   /* read ALL pattern data */
   Whole_Pattern_Data_Size = OutputSize - Start_Pat_Address;
-  Whole_Pattern_Data = (Uchar *) malloc ( Whole_Pattern_Data_Size );
+  Whole_Pattern_Data = (uint8_t *) malloc ( Whole_Pattern_Data_Size );
   Where = Start_Pat_Address + PW_Start_Address;
   for (i=0;i<Whole_Pattern_Data_Size;i++)Whole_Pattern_Data[i] = in_data[Where+i];
   /*  printf ( "Whole pattern data size : %ld\n" , Whole_Pattern_Data_Size );*/
-  Pattern = (Uchar *) malloc ( 65536 );
+  Pattern = (uint8_t *) malloc ( 65536 );
   BZERO ( Pattern , 65536 );
 
 

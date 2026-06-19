@@ -5,7 +5,7 @@
 #include "extern.h"
 
 
-short testJamCracker ( void )
+int16_t	 testJamCracker ( void )
 {
   PW_Start_Address = PW_i;
 

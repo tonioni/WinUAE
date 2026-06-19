@@ -6,7 +6,7 @@
 #include "extern.h"
 
 
-short testSyncroPacker ( void )
+int16_t	 testSyncroPacker ( void )
 {
   PW_Start_Address = PW_i;
 
@@ -49,7 +49,7 @@ short testSyncroPacker ( void )
 
   if ( ((PW_l - 32)+PW_Start_Address) > PW_in_size )
   {
-/*printf ( "#3 Start:%ld\n" , PW_Start_Address );*/
+/*printf ( "#3 Start:%ld (PW_l:%ld)\n" , PW_Start_Address,PW_l );*/
     return BAD;
     
   }
@@ -93,8 +93,8 @@ void Rip_SyncroPacker ( void )
 {
   /* PW_l is still the whole size */
 
-  Uchar * Amiga_EXE_Header_Block;
-  Uchar * Whatever;
+  uint8_t * Amiga_EXE_Header_Block;
+  uint8_t * Whatever;
 
   OutputSize = PW_l;
 
@@ -103,7 +103,7 @@ void Rip_SyncroPacker ( void )
   if ( Amiga_EXE_Header == BAD )
   {
     OutputSize -= 32;
-    Amiga_EXE_Header_Block = (Uchar *) malloc ( 32 );
+    Amiga_EXE_Header_Block = (uint8_t *) malloc ( 32 );
     BZERO ( Amiga_EXE_Header_Block , 32 );
     Amiga_EXE_Header_Block[2]  = Amiga_EXE_Header_Block[26] = 0x03;
     Amiga_EXE_Header_Block[3]  = 0xF3;
@@ -115,7 +115,7 @@ void Rip_SyncroPacker ( void )
     /* 68k machines code : c2 = *(Whatever+3); */
     PW_j = PW_l - 36;
     PW_j /= 4;
-    Whatever = (Uchar *) &PW_j;
+    Whatever = (uint8_t *) &PW_j;
     Amiga_EXE_Header_Block[20] = Amiga_EXE_Header_Block[28] = *(Whatever+3);
     Amiga_EXE_Header_Block[21] = Amiga_EXE_Header_Block[29] = *(Whatever+2);
     Amiga_EXE_Header_Block[22] = Amiga_EXE_Header_Block[30] = *(Whatever+1);

@@ -11,7 +11,7 @@
 #include "extern.h"
 
 /* rudimentary tests .. shall add others */
-short testSGT ( void )
+int16_t	 testSGT ( void )
 {
   /* test 1 */
   if ( (PW_i<43) || ((PW_Start_Address+43)>PW_in_size) )
@@ -72,25 +72,25 @@ void Rip_SGT ( void )
 
 void Depack_SGT ( void )
 {
-  Uchar *Whatever;
-  Uchar c1=0x00,c2=0x00;
-  Uchar poss[37][2];
-  Uchar Max=0x00;
-  Uchar Note,Smp,Fx,FxVal;
-  Uchar PatternTableSize=0x00;
-  Uchar NbrPat;
-  long i=0,j=0,l=0,z;
-  long WholeSampleSize;
-  long SmpAddy,PatlistAddy,PatdataAddy;
-  long SmpAddies[31], SmpSizes[31];
-  long NbrSmp;
-  long Where = PW_Start_Address;
+  uint8_t *Whatever;
+/*  uint8_t c1=0x00,c2=0x00;*/
+  uint8_t poss[37][2];
+/*  uint8_t Max=0x00;*/
+/*  uint8_t Note,Smp,Fx,FxVal;*/
+  uint8_t PatternTableSize=0x00;
+  uint8_t NbrPat;
+  int32_t	 i=0,j=0,l=0,z;
+  int32_t	 WholeSampleSize;
+  int32_t	 SmpAddy,PatlistAddy,PatdataAddy;
+  int32_t	 SmpAddies[31], SmpSizes[31];
+  int32_t	 NbrSmp;
+  int32_t	 Where = PW_Start_Address;
   FILE *out; /*,*debug;*/
 
   if ( Save_Status == BAD )
     return;
 
-  sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
+  sprintf ( Depacked_OutName , "%d.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
   fillPTKtable(poss);
@@ -117,7 +117,7 @@ void Depack_SGT ( void )
 
 /*  debug = fopen ( "debug" , "w+b" );*/
 
-  Whatever = (Uchar *) malloc (1024);
+  Whatever = (uint8_t *) malloc (1024);
   BZERO (Whatever , 1024);
   /* title */
   fwrite ( &Whatever[0] , 20 , 1 , out );
@@ -144,7 +144,6 @@ void Depack_SGT ( void )
     Whatever[22] = in_data[Where+12];
     Whatever[23] = in_data[Where+13];
     SmpSizes[i] = ((Whatever[22]*256)+Whatever[23])*2;
-    //fwrite ( &in_data[Where+12] , 2 , 1 , out );
 
     /* calculate loop start value */
     j = j-l;
@@ -152,20 +151,17 @@ void Depack_SGT ( void )
     /* write fine & vol */
     Whatever[24] = in_data[Where+10];
     Whatever[25] = in_data[Where+11];
-    //fwrite ( &in_data[Where] , 2 , 1 , out );
 
     /* write loop start */
     /* use of htonl() suggested by Xigh !.*/
     j/=2;
     z = htonl(j);
-    Whatever[26] = *((Uchar *)&z+2);
-    Whatever[27] = *((Uchar *)&z+3);
-    //fwrite ( Whatever , 2 , 1 , out );
+    Whatever[26] = *((uint8_t *)&z+2);
+    Whatever[27] = *((uint8_t *)&z+3);
 
     /* write loop size */
     Whatever[28] = in_data[Where+8];
     Whatever[29] = in_data[Where+9];
-    //fwrite ( &in_data[Where+6] , 2 , 1 , out );
 
     fwrite ( &Whatever[0] , 30 , 1 , out );
     BZERO (Whatever , 1024);
@@ -189,7 +185,7 @@ void Depack_SGT ( void )
   {
     /* get addy of first pointer of each pattern */
     /* and convert it to char for storage in patternlist */
-    Whatever[i] = (Uchar)(((in_data[Where+(i*256)]*256*256*256)+
+    Whatever[i] = (uint8_t)(((in_data[Where+(i*256)]*256*256*256)+
 			  (in_data[Where+(i*256)+1]*256*256)+
 			  (in_data[Where+(i*256)+2]*256)+
 			  in_data[Where+(i*256)+3])/256);
