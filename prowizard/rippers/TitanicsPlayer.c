@@ -104,7 +104,7 @@ int16_t	 testTitanicsPlayer ( void )
 
 
 /* With the help of Xigh :) .. thx */
-int cmpint32_t	(const void * a, const void * b)
+int _cdecl cmpint32_t	(const void * a, const void * b)
 {
   int32_t	 * aa = (int32_t	 *) a;
   int32_t	 * bb = (int32_t	 *) b;
