@@ -5168,9 +5168,33 @@ static QString fileDialogInitialSavePath(const QString &path, const QString &fal
     return winUaeQtFileDialogInitialSavePath(path, fallbackName);
 }
 
+static QFileDialog::Options pathSelectionDialogOptions()
+{
+    QFileDialog::Options options = QFileDialog::DontResolveSymlinks;
+#if defined(__APPLE__)
+    // The native macOS panel returns the resolved target for symlinked files.
+    options |= QFileDialog::DontUseNativeDialog;
+#endif
+    return options;
+}
+
+static QString getOpenFileNamePreservingSymlinks(QWidget *parent,
+    const QString &caption, const QString &dir, const QString &filter)
+{
+    return QFileDialog::getOpenFileName(parent, caption, dir, filter, nullptr,
+        pathSelectionDialogOptions());
+}
+
+static QString getExistingDirectoryPreservingSymlinks(QWidget *parent,
+    const QString &caption, const QString &dir)
+{
+    return QFileDialog::getExistingDirectory(parent, caption, dir,
+        pathSelectionDialogOptions() | QFileDialog::ShowDirsOnly);
+}
+
 static void addBrowse(QComboBox *field, QWidget *parent, const QString &caption, const QString &filter)
 {
-    const QString path = QFileDialog::getOpenFileName(parent, caption, fileDialogInitialPath(field->currentText()), filter);
+    const QString path = getOpenFileNamePreservingSymlinks(parent, caption, fileDialogInitialPath(field->currentText()), filter);
     if (!path.isEmpty()) {
         setPathComboText(field, path);
     }
@@ -7025,7 +7049,7 @@ private:
         connect(customRomEnd, &QLineEdit::textChanged, this, [this](const QString &) { storeCurrentCustomRomBoard(); });
         connect(customRomFile, &QLineEdit::textChanged, this, [this](const QString &) { storeCurrentCustomRomBoard(); });
         connect(customRomBrowse, &QPushButton::clicked, this, [this]() {
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select custom ROM file"), fileDialogInitialPath(customRomFile->text()), QStringLiteral("ROM files (*.rom *.bin);;All files (*)"));
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select custom ROM file"), fileDialogInitialPath(customRomFile->text()), QStringLiteral("ROM files (*.rom *.bin);;All files (*)"));
             if (selected.isEmpty()) {
                 return;
             }
@@ -7449,7 +7473,7 @@ private:
 
     void browseDiskSwapperImage(int slot)
     {
-        const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select floppy image"), fileDialogInitialPath(diskSwapperPathAt(slot)), floppyDiskImageFilter());
+        const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select floppy image"), fileDialogInitialPath(diskSwapperPathAt(slot)), floppyDiskImageFilter());
         if (!selected.isEmpty()) {
             setPathComboText(diskSwapperPath, selected);
             setDiskSwapperPath(slot, selected);
@@ -7580,7 +7604,7 @@ private:
         });
         connect(selectCdImage, &QPushButton::clicked, this, [this]() {
             const QString initialPath = fileDialogInitialPath(cdSlotPath->currentText());
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select CD image"), initialPath, cdImageFilter());
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select CD image"), initialPath, cdImageFilter());
             if (!selected.isEmpty()) {
                 setPathComboText(cdSlotPath, selected);
                 setComboTextIfChanged(cdSlotType, QStringLiteral("Image file"));
@@ -9471,7 +9495,7 @@ private:
         if (hasStateRecorder) {
             connect(statePlay, &QCheckBox::clicked, this, [this, statePlay, updateStateRecorderControls](bool checked) {
                 if (checked) {
-                    const QString selected = QFileDialog::getOpenFileName(
+                    const QString selected = getOpenFileNamePreservingSymlinks(
                         this,
                         QStringLiteral("Select input recording"),
                         expandedPathText(unixDefaultDataSubPath(QStringLiteral("Save States"))),
@@ -11620,7 +11644,7 @@ private:
         root->addLayout(right, 1);
 
         const auto selectStateFile = [this]() {
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select state file"), fileDialogInitialPath(stateFileName->currentText()), QStringLiteral("WinUAE state files (*.uss);;All files (*)"));
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select state file"), fileDialogInitialPath(stateFileName->currentText()), QStringLiteral("WinUAE state files (*.uss);;All files (*)"));
             if (!selected.isEmpty()) {
                 setPathComboText(stateFileName, selected);
                 stateFileClear->setChecked(false);
@@ -12232,9 +12256,9 @@ private:
                 : fileDialogInitialPath(field->text());
             QString path;
             if (directory) {
-                path = QFileDialog::getExistingDirectory(this, caption, initialPath);
+                path = getExistingDirectoryPreservingSymlinks(this, caption, initialPath);
             } else {
-                path = QFileDialog::getOpenFileName(this, caption, initialPath, QStringLiteral("All files (*)"));
+                path = getOpenFileNamePreservingSymlinks(this, caption, initialPath, QStringLiteral("All files (*)"));
             }
             if (!path.isEmpty()) {
                 field->setText(path);
@@ -13860,7 +13884,7 @@ private:
 
     void addHardfileMountDialog()
     {
-        const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("Add hardfile"), fileDialogInitialPath(QString()), hardfileImageFilter());
+        const QString path = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Add hardfile"), fileDialogInitialPath(QString()), hardfileImageFilter());
         if (path.isEmpty()) {
             return;
         }
@@ -14289,7 +14313,7 @@ private:
 
         connect(selectDirectory, &QPushButton::clicked, this, [this, path, volume, readOnly, updateReadOnlyForPath]() {
             const QString initialPath = fileDialogInitialDirectory(path->text());
-            const QString selected = QFileDialog::getExistingDirectory(this, QStringLiteral("Select directory"), initialPath);
+            const QString selected = getExistingDirectoryPreservingSymlinks(this, QStringLiteral("Select directory"), initialPath);
             if (!selected.isEmpty()) {
                 path->setText(selected);
                 if (volume->text().isEmpty()) {
@@ -14302,7 +14326,7 @@ private:
         if (selectArchive) {
             connect(selectArchive, &QPushButton::clicked, this, [this, path, volume, updateReadOnlyForPath]() {
                 const QString initialPath = fileDialogInitialPath(path->text());
-                const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select directory archive"), initialPath, directoryArchiveFilter());
+                const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select directory archive"), initialPath, directoryArchiveFilter());
                 if (!selected.isEmpty()) {
                     path->setText(selected);
                     if (volume->text().isEmpty()) {
@@ -14579,21 +14603,21 @@ private:
 
         connect(browse, &QPushButton::clicked, this, [this, path]() {
             const QString initialPath = fileDialogInitialPath(path->text());
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select hardfile"), initialPath, hardfileImageFilter());
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select hardfile"), initialPath, hardfileImageFilter());
             if (!selected.isEmpty()) {
                 path->setText(selected);
             }
         });
         connect(geometryBrowse, &QPushButton::clicked, this, [this, geometryFile]() {
             const QString initialPath = fileDialogInitialPath(geometryFile->text());
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select geometry file"), initialPath, QStringLiteral("Geometry files (*.geo);;All files (*)"));
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select geometry file"), initialPath, QStringLiteral("Geometry files (*.geo);;All files (*)"));
             if (!selected.isEmpty()) {
                 geometryFile->setText(selected);
             }
         });
         connect(filesysBrowse, &QPushButton::clicked, this, [this, filesys]() {
             const QString initialPath = fileDialogInitialPath(filesys->text());
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select filesystem"), initialPath, QStringLiteral("Filesystem files (*.fs *.filesystem);;All files (*)"));
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select filesystem"), initialPath, QStringLiteral("Filesystem files (*.fs *.filesystem);;All files (*)"));
             if (!selected.isEmpty()) {
                 filesys->setText(selected);
             }
@@ -14804,14 +14828,14 @@ private:
 
         connect(selectFile, &QPushButton::clicked, this, [this, path]() {
             const QString initialPath = fileDialogInitialPath(path->text());
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select tape image"), initialPath, QStringLiteral("Tape images (*.tap *.raw);;All files (*)"));
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select tape image"), initialPath, QStringLiteral("Tape images (*.tap *.raw);;All files (*)"));
             if (!selected.isEmpty()) {
                 path->setText(selected);
             }
         });
         connect(selectDirectory, &QPushButton::clicked, this, [this, path]() {
             const QString initialPath = fileDialogInitialDirectory(path->text());
-            const QString selected = QFileDialog::getExistingDirectory(this, QStringLiteral("Select tape directory"), initialPath);
+            const QString selected = getExistingDirectoryPreservingSymlinks(this, QStringLiteral("Select tape directory"), initialPath);
             if (!selected.isEmpty()) {
                 path->setText(selected);
             }
@@ -16181,7 +16205,7 @@ private:
 
     void loadConfigDialog()
     {
-        const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("Load configuration"), configurationDirectory(), QStringLiteral("WinUAE configuration (*.uae);;All files (*)"));
+        const QString path = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Load configuration"), configurationDirectory(), QStringLiteral("WinUAE configuration (*.uae);;All files (*)"));
         if (!path.isEmpty()) {
             loadConfig(path);
         }
@@ -17433,13 +17457,13 @@ WinUaeQtRuntimeFileDialogResult runWinUaeQtRuntimeFileDialog(QApplication &app, 
 
     QString selected;
     if (shortcut >= 0 && shortcut < 4) {
-        selected = QFileDialog::getOpenFileName(
+        selected = getOpenFileNamePreservingSymlinks(
             nullptr,
             QStringLiteral("Select disk image for DF%1:").arg(shortcut),
             runtimeDialogDirectory(initialPath),
             amigaDiskImageFilter());
     } else if (shortcut == 4) {
-        selected = QFileDialog::getOpenFileName(
+        selected = getOpenFileNamePreservingSymlinks(
             nullptr,
             QStringLiteral("Restore state"),
             runtimeDialogDirectory(initialPath),
@@ -17454,7 +17478,7 @@ WinUaeQtRuntimeFileDialogResult runWinUaeQtRuntimeFileDialog(QApplication &app, 
             selected += QStringLiteral(".uss");
         }
     } else if (shortcut == 6) {
-        selected = QFileDialog::getOpenFileName(
+        selected = getOpenFileNamePreservingSymlinks(
             nullptr,
             QStringLiteral("Select CD image"),
             runtimeDialogDirectory(initialPath),
