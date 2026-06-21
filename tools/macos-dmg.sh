@@ -90,6 +90,32 @@ apply_volume_icon() {
 
 apply_volume_icon "${staging_dir}"
 
+detach_existing_volume_mount() {
+    local target_mount="/Volumes/${volume_name}"
+
+    if [[ ! -e "${target_mount}" ]]; then
+        return
+    fi
+
+    if ! hdiutil info | awk -F '\t' -v target="${target_mount}" '$NF == target { found = 1 } END { exit found ? 0 : 1 }'; then
+        echo "error: ${target_mount} already exists and is not a mounted disk image" >&2
+        echo "error: detach or rename it before creating the WinUAE DMG" >&2
+        exit 1
+    fi
+
+    echo "detaching existing ${target_mount} before creating the WinUAE DMG"
+    hdiutil detach "${target_mount}" -quiet
+    for _ in {1..20}; do
+        if [[ ! -e "${target_mount}" ]]; then
+            return
+        fi
+        sleep 0.5
+    done
+
+    echo "error: ${target_mount} is still present after detach" >&2
+    exit 1
+}
+
 background_tiff="${staging_dir}/.background/background.tiff"
 background_source="${source_dir}/od-unix/graphics/dmg_background.tiff"
 if [[ ! -f "${background_source}" ]]; then
@@ -98,6 +124,7 @@ if [[ ! -f "${background_source}" ]]; then
 fi
 cp "${background_source}" "${background_tiff}"
 
+detach_existing_volume_mount
 hdiutil create -volname "${volume_name}" -srcfolder "${staging_dir}" -fs HFS+ -format UDRW -ov "${rw_dmg}" >/dev/null
 mount_dir="$(hdiutil attach "${rw_dmg}" -readwrite -noverify -noautoopen | awk -F '\t' '/\/Volumes\// { print $NF; exit }')"
 if [[ -z "${mount_dir}" || ! -d "${mount_dir}" ]]; then
