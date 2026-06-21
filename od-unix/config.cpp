@@ -521,6 +521,7 @@ int target_parse_option(struct uae_prefs *p, const TCHAR *option, const TCHAR *v
     if (!_tcsicmp(option, _T("gfx_shader"))) {
         uae_tcslcpy(unix_gfx_shader, value && value[0] ? value : _T("none"),
             sizeof unix_gfx_shader / sizeof(TCHAR));
+        write_log(_T("unix.gfx_shader = '%s'\n"), unix_gfx_shader);
         return 1;
     }
     return 0;

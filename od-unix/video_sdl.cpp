@@ -1384,6 +1384,12 @@ static void unix_gl_present(const struct unix_video_frame *frame, const struct g
     /* Scale2x samples discrete texels; it requires nearest filtering. */
     const TCHAR *shader_name = unix_gfx_shader_option();
     const int scaler = shader_name && !_tcsicmp(shader_name, _T("scale2x")) ? 1 : 0;
+    static int logged_scaler = -1;
+    if (scaler != logged_scaler) {
+        write_log(_T("GL presenter: scaler mode %d (gfx_shader '%s')\n"),
+            scaler, shader_name ? shader_name : _T(""));
+        logged_scaler = scaler;
+    }
     const bool bilinear = !scaler && filter && filter->gfx_filter_bilinear;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
         bilinear ? GL_LINEAR : GL_NEAREST);
