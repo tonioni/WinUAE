@@ -14999,6 +14999,18 @@ private:
         rtgMonitor->setCurrentText(QStringLiteral("1"));
     }
 
+    QString loadedScsiModeConfigKey() const
+    {
+        const WinUaeQtConfig::Settings &settings = loadedConfig.settings();
+        if (settings.contains(QStringLiteral("unix.uaescsimode"))) {
+            return QStringLiteral("unix.uaescsimode");
+        }
+        if (settings.contains(QStringLiteral("uaescsimode"))) {
+            return QStringLiteral("uaescsimode");
+        }
+        return QString();
+    }
+
     WinUaeQtConfig::Settings currentSettings() const
     {
         WinUaeQtConfig::Settings settings;
@@ -15418,7 +15430,10 @@ private:
         }
         settings.insert(QStringLiteral("bsdsocket_emu"), expansionBsdsocket->isEnabled() && expansionBsdsocket->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
         settings.insert(QStringLiteral("scsi"), expansionScsiDevice->isEnabled() && expansionScsiDevice->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
-        settings.insert(QStringLiteral("uaescsimode"), configChoiceValue(scsiModeChoices, int(sizeof(scsiModeChoices) / sizeof(scsiModeChoices[0])), miscScsiMode->currentText()));
+        const QString scsiModeKey = loadedScsiModeConfigKey();
+        if (!scsiModeKey.isEmpty()) {
+            settings.insert(scsiModeKey, configChoiceValue(scsiModeChoices, int(sizeof(scsiModeChoices) / sizeof(scsiModeChoices[0])), miscScsiMode->currentText()));
+        }
         settings.insert(QStringLiteral("sana2"), expansionSana2->isEnabled() && expansionSana2->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
         const int displayIndex = qMax(0, hostDisplay->currentIndex());
         settings.insert(QStringLiteral("gfx_display"), QString::number(displayIndex));

@@ -34,6 +34,7 @@ run_case() {
     name=$1
     input=$2
     keys=$3
+    absent_keys=${4:-}
     output="$WORK/$name-out.uae"
 
     env QT_QPA_PLATFORM=offscreen \
@@ -60,6 +61,12 @@ run_case() {
         esac
         if [ "$in_value" != "$out_value" ]; then
             echo "FAIL: $name: $key: '$in_value' became '$out_value'" >&2
+            failed=1
+        fi
+    done
+    for key in $absent_keys; do
+        if grep -q "^${key}=" "$output"; then
+            echo "FAIL: $name: $key was added during roundtrip" >&2
             failed=1
         fi
     done
@@ -122,5 +129,19 @@ EOF
 
 run_case a3000 "$WORK/a3000.uae" \
     "cpu_model fpu_model mmu_model cpu_24bit_addressing chipset chipmem_size bogomem_size z3mem_size"
+
+cat > "$WORK/a4091.uae" <<EOF
+config_description=Roundtrip A4091
+quickstart=A4000,1
+chipset_compatible=A4000
+a4091_rom_file=rea4091.rom
+hardfile2=rw,:/tmp/disk.hdf,0,0,0,512,0,,scsi0_a4091
+uaehf1=cd2,ro,:,0,0,0,2048,0,,scsi2_a4091
+cdimage2=/tmp/cd.iso
+EOF
+
+run_case a4091 "$WORK/a4091.uae" \
+    "a4091_rom_file hardfile2 uaehf1 cdimage2" \
+    "uaescsimode unix.uaescsimode"
 
 echo "winuae config roundtrip smoke passed"
