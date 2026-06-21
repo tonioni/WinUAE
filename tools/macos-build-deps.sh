@@ -151,6 +151,18 @@ split_extra_args() {
     fi
 }
 
+have_compatible_dylib() {
+    local dylib="$1"
+    [[ -f "${dylib}" ]] &&
+        "${source_dir}/tools/macos-check-deployment-target.sh" \
+            "${dylib}" "${target}" >/dev/null 2>&1
+}
+
+have_compatible_flac() {
+    [[ -f "${prefix}/include/FLAC/all.h" ]] &&
+        have_compatible_dylib "${prefix}/lib/libFLAC.dylib"
+}
+
 mkdir -p "${prefix}" "${build_dir}"
 
 if [[ "${WINUAE_SKIP_LIBPNG:-0}" != "1" ]]; then
@@ -199,6 +211,8 @@ if [[ "${WINUAE_SKIP_FLAC:-0}" != "1" ]]; then
         flac_cmake_args+=(${extra_args[@]+"${extra_args[@]}"})
         run_cmake_build "${flac_source}" "${build_dir}/flac" \
             "${flac_cmake_args[@]}"
+    elif have_compatible_flac; then
+        echo "note: compatible private libFLAC already exists in ${prefix}" >&2
     elif [[ "${WINUAE_REQUIRE_FLAC:-0}" == "1" ]]; then
         echo "error: FLAC source path is required when WINUAE_REQUIRE_FLAC=1" >&2
         usage >&2

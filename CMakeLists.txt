@@ -4,6 +4,10 @@ if(CMAKE_HOST_APPLE)
     set(WINUAE_UNIX_DEFAULT_MACOS_DEPLOYMENT_TARGET "13.0")
     set(WINUAE_UNIX_MACOS_DEPS_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/../winuae-macos-deps" CACHE PATH "Private macOS dependency prefix built by tools/macos-build-deps.sh")
     set(WINUAE_QEMU_UAE_DEPS_PREFIX "${WINUAE_UNIX_MACOS_DEPS_PREFIX}" CACHE PATH "Private macOS GLib prefix for the QEMU-UAE plugin")
+    if(WINUAE_UNIX_MACOS_DEPS_PREFIX)
+        list(PREPEND CMAKE_PREFIX_PATH "${WINUAE_UNIX_MACOS_DEPS_PREFIX}")
+        list(REMOVE_DUPLICATES CMAKE_PREFIX_PATH)
+    endif()
     if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
         set(CMAKE_OSX_DEPLOYMENT_TARGET "${WINUAE_UNIX_DEFAULT_MACOS_DEPLOYMENT_TARGET}" CACHE STRING "Minimum macOS version for WinUAE Unix builds")
     elseif(CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "")
@@ -175,7 +179,7 @@ option(WINUAE_UNIX_WITH_INTEGRATED_QT_UI "Allow winuae_unix to host the Unix Qt 
 option(WINUAE_UNIX_WITH_LIBPNG "Build optional PNG screenshot support when libpng is available" ON)
 option(WINUAE_UNIX_WITH_ARCHIVES "Build bundled ZIP/LHA/LZX/DMS/WRP archive support" ON)
 option(WINUAE_UNIX_WITH_CHD "Build CHD hardfile and CD image support" ON)
-option(WINUAE_UNIX_WITH_CHD_FLAC "Build CHD FLAC codecs when a compatible libFLAC is available" ON)
+option(WINUAE_UNIX_WITH_CHD_FLAC "Build CHD FLAC codecs; required by the bundled CHD sources" ON)
 option(WINUAE_UNIX_WITH_LIBMPEG2 "Build CD32 FMV video decode support when libmpeg2 is available" ON)
 option(WINUAE_UNIX_WITH_BSDSOCKET "Build bsdsocket.library on top of POSIX sockets" ON)
 option(WINUAE_UNIX_WITH_UAESCSI "Build uaescsi.device using the shared CD/tape SCSI emulation layer" ON)
@@ -262,6 +266,7 @@ if(WINUAE_UNIX_WITH_LIBPNG)
     endif()
     find_package(PNG QUIET)
 endif()
+set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH ON)
 find_package(PkgConfig QUIET)
 
 set(CMAKE_C_STANDARD 11)
@@ -586,6 +591,10 @@ if(WINUAE_UNIX_WITH_CHD)
 
     set(WINUAE_UNIX_CHD_FLAC_OK OFF)
     if(WINUAE_UNIX_WITH_CHD_FLAC AND PkgConfig_FOUND)
+        if(APPLE AND WINUAE_UNIX_MACOS_DEPS_PREFIX)
+            unset(__pkg_config_checked_FLAC CACHE)
+            unset(pkgcfg_lib_FLAC_FLAC CACHE)
+        endif()
         pkg_check_modules(FLAC QUIET flac)
         if(FLAC_FOUND)
             set(WINUAE_UNIX_CHD_FLAC_OK ON)
@@ -602,27 +611,32 @@ if(WINUAE_UNIX_WITH_CHD)
                         ERROR_STRIP_TRAILING_WHITESPACE
                     )
                     if(NOT WINUAE_UNIX_FLAC_DEPLOYMENT_RESULT EQUAL 0)
-                        message(STATUS "libFLAC is newer than CMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}; CHD FLAC codecs disabled. ${WINUAE_UNIX_FLAC_DEPLOYMENT_ERROR}")
+                        message(STATUS "libFLAC is newer than CMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}; CHD FLAC codecs unavailable. ${WINUAE_UNIX_FLAC_DEPLOYMENT_ERROR}")
                         set(WINUAE_UNIX_CHD_FLAC_OK OFF)
                     endif()
                 else()
-                    message(STATUS "libFLAC was found by pkg-config but not as a library path; CHD FLAC codecs disabled")
+                    message(STATUS "libFLAC was found by pkg-config but not as a library path; CHD FLAC codecs unavailable")
                     set(WINUAE_UNIX_CHD_FLAC_OK OFF)
                 endif()
             endif()
         endif()
     endif()
 
-    if(WINUAE_UNIX_CHD_FLAC_OK)
-        target_compile_definitions(winuae_core PRIVATE WITH_CHD_FLAC=1)
-        target_include_directories(winuae_core PRIVATE ${FLAC_INCLUDE_DIRS})
-        target_compile_options(winuae_core PRIVATE ${FLAC_CFLAGS_OTHER})
-        list(APPEND WINUAE_UNIX_EXTRA_SOURCES archivers/chd/flac.cpp)
-        list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${FLAC_LIBRARIES})
-        list(APPEND WINUAE_UNIX_EXTRA_LIBRARY_DIRS ${FLAC_LIBRARY_DIRS})
-    else()
-        target_compile_definitions(winuae_core PRIVATE WITH_CHD_FLAC=0)
+    if(NOT WINUAE_UNIX_CHD_FLAC_OK)
+        message(FATAL_ERROR
+            "CHD support in this source tree requires libFLAC headers and "
+            "library. Set WINUAE_UNIX_WITH_CHD=OFF or provide compatible "
+            "libFLAC, for example with WINUAE_FLAC_SOURCE and the "
+            "winuae_unix_macos_deps target on macOS."
+        )
     endif()
+
+    target_compile_definitions(winuae_core PRIVATE WITH_CHD_FLAC=1)
+    target_include_directories(winuae_core PRIVATE ${FLAC_INCLUDE_DIRS})
+    target_compile_options(winuae_core PRIVATE ${FLAC_CFLAGS_OTHER})
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES archivers/chd/flac.cpp)
+    list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${FLAC_LIBRARIES})
+    list(APPEND WINUAE_UNIX_EXTRA_LIBRARY_DIRS ${FLAC_LIBRARY_DIRS})
 endif()
 
 set(WINUAE_UNIX_LIBMPEG2_OK OFF)
@@ -1685,9 +1699,15 @@ add_custom_target(winuae_unix_linux_package_metadata_check
 )
 
 if(APPLE)
+    set(WINUAE_UNIX_MACOS_DEPS_ENV
+        "WINUAE_MACOS_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+    )
+    if(WINUAE_UNIX_WITH_CHD)
+        list(APPEND WINUAE_UNIX_MACOS_DEPS_ENV "WINUAE_REQUIRE_FLAC=1")
+    endif()
     add_custom_target(winuae_unix_macos_deps
         COMMAND "${CMAKE_COMMAND}" -E env
-            "WINUAE_MACOS_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+            ${WINUAE_UNIX_MACOS_DEPS_ENV}
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/macos-build-deps.sh" "${WINUAE_UNIX_MACOS_DEPS_PREFIX}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
         COMMENT "Building private macOS dependencies for deployment target ${CMAKE_OSX_DEPLOYMENT_TARGET}"
