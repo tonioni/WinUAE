@@ -3376,9 +3376,9 @@ static QString expansionBoardOptionsValue(
         if (board) {
             for (const WinUaeQtBoardSetting &choice : board->settings) {
                 if (choice.type == WinUaeQtBoardSettingType::CheckBox) {
-                    known = name.compare(choice.configValue, Qt::CaseInsensitive) == 0;
+                    known = known || name.compare(choice.configValue, Qt::CaseInsensitive) == 0;
                 } else if (choice.type == WinUaeQtBoardSettingType::String) {
-                    known = name.compare(choice.configValue, Qt::CaseInsensitive) == 0;
+                    known = known || name.compare(choice.configValue, Qt::CaseInsensitive) == 0;
                 } else if (choice.type == WinUaeQtBoardSettingType::Multi) {
                     for (const QString &value : choice.multiValues) {
                         if (name.compare(value, Qt::CaseInsensitive) == 0) {
