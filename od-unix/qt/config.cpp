@@ -281,11 +281,18 @@ bool WinUaeQtConfig::load(const QString &path, QString *error)
         return false;
     }
 
+    return loadFromText(QString::fromUtf8(file.readAll()), error);
+}
+
+bool WinUaeQtConfig::loadFromText(const QString &contents, QString *)
+{
     Settings loaded;
     OrderedSettings ordered;
     QList<DocumentLine> lines;
-    while (!file.atEnd()) {
-        QString text = QString::fromUtf8(file.readLine());
+    QString copy = contents;
+    QTextStream in(&copy, QIODevice::ReadOnly);
+    while (!in.atEnd()) {
+        QString text = in.readLine();
         while (text.endsWith(QLatin1Char('\n')) || text.endsWith(QLatin1Char('\r'))) {
             text.chop(1);
         }

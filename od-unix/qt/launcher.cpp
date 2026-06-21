@@ -5181,7 +5181,7 @@ static bool isConfigPath(const QString &path)
     return path.endsWith(QStringLiteral(".uae"), Qt::CaseInsensitive);
 }
 
-static QString initialConfigPathFromArguments(const QStringList &arguments)
+QString winUaeQtInitialConfigPathFromArguments(const QStringList &arguments)
 {
     for (int i = 1; i < arguments.size(); i++) {
         const QString arg = arguments[i];
@@ -5271,6 +5271,7 @@ public:
     explicit WinUaeQtDialog(
         QWidget *parent = nullptr,
         const QString &initialConfigPath = QString(),
+        const QString &displayConfigPath = QString(),
         const WinUaeQtHardwareInfoProvider &hardwareInfoProvider = WinUaeQtHardwareInfoProvider())
         : QDialog(parent),
           hardwareProvider(hardwareInfoProvider),
@@ -5380,8 +5381,7 @@ public:
             accept();
         });
         connect(restart, &QPushButton::clicked, this, [this]() {
-            result.status = WinUaeQtLauncherStatus::RestartRequested;
-            accept();
+            requestRestart();
         });
         connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
         connect(start, &QPushButton::clicked, this, [this]() { startEmulator(); });
@@ -5413,7 +5413,9 @@ public:
         resetDefaults();
         navigation->setCurrentItem(quickstartPage);
         if (!initialConfigPath.isEmpty()) {
-            loadConfig(initialConfigPath);
+            if (loadConfig(initialConfigPath)) {
+                setLoadedConfigDisplayPath(displayConfigPath);
+            }
         }
         if (hardwareProvider.pollHostWindowEvents) {
             QTimer *timer = new QTimer(this);
@@ -5437,6 +5439,11 @@ public:
         loadConfig(path);
         raise();
         activateWindow();
+    }
+
+    bool loadConfigSnapshot(const WinUaeQtConfig &config, const QString &displayConfigPath)
+    {
+        return loadConfigDocument(config, displayConfigPath);
     }
 
     bool exportMergedConfig(const QString &path)
@@ -16188,15 +16195,21 @@ private:
         }
     }
 
-    void loadConfig(const QString &path)
+    bool loadConfig(const QString &path)
     {
         const QString expandedPath = expandedPathText(path);
         WinUaeQtConfig config;
         QString error;
         if (!config.load(expandedPath, &error)) {
             QMessageBox::warning(this, windowTitle(), error);
-            return;
+            return false;
         }
+        return loadConfigDocument(config, expandedPath);
+    }
+
+    bool loadConfigDocument(const WinUaeQtConfig &config, const QString &path)
+    {
+        WinUaeQtConfig loaded = config;
         if (mountedDrives) {
             mountedDrives->clear();
         }
@@ -16221,8 +16234,8 @@ private:
                 quickstartSetConfig->setVisible(true);
             }
         }
-        moveQuickstartBeforeOverrides(config);
-        for (const WinUaeQtConfig::Setting &setting : config.orderedSettings()) {
+        moveQuickstartBeforeOverrides(loaded);
+        for (const WinUaeQtConfig::Setting &setting : loaded.orderedSettings()) {
             applySetting(setting.key, setting.value);
         }
         updateOutputControlState();
@@ -16231,12 +16244,39 @@ private:
         updateFpuControls();
         updateCpuControlState();
         updateAdvancedChipsetControlState();
-        loadedConfig = config;
+        loadedConfig = loaded;
         refreshHardwareInfoPage();
+        const QString expandedPath = expandedPathText(path);
+        configPath->setText(expandedPath);
+        if (!expandedPath.isEmpty()) {
+            configName->setCurrentText(QFileInfo(expandedPath).completeBaseName());
+        }
+        refreshConfigList();
+        status->setText(expandedPath.isEmpty()
+            ? QStringLiteral("Loaded running configuration")
+            : QStringLiteral("Loaded %1").arg(expandedPath));
+        return true;
+    }
+
+    void setLoadedConfigDisplayPath(const QString &path)
+    {
+        if (path.isEmpty()) {
+            return;
+        }
+        const QString expandedPath = expandedPathText(path);
         configPath->setText(expandedPath);
         configName->setCurrentText(QFileInfo(expandedPath).completeBaseName());
         refreshConfigList();
         status->setText(QStringLiteral("Loaded %1").arg(expandedPath));
+    }
+
+    QString currentConfigPath() const
+    {
+        if (!configPath) {
+            return QString();
+        }
+        const QString path = configPath->text().trimmed();
+        return path.isEmpty() ? QString() : expandedPathText(path);
     }
 
     void applySetting(const QString &key, const QString &value)
@@ -17132,7 +17172,17 @@ private:
         requestStart(false);
     }
 
+    void requestRestart()
+    {
+        requestStart(false, WinUaeQtLauncherStatus::RestartRequested);
+    }
+
     void requestStart(bool hardReset)
+    {
+        requestStart(hardReset, WinUaeQtLauncherStatus::StartRequested);
+    }
+
+    void requestStart(bool hardReset, WinUaeQtLauncherStatus status)
     {
         const WinUaeQtConfig config = mergedConfig();
         const QStringList validationErrors = config.validateForLaunch();
@@ -17142,9 +17192,10 @@ private:
             return;
         }
 
-        result.status = WinUaeQtLauncherStatus::StartRequested;
+        result.status = status;
         result.hardReset = hardReset;
         result.config = config;
+        result.configPath = currentConfigPath();
         accept();
     }
 };
@@ -17271,26 +17322,11 @@ static void armQtSmokeExit(QDialog &dialog, QApplication *app = nullptr)
 
 bool winUaeQtArgumentsSpecifyConfig(const QStringList &arguments)
 {
-    return !initialConfigPathFromArguments(arguments).isEmpty();
+    return !winUaeQtInitialConfigPathFromArguments(arguments).isEmpty();
 }
 
-WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app)
+static WinUaeQtLauncherResult runWinUaeQtLauncherDialog(QApplication &app, WinUaeQtDialog &dialog)
 {
-    return runWinUaeQtLauncherForConfig(app, QString());
-}
-
-WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath)
-{
-    return runWinUaeQtLauncherForConfig(app, initialConfigPath, WinUaeQtHardwareInfoProvider());
-}
-
-WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
-{
-    setupApplicationStyle(app);
-    WinUaeQtDialog dialog(
-        nullptr,
-        initialConfigPath.isEmpty() ? initialConfigPathFromArguments(app.arguments()) : initialConfigPath,
-        hardwareProvider);
     if (WinUaeQtApplication *qtApp = dynamic_cast<WinUaeQtApplication *>(&app)) {
         qtApp->setConfigOpenHandler([&dialog](const QString &path) {
             dialog.openConfigFile(path);
@@ -17320,6 +17356,40 @@ WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QSt
     return result;
 }
 
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app)
+{
+    return runWinUaeQtLauncherForConfig(app, QString());
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath)
+{
+    return runWinUaeQtLauncherForConfig(app, initialConfigPath, WinUaeQtHardwareInfoProvider());
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
+{
+    return runWinUaeQtLauncherForConfig(app, initialConfigPath, QString(), hardwareProvider);
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
+{
+    setupApplicationStyle(app);
+    WinUaeQtDialog dialog(
+        nullptr,
+        initialConfigPath.isEmpty() ? winUaeQtInitialConfigPathFromArguments(app.arguments()) : initialConfigPath,
+        displayConfigPath,
+        hardwareProvider);
+    return runWinUaeQtLauncherDialog(app, dialog);
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const WinUaeQtConfig &initialConfig, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
+{
+    setupApplicationStyle(app);
+    WinUaeQtDialog dialog(nullptr, QString(), QString(), hardwareProvider);
+    dialog.loadConfigSnapshot(initialConfig, displayConfigPath);
+    return runWinUaeQtLauncherDialog(app, dialog);
+}
+
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv)
 {
     return runWinUaeQtLauncherForConfig(argc, argv, QString());
@@ -17332,8 +17402,19 @@ WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const
 
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const QString &initialConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
 {
+    return runWinUaeQtLauncherForConfig(argc, argv, initialConfigPath, QString(), hardwareProvider);
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const QString &initialConfigPath, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
+{
     WinUaeQtApplication app(argc, argv);
-    return runWinUaeQtLauncherForConfig(app, initialConfigPath, hardwareProvider);
+    return runWinUaeQtLauncherForConfig(app, initialConfigPath, displayConfigPath, hardwareProvider);
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const WinUaeQtConfig &initialConfig, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
+{
+    WinUaeQtApplication app(argc, argv);
+    return runWinUaeQtLauncherForConfig(app, initialConfig, displayConfigPath, hardwareProvider);
 }
 
 static QString runtimeDialogDirectory(const QString &initialPath)

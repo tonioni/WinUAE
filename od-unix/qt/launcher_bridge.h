@@ -16,7 +16,10 @@ enum {
 };
 
 int winUaeQtLauncherArgumentsSpecifyConfig(int argc, char **argv);
+int winUaeQtLauncherInitialConfigPath(int argc, char **argv, char *path, size_t path_len);
 int runWinUaeQtLauncherForPrefs(int argc, char **argv, struct uae_prefs *prefs, int *exit_code);
 int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_prefs *prefs, const char *initial_config_path, int runtime_actions, int *exit_code);
+int runWinUaeQtLauncherForPrefsWithConfigPaths(int argc, char **argv, struct uae_prefs *prefs, const char *initial_config_path, const char *display_config_path, char *selected_config_path, size_t selected_config_path_len, int runtime_actions, int *exit_code);
+int runWinUaeQtLauncherForPrefsWithConfigSnapshot(int argc, char **argv, struct uae_prefs *prefs, const char *display_config_path, char *selected_config_path, size_t selected_config_path_len, int runtime_actions, int *exit_code);
 int runWinUaeQtRuntimeFileDialog(int argc, char **argv, int shortcut, const char *initial_path, char *selected_path, size_t selected_path_len, int *exit_code);
 int runWinUaeQtMessageBox(int argc, char **argv, int flags, const char *message, int *exit_code);
