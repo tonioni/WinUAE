@@ -12343,6 +12343,45 @@ private:
         cdSlotUpdating = false;
     }
 
+    void selectCdSlot(int index, bool storeCurrent = true)
+    {
+        ensureCdSlots();
+        if (index < 0 || index >= cdSlots.size()) {
+            return;
+        }
+        if (storeCurrent) {
+            storeCurrentCdSlotFromUi();
+        }
+        currentCdSlot = index;
+        loadCdSlotToUi(currentCdSlot);
+    }
+
+    void selectPreferredCdSlotAfterLoad()
+    {
+        ensureCdSlots();
+        int slot = -1;
+        if (mountedDrives) {
+            for (int i = 0; i < mountedDrives->topLevelItemCount(); i++) {
+                const WinUaeQtMountEntry entry = mountEntryFromItem(mountedDrives->topLevelItem(i));
+                if (entry.kind == QStringLiteral("cd")
+                    && entry.emuUnit >= 0
+                    && entry.emuUnit < cdSlots.size()) {
+                    slot = entry.emuUnit;
+                    break;
+                }
+            }
+        }
+        if (slot < 0) {
+            for (int i = 0; i < cdSlots.size(); i++) {
+                if (cdSlots[i].inUse || !cdSlots[i].path.isEmpty()) {
+                    slot = i;
+                    break;
+                }
+            }
+        }
+        selectCdSlot(slot >= 0 ? slot : 0, false);
+    }
+
     void ensureCustomRomBoards()
     {
         if (customRomBoards.size() == MaxRomBoards) {
@@ -13984,6 +14023,7 @@ private:
         entry.hardfileTail = QStringLiteral(",ide0");
         if (showCdDriveMountDialog(&entry, QStringLiteral("Add CD Drive"))) {
             addMountEntry(entry);
+            selectCdSlot(entry.emuUnit);
         }
     }
 
@@ -14254,6 +14294,9 @@ private:
         }
         if (accepted) {
             updateMountItem(item, entry);
+            if (entry.kind == QStringLiteral("cd")) {
+                selectCdSlot(entry.emuUnit);
+            }
         }
     }
 
@@ -16262,6 +16305,7 @@ private:
         for (const WinUaeQtConfig::Setting &setting : loaded.orderedSettings()) {
             applySetting(setting.key, setting.value);
         }
+        selectPreferredCdSlotAfterLoad();
         updateOutputControlState();
         updateMountButtons();
         refreshInputMappingList();
