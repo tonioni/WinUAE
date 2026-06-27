@@ -24258,17 +24258,23 @@ void gui_led (int led, int on, int brightness)
 			fps = 9999.9;
 		const TCHAR *rec = avioutput_requested ? _T("R") : _T("");
 		if (gui_data.fps_color == 2) {
-			_stprintf(ptr, _T("No Sync%s"), rec);
+			if (ad->picasso_on)
+				_stprintf(ptr, _T("%.1f%s [NS]"), p96vblank, rec);
+			else
+				_stprintf(ptr, _T("No Sync%s"), rec);
 		} else if (gui_data.fps_color == 3) {
-			_stprintf(ptr, _T("FPS: ---%s"), rec);
+			if (ad->picasso_on)
+				_stprintf(ptr, _T("%.1f%s [---]"), p96vblank, rec);
+			else
+				_stprintf(ptr, _T("FPS: ---%s"), rec);
 		} else if (fps < 1000) {
 			if (ad->picasso_on)
-				_stprintf (ptr, _T("%.1f%s[%.1f]"), p96vblank, rec, fps);
+				_stprintf (ptr, _T("%.1f%s [%.1f]"), p96vblank, rec, fps);
 			else
 				_stprintf (ptr, _T("FPS: %.1f%s"), fps, rec);
 		} else {
 			if (ad->picasso_on)
-				_stprintf(ptr, _T("%.0f%s[%.0f]"), p96vblank, rec, fps);
+				_stprintf(ptr, _T("%.0f%s [%.0f]"), p96vblank, rec, fps);
 			else
 				_stprintf(ptr, _T("FPS: %.0f%s"), fps, rec);
 		}
