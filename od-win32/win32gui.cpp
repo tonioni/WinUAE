@@ -20474,15 +20474,16 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	int scalemode = workprefs.gf[filter_nativertg].gfx_filter_autoscale;
 	int vv = FALSE, vv2 = FALSE, vv3 = FALSE, vv4 = FALSE;
 	int as = FALSE;
+	bool rtg = filter_nativertg == GF_RTG;
 
 	v = vv = vv2 = vv3 = vv4 = TRUE;
-	if (filter_nativertg == 1) {
+	if (rtg) {
 		vv4 = FALSE;
 	}
 	if (scalemode == AUTOSCALE_STATIC_AUTO || scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_MAX)
 		as = TRUE;
 
-	if (filter_nativertg == 2) {
+	if (filter_nativertg == GF_INTERLACE) {
 		ew(hDlg, IDC_FILTERENABLE, TRUE);
 		setchecked(hDlg, IDC_FILTERENABLE, gf->enable);
 	} else {
@@ -20514,7 +20515,8 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew(hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
 	ew(hDlg, IDC_FILTERPRESETDELETE, filterpreset_selected > 0 && filterpreset_builtin < 0);
 
-	ew(hDlg, IDC_FILTERINTEGER, scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE);
+	ew(hDlg, IDC_FILTERINTEGER, (!rtg && (scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE)) ||
+		(rtg && scalemode == RTG_MODE_INTEGER_SCALE));
 }
 
 static const TCHAR *filtermultnames[] = {

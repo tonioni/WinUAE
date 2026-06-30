@@ -1497,25 +1497,50 @@ void getrtgfilterdata(int monid, struct displayscale *ds)
 	float my = (float)mon->currentmode.native_height / srcheight;
 
 	if (mon->scalepicasso == RTG_MODE_INTEGER_SCALE) {
-		int divx = mon->currentmode.native_width / srcwidth;
-		int divy = mon->currentmode.native_height / srcheight;
-		float mul = (float)(!divx || !divy ? 1 : (divx > divy ? divy : divx));
-		if (!divx || !divy) {
+		float fdivx = (float)mon->currentmode.native_width / srcwidth;
+		float fdivy = (float)mon->currentmode.native_height / srcheight;
+		float fmul = (float)(fdivx < 1.0 || fdivy < 1.0 ? 1 : (fdivx > fdivy ? fdivy : fdivx));
+		int mul = (int)(fmul * (1 << (currprefs.gf[GF_RTG].gfx_filter_integerscalelimit)));
+		fmul = (float)mul / (1 << (currprefs.gf[GF_RTG].gfx_filter_integerscalelimit));
+		if (fdivx < 1.0 || fdivy < 1.0) {
+			float adjust = 0.5f / (1 << (currprefs.gf[GF_RTG].gfx_filter_integerscalelimit));
+			fmul = 1.0f;
+			float prevfmul = fmul;
+			for(;;) {
+				if (fmul <= adjust) {
+					adjust /= 2.0f;
+					if (adjust < 0.10f) {
+						break;
+					}
+				}
+				fmul -= adjust;
+				if (fmul < 0.10f) {
+					fmul = 0.10f;
+					break;
+				}
+				if ((float)mon->currentmode.native_width / srcwidth > 2 * fmul || ((float)mon->currentmode.native_height / srcheight > 2 * fmul)) {
+					fmul = prevfmul;
+					break;
+				}
+				prevfmul = fmul;
+			}
+#if 0
 			if ((float)mon->currentmode.native_width / srcwidth <= 0.95f || ((float)mon->currentmode.native_height / srcheight <= 0.95f)) {
-				mul = 0.5f;
+				fmul = 1.0f / 2.0f;
 			}
 			if ((float)mon->currentmode.native_width / srcwidth <= 0.45f || ((float)mon->currentmode.native_height / srcheight <= 0.45f)) {
-				mul = 0.25f;
+				fmul = 1.0f / 4.0f;
 			}
+#endif
 		}
-		ds->outwidth = (int)(mon->currentmode.native_width / mul);
-		ds->outheight = (int)(mon->currentmode.native_height / mul);
-		int xx = (int)((mon->currentmode.native_width / mul - srcwidth) / 2);
-		int yy = (int)((mon->currentmode.native_height / mul - srcheight) / 2);
+		ds->outwidth = (int)(mon->currentmode.native_width / fmul);
+		ds->outheight = (int)(mon->currentmode.native_height / fmul);
+		int xx = (int)((mon->currentmode.native_width / fmul - srcwidth) / 2);
+		int yy = (int)((mon->currentmode.native_height / fmul - srcheight) / 2);
 		picasso_offset_x = -xx;
 		picasso_offset_y = -yy;
-		mx = mul;
-		my = mul;
+		mx = fmul;
+		my = fmul;
 		outwidth = srcwidth;
 		outheight = srcheight;
 		ds->mode = 1;
