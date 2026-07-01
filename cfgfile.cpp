@@ -7754,7 +7754,7 @@ int parse_cmdline_option (struct uae_prefs *p, TCHAR c, const TCHAR *arg)
 	u->option = xmalloc (TCHAR, 2);
 	u->option[0] = c;
 	u->option[1] = 0;
-	u->value = my_strdup (arg);
+	u->value = my_strdup (arg ? arg : _T(""));
 	u->next = p->all_lines;
 	p->all_lines = u;
 

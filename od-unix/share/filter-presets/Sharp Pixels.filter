@@ -1,0 +1,5 @@
+# WinUAE Qt filter preset
+gfx_filter_enable=1
+gfx_filter_bilinear=0
+gfx_filter_autoscale=integer
+gfx_filter_scanlines=0

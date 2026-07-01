@@ -8,7 +8,7 @@ Usage: $0 [build-dir] [output-dir]
 Creates a drag-install WinUAE DMG from an existing macOS build tree.
 
 Arguments:
-  build-dir   CMake build directory containing winuae_unix.
+  build-dir   CMake build directory containing the winuae binary.
               Defaults to WINUAE_BUILD_DIR or the current directory.
   output-dir  Directory that will receive WinUAE.app and the final DMG.
               Defaults to <build-dir>/package.

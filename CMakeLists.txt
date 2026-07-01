@@ -84,12 +84,18 @@ function(winuae_unix_macos_find_qt_frameworks out_var)
 endfunction()
 
 function(winuae_unix_find_lzma_sdk out_var)
+    # A system lzma-sdk source package (e.g. openSUSE lzma-sdk-devel) is
+    # preferred over fetching the vendored archive; it must provide the SDK
+    # C sources, not just headers.
     set(WINUAE_LZMA_SDK_CANDIDATES
         "${WINUAE_LZMA_SDK_DIR}/C"
         "${WINUAE_LZMA_SDK_DIR}"
     )
+    foreach(prefix IN LISTS WINUAE_LZMA_SDK_SYSTEM_PATHS)
+        list(APPEND WINUAE_LZMA_SDK_CANDIDATES "${prefix}/C" "${prefix}")
+    endforeach()
     foreach(candidate IN LISTS WINUAE_LZMA_SDK_CANDIDATES)
-        if(EXISTS "${candidate}/7z/7zVersion.h")
+        if(EXISTS "${candidate}/7z/7zVersion.h" AND EXISTS "${candidate}/7z/7zCrc.c")
             set(WINUAE_LZMA_SDK_SOURCE_DIR "${candidate}")
             break()
         endif()
@@ -195,6 +201,9 @@ set(WINUAE_LZMA_SDK_SHA256 "edf8690e9d5ae0dbe80751e3df247bb4e1b497b100c4af5b95fc
     CACHE STRING "Expected SHA-256 for the 7-Zip/LZMA SDK archive")
 set(WINUAE_LZMA_SDK_DIR "${CMAKE_BINARY_DIR}/_deps/lzma-sdk/${WINUAE_LZMA_SDK_VERSION}"
     CACHE PATH "Local cache directory for the 7-Zip/LZMA SDK")
+set(WINUAE_LZMA_SDK_SYSTEM_PATHS
+    "/usr/share/lzma-sdk;/usr/include/lzma-sdk;/usr/src/lzma-sdk;/usr/include/lzma"
+    CACHE STRING "System prefixes probed for an installed 7-Zip/LZMA SDK source tree")
 
 set(WINUAE_QEMU_UAE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qemu-uae-v11.0"
     CACHE PATH "QEMU-UAE plugin source directory")
@@ -1407,6 +1416,7 @@ set(WINUAE_CORE_SOURCES
     od-unix/mman.cpp
     od-unix/path_expand.cpp
     od-unix/parallel.cpp
+    od-unix/registry.cpp
     od-unix/romscan.cpp
     od-unix/rtg.cpp
     od-unix/screenshot.cpp
@@ -1424,6 +1434,10 @@ target_sources(winuae_core PRIVATE ${WINUAE_CORE_SOURCES})
 
 if(WINUAE_UNIX_BUILD_EXECUTABLE)
     add_executable(winuae_unix $<TARGET_OBJECTS:winuae_core>)
+    # Keep the developer-facing target name stable; the produced binary is
+    # named winuae to match the installed name, the .desktop files, the
+    # WinUAE.app bundle, and winuae.exe on Windows.
+    set_target_properties(winuae_unix PROPERTIES OUTPUT_NAME winuae)
     if(WINUAE_UNIX_EXTRA_LIBRARY_DIRS)
         target_link_directories(winuae_unix PRIVATE ${WINUAE_UNIX_EXTRA_LIBRARY_DIRS})
     endif()
@@ -1463,11 +1477,13 @@ if(WINUAE_UNIX_BUILD_EXECUTABLE)
     add_winuae_unix_smoke_target(winuae_unix_smoke_ripple_hdf unix-smoke-ripple-hdf.sh)
     add_winuae_unix_smoke_target(winuae_unix_smoke_serial_tcp unix-smoke-serial-tcp.sh)
     add_winuae_unix_smoke_target(winuae_unix_smoke_path_config unix-smoke-path-config.sh)
+    add_winuae_unix_smoke_target(winuae_unix_smoke_config_roundtrip unix-smoke-config-roundtrip.sh)
     if(WINUAE_UNIX_ENABLE_JIT)
         add_winuae_unix_smoke_target(winuae_unix_smoke_jit unix-smoke-jit.sh)
     endif()
     add_custom_target(winuae_unix_smoke_basic
         DEPENDS winuae_unix_smoke_a1200 winuae_unix_smoke_path_config
+            winuae_unix_smoke_config_roundtrip
     )
 endif()
 
@@ -1480,6 +1496,18 @@ target_include_directories(winuae_unix_path_expand_test PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 winuae_unix_register_test(winuae_unix_path_expand_test)
+
+add_executable(winuae_unix_registry_test EXCLUDE_FROM_ALL
+    od-unix/registry.cpp
+    od-unix/registry_test.cpp
+    ini.cpp
+    missing.cpp
+)
+target_include_directories(winuae_unix_registry_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+winuae_unix_register_test(winuae_unix_registry_test)
 
 add_executable(winuae_unix_threading_test EXCLUDE_FROM_ALL
     od-unix/threading.cpp
@@ -1717,7 +1745,6 @@ endif()
 if(TARGET winuae_unix AND NOT APPLE)
     install(PROGRAMS "$<TARGET_FILE:winuae_unix>"
         DESTINATION "${CMAKE_INSTALL_BINDIR}"
-        RENAME winuae
     )
     install(FILES README_unix.md
         DESTINATION "${CMAKE_INSTALL_DOCDIR}"
@@ -1727,6 +1754,9 @@ if(TARGET winuae_unix AND NOT APPLE)
         PATTERN "*.rc" EXCLUDE
         PATTERN "*.manifest" EXCLUDE
         PATTERN "resource.h" EXCLUDE
+    )
+    install(DIRECTORY od-unix/share/filter-presets/
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/winuae/od-unix/share/filter-presets"
     )
     if(WINUAE_UNIX_WITH_PPC_QEMU)
         install(FILES "${WINUAE_QEMU_UAE_PLUGIN_PATH}"

@@ -105,7 +105,9 @@
 static bool systemPrefersDarkMode();
 static void applyApplicationColors(QApplication &app, bool dark);
 
-static constexpr int FpuInternal = -1;
+/* QButtonGroup ids must not be -1 (it means auto-assign, and checkedId()
+ * returns -1 for "no selection"). */
+static constexpr int FpuInternal = 1;
 static constexpr int MaxMountEntries = 8;
 static constexpr int MaxControllerUnits = 8;
 static constexpr int MaxCdSlots = 8;
@@ -873,7 +875,12 @@ static QString mountControllerDisplay(const WinUaeQtBoardCatalog &catalog, const
     const QString display = mountControllerDisplayForConfigValue(catalog, value);
     const WinUaeQtMountControllerChoice choice = mountControllerChoiceByDisplay(catalog, display);
     if (choice.valid && !choice.boardKey.isEmpty()) {
-        return QStringLiteral("%1:%2").arg(mountControllerBaseDisplay(display)).arg(mountControllerUnit(entry, fallback));
+        QString board = mountControllerBaseDisplay(display);
+        const QString busSuffix = QStringLiteral(" (%1)").arg(mountControllerBusName(choice.bus));
+        if (board.endsWith(busSuffix)) {
+            board.chop(busSuffix.size());
+        }
+        return QStringLiteral("%1:%2").arg(board).arg(mountControllerUnit(entry, fallback));
     }
     const QString upper = value.toUpper();
     if (upper.startsWith(QStringLiteral("IDE"))) {
@@ -906,10 +913,7 @@ static QStringList hardfileGeometryParts(const WinUaeQtMountEntry &entry)
 
 static bool hardfileIsRdb(const WinUaeQtMountEntry &entry)
 {
-    const QStringList geometry = hardfileGeometryParts(entry);
-    return geometry.value(0).toInt() == 0
-        && geometry.value(1).toInt() == 0
-        && geometry.value(2).toInt() == 0;
+    return winUaeQtHardfileIsRdb(entry);
 }
 
 static bool hardfileHasPhysicalGeometry(const WinUaeQtMountEntry &entry)
@@ -5349,19 +5353,35 @@ public:
         content->addWidget(navigation);
         content->addWidget(outerFrame, 1);
 
+        runtimeMode = hardwareProvider.pollHostWindowEvents != nullptr;
         QPushButton *reset = new QPushButton(QStringLiteral("Reset"));
         QPushButton *quit = new QPushButton(QStringLiteral("Quit"));
         QPushButton *restart = new QPushButton(QStringLiteral("Restart"));
         QPushButton *errorLog = new QPushButton(QStringLiteral("Error log"));
-        QPushButton *start = new QPushButton(QStringLiteral("Start"));
+        QPushButton *start = new QPushButton(runtimeMode ? QStringLiteral("OK") : QStringLiteral("Start"));
         QPushButton *cancel = new QPushButton(QStringLiteral("Cancel"));
         QPushButton *help = new QPushButton(QStringLiteral("Help"));
-        restart->setVisible(false);
+        restart->setVisible(runtimeMode);
         errorLog->setVisible(false);
         start->setDefault(true);
 
-        connect(reset, &QPushButton::clicked, this, [this]() { resetDefaults(); });
-        connect(quit, &QPushButton::clicked, this, &QDialog::reject);
+        connect(reset, &QPushButton::clicked, this, [this]() {
+            if (runtimeMode) {
+                /* Windows: hard-reset the Amiga with the edited config and
+                 * resume (IDC_RESETAMIGA sends IDOK after uae_reset). */
+                requestStart(true);
+            } else {
+                resetDefaults();
+            }
+        });
+        connect(quit, &QPushButton::clicked, this, [this]() {
+            result.status = WinUaeQtLauncherStatus::QuitRequested;
+            accept();
+        });
+        connect(restart, &QPushButton::clicked, this, [this]() {
+            result.status = WinUaeQtLauncherStatus::RestartRequested;
+            accept();
+        });
         connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
         connect(start, &QPushButton::clicked, this, [this]() { startEmulator(); });
         connect(help, &QPushButton::clicked, this, [this]() { openHelp(); });
@@ -5418,6 +5438,17 @@ public:
         activateWindow();
     }
 
+    bool exportMergedConfig(const QString &path)
+    {
+        WinUaeQtConfig config = mergedConfig();
+        QString error;
+        if (!config.save(path, &error)) {
+            std::fprintf(stderr, "config roundtrip export failed: %s\n", error.toLocal8Bit().constData());
+            return false;
+        }
+        return true;
+    }
+
 private:
     WinUaeQtHardwareInfoProvider hardwareProvider;
     WinUaeQtBoardCatalog boardCatalog;
@@ -5425,6 +5456,7 @@ private:
     QTreeWidget *navigation = nullptr;
     QStackedWidget *pageStack = nullptr;
     QLabel *status = nullptr;
+    bool runtimeMode = false;
 
     QComboBox *configName = nullptr;
     QLineEdit *configPath = nullptr;
@@ -12627,6 +12659,24 @@ private:
         return QDir(filterPresetDirectoryPath()).filePath(normalizedFilterPresetName(name) + QStringLiteral(".filter"));
     }
 
+    QString systemFilterPresetDirectory() const
+    {
+        return resourceFile(QStringLiteral("od-unix/share/filter-presets"));
+    }
+
+    QString findFilterPresetFile(const QString &name) const
+    {
+        const QString user = filterPresetPath(name);
+        if (QFileInfo::exists(user)) {
+            return user;
+        }
+        const QString system = QDir(systemFilterPresetDirectory()).filePath(normalizedFilterPresetName(name) + QStringLiteral(".filter"));
+        if (QFileInfo::exists(system)) {
+            return system;
+        }
+        return user;
+    }
+
     void refreshFilterPresetList(const QString &preferred = QString())
     {
         if (!filterPresetName) {
@@ -12636,11 +12686,19 @@ private:
         QSignalBlocker blocker(filterPresetName);
         filterPresetName->clear();
         filterPresetName->addItem(QString());
-        QDir dir(filterPresetDirectoryPath());
-        const QStringList files = dir.entryList({ QStringLiteral("*.filter") }, QDir::Files, QDir::Name | QDir::IgnoreCase);
-        for (const QString &file : files) {
-            filterPresetName->addItem(QFileInfo(file).completeBaseName());
+        QStringList names;
+        for (const QString &directory : { filterPresetDirectoryPath(), systemFilterPresetDirectory() }) {
+            QDir dir(directory);
+            const QStringList files = dir.entryList({ QStringLiteral("*.filter") }, QDir::Files, QDir::Name | QDir::IgnoreCase);
+            for (const QString &file : files) {
+                const QString name = QFileInfo(file).completeBaseName();
+                if (!names.contains(name, Qt::CaseInsensitive)) {
+                    names.append(name);
+                }
+            }
         }
+        names.sort(Qt::CaseInsensitive);
+        filterPresetName->addItems(names);
         filterPresetName->setCurrentText(current);
     }
 
@@ -12690,7 +12748,7 @@ private:
         if (name.isEmpty()) {
             return;
         }
-        QFile file(filterPresetPath(name));
+        QFile file(findFilterPresetFile(name));
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
             QMessageBox::warning(this, windowTitle(), QStringLiteral("Could not read %1:\n%2").arg(file.fileName(), file.errorString()));
             return;
@@ -13319,6 +13377,9 @@ private:
         relativePaths->setChecked(false);
         portableMode->setChecked(false);
         pathDefaultType->setCurrentText(QStringLiteral("User data directory"));
+        /* Paths and path flags are host settings: restore the persisted
+         * values instead of the factory defaults. */
+        loadHostSettings();
         logSelect->setCurrentText(QStringLiteral("winuaebootlog.txt"));
         fullLogging->setChecked(false);
         logWindow->setChecked(false);
@@ -13333,6 +13394,85 @@ private:
         updateOutputControlState();
         refreshConfigList();
         status->setText(QStringLiteral("Ready"));
+    }
+
+    struct HostPathBinding {
+        const char *key;
+        QLineEdit *edit;
+    };
+
+    QVector<HostPathBinding> hostPathBindings() const
+    {
+        return {
+            { "KickstartPath", romsPath },
+            { "ConfigurationPath", configsPath },
+            { "NVRAMPath", nvramPath },
+            { "ScreenshotPath", screenshotsPath },
+            { "StatefilePath", stateFilesPath },
+            { "VideoPath", videosPath },
+            { "SaveimagePath", saveImagesPath },
+            { "RipperPath", ripsPath },
+            { "DataPath", dataPath },
+        };
+    }
+
+    struct HostFlagBinding {
+        const char *key;
+        QCheckBox *box;
+    };
+
+    QVector<HostFlagBinding> hostFlagBindings() const
+    {
+        return {
+            { "RecursiveROMScan", recursiveRoms },
+            { "ConfigurationCache", cacheConfigurations },
+            { "ArtCache", cacheBoxArt },
+            { "SaveImageOriginalPath", saveImageOriginalPath },
+        };
+    }
+
+    void loadHostSettings()
+    {
+        if (!hardwareProvider.hostSettingGet) {
+            return;
+        }
+        char value[4096];
+        for (const HostPathBinding &binding : hostPathBindings()) {
+            if (binding.edit && hardwareProvider.hostSettingGet(hardwareProvider.context, binding.key, value, sizeof value)) {
+                binding.edit->setText(QString::fromLocal8Bit(value));
+            }
+        }
+        for (const HostFlagBinding &binding : hostFlagBindings()) {
+            if (binding.box && hardwareProvider.hostSettingGet(hardwareProvider.context, binding.key, value, sizeof value)) {
+                binding.box->setChecked(QString::fromLocal8Bit(value).toInt() != 0);
+            }
+        }
+    }
+
+    void saveHostSettings()
+    {
+        if (!hardwareProvider.hostSettingSet) {
+            return;
+        }
+        for (const HostPathBinding &binding : hostPathBindings()) {
+            if (binding.edit) {
+                hardwareProvider.hostSettingSet(hardwareProvider.context, binding.key, binding.edit->text().toLocal8Bit().constData());
+            }
+        }
+        for (const HostFlagBinding &binding : hostFlagBindings()) {
+            if (binding.box) {
+                hardwareProvider.hostSettingSet(hardwareProvider.context, binding.key, binding.box->isChecked() ? "1" : "0");
+            }
+        }
+        if (hardwareProvider.hostSettingsFlush) {
+            hardwareProvider.hostSettingsFlush(hardwareProvider.context);
+        }
+    }
+
+    void done(int result) override
+    {
+        saveHostSettings();
+        QDialog::done(result);
     }
 
     void applyModelPreset(const QString &model)
@@ -13717,7 +13857,16 @@ private:
             normalized.device = winUaeQtSanitizedAmigaName(normalized.device, nextMountDeviceName(), true);
             normalized.volume = winUaeQtSanitizedAmigaName(normalized.volume, winUaeQtDefaultVolumeName(normalized.path), false);
         } else if (normalized.kind == QStringLiteral("hdf")) {
-            normalized.device = winUaeQtSanitizedAmigaName(normalized.device, nextMountDeviceName(), true);
+            if (winUaeQtHardfileIsRdb(normalized)
+                && winUaeQtHardfileUsesNonUaeController(normalized)) {
+                normalized.device.clear();
+                normalized.bootPri = 0;
+            } else {
+                normalized.device = winUaeQtSanitizedAmigaName(
+                    normalized.device,
+                    nextMountDeviceName(),
+                    true);
+            }
         } else if (normalized.kind == QStringLiteral("cd")) {
             normalized.device.clear();
             normalized.volume = QStringLiteral("CD");
@@ -13752,6 +13901,11 @@ private:
         } else if (normalized.kind == QStringLiteral("hdf")) {
             const QStringList geometry = normalized.hardfileGeometry.split(QLatin1Char(','));
             blockSizeText = geometry.value(3, QStringLiteral("512"));
+            if (winUaeQtHardfileUsesNonUaeController(normalized)) {
+                deviceText = mountControllerDisplay(boardCatalog, normalized);
+                volumeText = QStringLiteral("HDF");
+                bootPriText = QStringLiteral("n/a");
+            }
         }
 
         item->setText(0, QString());
@@ -14046,7 +14200,10 @@ private:
         QLineEdit *path = new QLineEdit(entry->path);
         QLineEdit *geometryFile = new QLineEdit(hardfileTailGeometryFile(*entry));
         QLineEdit *filesys = new QLineEdit(mountControllerParts(entry->hardfileTail).value(0));
-        QLineEdit *device = new QLineEdit(entry->device.isEmpty() ? nextMountDeviceName() : entry->device);
+        const bool controllerBackedRdb = hardfileIsRdb(*entry)
+            && winUaeQtHardfileUsesNonUaeController(*entry);
+        QLineEdit *device = new QLineEdit(
+            entry->device.isEmpty() && !controllerBackedRdb ? nextMountDeviceName() : entry->device);
         QSpinBox *bootPri = new QSpinBox;
         bootPri->setRange(-129, 127);
         bootPri->setValue(entry->bootPri);
@@ -14106,9 +14263,11 @@ private:
         fields->addWidget(label(QStringLiteral("FileSys:")), 2, 0);
         fields->addWidget(filesys, 2, 1, 1, 2);
         fields->addWidget(filesysBrowse, 2, 3);
-        fields->addWidget(label(QStringLiteral("Device:")), 3, 0);
+        QLabel *deviceLabel = label(QStringLiteral("Device:"));
+        QLabel *bootPriLabel = label(QStringLiteral("Boot priority:"));
+        fields->addWidget(deviceLabel, 3, 0);
         fields->addWidget(device, 3, 1);
-        fields->addWidget(label(QStringLiteral("Boot priority:")), 3, 2);
+        fields->addWidget(bootPriLabel, 3, 2);
         fields->addWidget(bootPri, 3, 3);
         fields->addWidget(readWrite, 4, 1);
         fields->addWidget(autoboot, 4, 2);
@@ -14185,12 +14344,40 @@ private:
             readWrite->setEnabled(!nativeDrive);
             browse->setEnabled(!nativeDrive);
         };
+        auto updateControllerBackedRdbControls =
+            [this, controller, sectors, surfaces, reserved, device,
+             deviceLabel, bootPri, bootPriLabel, autoboot, doNotMount]() {
+            const WinUaeQtMountControllerBus bus =
+                mountControllerBusFromDisplay(boardCatalog, controller->currentText());
+            const bool controllerBacked = sectors->value() == 0
+                && surfaces->value() == 0
+                && reserved->value() == 0
+                && bus != MountControllerBusUae
+                && bus != MountControllerBusUnknown;
+
+            if (controllerBacked) {
+                QSignalBlocker blockDevice(device);
+                QSignalBlocker blockBootPri(bootPri);
+                device->clear();
+                bootPri->setValue(0);
+            } else if (device->text().trimmed().isEmpty()) {
+                QSignalBlocker blockDevice(device);
+                device->setText(nextMountDeviceName());
+            }
+            deviceLabel->setEnabled(!controllerBacked);
+            device->setEnabled(!controllerBacked);
+            bootPriLabel->setVisible(!controllerBacked);
+            bootPri->setVisible(!controllerBacked);
+            autoboot->setVisible(!controllerBacked);
+            doNotMount->setVisible(!controllerBacked);
+        };
 
         updateBootChecks();
         updatePhysicalControls();
         updateControllerUnitRange(controllerUnit, controller->currentText());
         setFeatureItems(hardfileFeatureText(boardCatalog, *entry, controller->currentText()));
         updateNativeDriveControls();
+        updateControllerBackedRdbControls();
 
         connect(browse, &QPushButton::clicked, this, [this, path]() {
             const QString initialPath = fileDialogInitialPath(path->text());
@@ -14232,7 +14419,9 @@ private:
                 bootPri->setValue(-128);
             }
         });
-        connect(rdbMode, &QCheckBox::toggled, this, [sectors, surfaces, reserved, blockSize, device, filesys, bootPri](bool checked) {
+        connect(rdbMode, &QCheckBox::toggled, this,
+            [sectors, surfaces, reserved, blockSize, device, filesys,
+             bootPri, updateControllerBackedRdbControls](bool checked) {
             if (checked) {
                 sectors->setValue(0);
                 surfaces->setValue(0);
@@ -14247,12 +14436,20 @@ private:
                 reserved->setValue(2);
                 blockSize->setValue(512);
             }
+            updateControllerBackedRdbControls();
         });
         connect(manualGeometry, &QCheckBox::toggled, this, updatePhysicalControls);
-        connect(controller, &QComboBox::currentTextChanged, this, [this, controllerUnit, setFeatureItems](const QString &text) {
+        connect(controller, &QComboBox::currentTextChanged, this,
+            [this, controllerUnit, setFeatureItems,
+             updateControllerBackedRdbControls](const QString &text) {
             updateControllerUnitRange(controllerUnit, text);
             setFeatureItems(QStringLiteral("Default"));
+            updateControllerBackedRdbControls();
         });
+        for (QSpinBox *spin : { sectors, surfaces, reserved }) {
+            connect(spin, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, updateControllerBackedRdbControls);
+        }
         connect(path, &QLineEdit::editingFinished, this, updateNativeDriveControls);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -14262,9 +14459,7 @@ private:
         }
 
         entry->kind = QStringLiteral("hdf");
-        entry->device = winUaeQtSanitizedAmigaName(device->text(), nextMountDeviceName(), true);
         entry->path = path->text().trimmed();
-        entry->bootPri = bootPri->value();
         entry->readOnly = !readWrite->isChecked() || entry->path.startsWith(QLatin1Char(':'));
         entry->hardfileGeometry = QStringLiteral("%1,%2,%3,%4")
             .arg(sectors->value())
@@ -14294,6 +14489,13 @@ private:
         }
         tailFields.append(hardfilePreservedTailExtras(*entry));
         entry->hardfileTail = winUaeQtConfigJoinFields(tailFields);
+        const bool acceptedControllerBackedRdb = winUaeQtHardfileIsRdb(*entry)
+            && winUaeQtHardfileUsesNonUaeController(*entry);
+        entry->device = winUaeQtSanitizedAmigaName(
+            device->text(),
+            acceptedControllerBackedRdb ? QString() : nextMountDeviceName(),
+            true);
+        entry->bootPri = acceptedControllerBackedRdb ? 0 : bootPri->value();
         return true;
     }
 
@@ -14636,9 +14838,9 @@ private:
             const int driveType = dfEnable[i]->isChecked() ? floppyTypeConfigValue(dfType[i]->currentText()) : -1;
             settings.insert(QStringLiteral("floppy%1type").arg(i), QString::number(driveType));
             settings.insert(QStringLiteral("floppy%1wp").arg(i), dfWriteProtect[i]->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
-            if (driveType >= 0 && !dfPath[i]->currentText().isEmpty()) {
-                settings.insert(QStringLiteral("floppy%1").arg(i), dfPath[i]->currentText());
-            }
+            /* Always write the path, empty included, so ejecting a disk in
+             * the runtime GUI reaches the core's disk-change detection. */
+            settings.insert(QStringLiteral("floppy%1").arg(i), driveType >= 0 ? dfPath[i]->currentText() : QString());
         }
         settings.insert(QStringLiteral("nr_floppies"), QString::number(enabledFloppyCount()));
         settings.insert(QStringLiteral("floppy_speed"), QString::number(floppySpeedConfigValue(floppySpeed->value())));
@@ -15042,7 +15244,9 @@ private:
         settings.insert(QStringLiteral("gfx_filter_enable_lace"), filterStateFromUi(2).enable ? QStringLiteral("1") : QStringLiteral("0"));
         for (int i = 0; i < MaxCdSlots; i++) {
             const QString value = cdSlotConfigValue(cdSlotState(i));
-            if (!value.isEmpty()) {
+            /* Slot 0 is always written, empty included, so ejecting the CD
+             * in the runtime GUI reaches the core. */
+            if (!value.isEmpty() || i == 0) {
                 settings.insert(QStringLiteral("cdimage%1").arg(i), value);
             }
         }
@@ -15815,6 +16019,16 @@ private:
         inputMappingSettings.clear();
         inputOwnedMappingKeys.clear();
         hardwareOrderOwnedKeys.clear();
+        /* A config without a quickstart line is a full configuration: leave
+         * quickstart mode off so no quickstart key gets synthesized into the
+         * merged config. The quickstart key handler re-enables it. */
+        if (quickstartMode) {
+            const QSignalBlocker quickstartBlocker(quickstartMode);
+            quickstartMode->setChecked(false);
+            if (quickstartSetConfig) {
+                quickstartSetConfig->setVisible(true);
+            }
+        }
         moveQuickstartBeforeOverrides(config);
         for (const WinUaeQtConfig::Setting &setting : config.orderedSettings()) {
             applySetting(setting.key, setting.value);
@@ -16033,7 +16247,14 @@ private:
             chipset->setCurrentText(chipsetText(value));
         } else if (key == QStringLiteral("chipset_compatible")) {
             chipsetCompatible->setCurrentText(value);
-            quickModel->setCurrentText(value);
+            /* Sync the quickstart model display only; applying the model
+             * preset here would overwrite the explicit settings of the
+             * config being loaded. */
+            {
+                const QSignalBlocker modelBlocker(quickModel);
+                quickModel->setCurrentText(value);
+            }
+            refreshQuickstartConfigurationChoices();
         } else if (key == QStringLiteral("ntsc")) {
             chipsetNtsc->setChecked(configBoolValue(value));
             ntsc->setChecked(configBoolValue(value));
@@ -16161,6 +16382,11 @@ private:
             updateCpuControlState();
         } else if (key == QStringLiteral("fpu_model")) {
             setFpuButton(value.toInt());
+        } else if (key == QStringLiteral("nr_floppies")) {
+            const int count = qBound(0, value.toInt(), 4);
+            for (int i = 0; i < 4; i++) {
+                dfEnable[i]->setChecked(i < count);
+            }
         } else if (key == QStringLiteral("cpu_24bit_addressing")) {
             cpu24Bit->setChecked(value.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
             updateCpuControlState();
@@ -16702,6 +16928,11 @@ private:
 
     void startEmulator()
     {
+        requestStart(false);
+    }
+
+    void requestStart(bool hardReset)
+    {
         const WinUaeQtConfig config = mergedConfig();
         const QStringList validationErrors = config.validateForLaunch();
         if (!validationErrors.isEmpty()) {
@@ -16711,6 +16942,7 @@ private:
         }
 
         result.status = WinUaeQtLauncherStatus::StartRequested;
+        result.hardReset = hardReset;
         result.config = config;
         accept();
     }
@@ -16836,6 +17068,11 @@ static void armQtSmokeExit(QDialog &dialog, QApplication *app = nullptr)
     });
 }
 
+bool winUaeQtArgumentsSpecifyConfig(const QStringList &arguments)
+{
+    return !initialConfigPathFromArguments(arguments).isEmpty();
+}
+
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app)
 {
     return runWinUaeQtLauncherForConfig(app, QString());
@@ -16857,6 +17094,20 @@ WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QSt
         qtApp->setConfigOpenHandler([&dialog](const QString &path) {
             dialog.openConfigFile(path);
         });
+    }
+    /* Test hook: load the initial config, immediately export the merged
+     * config, and exit. Lets the smoke tests verify that configuration
+     * values survive the trip through the UI widgets. */
+    const QByteArray roundtripOut = qgetenv("WINUAE_QT_CONFIG_ROUNDTRIP_OUT");
+    if (!roundtripOut.isEmpty()) {
+        WinUaeQtLauncherResult roundtripResult;
+        roundtripResult.status = WinUaeQtLauncherStatus::Canceled;
+        if (!dialog.exportMergedConfig(QString::fromLocal8Bit(roundtripOut))) {
+            roundtripResult.status = WinUaeQtLauncherStatus::Error;
+            roundtripResult.exitCode = 1;
+            roundtripResult.error = QStringLiteral("config roundtrip export failed");
+        }
+        return roundtripResult;
     }
     armQtSmokeExit(dialog);
     if (dialog.exec() == QDialog::Accepted) {

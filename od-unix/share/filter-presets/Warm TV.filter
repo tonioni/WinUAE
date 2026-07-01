@@ -1,0 +1,11 @@
+# WinUAE Qt filter preset
+gfx_filter_enable=1
+gfx_filter_bilinear=1
+gfx_filter_saturation=200
+gfx_filter_contrast=60
+gfx_filter_luminance=20
+gfx_filter_gamma=60
+gfx_filter_blur=120
+gfx_filter_noise=60
+gfx_filter_scanlines=30
+gfx_filter_scanlinelevel=10

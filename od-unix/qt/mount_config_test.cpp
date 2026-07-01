@@ -77,6 +77,21 @@ static bool testHardfileMount()
     ok = require(parseWinUaeQtHardfile2MountValue(expansionConfig, &expansionEntry), "expansion-controller hardfile did not parse") && ok;
     ok = requireText(expansionEntry.hardfileTail, QStringLiteral(",ide0_ripple,ATA2+"), "expansion-controller hardfile tail") && ok;
     ok = requireText(serializeWinUaeQtHardfile2MountValue(expansionEntry), expansionConfig, "expansion-controller hardfile serialized value") && ok;
+    WinUaeQtMountEntry rdbEntry;
+    const QString rdbConfig = QStringLiteral("rw,:/tmp/a4091.hdf,0,0,0,512,0,,scsi0_a4091");
+    ok = require(parseWinUaeQtHardfile2MountValue(rdbConfig, &rdbEntry),
+        "controller-backed RDB hardfile did not parse") && ok;
+    ok = require(winUaeQtHardfileIsRdb(rdbEntry), "controller-backed hardfile should be RDB") && ok;
+    ok = require(winUaeQtHardfileUsesNonUaeController(rdbEntry),
+        "controller-backed hardfile should use non-UAE controller") && ok;
+    ok = requireText(serializeWinUaeQtHardfile2MountValue(rdbEntry),
+        rdbConfig, "controller-backed RDB hardfile serialized value") && ok;
+    WinUaeQtMountEntry staleRdbEntry;
+    ok = require(parseWinUaeQtHardfile2MountValue(
+        QStringLiteral("rw,SCSI_0:/tmp/a4091.hdf,0,0,0,512,5,,scsi0_a4091"),
+        &staleRdbEntry), "stale controller-backed RDB hardfile did not parse") && ok;
+    ok = requireText(serializeWinUaeQtHardfile2MountValue(staleRdbEntry),
+        rdbConfig, "stale controller-backed RDB hardfile serialized value") && ok;
     return ok;
 }
 

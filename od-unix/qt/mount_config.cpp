@@ -121,6 +121,35 @@ QString winUaeQtConfigJoinFields(const QStringList &fields)
     return escapedFields.join(QLatin1Char(','));
 }
 
+static QString hardfileControllerValue(const WinUaeQtMountEntry &entry)
+{
+    QString tail = entry.hardfileTail;
+    if (!tail.startsWith(QLatin1Char(','))) {
+        tail.prepend(QLatin1Char(','));
+    }
+    const QStringList fields = winUaeQtConfigFieldList(tail);
+    return fields.value(1, QStringLiteral("uae0")).trimmed();
+}
+
+bool winUaeQtHardfileIsRdb(const WinUaeQtMountEntry &entry)
+{
+    if (entry.hardfileGeometry.trimmed().isEmpty()) {
+        return false;
+    }
+    const QStringList geometry = entry.hardfileGeometry.split(QLatin1Char(','));
+    return geometry.value(0).toInt() == 0
+        && geometry.value(1).toInt() == 0
+        && geometry.value(2).toInt() == 0;
+}
+
+bool winUaeQtHardfileUsesNonUaeController(const WinUaeQtMountEntry &entry)
+{
+    const QString controller = hardfileControllerValue(entry).toLower();
+    return controller.startsWith(QStringLiteral("ide"))
+        || controller.startsWith(QStringLiteral("scsi"))
+        || controller.startsWith(QStringLiteral("custom"));
+}
+
 static bool parseAccessValue(const QString &value, bool *readOnly)
 {
     if (value.compare(QStringLiteral("ro"), Qt::CaseInsensitive) == 0) {
@@ -280,12 +309,18 @@ QString serializeWinUaeQtHardfile2MountValue(const WinUaeQtMountEntry &entry)
 {
     const QString geometry = entry.hardfileGeometry.isEmpty() ? QStringLiteral("32,1,2,512") : entry.hardfileGeometry;
     const QString tail = entry.hardfileGeometry.isEmpty() && entry.hardfileTail.isEmpty() ? QStringLiteral(",uae0") : entry.hardfileTail;
+    const bool controllerBackedRdb = winUaeQtHardfileIsRdb(entry)
+        && winUaeQtHardfileUsesNonUaeController(entry);
+    const QString device = controllerBackedRdb
+        ? QString()
+        : winUaeQtSanitizedAmigaName(entry.device, QStringLiteral("DH0"), true);
+    const int bootPri = controllerBackedRdb ? 0 : entry.bootPri;
     QString value = QStringLiteral("%1,%2:%3,%4,%5")
         .arg(winUaeQtConfigAccessValue(entry.readOnly),
-             winUaeQtSanitizedAmigaName(entry.device, QStringLiteral("DH0"), true),
+             device,
              winUaeQtConfigEscapeMin(entry.path),
              geometry,
-             QString::number(entry.bootPri));
+             QString::number(bootPri));
     if (!tail.isEmpty()) {
         value += QStringLiteral(",") + tail;
     }
