@@ -6,6 +6,7 @@
 #include "threaddep/thread.h"
 #include "machdep/rpt.h"
 #include "memory.h"
+#include "newcpu.h"
 #include "cpuboard.h"
 #include "debug.h"
 #include "custom.h"
@@ -41,6 +42,7 @@ static volatile int spinlock_cnt;
 #endif
 
 static volatile bool ppc_spinlock_waiting;
+static volatile bool qemu_ppc_jit_flush_pending;
 
 #ifdef WIN32_SPINLOCK
 #define CRITICAL_SECTION_SPIN_COUNT 5000
@@ -157,6 +159,7 @@ typedef void (PPCCALL *ppc_cpu_pause_function)(int pause);
 typedef bool (PPCCALL *ppc_cpu_check_state_function)(int state);
 typedef void (PPCCALL *ppc_cpu_set_state_function)(int state);
 typedef void (PPCCALL *ppc_cpu_reset_function)(void);
+typedef void (PPCCALL *ppc_cpu_flush_jit_function)(void);
 
 /* Function pointers to active PPC implementation */
 
@@ -182,6 +185,7 @@ static struct impl {
 	ppc_cpu_check_state_function check_state;
 	ppc_cpu_set_state_function set_state;
 	ppc_cpu_reset_function reset;
+	ppc_cpu_flush_jit_function flush_jit;
 	qemu_uae_ppc_in_cpu_thread_function in_cpu_thread;
 	qemu_uae_ppc_external_interrupt_function external_interrupt;
 	qemu_uae_lock_function lock;
@@ -248,6 +252,10 @@ static bool load_qemu_implementation(void)
 	impl.check_state = (ppc_cpu_check_state_function) uae_dlsym(handle, "ppc_cpu_check_state");
 	impl.set_state = (ppc_cpu_set_state_function) uae_dlsym(handle, "ppc_cpu_set_state");
 	impl.reset = (ppc_cpu_reset_function) uae_dlsym(handle, "ppc_cpu_reset");
+	impl.flush_jit = (ppc_cpu_flush_jit_function) uae_dlsym(handle, "ppc_cpu_flush_jit");
+	if (impl.flush_jit) {
+		write_log(_T("PPC: Imported optional ppc_cpu_flush_jit\n"));
+	}
 	impl.in_cpu_thread = (qemu_uae_ppc_in_cpu_thread_function) uae_dlsym(handle, "qemu_uae_ppc_in_cpu_thread");
 	impl.lock = (qemu_uae_lock_function) uae_dlsym(handle, "qemu_uae_lock");
 
@@ -310,6 +318,22 @@ static bool using_qemu(void)
 static bool using_pearpc(void)
 {
 	return ppc_implementation == PPC_IMPLEMENTATION_PEARPC;
+}
+
+void uae_ppc_mark_code_cache_dirty(void)
+{
+	qemu_ppc_jit_flush_pending = true;
+}
+
+static void request_qemu_ppc_jit_flush(void)
+{
+	/* OS3.x/WarpOS can patch PPC code/page tables from the m68k side,
+	 * bypassing QEMU's PPC softmmu. Flush once at the next m68k->PPC handoff. */
+	if (!qemu_ppc_jit_flush_pending || !using_qemu() || !impl.flush_jit || regs.halted) {
+		return;
+	}
+	qemu_ppc_jit_flush_pending = false;
+	impl.flush_jit();
 }
 
 enum PPCLockMethod {
@@ -599,6 +623,7 @@ static void uae_ppc_cpu_reset(void)
 
 	if (using_qemu()) {
 		impl.reset();
+		qemu_ppc_jit_flush_pending = true;
 	} else if (using_pearpc()) {
 		write_log(_T("PPC: Init\n"));
 		impl.set_pc(0, 0xfff00100);
@@ -627,6 +652,7 @@ static void ppc_thread(void *v)
 void uae_ppc_execute_check(void)
 {
 	if (ppc_spinlock_waiting) {
+		request_qemu_ppc_jit_flush();
 		uae_ppc_spinlock_release();
 		uae_ppc_spinlock_get();
 	}
@@ -634,6 +660,7 @@ void uae_ppc_execute_check(void)
 
 void uae_ppc_execute_quick()
 {
+	request_qemu_ppc_jit_flush();
 	uae_ppc_spinlock_release();
 	sleep_millis_main(1);
 	uae_ppc_spinlock_get();
