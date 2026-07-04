@@ -9,11 +9,14 @@ class QApplication;
 enum class WinUaeQtLauncherStatus {
     Canceled,
     StartRequested,
+    QuitRequested,
+    RestartRequested,
     Error
 };
 
 struct WinUaeQtLauncherResult {
     WinUaeQtLauncherStatus status = WinUaeQtLauncherStatus::Canceled;
+    bool hardReset = false;
     int exitCode = 0;
     QString error;
     WinUaeQtConfig config;
@@ -113,6 +116,9 @@ struct WinUaeQtBoardCatalog {
 
 struct WinUaeQtHardwareInfoProvider {
     void *context = nullptr;
+    bool (*hostSettingGet)(void *context, const char *key, char *out, int outLen) = nullptr;
+    void (*hostSettingSet)(void *context, const char *key, const char *value) = nullptr;
+    void (*hostSettingsFlush)(void *context) = nullptr;
     WinUaeQtBoardCatalog (*boardCatalog)(void *context) = nullptr;
     bool (*applyConfig)(void *context, const WinUaeQtConfig &config) = nullptr;
     QVector<WinUaeQtHardwareBoard> (*boards)(void *context) = nullptr;
@@ -134,6 +140,7 @@ struct WinUaeQtHardwareInfoProvider {
     void (*runProWizard)(void *context) = nullptr;
 };
 
+bool winUaeQtArgumentsSpecifyConfig(const QStringList &arguments);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider);

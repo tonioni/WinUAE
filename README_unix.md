@@ -4,7 +4,7 @@ This is an early macOS/Linux port of the WinUAE source tree. The current Unix bu
 
 ## Current Status
 
-- Builds with CMake as `winuae_unix`.
+- Builds with CMake as the `winuae_unix` target, producing a `winuae` binary.
 - Uses `od-unix/` host abstractions.
 - SDL3 provides the current window, framebuffer presentation, mouse input, keyboard input, audio output, and playback-device selection.
 - SDL3 gamepads and non-gamepad joysticks are exposed through the WinUAE input-device layer for game-port use; the Qt Game Ports/Input pages have first remap/test dialogs backed by SDL3 device enumeration and WinUAE config keys.
@@ -137,7 +137,7 @@ cmake --build /tmp/winuae_cmake_build --target winuae_unix -j
 The executable will be:
 
 ```sh
-/tmp/winuae_cmake_build/winuae_unix
+/tmp/winuae_cmake_build/winuae
 ```
 
 On Linux, install the executable, shared resources, documentation, and desktop/MIME metadata into a prefix with:
@@ -147,9 +147,10 @@ cmake --install /tmp/winuae_cmake_build --prefix /opt/winuae
 ```
 
 This installs the desktop entry, `.uae` MIME type, and hicolor icons. The
-installed Linux command is `winuae`; the build-tree executable remains
-`winuae_unix` to keep the existing developer targets stable. On macOS, use the
-`.app` and DMG targets below instead of installing the raw executable.
+binary is named `winuae` everywhere — build tree, installed command, and app
+bundle; only the CMake target keeps the `winuae_unix` name for developer
+stability. On macOS, use the `.app` and DMG targets below instead of
+installing the raw executable.
 
 On Linux, CPack can create packages from the same install rules:
 
@@ -175,6 +176,13 @@ options can be passed after `--`, for example:
 ```sh
 tools/debian-build-package.sh -- -DWINUAE_UNIX_WITH_QT_UI=OFF
 ```
+
+Archive and CHD support compile the 7-Zip/LZMA SDK sources. A system SDK
+source package (for example the openSUSE `lzma-sdk-devel` package) is used
+when found under `WINUAE_LZMA_SDK_SYSTEM_PATHS` (or an explicit
+`-DWINUAE_LZMA_SDK_DIR=`); otherwise `WINUAE_LZMA_SDK_FETCH` downloads the
+SHA-verified `lzma1604.7z` archive. Pass `-DWINUAE_LZMA_SDK_FETCH=OFF` for
+offline distribution builds.
 
 To build a package from a prebuilt QEMU-UAE plugin, pass:
 
@@ -312,7 +320,7 @@ cmake --build /tmp/winuae_cmake_build --target winuae_unix -j
 The port accepts normal WinUAE command-line `-s` configuration overrides. A minimal A1200 example:
 
 ```sh
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -s kickstart_rom_file=/path/to/A1200.rom \
   -s floppy0=/path/to/disk.adf \
   -s nr_floppies=1 \
@@ -326,12 +334,21 @@ The port accepts normal WinUAE command-line `-s` configuration overrides. A mini
 When the integrated Qt UI is built, `winuae_unix` opens the configuration UI by default. To boot directly from a config or command-line settings, disable the GUI:
 
 ```sh
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -f /path/to/config.uae \
   -s use_gui=no
 ```
 
-The executable also tries to load `~/default.uae` by default. A missing default config is ignored silently; explicit `-config` / `-f` load failures are still reported.
+The executable also tries to load `default.uae` from the configuration path by default, and the Qt configuration UI starts with it loaded when it exists — save a configuration named `default` to set your startup defaults, like on Windows. Configs given on the command line take precedence. A missing default config is ignored silently; explicit `-config` / `-f` load failures are still reported.
+
+Host settings (the Paths page directories and flags) persist in `winuae.ini`:
+a `winuae.ini` next to the executable is used when present (portable mode,
+matching Windows); otherwise `$XDG_CONFIG_HOME/winuae/winuae.ini` on Linux
+(default `~/.config/winuae/winuae.ini`) and
+`~/Library/Application Support/WinUAE/winuae.ini` on macOS. The `WINUAE_INI`
+environment variable overrides the location. Configs loaded per session can
+still override individual paths through the `unix.*_path` settings, which win
+over the stored host defaults.
 
 Unix path expansion is supported for `~/`, `$VAR`, and `${VAR}` in core config paths and Qt file/config boundaries. Relative config and media paths are resolved against the process working directory, matching the non-relative Windows save mode; the Windows-style relative-path save option is not enabled on Unix yet. The Qt Paths page saves runtime-visible target path settings such as `unix.screenshot_path`, `unix.rip_path`, `unix.video_path`, and `statefile_path`; legacy `unix.ui.*` path settings are still accepted when loading older configs. `~user` expansion is not implemented; use an absolute path for another user's home directory.
 
@@ -342,7 +359,7 @@ For SANA-II `uaenet.device` startup testing, add `-s sana2=true` or use the smok
 SDL3 audio uses the WinUAE `sound_output`, `sound_frequency`, `sound_channels`, `sound_volume*`, and floppy drive sound config keys. Unix playback device selection follows the same target-prefixed style as Windows:
 
 ```sh
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -s unix.soundcard=0 \
   -s 'unix.soundcardname=SDL:Default Audio Device'
 ```
@@ -361,12 +378,12 @@ The Unix serial backend follows the same target-prefixed config style as Windows
 
 ```sh
 # Real serial device
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -s unix.serial_port=/dev/cu.usbserial-0001 \
   -s serial_hardware_ctsrts=true
 
 # Telnet-style TCP listener on all local interfaces, port 1234
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -s unix.serial_port=TCP://0.0.0.0:1234
 ```
 
@@ -440,7 +457,7 @@ FireStorm, Mediator 4000, and G-REX PCI bridges.
 For manual A4091 autoconfig smoke tests, use an A4000/A4000T-style config, disable 24-bit CPU addressing, and provide a real A4091 ROM:
 
 ```sh
-/tmp/winuae_cmake_build/winuae_unix \
+/tmp/winuae_cmake_build/winuae \
   -s use_gui=no \
   -s kickstart_rom_file=/path/to/A4000.rom \
   -s a4091_rom_file=/path/to/a4091.rom \
@@ -524,7 +541,7 @@ Optional overrides:
 
 ```sh
 export WINUAE_BUILD_DIR=/tmp/winuae_cmake_build
-export WINUAE_EXE=/tmp/winuae_cmake_build/winuae_unix
+export WINUAE_EXE=/tmp/winuae_cmake_build/winuae
 export WINUAE_SMOKE_SECONDS=5
 export WINUAE_SMOKE_LOG=/tmp/winuae_unix_smoke.log
 ```
@@ -537,7 +554,7 @@ export WINUAE_SMOKE_LOG=/tmp/winuae_unix_smoke.log
 - Press `Ctrl+Q` or `Cmd+Q` to quit.
 - SDL3 gamepads use the standard SDL layout: left stick and D-pad map to joystick directions, South/East/West/North map to the first four buttons, and CD32 mode follows the Windows default button order where possible.
 - Non-gamepad SDL joysticks expose their native axes, hats, and buttons; hats also map to joystick directions by default.
-- Press `F12` to open the integrated Qt settings UI during emulation.
+- Press `F12` to open the integrated Qt settings UI during emulation. The button row matches the Windows GUI: `OK` applies the edited configuration and resumes (floppy/CD changes are picked up live, including ejects), `Reset` applies the configuration and hard-resets the Amiga, `Restart` quits the running Amiga and returns to the launcher, `Quit` exits the emulator, and `Cancel` resumes without applying changes.
 - The screenshot file input event and integrated runtime Qt Output-page button save under the configured Screenshots directory. Unix uses PNG when libpng is found at configure time and falls back to BMP otherwise. On macOS, libpng must also pass the configured deployment-target check; a newer Homebrew libpng is skipped so release builds stay compatible with the selected minimum macOS. SDL3 builds can also copy the screenshot event output to the host clipboard as BMP data, and clipboard sharing can exchange PNG plus macOS TIFF image data when the matching native codecs are available. Unix screenshots now cover autoclip, palette-indexed PNG when the framebuffer has 256 or fewer colors, continuous screenshot directories, and the savestate thumbnail byte helper. The Output page can also start internal DIB RGB AVI capture, PCM-in-AVI audio capture, and WAV audio capture.
 - SDL3 builds can enable an OpenGL shader presenter with `WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE`. When OpenGL is available, the Filter page's portable color, blur, noise, scanline, bilinear, and geometry controls are applied by a native GLSL path. Direct3D shader preset files, mask/overlay chains, HDR, and Metal/Vulkan backends are still future work.
 - CHD hardfile and CD image support is built by default. CHD FLAC codecs require libFLAC that is compatible with the configured macOS deployment target; otherwise CHD remains enabled without FLAC-compressed CD codecs.

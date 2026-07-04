@@ -11,9 +11,12 @@
 #include "custom.h"
 #include "inputdevice.h"
 #include "gui.h"
+#include "registry.h"
+#include "target.h"
 #include "target_main.h"
 #include "savestate.h"
 #include "sounddep/sound.h"
+#include "uae.h"
 
 #ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
 #include "qt/launcher_bridge.h"
@@ -38,7 +41,23 @@ int target_main_handle_early(int argc, TCHAR **argv)
 int gui_init(void)
 {
 #ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
-    const int action = runWinUaeQtLauncherForPrefs(unix_gui_argc, unix_gui_argv, &changed_prefs, 0);
+    /* Seed the launcher from default.uae like the Windows GUI: the core
+     * already loaded it into the prefs (main.cpp real_main), but the Qt
+     * launcher builds its state from the configuration file. */
+    TCHAR default_config[MAX_DPATH];
+    fetch_configurationpath(default_config, sizeof default_config / sizeof default_config[0]);
+    _tcscat(default_config, OPTIONSFILENAME);
+    /* Command-line configs are resolved by the launcher itself and win
+     * over default.uae, like on Windows. */
+    const bool have_default = !winUaeQtLauncherArgumentsSpecifyConfig(unix_gui_argc, unix_gui_argv)
+        && access(default_config, R_OK) == 0;
+    const int action = runWinUaeQtLauncherForPrefsWithConfig(
+        unix_gui_argc,
+        unix_gui_argv,
+        &changed_prefs,
+        have_default ? default_config : nullptr,
+        0,
+        nullptr);
     if (action == WINUAE_QT_LAUNCHER_START) {
         return 1;
     }
@@ -51,7 +70,10 @@ int gui_init(void)
 #endif
 }
 int gui_update(void) { return 1; }
-void gui_exit(void) {}
+void gui_exit(void)
+{
+    registry_flush();
+}
 void gui_led(int led, int on, int brightness)
 {
     if (on >= 0 && led >= 0 && led < int(sizeof(gui_ledstate) * 8)) {
@@ -248,18 +270,26 @@ void gui_display(int shortcut)
             unix_gui_argv,
             &changed_prefs,
             have_snapshot ? snapshot_path : nullptr,
+            1,
             &exit_code);
 
         if (have_snapshot) {
             unlink(snapshot_path);
         }
 
-        if (action == WINUAE_QT_LAUNCHER_START) {
+        if (action == WINUAE_QT_LAUNCHER_START || action == WINUAE_QT_LAUNCHER_RESET) {
             fixup_prefs(&changed_prefs, true);
             reset_sound();
             inputdevice_copyconfig(&changed_prefs, &currprefs);
             inputdevice_config_change_test();
             set_config_changed();
+            if (action == WINUAE_QT_LAUNCHER_RESET) {
+                uae_reset(1, 1);
+            }
+        } else if (action == WINUAE_QT_LAUNCHER_QUIT) {
+            uae_quit();
+        } else if (action == WINUAE_QT_LAUNCHER_RESTART) {
+            uae_restart(&changed_prefs, -1, nullptr);
         } else if (action == WINUAE_QT_LAUNCHER_ERROR) {
             write_log("Unix Qt runtime UI exited with error code %d\n", exit_code);
         }

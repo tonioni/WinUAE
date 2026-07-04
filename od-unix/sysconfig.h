@@ -22,6 +22,7 @@
 #endif
 
 #define SUPPORT_THREADS 1
+#define WITH_THREADED_CPU 1
 #define MAX_DPATH 1000
 #define MAX_AMIGAMONITORS 4
 #define MAX_AMIGADISPLAYS 4

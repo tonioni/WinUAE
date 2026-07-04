@@ -29,6 +29,7 @@
 #include "zfile.h"
 #include "gfxboard.h"
 #include "ethernet.h"
+#include "registry.h"
 #ifdef PROWIZARD
 #include "moduleripper.h"
 #endif
@@ -480,10 +481,30 @@ static void bridgePollHostWindowEvents(void *)
     unix_host_check_quit();
 }
 
+static bool bridgeHostSettingGet(void *, const char *key, char *out, int outLen)
+{
+    int size = outLen;
+    out[0] = 0;
+    return regquerystr(nullptr, key, out, &size) != 0;
+}
+
+static void bridgeHostSettingSet(void *, const char *key, const char *value)
+{
+    regsetstr(nullptr, key, value);
+}
+
+static void bridgeHostSettingsFlush(void *)
+{
+    registry_flush();
+}
+
 static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *prefs, bool runtimeActions)
 {
     WinUaeQtHardwareInfoProvider provider;
     provider.context = prefs;
+    provider.hostSettingGet = bridgeHostSettingGet;
+    provider.hostSettingSet = bridgeHostSettingSet;
+    provider.hostSettingsFlush = bridgeHostSettingsFlush;
     provider.boardCatalog = bridgeBoardCatalog;
     provider.applyConfig = bridgeApplyHardwareConfig;
     provider.boards = bridgeHardwareBoards;
@@ -510,17 +531,27 @@ static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *pre
     return provider;
 }
 
-int runWinUaeQtLauncherForPrefs(int argc, char **argv, struct uae_prefs *prefs, int *exitCode)
+int winUaeQtLauncherArgumentsSpecifyConfig(int argc, char **argv)
 {
-    return runWinUaeQtLauncherForPrefsWithConfig(argc, argv, prefs, nullptr, exitCode);
+    QStringList arguments;
+    arguments.reserve(argc);
+    for (int i = 0; i < argc; i++) {
+        arguments.append(QString::fromLocal8Bit(argv[i]));
+    }
+    return winUaeQtArgumentsSpecifyConfig(arguments) ? 1 : 0;
 }
 
-int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_prefs *prefs, const char *initialConfigPath, int *exitCode)
+int runWinUaeQtLauncherForPrefs(int argc, char **argv, struct uae_prefs *prefs, int *exitCode)
+{
+    return runWinUaeQtLauncherForPrefsWithConfig(argc, argv, prefs, nullptr, 0, exitCode);
+}
+
+int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_prefs *prefs, const char *initialConfigPath, int runtimeActions, int *exitCode)
 {
     const QString initialPath = initialConfigPath && initialConfigPath[0]
         ? QString::fromLocal8Bit(initialConfigPath)
         : QString();
-    WinUaeQtLauncherResult result = runWinUaeQtLauncherForConfig(argc, argv, initialPath, bridgeHardwareProvider(prefs, !initialPath.isEmpty()));
+    WinUaeQtLauncherResult result = runWinUaeQtLauncherForConfig(argc, argv, initialPath, bridgeHardwareProvider(prefs, runtimeActions != 0));
     if (result.status == WinUaeQtLauncherStatus::StartRequested) {
         if (!applyWinUaeQtConfigToPrefs(result.config, prefs)) {
             fprintf(stderr, "Unix Qt UI failed: no preferences target available\n");
@@ -529,7 +560,19 @@ int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_pref
             }
             return WINUAE_QT_LAUNCHER_ERROR;
         }
-        return WINUAE_QT_LAUNCHER_START;
+        return result.hardReset ? WINUAE_QT_LAUNCHER_RESET : WINUAE_QT_LAUNCHER_START;
+    }
+    if (result.status == WinUaeQtLauncherStatus::QuitRequested) {
+        if (exitCode) {
+            *exitCode = 0;
+        }
+        return WINUAE_QT_LAUNCHER_QUIT;
+    }
+    if (result.status == WinUaeQtLauncherStatus::RestartRequested) {
+        if (exitCode) {
+            *exitCode = 0;
+        }
+        return WINUAE_QT_LAUNCHER_RESTART;
     }
     if (result.status == WinUaeQtLauncherStatus::Error) {
         QByteArray error = result.error.toLocal8Bit();
