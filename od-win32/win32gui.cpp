@@ -17882,7 +17882,7 @@ static void enable_for_portsdlg (HWND hDlg)
 	ew (hDlg, IDC_SAMPLERLIST, issampler);
 	ew (hDlg, IDC_SAMPLER_STEREO, issampler && workprefs.win32_samplersoundcard >= 0);
 	ew (hDlg, IDC_PRINTERAUTOFLUSH, isprinter);
-	ew (hDlg, IDC_PRINTERTYPELIST, isprinter);
+	ew (hDlg, IDC_PRINTERTYPELIST, isprinter && _tcsnicmp(workprefs.prtname, _T("FILE:"), 5));
 	ew (hDlg, IDC_FLUSHPRINTER, isprinteropen () && isprinter ? TRUE : FALSE);
 	ew (hDlg, IDC_PSPRINTER, full_property_sheet && ghostscript_available && isprinter ? TRUE : FALSE);
 	ew (hDlg, IDC_PSPRINTERDETECT, full_property_sheet && isprinter ? TRUE : FALSE);
@@ -18105,6 +18105,7 @@ static void values_from_portsdlg (HWND hDlg)
 	TCHAR tmp[256];
 	BOOL success;
 	int item;
+	static const GUID printtofileguid = { 0xdd1fbb39, 0xea59, 0x4523, { 0x82, 0xc9, 0xc4, 0x58, 0xcf, 0xe6, 0x1c, 0x8c } };
 
 	item = xSendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_GETCURSEL, 0, 0L);
 	if(item != CB_ERR) {
@@ -18120,9 +18121,23 @@ static void values_from_portsdlg (HWND hDlg)
 	if(item != CB_ERR) {
 		int got = 0;
 		_tcscpy (tmp, workprefs.prtname);
-		if (item > 0) {
+		if (item == 1) {
+			TCHAR path[MAX_DPATH] = { 0 };
+			if (!_tcsnicmp(workprefs.prtname, _T("FILE:"), 5)) {
+				_tcscpy(path, workprefs.prtname + 5);
+			}
+			if (DirectorySelection(hDlg, &printtofileguid, path)) {
+				_tcscpy(workprefs.prtname, _T("FILE:"));
+				_tcscat(workprefs.prtname, path);
+				got = 1;
+				ew(hDlg, IDC_PRINTERTYPELIST, FALSE);
+			} else {
+				xSendDlgItemMessage(hDlg, IDC_PRINTERLIST, CB_SETCURSEL, 0, 0L);
+			}
+			xSendDlgItemMessage(hDlg, IDC_PRINTERTYPELIST, CB_SETCURSEL, 0, 0L);
+		} else if (item > 1) {
 			workprefs.win32_samplersoundcard = -1;
-			item--;
+			item -= 2;
 			if (item < dwEnumeratedPrinters) {
 				_tcscpy (workprefs.prtname, pInfo[item].pName);
 				got = 1;
@@ -18194,7 +18209,9 @@ static void values_to_portsdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_SAMPLER_STEREO, workprefs.sampler_stereo);
 
 	result = 0;
-	if(workprefs.prtname[0]) {
+	if (!_tcsnicmp(workprefs.prtname, _T("FILE:"), 5)) {
+		result = 1;
+	} else if(workprefs.prtname[0]) {
 		int i, got = 1;
 		TCHAR tmp[10];
 		result = xSendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_FINDSTRINGEXACT, -1, (LPARAM)workprefs.prtname);
@@ -18280,7 +18297,7 @@ static void values_to_portsdlg (HWND hDlg)
 			WIN32GUI_LoadUIString (IDS_INVALIDCOMPORT, szMessage, MAX_DPATH);
 			pre_gui_message (szMessage);
 			// Select "none" as the COM-port
-			xSendDlgItemMessage (hDlg, IDC_SERIAL, CB_SETCURSEL, 0L, 0L);
+			xSendDlgItemMessage(hDlg, IDC_SERIAL, CB_SETCURSEL, 0L, 0L);
 			// Disable the chosen serial-port selection
 			workprefs.sername[0] = 0;
 			workprefs.use_serial = 0;
@@ -18288,11 +18305,11 @@ static void values_to_portsdlg (HWND hDlg)
 			workprefs.use_serial = 1;
 		}
 	}
-	xSendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_SETCURSEL, workprefs.dongle, 0L);
+	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_SETCURSEL, workprefs.dongle, 0L);
 
 }
 
-static void init_portsdlg (HWND hDlg)
+static void init_portsdlg(HWND hDlg)
 {
 	static int first;
 	int port;
@@ -18300,8 +18317,8 @@ static void init_portsdlg (HWND hDlg)
 
 	if (!first) {
 		first = 1;
-		if (load_ghostscript () > 0) {
-			unload_ghostscript ();
+		if (load_ghostscript() > 0) {
+			unload_ghostscript();
 			ghostscript_available = 1;
 		}
 	}
@@ -18327,14 +18344,14 @@ static void init_portsdlg (HWND hDlg)
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Multi-Player Soccer Manager"));
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Football Director 2"));
 
-	xSendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
-	xSendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
+	xSendDlgItemMessage(hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
+	xSendDlgItemMessage(hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
 	for (port = 0; port < MAX_SERPAR_PORTS && comports[port]; port++) {
 		if (!_tcsicmp(comports[port]->dev, SERIAL_INTERNAL)) {
 			_tcscpy(tmp, comports[port]->name);
 			if (!shmem_serial_state())
 				shmem_serial_create();
-			switch(shmem_serial_state())
+			switch (shmem_serial_state())
 			{
 				case 1:
 				_tcscat(tmp, _T(" [Master]"));
@@ -18343,41 +18360,48 @@ static void init_portsdlg (HWND hDlg)
 				_tcscat(tmp, _T(" [Slave]"));
 				break;
 			}
-			xSendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)tmp);
+			xSendDlgItemMessage(hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)tmp);
 		} else {
-			xSendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[port]->name);
+			xSendDlgItemMessage(hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[port]->name);
 		}
 	}
 
-	xSendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_RESETCONTENT, 0, 0L);
-	WIN32GUI_LoadUIString (IDS_PRINTER_PASSTHROUGH, tmp, MAX_DPATH);
-	xSendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
-	WIN32GUI_LoadUIString (IDS_PRINTER_ASCII, tmp, MAX_DPATH);
-	xSendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
-	WIN32GUI_LoadUIString (IDS_PRINTER_EPSON9, tmp, MAX_DPATH);
-	xSendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
-	WIN32GUI_LoadUIString (IDS_PRINTER_EPSON48, tmp, MAX_DPATH);
-	xSendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
-	WIN32GUI_LoadUIString (IDS_PRINTER_POSTSCRIPT_DETECTION, tmp, MAX_DPATH);
-	xSendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
-	WIN32GUI_LoadUIString (IDS_PRINTER_POSTSCRIPT_EMULATION, tmp, MAX_DPATH);
-	xSendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+	xSendDlgItemMessage(hDlg, IDC_PRINTERTYPELIST, CB_RESETCONTENT, 0, 0L);
+	WIN32GUI_LoadUIString(IDS_PRINTER_PASSTHROUGH, tmp, MAX_DPATH);
+	xSendDlgItemMessage(hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+	WIN32GUI_LoadUIString(IDS_PRINTER_ASCII, tmp, MAX_DPATH);
+	xSendDlgItemMessage(hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+	WIN32GUI_LoadUIString(IDS_PRINTER_EPSON9, tmp, MAX_DPATH);
+	xSendDlgItemMessage(hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+	WIN32GUI_LoadUIString(IDS_PRINTER_EPSON48, tmp, MAX_DPATH);
+	xSendDlgItemMessage(hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+	WIN32GUI_LoadUIString(IDS_PRINTER_POSTSCRIPT_DETECTION, tmp, MAX_DPATH);
+	xSendDlgItemMessage(hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+	WIN32GUI_LoadUIString(IDS_PRINTER_POSTSCRIPT_EMULATION, tmp, MAX_DPATH);
+	xSendDlgItemMessage(hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 
-	xSendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_RESETCONTENT, 0, 0L);
-	xSendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
-	enumerate_sound_devices ();
+	xSendDlgItemMessage(hDlg, IDC_SAMPLERLIST, CB_RESETCONTENT, 0, 0L);
+	xSendDlgItemMessage(hDlg, IDC_SAMPLERLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
+	enumerate_sound_devices();
 	for (int card = 0; card < MAX_SOUND_DEVICES && record_devices[card]; card++) {
 		int type = record_devices[card]->type;
 		TCHAR tmp[MAX_DPATH];
-		_stprintf (tmp, _T("%s: %s"),
+		_stprintf(tmp, _T("%s: %s"),
 			type == SOUND_DEVICE_XAUDIO2 ? _T("XAudio2") : (type == SOUND_DEVICE_DS ? _T("DSOUND") : (type == SOUND_DEVICE_AL ? _T("OpenAL") : (type == SOUND_DEVICE_PA ? _T("PortAudio") : _T("WASAPI")))),
 			record_devices[card]->name);
 		if (type == SOUND_DEVICE_DS)
-			xSendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+			xSendDlgItemMessage(hDlg, IDC_SAMPLERLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 	}
 
-	xSendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_RESETCONTENT, 0, 0L);
-	xSendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
+	xSendDlgItemMessage(hDlg, IDC_PRINTERLIST, CB_RESETCONTENT, 0, 0L);
+	xSendDlgItemMessage(hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
+	WIN32GUI_LoadUIString(IDS_PRINTER_PRINT_TO_FILE, tmp, MAX_DPATH);
+	if (!_tcsnicmp(workprefs.prtname, _T("FILE:"), 5)) {
+		_tcscat(tmp, _T(" ("));
+		_tcscat(tmp, workprefs.prtname + 5);
+		_tcscat(tmp, _T(")"));
+	}
+	xSendDlgItemMessage(hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 	if(!pInfo) {
 		int flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;
 		DWORD needed = 0;
@@ -18394,10 +18418,9 @@ static void init_portsdlg (HWND hDlg)
 		}
 	}
 	if (pInfo) {
-		for(port = 0; port < (int)dwEnumeratedPrinters; port++)
+		for(port = 0; port < (int)dwEnumeratedPrinters; port++) {
 			xSendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)pInfo[port].pName);
-	} else {
-		ew (hDlg, IDC_PRINTERLIST, FALSE);
+		}
 	}
 	if (paraport_mask) {
 		int mask = paraport_mask;

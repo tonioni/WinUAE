@@ -5012,18 +5012,18 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 		return 1;
 	}
 
-	if (cfgfile_string_escape(option, value, _T("parallel_port"), &p->prtname[0], 256)) {
+	if (cfgfile_string_escape(option, value, _T("parallel_port"), &p->prtname[0], sizeof(p->prtname) / sizeof(TCHAR))) {
 		if (!_tcscmp(p->prtname, _T("none")))
 			p->prtname[0] = 0;
 		if (!_tcscmp(p->prtname, _T("default"))) {
 			p->prtname[0] = 0;
-			DWORD size = 256;
+			DWORD size = sizeof(p->prtname) / sizeof(TCHAR);
 			GetDefaultPrinter(p->prtname, &size);
 		}
 		return 1;
 	}
 
-	if (cfgfile_string_escape(option, value, _T("midiout_device_name"), tmpbuf, 256)) {
+	if (cfgfile_string_escape(option, value, _T("midiout_device_name"), tmpbuf, sizeof(tmpbuf) / sizeof(TCHAR))) {
 		p->win32_midioutdev = -2;
 		if (!_tcsicmp (tmpbuf, _T("default")) || (midioutportinfo[0] && !_tcsicmp (tmpbuf, midioutportinfo[0]->name)))
 			p->win32_midioutdev = -1;
@@ -5034,7 +5034,7 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 		}
 		return 1;
 	}
-	if (cfgfile_string_escape(option, value, _T("midiin_device_name"), tmpbuf, 256)) {
+	if (cfgfile_string_escape(option, value, _T("midiin_device_name"), tmpbuf, sizeof(tmpbuf) / sizeof(TCHAR))) {
 		p->win32_midiindev = -1;
 		for (int i = 0; i < MAX_MIDI_PORTS && midiinportinfo[i]; i++) {
 			if (!_tcsicmp (midiinportinfo[i]->name, tmpbuf)) {

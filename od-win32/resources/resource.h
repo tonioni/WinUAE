@@ -447,6 +447,7 @@
 #define IDS_SYNCMODE_COMBINED2          453
 #define IDS_SYNCMODE_CSYNC2             454
 #define IDS_SYNCMODE_HVSYNC2            455
+#define IDS_PRINTER_PRINT_TO_FILE       456
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002

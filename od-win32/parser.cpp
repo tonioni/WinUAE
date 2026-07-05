@@ -38,6 +38,7 @@
 #include "ahidsound_new.h"
 #include "xwin.h"
 #include "drawing.h"
+#include "uae.h"
 #ifdef WITH_MIDIEMU
 #include "midiemu.h"
 #endif
@@ -55,6 +56,7 @@
 static uae_char prtbuf[PRTBUFSIZE];
 static int prtbufbytes,wantwrite;
 static HANDLE hPrt = INVALID_HANDLE_VALUE;
+static struct zfile *PrtFile = NULL;
 static DWORD  dwJob;
 static int prtopen;
 void DoSomeWeirdPrintingStuff(uae_char val);
@@ -275,7 +277,7 @@ static void flushprtbuf (void)
 				return;
 			}
 #endif
-			if (hPrt == INVALID_HANDLE_VALUE) {
+			if (hPrt == INVALID_HANDLE_VALUE && PrtFile == NULL) {
 				if (!doflushprinter(prtopen))
 					return;
 				openprinter ();
@@ -287,6 +289,8 @@ static void flushprtbuf (void)
 				} else {
 					write_log (_T("PRINTER: Couldn't write data!\n"));
 				}
+			} else if (PrtFile != NULL) {
+				zfile_fwrite(prtbuf, pbyt, 1, PrtFile);
 			}
 		}
 
@@ -503,13 +507,13 @@ static DWORD GetPrinterDriverVersion(HANDLE handle)
 	return version;
 }
 
-static void openprinter (void)
+static void openprinter(void)
 {
 	DOC_INFO_1 DocInfo;
 	static int first;
 	DWORD error = 0;
 
-	closeprinter ();
+	closeprinter();
 	if (!currprefs.prtname[0])
 		return;
 
@@ -517,10 +521,25 @@ static void openprinter (void)
 		prtopen = 1;
 		return;
 	} else if (currprefs.parallel_matrix_emulation >= PARALLEL_MATRIX_EPSON) {
-		epson_init (currprefs.prtname, currprefs.parallel_matrix_emulation);
+		epson_init(currprefs.prtname, currprefs.parallel_matrix_emulation);
 	} else if (hPrt == INVALID_HANDLE_VALUE) {
-		flushprtbuf ();
-		if (OpenPrinter (currprefs.prtname, &hPrt, NULL)) {
+		flushprtbuf();
+		if (!_tcsnicmp(currprefs.prtname, _T("FILE:"), 5)) {
+			TCHAR path[MAX_DPATH];
+			fetch_datapath(path, sizeof(path) / sizeof(TCHAR));
+			_tcscat(path, currprefs.prtname + 5);
+			fixtrailing(path);
+			for (int idx = 0; idx < 1000; idx++) {
+				TCHAR path2[MAX_DPATH];
+				_tcscpy(path2, path);
+				_stprintf(path2 + _tcslen(path2), _T("Print_%03d.dat"), idx);
+				if (zfile_exists(path2)) {
+					continue;
+				}
+				PrtFile = zfile_fopen(path2, _T("wb"));
+				break;
+			}
+		} else if (OpenPrinter (currprefs.prtname, &hPrt, NULL)) {
 			DWORD version = GetPrinterDriverVersion(hPrt);
 			// Fill in the structure with info about this "document."
 			DocInfo.pDocName = _T("WinUAE Document");
@@ -540,6 +559,8 @@ static void openprinter (void)
 	}
 	if (hPrt != INVALID_HANDLE_VALUE) {
 		write_log (_T("PRINTER: Opening printer \"%s\" with handle 0x%x.\n"), currprefs.prtname, hPrt);
+	} else if (PrtFile != NULL) {
+		write_log(_T("PRINTER: Opening file printer \"%s\".\n"), currprefs.prtname + 5);
 	} else if (*currprefs.prtname) {
 		write_log (_T("PRINTER: ERROR - Couldn't open printer \"%s\" for output. Error %08x\n"), currprefs.prtname, error);
 	}
@@ -558,8 +579,9 @@ void flushprinter(void)
 		return;
 	}
 #endif
-	if (!doflushprinter(prtopen))
+	if (!doflushprinter(prtopen)) {
 		return;
+	}
 	flushprtbuf();
 	closeprinter();
 }
@@ -577,6 +599,11 @@ void closeprinter (void)
 		ClosePrinter (hPrt);
 		hPrt = INVALID_HANDLE_VALUE;
 		write_log (_T("PRINTER: Closing printer.\n"));
+	}
+	if (PrtFile != NULL) {
+		zfile_fclose(PrtFile);
+		PrtFile = NULL;
+		write_log(_T("PRINTER: Closing file printer.\n"));
 	}
 	if (currprefs.parallel_postscript_emulation)
 		prtopen = 1;

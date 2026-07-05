@@ -2241,6 +2241,7 @@ BEGIN
     IDS_SYNCMODE_COMBINED2  "Combined + Sync"
     IDS_SYNCMODE_CSYNC2     "Composite Sync + Sync"
     IDS_SYNCMODE_HVSYNC2    "H/V Sync + Sync"
+    IDS_PRINTER_PRINT_TO_FILE "Print to file"
 END
 
 STRINGTABLE
