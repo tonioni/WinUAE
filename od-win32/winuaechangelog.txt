@@ -1,4 +1,25 @@
 
+Beta 9:
+
+- Added Vortex ATonce plus 286 bridge board emulation (https://github.com/na103/Dueottosei/). NOTE: this is quite different than Commodore bridgeboards.
+- If RTG mode was active and chipset mode was invalid or syncs disabled: RTG mode FPS counter was not shown.
+- RTG Integer scale mode now also supports filter 1/x integer scaling option. (1/1 = normal x.0 integer scaling, 1/2 = x.5 and x.0 scaling allowed, 1/3 = x.75 x.50, x.25, x.00 allowed and so on)
+- uaegfx Picasso96 modeinfo structure pixel clock value corrected, now all modes show correct refresh rate in (for example) ScreenMode prefs. Previously different resolutions had slightly different refresh rates. (+-2Hz or so difference).
+- b7 "Internal CCK counter changed to 64-bit" missed counter variable 32-bit to 64-bit update.
+- Writes to extended ADF that are much longer than track max size or partial writes (write less than track size) are now emulated correctly. Previously single write was always considered full track update and very long write was not correctly written to image file.
+- Fixed AM79C960 ethernet chip ID register (wrong endianness), affected at least Linux Ariadne driver ("Couldn't find AMD Ethernet Chip").
+- AM79C960 DPOLL/TDMD register bits correctly emulated. Ariadne ethernet card now works in Linux without transmit timeouts.
+- DP8390 based NICs (Ariadne II, AmigaNet etc) didn't work in Linux due to byteswap bug. This didn't affect later NE2000 clones. NOTE: X-Surf 100 does not work in Linux because Linux driver uses AX88796B-only features that are not yet emulated. AX88796B is NE2000 compatible but also includes AX88796B-only features.
+- Ariadne II network card EEPROM stored MAC address is stored byteswapped.
+- Added workaround for possible compiler optimization bug, A2065 and Ariadne work again. (b8)
+- Print to file option added, if selected, path is queried and raw data coming from emulated parallel port is saved to a file in selected directory ("Print_xxx.dat", where xxx is file id number). Note that file is fully written and closed only after autoflush timeout after idle parallel port state or if Flush print job button is pressed.
+- ProWizard module ripper updated to 1.70a (Stefan Reinauer).
+- QEMU PPC DLLs updated (includes also UAE side update), should fix OS3.x + PPC configurations (b8) (Amiberry). NOTE: QEMU9 (32-bit) is different than QEMU11, 32-bit may not be fully fixed or may have other problems. (https://www.winuae.net/files/b/ppc_plugin_11.7z)
+
+Still todo:
+- Fix remove interlace artifacts.
+- Fix display port adapters.
+
 Beta 8:
 
 - Fixed AGA only sprite bug if DMA written SPRxDATx was immediately followed by Copper (or CPU) SPRxPOS/CTL write in next CCK. Pending SPRxDATx write was skipped in this condition. (6100b1)
@@ -79,7 +100,7 @@ This should fix "68020 CE has something wrong (no easy test case so far), it was
 Beta 4:
 
 - When config was changed on the fly (This includes loading statefile after emulation has been started), FMODE AGA-only register could have reset back to previous zero value after few seconds. (Probably introduced in 5.x)
-- If emulation was already started and config change from OCS/ECS to AGA was done by setting new quitstart config or loading new config file, OCS/ECS-only "7-planes" mode (6 planes shown, 4 DMA transferred, last 2 can be updated with Copper or CPU) was activated if AGA program used 7 planes, FMODE=0 and lores screenmode. (bug has existed at least since 5.x, probably is even older)
+- If emulation was already started and config change from OCS/ECS to AGA was done by setting new quickstart config or loading new config file, OCS/ECS-only "7-planes" mode (6 planes shown, 4 DMA transferred, last 2 can be updated with Copper or CPU) was activated if AGA program used 7 planes, FMODE=0 and lores screenmode. (bug has existed at least since 5.x, probably is even older)
 - Display vertical start changed after each reset in most configs.
 - Loading some statefiles caused display to be detected as 2x doublescanned, resulting in a very wide but short display.
 - Allow immediate blitter in cycle-exact CPU modes (which makes no sense but for testing purposes it can be useful). Blitter finishes immediately after BLTSIZE write, no DMA cycles used.
