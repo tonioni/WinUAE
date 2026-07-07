@@ -5434,6 +5434,12 @@ public:
         connect(start, &QPushButton::clicked, this, [this]() { startEmulator(); });
         connect(help, &QPushButton::clicked, this, [this]() { openHelp(); });
 
+        // macOS disables the application menu (and its Cmd+Q) while the launcher
+        // runs as a modal dialog, so Cmd+Q never reaches us the way it would in
+        // a normal app. Bind it explicitly to Cancel, mirroring Escape.
+        QShortcut *quitShortcut = new QShortcut(QKeySequence::Quit, this);
+        connect(quitShortcut, &QShortcut::activated, this, &QDialog::reject);
+
         QHBoxLayout *buttons = new QHBoxLayout;
         buttons->setContentsMargins(0, 0, 0, 0);
         buttons->addWidget(reset);
