@@ -209,7 +209,7 @@ set(WINUAE_LZMA_SDK_SYSTEM_PATHS
     "/usr/share/lzma-sdk;/usr/include/lzma-sdk;/usr/src/lzma-sdk;/usr/include/lzma"
     CACHE STRING "System prefixes probed for an installed 7-Zip/LZMA SDK source tree")
 
-set(WINUAE_QEMU_UAE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qemu-uae-v11.0"
+set(WINUAE_QEMU_UAE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qemu-uae"
     CACHE PATH "QEMU-UAE plugin source directory")
 set(WINUAE_QEMU_UAE_PLUGIN_FILE "" CACHE FILEPATH "Prebuilt qemu-uae.so plugin to install or bundle")
 set(WINUAE_QEMU_UAE_BUILDER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../uae-ppc-plugin"

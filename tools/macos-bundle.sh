@@ -225,7 +225,7 @@ for candidate in \
     "${WINUAE_QEMU_UAE_PLUGIN:-}" \
     "${build_dir}/qemu-uae.so" \
     "${build_dir}/plugins/qemu-uae.so" \
-    "${source_dir}/../qemu-uae-v11.0/build/qemu-uae.so"
+    "${source_dir}/../qemu-uae/build/qemu-uae.so"
 do
     if [[ -n "${candidate}" && -f "${candidate}" ]]; then
         qemu_uae_plugin="${candidate}"

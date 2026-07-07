@@ -21,7 +21,7 @@ This is an early macOS/Linux port of the WinUAE source tree. The current Unix bu
 - Native CD/DVD access is available on macOS and Linux; `WINUAE_UNIX_WITH_NATIVE_SCSI` adds Linux SG_IO and macOS SCSITaskLib direct SCSI/tape passthrough through the same SPTI-style slot used by Windows.
 - The shared Toccata/Prelude/UAESND sound-board backend and PCI ES1370/FM801 paths are built by default, with SDL3 host capture hooks when SDL3 is available.
 - UAE Zorro II/Zorro III RTG RAM can be configured and autoconfigured, with an initial Unix `uaegfx.card` install path and guest Picasso96 monitor-driver smoke coverage, including 8-bit Workbench mode open and direct 15-bit/16-bit/24-bit/32-bit P96 screen-open tests. Accelerated RTG operations are still incomplete.
-- The Qt Expansions page can enable common Zorro/expansion board ROM entries, CPU boards, PPC quickstart presets, and shared sound boards using the same `*_rom_file`, `*_rom_options`, and CPU-board keys as WinUAE. PPC emulation uses the external `qemu-uae` plugin ABI; a QEMU 11.0 based plugin tree is expected next to `WinUAE/` as `qemu-uae-v11.0`.
+- The Qt Expansions page can enable common Zorro/expansion board ROM entries, CPU boards, PPC quickstart presets, and shared sound boards using the same `*_rom_file`, `*_rom_options`, and CPU-board keys as WinUAE. PPC emulation uses the external `qemu-uae` plugin ABI; a QEMU 11.0 based plugin tree is expected next to `WinUAE/` as `qemu-uae` (the reinauer/qemu-uae checkout).
 - Full UI parity with the Windows configuration dialogs and platform packaging are still incomplete.
 - If SDL3 is not found, CMake currently builds a headless/null-video target.
 
@@ -192,7 +192,7 @@ instructions when none applies:
 
 1. `-DWINUAE_QEMU_UAE_PLUGIN_FILE=/path/to/qemu-uae.so` — a prebuilt plugin.
 2. A patched `qemu-uae` source tree at `WINUAE_QEMU_UAE_SOURCE_DIR`
-   (default: sibling `../qemu-uae-v11.0`) — the developer path.
+   (default: sibling `../qemu-uae`) — the developer path.
 3. The `uae-ppc-plugin` builder at `WINUAE_QEMU_UAE_BUILDER_DIR`
    (default: sibling `../uae-ppc-plugin`). The builder downloads a
    SHA-verified QEMU source tarball, applies the UAE patch deck, and builds
@@ -270,14 +270,14 @@ The WinUAE side of PPC accelerator support is built by default with
 ```sh
 WinUAE_mac/
   WinUAE/
-  qemu-uae-v11.0/
+  qemu-uae/
 ```
 
 The helper builds the sibling QEMU 11.0 plugin tree and can copy the result
 into a WinUAE build directory:
 
 ```sh
-tools/build-qemu-uae.sh ../qemu-uae-v11.0 /tmp/winuae_cmake_build/qemu-uae.so
+tools/build-qemu-uae.sh ../qemu-uae /tmp/winuae_cmake_build/qemu-uae.so
 ```
 
 On macOS release builds, build GLib into the private dependency prefix first so
@@ -616,7 +616,7 @@ export WINUAE_SMOKE_LOG=/tmp/winuae_unix_smoke.log
 `WINUAE_UNIX_WITH_CHD` is enabled by default and builds CHD hardfile/CD image support. `WINUAE_UNIX_WITH_CHD_FLAC` is also enabled by default, but macOS builds skip FLAC codecs if the available libFLAC was built for a newer deployment target.
 `WINUAE_LZMA_SDK_FETCH` is enabled by default. When archive or CHD support needs the 7-Zip/LZMA SDK, CMake uses `WINUAE_LZMA_SDK_DIR`, defaulting to a build-tree `_deps/lzma-sdk/16.04` cache. If that cache is missing, CMake downloads `WINUAE_LZMA_SDK_URL` and verifies it against `WINUAE_LZMA_SDK_SHA256` before extraction.
 `WINUAE_UNIX_WITH_JIT` is enabled by default where the Unix host backend is wired, including ARM64 and x86_64.
-`WINUAE_UNIX_WITH_PPC_QEMU` is enabled by default and builds the WinUAE side of the PPC accelerator/QEMU plugin ABI. `WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN` is enabled by default when a sibling `qemu-uae-v11.0` tree is present and builds/copies `qemu-uae.so` for the executable, Linux package, or app bundle. `WINUAE_QEMU_UAE_PLUGIN_FILE` can point at a prebuilt plugin. App and CPack package targets require the plugin when PPC support is enabled.
+`WINUAE_UNIX_WITH_PPC_QEMU` is enabled by default and builds the WinUAE side of the PPC accelerator/QEMU plugin ABI. `WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN` is enabled by default when a sibling `qemu-uae` tree is present and builds/copies `qemu-uae.so` for the executable, Linux package, or app bundle. `WINUAE_QEMU_UAE_PLUGIN_FILE` can point at a prebuilt plugin. App and CPack package targets require the plugin when PPC support is enabled.
 `WINUAE_QEMU_UAE_DEPS_PREFIX` defaults to the private macOS dependency prefix and points the plugin helper at the deployment-target-compatible GLib build.
 `WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE` is enabled by default when SDL3 and OpenGL development files are available. Runtime OpenGL context or shader setup failure falls back to the SDL renderer.
 `WINUAE_UNIX_WITH_SNDBOARD` is enabled by default and builds the shared Toccata/Prelude/UAESND sound-board backend. It also enables the shared PCI bridge layer needed to expose ES1370 and FM801 through the same expansion-board catalog as Windows, even when hardware RTG graphics boards are disabled.

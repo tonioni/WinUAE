@@ -21,7 +21,7 @@ Environment:
   WINUAE_DEPS_JOBS                Parallel build jobs. Defaults to hw.ncpu.
   WINUAE_GLIB_SOURCE              GLib source tree. Required.
   WINUAE_MESON                    meson executable. Defaults to meson in PATH
-                                  or ../qemu-uae-v11.0/build/pyvenv/bin/meson.
+                                  or ../qemu-uae/build/pyvenv/bin/meson.
   WINUAE_NINJA                    ninja executable. Defaults to ninja in PATH.
   WINUAE_QEMU_BUILD_TOOLS_DIR     Optional tools prefix. If set,
                                   <prefix>/bin/ninja is used as fallback.
@@ -115,7 +115,7 @@ run_meson_build() {
 
 require_source "GLib" "${glib_source}"
 
-meson_fallback="${source_dir}/../qemu-uae-v11.0/build/pyvenv/bin/meson"
+meson_fallback="${source_dir}/../qemu-uae/build/pyvenv/bin/meson"
 ninja_fallback=""
 if [[ -n "${WINUAE_QEMU_BUILD_TOOLS_DIR:-}" ]]; then
     ninja_fallback="${WINUAE_QEMU_BUILD_TOOLS_DIR}/bin/ninja"

@@ -5,7 +5,7 @@ usage() {
     cat <<EOF
 Usage: $0 [qemu-uae-source] [output-plugin]
 
-Builds the QEMU-UAE plugin from the sibling qemu-uae-v11.0 tree.
+Builds the QEMU-UAE plugin from the sibling qemu-uae tree.
 
 Environment:
   WINUAE_MACOS_DEPLOYMENT_TARGET  macOS deployment target for the plugin.
@@ -26,7 +26,7 @@ fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source_dir="$(cd "${script_dir}/.." && pwd)"
-qemu_source="${1:-${WINUAE_QEMU_UAE_SOURCE_DIR:-${source_dir}/../qemu-uae-v11.0}}"
+qemu_source="${1:-${WINUAE_QEMU_UAE_SOURCE_DIR:-${source_dir}/../qemu-uae}}"
 output_plugin="${2:-${WINUAE_QEMU_UAE_OUTPUT_PLUGIN:-}}"
 deps_prefix="${QEMU_UAE_DEPS_PREFIX:-${WINUAE_QEMU_UAE_DEPS_PREFIX:-}}"
 
