@@ -37,6 +37,8 @@
 #include "launcher.h"
 #include "mount_config.h"
 #include "path_utils.h"
+#include "target.h"
+#include "winuae_builddate.h"
 
 #ifndef WINUAE_UNIX_SOURCE_DIR
 #define WINUAE_UNIX_SOURCE_DIR "."
@@ -2255,10 +2257,31 @@ static QString resourceFile(const QString &relative)
 
 static QString versionString()
 {
-    return QStringLiteral("WinUAE %1.%2.%3")
+    QString s = QStringLiteral("WinUAE %1.%2.%3")
         .arg(WINUAE_UNIX_VERSION_MAJOR)
         .arg(WINUAE_UNIX_VERSION_MINOR)
         .arg(WINUAE_UNIX_VERSION_REVISION);
+    const QString date = QStringLiteral("%1.%2.%3")
+        .arg(GETBDY(WINUAEDATE))
+        .arg(GETBDM(WINUAEDATE), 2, 10, QLatin1Char('0'))
+        .arg(GETBDD(WINUAEDATE), 2, 10, QLatin1Char('0'));
+    const QString beta = QStringLiteral(WINUAEBETA);
+    if (!beta.isEmpty()) {
+        if (WINUAEPUBLICBETA == 2) {
+            s += QStringLiteral(" (DevAlpha %1, %2)").arg(beta, date);
+        } else {
+            s += QStringLiteral(" (%1Beta %2, %3)")
+                .arg(WINUAEPUBLICBETA > 0 ? QStringLiteral("Public ") : QString(), beta, date);
+        }
+    } else {
+        s += QStringLiteral(" (%1)").arg(date);
+    }
+#if defined(__aarch64__)
+    s += QStringLiteral(" ARM64");
+#elif defined(__x86_64__)
+    s += QStringLiteral(" x64");
+#endif
+    return s;
 }
 
 static QStringList contributorLines()
