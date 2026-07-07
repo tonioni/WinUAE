@@ -119,6 +119,9 @@ run_autotools_build() {
             make distclean >/dev/null 2>&1 || true
         fi
         rm -f config.log config.status
+        if [[ "${WINUAE_AUTORECONF:-0}" == "1" ]]; then
+            autoreconf --force --install
+        fi
         env \
             CFLAGS="${CFLAGS:-} -mmacosx-version-min=${target}" \
             CXXFLAGS="${CXXFLAGS:-} -mmacosx-version-min=${target}" \
@@ -237,8 +240,16 @@ if [[ "${WINUAE_SKIP_LIBMPEG2:-0}" != "1" ]]; then
             split_extra_args "${WINUAE_LIBMPEG2_CONFIGURE_ARGS}"
             libmpeg2_configure_args+=(${extra_args[@]+"${extra_args[@]}"})
         fi
-        run_autotools_build "${libmpeg2_source}" "${build_dir}/libmpeg2" \
-            "${libmpeg2_configure_args[@]}"
+        # The 0.5.1 tarball ships 2008 autotools that cannot configure on
+        # arm64-apple-darwin, and clang needs gnu89 inline semantics to avoid
+        # duplicate symbol errors, so regenerate the build system like the
+        # Homebrew formula does.
+        (
+            export WINUAE_AUTORECONF=1
+            export CFLAGS="${CFLAGS:-} -std=gnu89"
+            run_autotools_build "${libmpeg2_source}" "${build_dir}/libmpeg2" \
+                "${libmpeg2_configure_args[@]}"
+        )
         (
             cd "${build_dir}/libmpeg2/src"
             make -C libmpeg2 install

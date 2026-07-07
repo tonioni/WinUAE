@@ -53,7 +53,7 @@ The system zlib is normally enough on macOS.
 
 The macOS build defaults to `CMAKE_OSX_DEPLOYMENT_TARGET=13.0` so the app is not accidentally tied to the build machine's current macOS release. Bundled libraries and frameworks must support the same or an older deployment target. The packaging script checks every bundled Mach-O file and fails if, for example, Homebrew SDL3 or Qt was built with a newer `minos` than the app target. Use the private dependency build below for repeatable release artifacts.
 
-For repeatable release builds, build SDL3, QtBase, libFLAC when CHD is enabled, and optional libraries such as libpng into a private prefix with the same deployment target instead of using Homebrew bottles. The helper defaults QtBase to bundled third-party libraries so Homebrew dylibs with newer deployment targets are not pulled into the release app. If SDL3's CMake or pkg-config metadata is missing from the private prefix, the WinUAE CMake build can still use a matching `include/SDL3` and `libSDL3.0.dylib` pair from `CMAKE_PREFIX_PATH`. Supplying `WINUAE_LIBPNG_SOURCE` gives the Unix screenshot backend a deployment-target-compatible PNG library; without it, CMake may skip a too-new Homebrew libpng and fall back to BMP screenshots. Supplying `WINUAE_FLAC_SOURCE` lets the dependency helper build CHD's required FLAC library with the same deployment target. PPC release packages also need deployment-target-compatible QEMU-UAE dependencies such as GLib, gettext, and PCRE2; Homebrew bottles built for a newer macOS will be rejected by the bundle verifier.
+For repeatable release builds, build SDL3, QtBase, libFLAC when CHD is enabled, and optional libraries such as libpng into a private prefix with the same deployment target instead of using Homebrew bottles. The helper defaults QtBase to bundled third-party libraries so Homebrew dylibs with newer deployment targets are not pulled into the release app. If SDL3's CMake or pkg-config metadata is missing from the private prefix, the WinUAE CMake build can still use a matching `include/SDL3` and `libSDL3.0.dylib` pair from `CMAKE_PREFIX_PATH`. Supplying `WINUAE_LIBPNG_SOURCE` gives the Unix screenshot backend a deployment-target-compatible PNG library; without it, CMake may skip a too-new Homebrew libpng and fall back to BMP screenshots. Supplying `WINUAE_FLAC_SOURCE` lets the dependency helper build CHD's required FLAC library with the same deployment target. Supplying `WINUAE_LIBMPEG2_SOURCE` (the libmpeg2 0.5.1 tarball from videolan.org, extracted) enables CD32 FMV video decode; without a deployment-target-compatible libmpeg2, CMake silently disables FMV playback. PPC release packages also need deployment-target-compatible QEMU-UAE dependencies such as GLib, gettext, and PCRE2; Homebrew bottles built for a newer macOS will be rejected by the bundle verifier.
 
 ```sh
 WINUAE_MACOS_DEPLOYMENT_TARGET=13.0 \
@@ -61,6 +61,7 @@ WINUAE_SDL3_SOURCE=/path/to/SDL3-source \
 WINUAE_QT_SOURCE=/path/to/qtbase-source \
 WINUAE_LIBPNG_SOURCE=/path/to/libpng-source \
 WINUAE_FLAC_SOURCE=/path/to/flac-source \
+WINUAE_LIBMPEG2_SOURCE=/path/to/libmpeg2-0.5.1 \
 tools/macos-build-deps.sh /opt/winuae-macos-13
 
 source /opt/winuae-macos-13/winuae-macos-deps-env.sh
@@ -77,6 +78,7 @@ WINUAE_SDL3_SOURCE=/path/to/SDL3-source \
 WINUAE_QT_SOURCE=/path/to/qtbase-source \
 WINUAE_LIBPNG_SOURCE=/path/to/libpng-source \
 WINUAE_FLAC_SOURCE=/path/to/flac-source \
+WINUAE_LIBMPEG2_SOURCE=/path/to/libmpeg2-0.5.1 \
 cmake --build /tmp/winuae_cmake_build --target winuae_unix_macos_deps
 ```
 
