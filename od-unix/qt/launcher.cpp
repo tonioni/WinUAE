@@ -85,6 +85,10 @@
 #define UAE_UNIX_WITH_SAMPLER 0
 #endif
 
+#ifndef UAE_UNIX_WITH_CAPS
+#define UAE_UNIX_WITH_CAPS 0
+#endif
+
 #ifndef UAE_UNIX_WITH_MIDI
 #define UAE_UNIX_WITH_MIDI 0
 #endif
@@ -2437,7 +2441,9 @@ static const AssociationChoice associationChoices[] = {
     { ".adz" },
     { ".dms" },
     { ".fdi" },
+#if UAE_UNIX_WITH_CAPS
     { ".ipf" },
+#endif
     { ".uss" }
 };
 
@@ -3722,12 +3728,20 @@ static QString configBoolText(bool value)
 
 static QString amigaDiskImageFilter()
 {
+#if UAE_UNIX_WITH_CAPS
     return QStringLiteral("Amiga disk images (*.adf *.adz *.dms *.wrp *.ipf *.fdi *.scp *.hdf *.chd *.zip *.7z *.rar *.lha *.lzh *.lzx);;All files (*)");
+#else
+    return QStringLiteral("Amiga disk images (*.adf *.adz *.dms *.wrp *.fdi *.scp *.hdf *.chd *.zip *.7z *.rar *.lha *.lzh *.lzx);;All files (*)");
+#endif
 }
 
 static QString floppyDiskImageFilter()
 {
+#if UAE_UNIX_WITH_CAPS
     return QStringLiteral("Amiga disk images (*.adf *.adz *.dms *.wrp *.ipf *.zip *.7z *.rar *.lha *.lzh *.lzx);;All files (*)");
+#else
+    return QStringLiteral("Amiga disk images (*.adf *.adz *.dms *.wrp *.zip *.7z *.rar *.lha *.lzh *.lzx);;All files (*)");
+#endif
 }
 
 static QString cdImageFilter()

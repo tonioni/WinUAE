@@ -181,6 +181,7 @@ option(WINUAE_UNIX_WITH_ARCHIVES "Build bundled ZIP/LHA/LZX/DMS/WRP archive supp
 option(WINUAE_UNIX_WITH_UAENATIVE "Build uaenative.library host module support" ON)
 option(WINUAE_UNIX_WITH_LUA "Build Lua scripting support" ON)
 option(WINUAE_LUA_FETCH "Fetch Lua when no system package is available" ON)
+option(WINUAE_UNIX_WITH_CAPS "Build IPF/CAPS disk image support through the SoftPres runtime library" ON)
 option(WINUAE_UNIX_WITH_CHD "Build CHD hardfile and CD image support" ON)
 option(WINUAE_UNIX_WITH_CHD_FLAC "Build CHD FLAC codecs; required by the bundled CHD sources" ON)
 option(WINUAE_UNIX_WITH_LIBMPEG2 "Build CD32 FMV video decode support when libmpeg2 is available" ON)
@@ -420,6 +421,7 @@ endif()
 set(WINUAE_UNIX_ENABLE_UAESCSI OFF)
 set(WINUAE_UNIX_ENABLE_UAESERIAL OFF)
 set(WINUAE_UNIX_ENABLE_SAMPLER OFF)
+set(WINUAE_UNIX_ENABLE_CAPS OFF)
 set(WINUAE_UNIX_ENABLE_NATIVE_HARDDRIVES OFF)
 set(WINUAE_UNIX_ENABLE_NATIVE_CD OFF)
 set(WINUAE_UNIX_ENABLE_NATIVE_SCSI OFF)
@@ -648,6 +650,17 @@ if(WINUAE_UNIX_WITH_ARCHIVES)
         archivers/dms/u_quick.cpp
         archivers/dms/u_rle.cpp
         archivers/wrp/warp.cpp
+    )
+endif()
+
+if(WINUAE_UNIX_WITH_CAPS)
+    set(WINUAE_UNIX_ENABLE_CAPS ON)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE
+        CAPS=1
+        WINUAE_UNIX_WITH_CAPS=1
+    )
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES
+        od-win32/caps/caps_win32.cpp
     )
 endif()
 
@@ -1698,6 +1711,7 @@ if(WINUAE_UNIX_WITH_QT_UI)
             UAE_UNIX_WITH_BSDSOCKET=$<BOOL:${WINUAE_UNIX_ENABLE_BSDSOCKET}>
             UAE_UNIX_WITH_UAESCSI=$<BOOL:${WINUAE_UNIX_ENABLE_UAESCSI}>
             UAE_UNIX_WITH_SAMPLER=$<BOOL:${WINUAE_UNIX_ENABLE_SAMPLER}>
+            UAE_UNIX_WITH_CAPS=$<BOOL:${WINUAE_UNIX_ENABLE_CAPS}>
             UAE_UNIX_WITH_NATIVE_HARDDRIVES=$<BOOL:${WINUAE_UNIX_ENABLE_NATIVE_HARDDRIVES}>
             UAE_UNIX_WITH_NATIVE_SCSI=$<BOOL:${WINUAE_UNIX_ENABLE_NATIVE_SCSI}>
             UAE_UNIX_WITH_MIDI=$<BOOL:${WINUAE_UNIX_ENABLE_MIDI}>
