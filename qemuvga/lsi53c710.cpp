@@ -136,9 +136,12 @@ do { write_log("lsi_scsi: error: " fmt , ## __VA_ARGS__); assert(false);} while 
 #define LSI_CTEST2_TEOP   0x04
 #define LSI_CTEST2_PCICIE 0x08
 #define LSI_CTEST2_CM     0x10
+#define LSI_CTEST2_SFP    0x10
 #define LSI_CTEST2_CIO    0x20
 #define LSI_CTEST2_SIGP   0x40
 #define LSI_CTEST2_DDIR   0x80
+
+#define LSI_CTEST4_SFWR   0x08
 
 #define LSI_CTEST5_BL2    0x04
 #define LSI_CTEST5_DDIR   0x08
@@ -146,6 +149,8 @@ do { write_log("lsi_scsi: error: " fmt , ## __VA_ARGS__); assert(false);} while 
 #define LSI_CTEST5_DFSN   0x20
 #define LSI_CTEST5_BBCK   0x40
 #define LSI_CTEST5_ADCK   0x80
+
+#define LSI_CTEST8_CLF    0x04
 
 #define LSI_CCNTL0_DILS   0x01
 #define LSI_CCNTL0_DISFC  0x10
@@ -266,6 +271,10 @@ typedef struct {
 	uint8_t sstat2;
 	uint8_t dwt;
 	uint8_t sbcl;
+	uint8_t sodl;
+	/* SCSI FIFO: 8 data bits plus generated parity in bit 8. */
+	uint16_t scsi_fifo[8];
+	int scsi_fifo_count;
 	uint8_t script_active;
 } LSIState710;
 
@@ -274,6 +283,17 @@ typedef struct {
 
 #define LSI53C895A(obj) (LSIState710*)obj->lsistate
  //((LSIState710*)(OBJECT_CHECK(LSIState710, (obj), TYPE_LSI53C895A)))
+
+static uint8_t lsi_scsi_parity(uint8_t val, uint8_t scntl1)
+{
+	val ^= val >> 4;
+	val ^= val >> 2;
+	val ^= val >> 1;
+	uint8_t parity = val & 1;
+	if (!(scntl1 & LSI_SCNTL1_AESP))
+		parity ^= 1;
+	return parity;
+}
 
 static inline int lsi_irq_on_rsl(LSIState710 *s)
 {
@@ -311,6 +331,8 @@ static void lsi_soft_reset(LSIState710 *s)
     s->sstat0 = 0;
     s->sstat1 = 0;
 	s->sstat2 = 0;
+	s->sodl = 0;
+	s->scsi_fifo_count = 0;
     s->scid = 0x80;
     s->sxfer = 0;
     s->socl = 0;
@@ -1687,7 +1709,7 @@ static uint8_t lsi_reg_readb2(LSIState710 *s, int offset)
     case 0x0e: /* SSTAT1 */
         return s->sstat1;
     case 0x0f: /* SSTAT2 */
-        return s->sstat2;
+        return (s->sstat2 & 0x0f) | (s->scsi_fifo_count << 4);
     CASE_GET_REG32(dsa, 0x10)
 	case 0x14: /* CTEST0 */
         return s->ctest0;
@@ -1701,6 +1723,17 @@ static uint8_t lsi_reg_readb2(LSIState710 *s, int offset)
         }
         return tmp;
 	case 0x17: /* CTEST3 */
+		if (s->scsi_fifo_count > 0) {
+			uint16_t entry = s->scsi_fifo[0];
+			for (int i = 1; i < s->scsi_fifo_count; i++)
+				s->scsi_fifo[i - 1] = s->scsi_fifo[i];
+			s->scsi_fifo_count--;
+			if (entry & 0x100)
+				s->ctest2 |= LSI_CTEST2_SFP;
+			else
+				s->ctest2 &= ~LSI_CTEST2_SFP;
+			return entry & 0xff;
+		}
 		return s->ctest3;
 	case 0x18: /* CTEST4 */
 		return s->ctest4;
@@ -1807,6 +1840,13 @@ static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val)
     case 0x05: /* SXFER */
         s->sxfer = val;
         break;
+	case 0x06: /* SODL */
+		s->sodl = val;
+		if ((s->ctest4 & LSI_CTEST4_SFWR) && s->scsi_fifo_count < 8) {
+			uint8_t parity = lsi_scsi_parity(val, s->scntl1);
+			s->scsi_fifo[s->scsi_fifo_count++] = (parity << 8) | val;
+		}
+		break;
 	case 0x0b: /* SBCL */
 		lsi_set_phase (s, val & PHASE_MASK);
 		break;
@@ -1828,7 +1868,11 @@ static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val)
         s->ctest4 = val;
         break;
 	case 0x19: /* CTEST5 */
-        s->ctest5 = val;
+		if (val & LSI_CTEST5_ADCK)
+			s->dnad += 4;
+		if (val & LSI_CTEST5_BBCK)
+			s->dbc = (s->dbc - 4) & 0xffffff;
+        s->ctest5 = val & ~(LSI_CTEST5_ADCK | LSI_CTEST5_BBCK);
         break;
 	case 0x1a: /* CTEST6 */
         s->ctest6 = val;
@@ -1855,12 +1899,17 @@ static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val)
         break;
 	case 0x22: /* CTEST8 */
 		s->ctest8 = val;
+		if (val & LSI_CTEST8_CLF)
+			s->scsi_fifo_count = 0;
 	break;
 	case 0x23: /* LCRC */
 		s->lcrc = 0;
 	break;
  
     CASE_SET_REG24(dbc, 0x24)
+	case 0x27: /* DCMD */
+		s->dcmd = val;
+		break;
     CASE_SET_REG32(dnad, 0x28)
     case 0x2c: /* DSP[0:7] */
         s->dsp &= 0xffffff00;
