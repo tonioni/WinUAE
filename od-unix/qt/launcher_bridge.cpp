@@ -779,3 +779,45 @@ int runWinUaeQtMessageBox(int argc, char **argv, int flags, const char *message,
     }
     return result;
 }
+
+int runWinUaeQtDebuggerConsoleGetInput(int argc, char **argv, char *out, size_t outLen, int *exitCode)
+{
+    if (out && outLen > 0) {
+        out[0] = 0;
+    }
+    QString command;
+    const int result = runWinUaeQtDebuggerConsoleGetInput(argc, argv, &command);
+    if (result < 0) {
+        if (exitCode) {
+            *exitCode = 0;
+        }
+        return result;
+    }
+    const QByteArray bytes = command.toLocal8Bit();
+    if (!out || outLen == 0 || size_t(bytes.size()) >= outLen) {
+        if (exitCode) {
+            *exitCode = 1;
+        }
+        return -1;
+    }
+    memcpy(out, bytes.constData(), size_t(bytes.size()) + 1);
+    if (exitCode) {
+        *exitCode = 0;
+    }
+    return bytes.size();
+}
+
+void runWinUaeQtDebuggerConsoleWrite(const char *text)
+{
+    runWinUaeQtDebuggerConsoleWrite(text ? QString::fromLocal8Bit(text) : QString());
+}
+
+void runWinUaeQtDebuggerUpdateInfo(const char *text)
+{
+    runWinUaeQtDebuggerUpdateInfo(text ? QString::fromLocal8Bit(text) : QString());
+}
+
+void runWinUaeQtDebuggerConsoleClose(void)
+{
+    closeWinUaeQtDebuggerConsole();
+}

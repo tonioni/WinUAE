@@ -23,3 +23,7 @@ int runWinUaeQtLauncherForPrefsWithConfigPaths(int argc, char **argv, struct uae
 int runWinUaeQtLauncherForPrefsWithConfigSnapshot(int argc, char **argv, struct uae_prefs *prefs, const char *display_config_path, char *selected_config_path, size_t selected_config_path_len, int runtime_actions, int *exit_code);
 int runWinUaeQtRuntimeFileDialog(int argc, char **argv, int shortcut, const char *initial_path, char *selected_path, size_t selected_path_len, int *exit_code);
 int runWinUaeQtMessageBox(int argc, char **argv, int flags, const char *message, int *exit_code);
+int runWinUaeQtDebuggerConsoleGetInput(int argc, char **argv, char *out, size_t out_len, int *exit_code);
+void runWinUaeQtDebuggerConsoleWrite(const char *text);
+void runWinUaeQtDebuggerUpdateInfo(const char *text);
+void runWinUaeQtDebuggerConsoleClose(void);

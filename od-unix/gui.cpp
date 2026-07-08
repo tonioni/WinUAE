@@ -399,6 +399,54 @@ void gui_display(int shortcut)
     write_log("Unix Qt runtime UI is not enabled in this build\n");
 #endif
 }
+
+int unix_gui_debugger_get_input(TCHAR *out, int maxlen)
+{
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    int exit_code = 0;
+    const int ret = runWinUaeQtDebuggerConsoleGetInput(
+        unix_gui_argc,
+        unix_gui_argv,
+        out,
+        maxlen,
+        &exit_code);
+    if (exit_code != 0) {
+        write_log("Unix Qt debugger exited with error code %d\n", exit_code);
+    }
+    return ret;
+#else
+    if (out && maxlen > 0) {
+        out[0] = 0;
+    }
+    return -1;
+#endif
+}
+
+void unix_gui_debugger_write(const TCHAR *text)
+{
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    runWinUaeQtDebuggerConsoleWrite(text);
+#else
+    (void)text;
+#endif
+}
+
+void unix_gui_debugger_update_info(const TCHAR *text)
+{
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    runWinUaeQtDebuggerUpdateInfo(text);
+#else
+    (void)text;
+#endif
+}
+
+void unix_gui_debugger_close(void)
+{
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    runWinUaeQtDebuggerConsoleClose();
+#endif
+}
+
 void gui_gameport_button_change(int, int, int) {}
 void gui_gameport_axis_change(int, int, int, int) {}
 void notify_user(int msg)

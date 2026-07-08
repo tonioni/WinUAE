@@ -157,3 +157,8 @@ WinUaeQtRuntimeFileDialogResult runWinUaeQtRuntimeFileDialog(QApplication &app, 
 WinUaeQtRuntimeFileDialogResult runWinUaeQtRuntimeFileDialog(int argc, char **argv, int shortcut, const QString &initialPath);
 int runWinUaeQtMessageBox(QApplication &app, int flags, const QString &message);
 int runWinUaeQtMessageBox(int argc, char **argv, int flags, const QString &message);
+int runWinUaeQtDebuggerConsoleGetInput(QApplication &app, QString *command);
+int runWinUaeQtDebuggerConsoleGetInput(int argc, char **argv, QString *command);
+void runWinUaeQtDebuggerConsoleWrite(const QString &text);
+void runWinUaeQtDebuggerUpdateInfo(const QString &text);
+void closeWinUaeQtDebuggerConsole();
