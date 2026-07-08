@@ -1,0 +1,51 @@
+# Maintainer: Ferenc Boldog <ferenc.boldog@gmail.com>
+_qemu_version="11.0.1"
+_qemu_archive="qemu-${_qemu_version}.tar.xz"
+_qemu_url_default="https://download.qemu.org/${_qemu_archive}"
+
+pkgname=winuae-unix-git
+pkgver=r5336.94bc5822
+pkgrel=1
+pkgdesc="WinUAE Amiga emulator for Unix"
+arch=('x86_64')
+url="https://github.com/tonioni/WinUAE"
+license=('GPL-2.0-only')
+depends=('qt6-base' 'sdl3' 'libpcap' 'libmpeg2' 'jack2' 'libbpf' 'libepoxy' 'libpulse' 'sndio'
+	'libpipewire' 'hicolor-icon-theme' 'alsa-lib' 'flac' 'libpng' 'libgcc' 'glibc'
+	 'keyutils' 'libglvnd' 'libstdc++' 'mesa' 'libelf' 'liburing' 'zlib' 'systemd-libs' 'glib2'
+)
+makedepends=('cmake' 'git' 'gcc' 'bash' 'curl' 'tar' 'patch' 'coreutils' 'ninja')
+provides=('winuae-unix')
+conflicts=('winuae-unix')
+source=(
+	"${pkgname}::git+https://github.com/tonioni/WinUAE.git#branch=master"
+	"qemu-uae::git+https://github.com/reinauer/uae-ppc-plugin#branch=main"
+	"https://download.qemu.org/${_qemu_archive}"
+)
+sha256sums=('SKIP' 'SKIP' '0d235f5820278d914a3155ec27af8e4258d697ea892895570807d69c0cb8cd64')
+
+pkgver() {
+    cd "${pkgname}"
+    printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+    ${srcdir}/qemu-uae/build-qemu-uae-plugin.sh --tarball "${srcdir}/${_qemu_archive}" --work-dir "${srcdir}/qemu-uae" --output "${srcdir}"
+    cmake -B "${srcdir}/build" -S "${srcdir}/${pkgname}" -DWINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN=ON -DWINUAE_QEMU_UAE_PLUGIN_FILE="${srcdir}/qemu-uae.so"
+    cmake --build "${srcdir}/build" --target winuae_unix -j
+}
+
+package() {
+    DESTDIR="${pkgdir}" cmake --install "${srcdir}/build" --prefix /opt/${pkgname}
+
+    sed -i "s|Exec=winuae|Exec=/opt/${pkgname}/bin/winuae|" \
+        "${pkgdir}/opt/${pkgname}/share/applications/net.winuae.WinUAE.desktop"
+    install -Dm644 "${pkgdir}/opt/${pkgname}/share/applications/net.winuae.WinUAE.desktop" \
+        "${pkgdir}/usr/share/applications/net.winuae.WinUAE.desktop"
+    install -Dm644 "${pkgdir}/opt/${pkgname}/share/mime/packages/net.winuae.WinUAE.xml" \
+        "${pkgdir}/usr/share/mime/packages/net.winuae.WinUAE.xml"
+    install -Dm644 "${pkgdir}/opt/${pkgname}/share/icons/hicolor/256x256/apps/winuae.png" \
+        "${pkgdir}/usr/share/icons/hicolor/256x256/apps/winuae.png"
+    install -Dm644 "${pkgdir}/opt/${pkgname}/share/icons/hicolor/256x256/mimetypes/application-x-winuae-config.png" \
+        "${pkgdir}/usr/share/icons/hicolor/256x256/mimetypes/application-x-winuae-config.png"
+}

@@ -531,34 +531,83 @@ static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *pre
     return provider;
 }
 
-int winUaeQtLauncherArgumentsSpecifyConfig(int argc, char **argv)
+static QStringList bridgeArguments(int argc, char **argv)
 {
     QStringList arguments;
     arguments.reserve(argc);
     for (int i = 0; i < argc; i++) {
         arguments.append(QString::fromLocal8Bit(argv[i]));
     }
-    return winUaeQtArgumentsSpecifyConfig(arguments) ? 1 : 0;
+    return arguments;
 }
 
-int runWinUaeQtLauncherForPrefs(int argc, char **argv, struct uae_prefs *prefs, int *exitCode)
+static bool bridgeCopyPath(const QString &path, char *out, size_t outLen)
 {
-    return runWinUaeQtLauncherForPrefsWithConfig(argc, argv, prefs, nullptr, 0, exitCode);
+    if (!out || outLen == 0) {
+        return path.isEmpty();
+    }
+    out[0] = 0;
+    if (path.isEmpty()) {
+        return true;
+    }
+    const QByteArray bytes = path.toLocal8Bit();
+    if (size_t(bytes.size()) >= outLen) {
+        return false;
+    }
+    memcpy(out, bytes.constData(), size_t(bytes.size()) + 1);
+    return true;
 }
 
-int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_prefs *prefs, const char *initialConfigPath, int runtimeActions, int *exitCode)
+static bool bridgeConfigFromPrefs(struct uae_prefs *prefs, WinUaeQtConfig *config)
 {
-    const QString initialPath = initialConfigPath && initialConfigPath[0]
-        ? QString::fromLocal8Bit(initialConfigPath)
-        : QString();
-    WinUaeQtLauncherResult result = runWinUaeQtLauncherForConfig(argc, argv, initialPath, bridgeHardwareProvider(prefs, runtimeActions != 0));
-    if (result.status == WinUaeQtLauncherStatus::StartRequested) {
+    if (!prefs || !config) {
+        return false;
+    }
+    struct zfile *file = zfile_fopen_empty(nullptr, _T("unix-qt-prefs.uae"), 0);
+    if (!file) {
+        return false;
+    }
+    cfgfile_save_options(file, prefs, CONFIG_TYPE_ALL);
+    size_t len = 0;
+    const uae_u8 *data = zfile_get_data_pointer(file, &len);
+    const QString text = data && len ? QString::fromLocal8Bit((const char *)data, int(len)) : QString();
+    zfile_fclose(file);
+
+    QString error;
+    if (!config->loadFromText(text, &error)) {
+        const QByteArray bytes = error.toLocal8Bit();
+        fprintf(stderr, "Unix Qt UI failed to parse runtime config: %s\n", bytes.constData());
+        return false;
+    }
+    return true;
+}
+
+static int bridgeHandleLauncherResult(
+    const WinUaeQtLauncherResult &result,
+    struct uae_prefs *prefs,
+    char *selectedConfigPath,
+    size_t selectedConfigPathLen,
+    int *exitCode)
+{
+    if (result.status == WinUaeQtLauncherStatus::StartRequested
+        || result.status == WinUaeQtLauncherStatus::RestartRequested) {
+        if (selectedConfigPath
+            && selectedConfigPathLen > 0
+            && !bridgeCopyPath(result.configPath, selectedConfigPath, selectedConfigPathLen)) {
+            fprintf(stderr, "Unix Qt UI warning: selected config path is too long\n");
+        }
         if (!applyWinUaeQtConfigToPrefs(result.config, prefs)) {
             fprintf(stderr, "Unix Qt UI failed: no preferences target available\n");
             if (exitCode) {
                 *exitCode = 1;
             }
             return WINUAE_QT_LAUNCHER_ERROR;
+        }
+        if (result.status == WinUaeQtLauncherStatus::RestartRequested) {
+            if (exitCode) {
+                *exitCode = 0;
+            }
+            return WINUAE_QT_LAUNCHER_RESTART;
         }
         return result.hardReset ? WINUAE_QT_LAUNCHER_RESET : WINUAE_QT_LAUNCHER_START;
     }
@@ -567,12 +616,6 @@ int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_pref
             *exitCode = 0;
         }
         return WINUAE_QT_LAUNCHER_QUIT;
-    }
-    if (result.status == WinUaeQtLauncherStatus::RestartRequested) {
-        if (exitCode) {
-            *exitCode = 0;
-        }
-        return WINUAE_QT_LAUNCHER_RESTART;
     }
     if (result.status == WinUaeQtLauncherStatus::Error) {
         QByteArray error = result.error.toLocal8Bit();
@@ -586,6 +629,106 @@ int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_pref
         *exitCode = 0;
     }
     return WINUAE_QT_LAUNCHER_EXIT;
+}
+
+int winUaeQtLauncherArgumentsSpecifyConfig(int argc, char **argv)
+{
+    return winUaeQtArgumentsSpecifyConfig(bridgeArguments(argc, argv)) ? 1 : 0;
+}
+
+int winUaeQtLauncherInitialConfigPath(int argc, char **argv, char *path, size_t pathLen)
+{
+    if (path && pathLen > 0) {
+        path[0] = 0;
+    }
+    const QString initialPath = winUaeQtInitialConfigPathFromArguments(bridgeArguments(argc, argv));
+    if (initialPath.isEmpty()) {
+        return 0;
+    }
+    return bridgeCopyPath(initialPath, path, pathLen) ? 1 : -1;
+}
+
+int runWinUaeQtLauncherForPrefs(int argc, char **argv, struct uae_prefs *prefs, int *exitCode)
+{
+    return runWinUaeQtLauncherForPrefsWithConfig(argc, argv, prefs, nullptr, 0, exitCode);
+}
+
+int runWinUaeQtLauncherForPrefsWithConfig(int argc, char **argv, struct uae_prefs *prefs, const char *initialConfigPath, int runtimeActions, int *exitCode)
+{
+    return runWinUaeQtLauncherForPrefsWithConfigPaths(
+        argc,
+        argv,
+        prefs,
+        initialConfigPath,
+        nullptr,
+        nullptr,
+        0,
+        runtimeActions,
+        exitCode);
+}
+
+int runWinUaeQtLauncherForPrefsWithConfigPaths(
+    int argc,
+    char **argv,
+    struct uae_prefs *prefs,
+    const char *initialConfigPath,
+    const char *displayConfigPath,
+    char *selectedConfigPath,
+    size_t selectedConfigPathLen,
+    int runtimeActions,
+    int *exitCode)
+{
+    if (selectedConfigPath && selectedConfigPathLen > 0) {
+        selectedConfigPath[0] = 0;
+    }
+    const QString initialPath = initialConfigPath && initialConfigPath[0]
+        ? QString::fromLocal8Bit(initialConfigPath)
+        : QString();
+    const QString displayPath = displayConfigPath && displayConfigPath[0]
+        ? QString::fromLocal8Bit(displayConfigPath)
+        : QString();
+    WinUaeQtLauncherResult result = runWinUaeQtLauncherForConfig(
+        argc,
+        argv,
+        initialPath,
+        displayPath,
+        bridgeHardwareProvider(prefs, runtimeActions != 0));
+    return bridgeHandleLauncherResult(result, prefs, selectedConfigPath, selectedConfigPathLen, exitCode);
+}
+
+int runWinUaeQtLauncherForPrefsWithConfigSnapshot(
+    int argc,
+    char **argv,
+    struct uae_prefs *prefs,
+    const char *displayConfigPath,
+    char *selectedConfigPath,
+    size_t selectedConfigPathLen,
+    int runtimeActions,
+    int *exitCode)
+{
+    if (selectedConfigPath && selectedConfigPathLen > 0) {
+        selectedConfigPath[0] = 0;
+    }
+
+    WinUaeQtConfig initialConfig;
+    if (!bridgeConfigFromPrefs(prefs, &initialConfig)) {
+        fprintf(stderr, "Unix Qt UI failed: could not snapshot runtime preferences\n");
+        if (exitCode) {
+            *exitCode = 1;
+        }
+        return WINUAE_QT_LAUNCHER_ERROR;
+    }
+
+    const QString displayPath = displayConfigPath && displayConfigPath[0]
+        ? QString::fromLocal8Bit(displayConfigPath)
+        : QString();
+    WinUaeQtLauncherResult result = runWinUaeQtLauncherForConfig(
+        argc,
+        argv,
+        initialConfig,
+        displayPath,
+        bridgeHardwareProvider(prefs, runtimeActions != 0));
+    return bridgeHandleLauncherResult(result, prefs, selectedConfigPath, selectedConfigPathLen, exitCode);
 }
 
 int runWinUaeQtRuntimeFileDialog(int argc, char **argv, int shortcut, const char *initialPath, char *selectedPath, size_t selectedPathLen, int *exitCode)

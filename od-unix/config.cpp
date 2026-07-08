@@ -39,6 +39,7 @@ static TCHAR path_saveimage[MAX_DPATH];
 static TCHAR path_ripper[MAX_DPATH];
 static TCHAR path_data[MAX_DPATH];
 static TCHAR path_rom[MAX_DPATH];
+static TCHAR unix_gfx_shader[64] = _T("none");
 static TCHAR uaeserial_ports[UNIX_UAESERIAL_MAX_UNITS][256];
 
 static std::string trim_copy(const std::string &s)
@@ -517,11 +518,23 @@ int target_parse_option(struct uae_prefs *p, const TCHAR *option, const TCHAR *v
         || parse_rom_path_option(p, option, value)) {
         return 1;
     }
+    if (!_tcsicmp(option, _T("gfx_shader"))) {
+        uae_tcslcpy(unix_gfx_shader, value && value[0] ? value : _T("none"),
+            sizeof unix_gfx_shader / sizeof(TCHAR));
+        write_log(_T("unix.gfx_shader = '%s'\n"), unix_gfx_shader);
+        return 1;
+    }
     return 0;
+}
+
+const TCHAR *unix_gfx_shader_option(void)
+{
+    return unix_gfx_shader;
 }
 
 void target_save_options(struct zfile *f, struct uae_prefs *p)
 {
+    cfgfile_target_dwrite_str(f, _T("gfx_shader"), unix_gfx_shader);
     cfgfile_target_dwrite_str(f, _T("serial_port"), p->sername[0] ? p->sername : _T("none"));
     cfgfile_target_dwrite_str_escape(f, _T("parallel_port"), p->prtname[0] ? p->prtname : _T("none"));
     for (int i = 0; i < UNIX_UAESERIAL_MAX_UNITS; i++) {

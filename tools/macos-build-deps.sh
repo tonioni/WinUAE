@@ -119,6 +119,9 @@ run_autotools_build() {
             make distclean >/dev/null 2>&1 || true
         fi
         rm -f config.log config.status
+        if [[ "${WINUAE_AUTORECONF:-0}" == "1" ]]; then
+            autoreconf --force --install
+        fi
         env \
             CFLAGS="${CFLAGS:-} -mmacosx-version-min=${target}" \
             CXXFLAGS="${CXXFLAGS:-} -mmacosx-version-min=${target}" \
@@ -149,6 +152,18 @@ split_extra_args() {
         # shellcheck disable=SC2206
         extra_args=($1)
     fi
+}
+
+have_compatible_dylib() {
+    local dylib="$1"
+    [[ -f "${dylib}" ]] &&
+        "${source_dir}/tools/macos-check-deployment-target.sh" \
+            "${dylib}" "${target}" >/dev/null 2>&1
+}
+
+have_compatible_flac() {
+    [[ -f "${prefix}/include/FLAC/all.h" ]] &&
+        have_compatible_dylib "${prefix}/lib/libFLAC.dylib"
 }
 
 mkdir -p "${prefix}" "${build_dir}"
@@ -199,6 +214,8 @@ if [[ "${WINUAE_SKIP_FLAC:-0}" != "1" ]]; then
         flac_cmake_args+=(${extra_args[@]+"${extra_args[@]}"})
         run_cmake_build "${flac_source}" "${build_dir}/flac" \
             "${flac_cmake_args[@]}"
+    elif have_compatible_flac; then
+        echo "note: compatible private libFLAC already exists in ${prefix}" >&2
     elif [[ "${WINUAE_REQUIRE_FLAC:-0}" == "1" ]]; then
         echo "error: FLAC source path is required when WINUAE_REQUIRE_FLAC=1" >&2
         usage >&2
@@ -223,8 +240,16 @@ if [[ "${WINUAE_SKIP_LIBMPEG2:-0}" != "1" ]]; then
             split_extra_args "${WINUAE_LIBMPEG2_CONFIGURE_ARGS}"
             libmpeg2_configure_args+=(${extra_args[@]+"${extra_args[@]}"})
         fi
-        run_autotools_build "${libmpeg2_source}" "${build_dir}/libmpeg2" \
-            "${libmpeg2_configure_args[@]}"
+        # The 0.5.1 tarball ships 2008 autotools that cannot configure on
+        # arm64-apple-darwin, and clang needs gnu89 inline semantics to avoid
+        # duplicate symbol errors, so regenerate the build system like the
+        # Homebrew formula does.
+        (
+            export WINUAE_AUTORECONF=1
+            export CFLAGS="${CFLAGS:-} -std=gnu89"
+            run_autotools_build "${libmpeg2_source}" "${build_dir}/libmpeg2" \
+                "${libmpeg2_configure_args[@]}"
+        )
         (
             cd "${build_dir}/libmpeg2/src"
             make -C libmpeg2 install

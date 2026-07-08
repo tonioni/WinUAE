@@ -44,5 +44,7 @@ void unix_video_get_desktop(int *dw, int *dh, int *x, int *y, int *w, int *h);
 void unix_video_set_mouse_grab(bool grab);
 bool unix_video_get_mouse_grab(void);
 void unix_video_toggle_mouse_grab(void);
+/* Named shader/scaler selected through the unix.gfx_shader config option. */
+const TCHAR *unix_gfx_shader_option(void);
 
 #endif /* WINUAE_OD_UNIX_VIDEO_H */

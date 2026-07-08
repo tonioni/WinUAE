@@ -19,6 +19,7 @@ struct WinUaeQtLauncherResult {
     bool hardReset = false;
     int exitCode = 0;
     QString error;
+    QString configPath;
     WinUaeQtConfig config;
 };
 
@@ -141,12 +142,17 @@ struct WinUaeQtHardwareInfoProvider {
 };
 
 bool winUaeQtArgumentsSpecifyConfig(const QStringList &arguments);
+QString winUaeQtInitialConfigPathFromArguments(const QStringList &arguments);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider);
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider);
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const WinUaeQtConfig &initialConfig, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const QString &initialConfigPath);
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const QString &initialConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider);
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const QString &initialConfigPath, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider);
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const WinUaeQtConfig &initialConfig, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider);
 WinUaeQtRuntimeFileDialogResult runWinUaeQtRuntimeFileDialog(QApplication &app, int shortcut, const QString &initialPath);
 WinUaeQtRuntimeFileDialogResult runWinUaeQtRuntimeFileDialog(int argc, char **argv, int shortcut, const QString &initialPath);
 int runWinUaeQtMessageBox(QApplication &app, int flags, const QString &message);

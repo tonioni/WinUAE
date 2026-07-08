@@ -37,6 +37,8 @@
 #include "launcher.h"
 #include "mount_config.h"
 #include "path_utils.h"
+#include "target.h"
+#include "winuae_builddate.h"
 
 #ifndef WINUAE_UNIX_SOURCE_DIR
 #define WINUAE_UNIX_SOURCE_DIR "."
@@ -2255,10 +2257,31 @@ static QString resourceFile(const QString &relative)
 
 static QString versionString()
 {
-    return QStringLiteral("WinUAE %1.%2.%3")
+    QString s = QStringLiteral("WinUAE %1.%2.%3")
         .arg(WINUAE_UNIX_VERSION_MAJOR)
         .arg(WINUAE_UNIX_VERSION_MINOR)
         .arg(WINUAE_UNIX_VERSION_REVISION);
+    const QString date = QStringLiteral("%1.%2.%3")
+        .arg(GETBDY(WINUAEDATE))
+        .arg(GETBDM(WINUAEDATE), 2, 10, QLatin1Char('0'))
+        .arg(GETBDD(WINUAEDATE), 2, 10, QLatin1Char('0'));
+    const QString beta = QStringLiteral(WINUAEBETA);
+    if (!beta.isEmpty()) {
+        if (WINUAEPUBLICBETA == 2) {
+            s += QStringLiteral(" (DevAlpha %1, %2)").arg(beta, date);
+        } else {
+            s += QStringLiteral(" (%1Beta %2, %3)")
+                .arg(WINUAEPUBLICBETA > 0 ? QStringLiteral("Public ") : QString(), beta, date);
+        }
+    } else {
+        s += QStringLiteral(" (%1)").arg(date);
+    }
+#if defined(__aarch64__)
+    s += QStringLiteral(" ARM64");
+#elif defined(__x86_64__)
+    s += QStringLiteral(" x64");
+#endif
+    return s;
 }
 
 static QStringList contributorLines()
@@ -2544,7 +2567,8 @@ static const ConfigChoice filterTargetChoices[] = {
 };
 
 static const ConfigChoice filterModeChoices[] = {
-    { "None", "none" }
+    { "None", "none" },
+    { "Scale2x (EPX)", "scale2x" }
 };
 
 static const ConfigChoice filterModeHChoices[] = {
@@ -3375,9 +3399,9 @@ static QString expansionBoardOptionsValue(
         if (board) {
             for (const WinUaeQtBoardSetting &choice : board->settings) {
                 if (choice.type == WinUaeQtBoardSettingType::CheckBox) {
-                    known = name.compare(choice.configValue, Qt::CaseInsensitive) == 0;
+                    known = known || name.compare(choice.configValue, Qt::CaseInsensitive) == 0;
                 } else if (choice.type == WinUaeQtBoardSettingType::String) {
-                    known = name.compare(choice.configValue, Qt::CaseInsensitive) == 0;
+                    known = known || name.compare(choice.configValue, Qt::CaseInsensitive) == 0;
                 } else if (choice.type == WinUaeQtBoardSettingType::Multi) {
                     for (const QString &value : choice.multiValues) {
                         if (name.compare(value, Qt::CaseInsensitive) == 0) {
@@ -5167,9 +5191,33 @@ static QString fileDialogInitialSavePath(const QString &path, const QString &fal
     return winUaeQtFileDialogInitialSavePath(path, fallbackName);
 }
 
+static QFileDialog::Options pathSelectionDialogOptions()
+{
+    QFileDialog::Options options = QFileDialog::DontResolveSymlinks;
+#if defined(__APPLE__)
+    // The native macOS panel returns the resolved target for symlinked files.
+    options |= QFileDialog::DontUseNativeDialog;
+#endif
+    return options;
+}
+
+static QString getOpenFileNamePreservingSymlinks(QWidget *parent,
+    const QString &caption, const QString &dir, const QString &filter)
+{
+    return QFileDialog::getOpenFileName(parent, caption, dir, filter, nullptr,
+        pathSelectionDialogOptions());
+}
+
+static QString getExistingDirectoryPreservingSymlinks(QWidget *parent,
+    const QString &caption, const QString &dir)
+{
+    return QFileDialog::getExistingDirectory(parent, caption, dir,
+        pathSelectionDialogOptions() | QFileDialog::ShowDirsOnly);
+}
+
 static void addBrowse(QComboBox *field, QWidget *parent, const QString &caption, const QString &filter)
 {
-    const QString path = QFileDialog::getOpenFileName(parent, caption, fileDialogInitialPath(field->currentText()), filter);
+    const QString path = getOpenFileNamePreservingSymlinks(parent, caption, fileDialogInitialPath(field->currentText()), filter);
     if (!path.isEmpty()) {
         setPathComboText(field, path);
     }
@@ -5180,7 +5228,7 @@ static bool isConfigPath(const QString &path)
     return path.endsWith(QStringLiteral(".uae"), Qt::CaseInsensitive);
 }
 
-static QString initialConfigPathFromArguments(const QStringList &arguments)
+QString winUaeQtInitialConfigPathFromArguments(const QStringList &arguments)
 {
     for (int i = 1; i < arguments.size(); i++) {
         const QString arg = arguments[i];
@@ -5270,6 +5318,7 @@ public:
     explicit WinUaeQtDialog(
         QWidget *parent = nullptr,
         const QString &initialConfigPath = QString(),
+        const QString &displayConfigPath = QString(),
         const WinUaeQtHardwareInfoProvider &hardwareInfoProvider = WinUaeQtHardwareInfoProvider())
         : QDialog(parent),
           hardwareProvider(hardwareInfoProvider),
@@ -5379,12 +5428,17 @@ public:
             accept();
         });
         connect(restart, &QPushButton::clicked, this, [this]() {
-            result.status = WinUaeQtLauncherStatus::RestartRequested;
-            accept();
+            requestRestart();
         });
         connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
         connect(start, &QPushButton::clicked, this, [this]() { startEmulator(); });
         connect(help, &QPushButton::clicked, this, [this]() { openHelp(); });
+
+        // macOS disables the application menu (and its Cmd+Q) while the launcher
+        // runs as a modal dialog, so Cmd+Q never reaches us the way it would in
+        // a normal app. Bind it explicitly to Cancel, mirroring Escape.
+        QShortcut *quitShortcut = new QShortcut(QKeySequence::Quit, this);
+        connect(quitShortcut, &QShortcut::activated, this, &QDialog::reject);
 
         QHBoxLayout *buttons = new QHBoxLayout;
         buttons->setContentsMargins(0, 0, 0, 0);
@@ -5412,7 +5466,9 @@ public:
         resetDefaults();
         navigation->setCurrentItem(quickstartPage);
         if (!initialConfigPath.isEmpty()) {
-            loadConfig(initialConfigPath);
+            if (loadConfig(initialConfigPath)) {
+                setLoadedConfigDisplayPath(displayConfigPath);
+            }
         }
         if (hardwareProvider.pollHostWindowEvents) {
             QTimer *timer = new QTimer(this);
@@ -5436,6 +5492,11 @@ public:
         loadConfig(path);
         raise();
         activateWindow();
+    }
+
+    bool loadConfigSnapshot(const WinUaeQtConfig &config, const QString &displayConfigPath)
+    {
+        return loadConfigDocument(config, displayConfigPath);
     }
 
     bool exportMergedConfig(const QString &path)
@@ -5498,6 +5559,7 @@ private:
     QButtonGroup *cpuButtons = nullptr;
     QButtonGroup *fpuButtons = nullptr;
     QCheckBox *cpu24Bit = nullptr;
+    int lastSelectedCpuModel = 68020;
     QCheckBox *moreCompatible = nullptr;
     QCheckBox *cpuDataCache = nullptr;
     QCheckBox *jit = nullptr;
@@ -6278,7 +6340,9 @@ private:
         chipsetCycleExact->setChecked(exact);
         chipsetCycleExactMemory->setChecked(memoryExact);
         moreCompatible->setChecked(level <= 2);
-        if (cpu >= 68030) {
+        if (cpu <= 68010) {
+            cpu24Bit->setChecked(true);
+        } else if (cpu >= 68030) {
             cpu24Bit->setChecked(false);
         }
         updateCpuControlState();
@@ -6347,8 +6411,7 @@ private:
             cpu->addWidget(button, i / 2, i % 2);
             cpuButtons->addButton(button, name.mid(2).toInt() + 68000);
             connect(button, &QRadioButton::clicked, this, [this]() {
-                updateFpuControls();
-                updateCpuControlState();
+                handleCpuModelSelected();
             });
             if (name == QStringLiteral("68020")) {
                 button->setChecked(true);
@@ -6482,6 +6545,14 @@ private:
 
         connect(cpu24Bit, &QCheckBox::toggled, this, [this]() { updateCpuControlState(); });
         connect(moreCompatible, &QCheckBox::toggled, this, [this]() { updateCpuControlState(); });
+        connect(moreCompatible, &QCheckBox::clicked, this, [this]() {
+            remapFpuSelection();
+            updateFpuControls();
+            updateCpuControlState();
+        });
+        connect(mmuButtons, QOverload<QAbstractButton *>::of(&QButtonGroup::buttonClicked), this, [this]() { updateCpuControlState(); });
+        connect(cpuSpeedButtons, QOverload<QAbstractButton *>::of(&QButtonGroup::buttonClicked), this, [this]() { updateCpuControlState(); });
+        connect(cpuFrequency, &QComboBox::currentTextChanged, this, [this]() { updateCpuControlState(); });
         connect(jit, &QCheckBox::toggled, this, [this](bool checked) {
             if (checked) {
                 if (jitCache && jitCacheSizeFromPosition(jitCache->value()) <= 0) {
@@ -6653,6 +6724,8 @@ private:
             }
             if (checked) {
                 chipsetCycleExactMemory->setChecked(true);
+            } else if (chipsetCycleExactMemory && !chipsetCycleExactMemory->isEnabled()) {
+                chipsetCycleExactMemory->setChecked(false);
             }
             updateCpuControlState();
         });
@@ -6666,16 +6739,23 @@ private:
             }
             updateCpuControlState();
         });
+        connect(chipsetCycleExactMemory, &QCheckBox::clicked, this, [this]() {
+            remapFpuSelection();
+            updateFpuControls();
+            updateCpuControlState();
+        });
         connect(immediateBlits, &QCheckBox::toggled, this, [this](bool checked) {
             if (checked) {
                 waitingBlits->setChecked(false);
             }
+            updateChipsetControlState();
         });
         connect(waitingBlits, &QCheckBox::toggled, this, [this](bool checked) {
             if (checked) {
                 immediateBlits->setChecked(false);
             }
         });
+        connect(keyboardMode, &QComboBox::currentTextChanged, this, [this]() { updateChipsetControlState(); });
         connect(genlockConnected, &QCheckBox::toggled, this, [this]() { updateGenlockControlState(); });
         connect(genlockMode, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this]() { updateGenlockControlState(); });
         connect(genlockFile, &QComboBox::currentTextChanged, this, [this]() { storeGenlockFilePath(); });
@@ -6689,6 +6769,7 @@ private:
             storeGenlockFilePath();
         });
         updateGenlockControlState();
+        updateChipsetControlState();
         return page;
     }
 
@@ -6875,6 +6956,7 @@ private:
             } else if (!checked && chipsetCompatible->currentText() != QStringLiteral("-")) {
                 chipsetCompatible->setCurrentText(QStringLiteral("-"));
             }
+            updateAdvancedChipsetControlState();
         });
         connect(chipsetCompatible, &QComboBox::currentTextChanged, this, [this](const QString &text) {
             setCheckBoxIfChanged(advancedCompatible, text != QStringLiteral("-"));
@@ -6890,15 +6972,11 @@ private:
                 advancedIdeA600A1200->setChecked(false);
             }
         });
-        auto updateRevisionState = [this]() {
-            advancedRamseyRevision->setEnabled(advancedRamsey->isChecked());
-            advancedFatGaryRevision->setEnabled(advancedFatGary->isChecked());
-        };
-        connect(advancedRamsey, &QCheckBox::toggled, this, updateRevisionState);
-        connect(advancedFatGary, &QCheckBox::toggled, this, updateRevisionState);
+        connect(advancedRamsey, &QCheckBox::toggled, this, [this]() { updateAdvancedChipsetControlState(); });
+        connect(advancedFatGary, &QCheckBox::toggled, this, [this]() { updateAdvancedChipsetControlState(); });
 
         applyAdvancedChipsetPreset(chipsetCompatible->currentText());
-        updateRevisionState();
+        updateAdvancedChipsetControlState();
         return page;
     }
 
@@ -7000,7 +7078,7 @@ private:
         connect(customRomEnd, &QLineEdit::textChanged, this, [this](const QString &) { storeCurrentCustomRomBoard(); });
         connect(customRomFile, &QLineEdit::textChanged, this, [this](const QString &) { storeCurrentCustomRomBoard(); });
         connect(customRomBrowse, &QPushButton::clicked, this, [this]() {
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select custom ROM file"), fileDialogInitialPath(customRomFile->text()), QStringLiteral("ROM files (*.rom *.bin);;All files (*)"));
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select custom ROM file"), fileDialogInitialPath(customRomFile->text()), QStringLiteral("ROM files (*.rom *.bin);;All files (*)"));
             if (selected.isEmpty()) {
                 return;
             }
@@ -7068,6 +7146,8 @@ private:
         advanced->addWidget(new QCheckBox(QStringLiteral("Manual configuration")), 2, 1);
         advanced->addWidget(new QCheckBox(QStringLiteral("DMA Capable")), 2, 2);
         root->addWidget(groupBox(QStringLiteral("Advanced Memory Settings"), advanced), 1);
+        connect(chipMem, &QComboBox::currentTextChanged, this, [this]() { updateAdvancedChipsetControlState(); });
+        updateMemoryControlState();
         return page;
     }
 
@@ -7422,7 +7502,7 @@ private:
 
     void browseDiskSwapperImage(int slot)
     {
-        const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select floppy image"), fileDialogInitialPath(diskSwapperPathAt(slot)), floppyDiskImageFilter());
+        const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select floppy image"), fileDialogInitialPath(diskSwapperPathAt(slot)), floppyDiskImageFilter());
         if (!selected.isEmpty()) {
             setPathComboText(diskSwapperPath, selected);
             setDiskSwapperPath(slot, selected);
@@ -7553,7 +7633,7 @@ private:
         });
         connect(selectCdImage, &QPushButton::clicked, this, [this]() {
             const QString initialPath = fileDialogInitialPath(cdSlotPath->currentText());
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select CD image"), initialPath, cdImageFilter());
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select CD image"), initialPath, cdImageFilter());
             if (!selected.isEmpty()) {
                 setPathComboText(cdSlotPath, selected);
                 setComboTextIfChanged(cdSlotType, QStringLiteral("Image file"));
@@ -7679,8 +7759,6 @@ private:
                 rtgCenter->setChecked(false);
             }
         });
-        connect(rtgMem, &QComboBox::currentTextChanged, this, [this]() { updateCpuControlState(); });
-        connect(rtgType, &QComboBox::currentTextChanged, this, [this]() { updateCpuControlState(); });
         return page;
     }
 
@@ -9113,7 +9191,44 @@ private:
 
         root->addLayout(left, 3);
         root->addLayout(right, 1);
+        connect(displayAutoResolution, &QComboBox::currentTextChanged, this, [this]() { updateDisplayControlState(); });
+        connect(displayResolution, &QComboBox::currentTextChanged, this, [this]() { updateDisplayControlState(); });
+        connect(displayLineModeButtons, QOverload<QAbstractButton *>::of(&QButtonGroup::buttonClicked), this, [this]() { updateDisplayControlState(); });
+        updateDisplayControlState();
         return page;
+    }
+
+    void updateDisplayControlState()
+    {
+        const bool autoRes = displayAutoResolution
+            && displayAutoResolution->currentText() != QStringLiteral("Disabled");
+        if (displayResolution) {
+            displayResolution->setEnabled(!autoRes);
+        }
+        if (displayLineModeButtons) {
+            for (QAbstractButton *button : displayLineModeButtons->buttons()) {
+                button->setEnabled(!autoRes);
+            }
+        }
+        const bool doubled = displayLineModeButtons && displayLineModeButtons->checkedId() > 0;
+        if (displayInterlacedLineModeButtons) {
+            for (QAbstractButton *button : displayInterlacedLineModeButtons->buttons()) {
+                const bool single = button == displayInterlacedLineModeButtons->button(0);
+                button->setEnabled(!autoRes && (single ? !doubled : doubled));
+            }
+        }
+        if (displayAutoResolutionVga) {
+            const bool vga = displayResolution
+                && displayResolution->currentText() != QStringLiteral("lores")
+                && doubled;
+            if (!vga) {
+                setCheckBoxIfChanged(displayAutoResolutionVga, false);
+            }
+            displayAutoResolutionVga->setEnabled(vga);
+        }
+        if (displayFrameRate) {
+            displayFrameRate->setEnabled(!(chipsetCycleExactMemory && chipsetCycleExactMemory->isChecked()));
+        }
     }
 
     QWidget *makeFilterPage()
@@ -9409,7 +9524,7 @@ private:
         if (hasStateRecorder) {
             connect(statePlay, &QCheckBox::clicked, this, [this, statePlay, updateStateRecorderControls](bool checked) {
                 if (checked) {
-                    const QString selected = QFileDialog::getOpenFileName(
+                    const QString selected = getOpenFileNamePreservingSymlinks(
                         this,
                         QStringLiteral("Select input recording"),
                         expandedPathText(unixDefaultDataSubPath(QStringLiteral("Save States"))),
@@ -11558,7 +11673,7 @@ private:
         root->addLayout(right, 1);
 
         const auto selectStateFile = [this]() {
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select state file"), fileDialogInitialPath(stateFileName->currentText()), QStringLiteral("WinUAE state files (*.uss);;All files (*)"));
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select state file"), fileDialogInitialPath(stateFileName->currentText()), QStringLiteral("WinUAE state files (*.uss);;All files (*)"));
             if (!selected.isEmpty()) {
                 setPathComboText(stateFileName, selected);
                 stateFileClear->setChecked(false);
@@ -12170,9 +12285,9 @@ private:
                 : fileDialogInitialPath(field->text());
             QString path;
             if (directory) {
-                path = QFileDialog::getExistingDirectory(this, caption, initialPath);
+                path = getExistingDirectoryPreservingSymlinks(this, caption, initialPath);
             } else {
-                path = QFileDialog::getOpenFileName(this, caption, initialPath, QStringLiteral("All files (*)"));
+                path = getOpenFileNamePreservingSymlinks(this, caption, initialPath, QStringLiteral("All files (*)"));
             }
             if (!path.isEmpty()) {
                 field->setText(path);
@@ -12255,6 +12370,45 @@ private:
         cdSlotPath->setCurrentText(cdSlots[index].path);
         cdSlotType->setCurrentText(cdSlots[index].type.isEmpty() ? QStringLiteral("Image file") : cdSlots[index].type);
         cdSlotUpdating = false;
+    }
+
+    void selectCdSlot(int index, bool storeCurrent = true)
+    {
+        ensureCdSlots();
+        if (index < 0 || index >= cdSlots.size()) {
+            return;
+        }
+        if (storeCurrent) {
+            storeCurrentCdSlotFromUi();
+        }
+        currentCdSlot = index;
+        loadCdSlotToUi(currentCdSlot);
+    }
+
+    void selectPreferredCdSlotAfterLoad()
+    {
+        ensureCdSlots();
+        int slot = -1;
+        if (mountedDrives) {
+            for (int i = 0; i < mountedDrives->topLevelItemCount(); i++) {
+                const WinUaeQtMountEntry entry = mountEntryFromItem(mountedDrives->topLevelItem(i));
+                if (entry.kind == QStringLiteral("cd")
+                    && entry.emuUnit >= 0
+                    && entry.emuUnit < cdSlots.size()) {
+                    slot = entry.emuUnit;
+                    break;
+                }
+            }
+        }
+        if (slot < 0) {
+            for (int i = 0; i < cdSlots.size(); i++) {
+                if (cdSlots[i].inUse || !cdSlots[i].path.isEmpty()) {
+                    slot = i;
+                    break;
+                }
+            }
+        }
+        selectCdSlot(slot >= 0 ? slot : 0, false);
     }
 
     void ensureCustomRomBoards()
@@ -12359,17 +12513,14 @@ private:
     {
         const int cpu = selectedCpuModel();
         const int fpu = fpuModelConfigValue(cpu);
-        const bool z3Rtg = rtgNeeds32BitAddressSpace();
         bool jitEnabled = jit && jit->isChecked();
+        const bool memoryCycleExact = chipsetCycleExactMemory && chipsetCycleExactMemory->isChecked();
         if (cpu24Bit) {
-            cpu24Bit->setEnabled(cpu <= 68030 && !z3Rtg);
-            cpu24Bit->setToolTip(z3Rtg ? QStringLiteral("Zorro III RTG requires a 32-bit address space.") : QString());
-            if (z3Rtg && cpu24Bit->isChecked()) {
-                cpu24Bit->setChecked(false);
-            }
+            cpu24Bit->setEnabled(cpu <= 68030);
         }
+        const bool mmuSelected = mmuButtons && mmuButtons->checkedId() > 0;
         if (jit) {
-            jit->setEnabled(unixJitBackendAvailable() && cpu >= 68020 && !cpu24Bit->isChecked());
+            jit->setEnabled(unixJitBackendAvailable() && cpu >= 68020 && !cpu24Bit->isChecked() && !mmuSelected);
             if (!jit->isEnabled() && jit->isChecked()) {
                 jit->setChecked(false);
             }
@@ -12381,8 +12532,11 @@ private:
             chipsetCycleExact->setToolTip(jitEnabled ? QStringLiteral("Cycle-exact emulation is not compatible with JIT.") : QString());
         }
         if (chipsetCycleExactMemory) {
-            chipsetCycleExactMemory->setEnabled(cycleExactEnabled);
+            chipsetCycleExactMemory->setEnabled(cycleExactEnabled && cpu >= 68020);
             chipsetCycleExactMemory->setToolTip(jitEnabled ? QStringLiteral("Cycle-exact emulation is not compatible with JIT.") : QString());
+        }
+        if (moreCompatible) {
+            moreCompatible->setEnabled(!memoryCycleExact && !(jitEnabled && cpu >= 68040));
         }
         if (cpuDataCache) {
             cpuDataCache->setEnabled(cpu >= 68030 && moreCompatible->isChecked() && !jitEnabled);
@@ -12423,15 +12577,106 @@ private:
                 button->setEnabled(jitOptions);
             }
         }
+        const bool cycleExact = chipsetCycleExact && chipsetCycleExact->isChecked();
+        if (cpuSpeed) {
+            cpuSpeed->setEnabled(!cycleExact);
+        }
+        if (cpuSpeedLabel) {
+            cpuSpeedLabel->setEnabled(!cycleExact);
+        }
+        const bool adjustableSpeed = !cpuSpeedButtons || cpuSpeedButtons->checkedId() == 0;
+        if (cpuFrequency) {
+            cpuFrequency->setEnabled((cycleExact || (moreCompatible && moreCompatible->isChecked())) && adjustableSpeed);
+        }
+        if (cpuFrequencyCustom) {
+            cpuFrequencyCustom->setEnabled(cycleExact && adjustableSpeed
+                && cpuFrequency && cpuFrequency->currentText() == QStringLiteral("Custom"));
+        }
         updateJitCacheLabel();
+        updateChipsetControlState();
+        updateMemoryControlState();
+        updateDisplayControlState();
+        lastSelectedCpuModel = cpu;
     }
 
-    bool rtgNeeds32BitAddressSpace() const
+    void updateChipsetControlState()
     {
-        const int configType = rtgConfigType(rtgType ? rtgType->currentText() : QString());
-        return rtgMem && rtgType
-            && rtgMem->currentText() != QStringLiteral("None")
-            && (configType == 3 || configType == 7);
+        const int cpu = selectedCpuModel();
+        if (immediateBlits && waitingBlits) {
+            const bool blocked = immediateBlits->isChecked()
+                || (chipsetCycleExactMemory && chipsetCycleExactMemory->isChecked() && cpu <= 68010);
+            if (blocked) {
+                setCheckBoxIfChanged(waitingBlits, false);
+            }
+            waitingBlits->setEnabled(!blocked);
+        }
+        if (keyboardMode && keyboardNkro) {
+            const QString mode = configChoiceValue(keyboardModeChoices, int(sizeof(keyboardModeChoices) / sizeof(keyboardModeChoices[0])), keyboardMode->currentText());
+            const bool forcedNkro = mode == QStringLiteral("UAE") || mode == QStringLiteral("a2000_8039");
+            if (forcedNkro) {
+                setCheckBoxIfChanged(keyboardNkro, true);
+            }
+            keyboardNkro->setEnabled(!forcedNkro);
+        }
+    }
+
+    void updateMemoryControlState()
+    {
+        const bool z3 = !cpu24Bit || !cpu24Bit->isChecked();
+        const auto gateZ3Combo = [z3](QComboBox *box) {
+            if (!box) {
+                return;
+            }
+            if (!z3 && box->currentText() != QStringLiteral("None")) {
+                box->setCurrentText(QStringLiteral("None"));
+            }
+            box->setEnabled(z3);
+        };
+        gateZ3Combo(z3Fast);
+        gateZ3Combo(z3ChipMem);
+        gateZ3Combo(processorSlotMem);
+        if (z3Mapping) {
+            z3Mapping->setEnabled(z3);
+        }
+    }
+
+    void updateAdvancedChipsetControlState()
+    {
+        if (!advancedCompatible) {
+            return;
+        }
+        const bool manual = !advancedCompatible->isChecked();
+        const auto gateGroup = [manual](QButtonGroup *group) {
+            if (!group) {
+                return;
+            }
+            for (QAbstractButton *button : group->buttons()) {
+                button->setEnabled(manual);
+            }
+        };
+        gateGroup(advancedRtcButtons);
+        gateGroup(advancedCiaTodButtons);
+        for (QCheckBox *box : advancedCheckBoxes) {
+            box->setEnabled(manual);
+        }
+        if (QCheckBox *jumper = advancedCheckBoxes.value(QStringLiteral("1mchipjumper"))) {
+            jumper->setEnabled(manual && (!chipMem || chipMemConfigValue() <= 1));
+        }
+        for (QWidget *widget : std::initializer_list<QWidget *>{
+                advancedRtcAdjust, advancedIdeA600A1200, advancedIdeA4000, advancedCia391078,
+                advancedUnmappedAddress, advancedCiaSync, advancedScsiA3000, advancedScsiA4000T,
+                advancedRamsey, advancedFatGary, advancedAgnusModel, advancedAgnusSize,
+                advancedDeniseModel }) {
+            if (widget) {
+                widget->setEnabled(manual);
+            }
+        }
+        if (advancedRamseyRevision) {
+            advancedRamseyRevision->setEnabled(manual && advancedRamsey && advancedRamsey->isChecked());
+        }
+        if (advancedFatGaryRevision) {
+            advancedFatGaryRevision->setEnabled(manual && advancedFatGary && advancedFatGary->isChecked());
+        }
     }
 
     int rtgConfigType(const QString &type) const
@@ -13573,14 +13818,59 @@ private:
     void updateFpuControls()
     {
         const int cpu = selectedCpuModel();
-        if (QAbstractButton *internal = fpuButtons->button(FpuInternal)) {
-            internal->setEnabled(cpu >= 68040);
-            if (!internal->isEnabled() && internal->isChecked()) {
-                if (QAbstractButton *none = fpuButtons->button(0)) {
-                    none->setChecked(true);
-                }
+        const bool compatible = moreCompatible && moreCompatible->isChecked();
+        const bool external = cpu < 68040 && (cpu >= 68020 || !compatible);
+        for (const int id : { 68881, 68882 }) {
+            if (QAbstractButton *button = fpuButtons->button(id)) {
+                button->setEnabled(external);
             }
         }
+        if (QAbstractButton *internal = fpuButtons->button(FpuInternal)) {
+            internal->setEnabled(cpu >= 68040);
+        }
+    }
+
+    void remapFpuSelection()
+    {
+        const int cpu = selectedCpuModel();
+        const int checked = fpuButtons->checkedId();
+        const bool compatible = moreCompatible && moreCompatible->isChecked();
+        const bool memoryCycleExact = chipsetCycleExactMemory && chipsetCycleExactMemory->isChecked();
+        int target = checked;
+        if (cpu >= 68040) {
+            if (checked == 68881 || checked == 68882) {
+                target = FpuInternal;
+            }
+        } else {
+            if (checked == FpuInternal) {
+                target = 68881;
+            }
+            if (cpu <= 68010 && (compatible || memoryCycleExact)) {
+                target = 0;
+            }
+        }
+        if (target != checked) {
+            if (QAbstractButton *button = fpuButtons->button(target)) {
+                button->setChecked(true);
+            }
+        }
+    }
+
+    void handleCpuModelSelected()
+    {
+        const int cpu = selectedCpuModel();
+        if (cpu != lastSelectedCpuModel) {
+            if (cpu24Bit) {
+                if (cpu <= 68010) {
+                    cpu24Bit->setChecked(true);
+                } else if (cpu >= 68030) {
+                    cpu24Bit->setChecked(false);
+                }
+            }
+            remapFpuSelection();
+        }
+        updateFpuControls();
+        updateCpuControlState();
     }
 
     int chipMemConfigValue() const
@@ -13662,7 +13952,7 @@ private:
 
     void addHardfileMountDialog()
     {
-        const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("Add hardfile"), fileDialogInitialPath(QString()), hardfileImageFilter());
+        const QString path = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Add hardfile"), fileDialogInitialPath(QString()), hardfileImageFilter());
         if (path.isEmpty()) {
             return;
         }
@@ -13762,6 +14052,7 @@ private:
         entry.hardfileTail = QStringLiteral(",ide0");
         if (showCdDriveMountDialog(&entry, QStringLiteral("Add CD Drive"))) {
             addMountEntry(entry);
+            selectCdSlot(entry.emuUnit);
         }
     }
 
@@ -14032,6 +14323,9 @@ private:
         }
         if (accepted) {
             updateMountItem(item, entry);
+            if (entry.kind == QStringLiteral("cd")) {
+                selectCdSlot(entry.emuUnit);
+            }
         }
     }
 
@@ -14091,7 +14385,7 @@ private:
 
         connect(selectDirectory, &QPushButton::clicked, this, [this, path, volume, readOnly, updateReadOnlyForPath]() {
             const QString initialPath = fileDialogInitialDirectory(path->text());
-            const QString selected = QFileDialog::getExistingDirectory(this, QStringLiteral("Select directory"), initialPath);
+            const QString selected = getExistingDirectoryPreservingSymlinks(this, QStringLiteral("Select directory"), initialPath);
             if (!selected.isEmpty()) {
                 path->setText(selected);
                 if (volume->text().isEmpty()) {
@@ -14104,7 +14398,7 @@ private:
         if (selectArchive) {
             connect(selectArchive, &QPushButton::clicked, this, [this, path, volume, updateReadOnlyForPath]() {
                 const QString initialPath = fileDialogInitialPath(path->text());
-                const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select directory archive"), initialPath, directoryArchiveFilter());
+                const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select directory archive"), initialPath, directoryArchiveFilter());
                 if (!selected.isEmpty()) {
                     path->setText(selected);
                     if (volume->text().isEmpty()) {
@@ -14381,21 +14675,21 @@ private:
 
         connect(browse, &QPushButton::clicked, this, [this, path]() {
             const QString initialPath = fileDialogInitialPath(path->text());
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select hardfile"), initialPath, hardfileImageFilter());
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select hardfile"), initialPath, hardfileImageFilter());
             if (!selected.isEmpty()) {
                 path->setText(selected);
             }
         });
         connect(geometryBrowse, &QPushButton::clicked, this, [this, geometryFile]() {
             const QString initialPath = fileDialogInitialPath(geometryFile->text());
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select geometry file"), initialPath, QStringLiteral("Geometry files (*.geo);;All files (*)"));
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select geometry file"), initialPath, QStringLiteral("Geometry files (*.geo);;All files (*)"));
             if (!selected.isEmpty()) {
                 geometryFile->setText(selected);
             }
         });
         connect(filesysBrowse, &QPushButton::clicked, this, [this, filesys]() {
             const QString initialPath = fileDialogInitialPath(filesys->text());
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select filesystem"), initialPath, QStringLiteral("Filesystem files (*.fs *.filesystem);;All files (*)"));
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select filesystem"), initialPath, QStringLiteral("Filesystem files (*.fs *.filesystem);;All files (*)"));
             if (!selected.isEmpty()) {
                 filesys->setText(selected);
             }
@@ -14606,14 +14900,14 @@ private:
 
         connect(selectFile, &QPushButton::clicked, this, [this, path]() {
             const QString initialPath = fileDialogInitialPath(path->text());
-            const QString selected = QFileDialog::getOpenFileName(this, QStringLiteral("Select tape image"), initialPath, QStringLiteral("Tape images (*.tap *.raw);;All files (*)"));
+            const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select tape image"), initialPath, QStringLiteral("Tape images (*.tap *.raw);;All files (*)"));
             if (!selected.isEmpty()) {
                 path->setText(selected);
             }
         });
         connect(selectDirectory, &QPushButton::clicked, this, [this, path]() {
             const QString initialPath = fileDialogInitialDirectory(path->text());
-            const QString selected = QFileDialog::getExistingDirectory(this, QStringLiteral("Select tape directory"), initialPath);
+            const QString selected = getExistingDirectoryPreservingSymlinks(this, QStringLiteral("Select tape directory"), initialPath);
             if (!selected.isEmpty()) {
                 path->setText(selected);
             }
@@ -14734,13 +15028,24 @@ private:
         rtgMonitor->setCurrentText(QStringLiteral("1"));
     }
 
+    QString loadedScsiModeConfigKey() const
+    {
+        const WinUaeQtConfig::Settings &settings = loadedConfig.settings();
+        if (settings.contains(QStringLiteral("unix.uaescsimode"))) {
+            return QStringLiteral("unix.uaescsimode");
+        }
+        if (settings.contains(QStringLiteral("uaescsimode"))) {
+            return QStringLiteral("uaescsimode");
+        }
+        return QString();
+    }
+
     WinUaeQtConfig::Settings currentSettings() const
     {
         WinUaeQtConfig::Settings settings;
         const int cpu = selectedCpuModel();
         const int fpu = fpuModelConfigValue(cpu);
-        const bool z3Rtg = rtgNeeds32BitAddressSpace();
-        const bool cpu24BitAddressing = !z3Rtg && cpu24Bit && cpu24Bit->isChecked();
+        const bool cpu24BitAddressing = cpu24Bit && cpu24Bit->isChecked();
         const int requestedJitCacheSize = jitCache ? jitCacheSizeFromPosition(jitCache->value()) : 0;
         const bool jitActive = jit && jit->isChecked() && unixJitBackendAvailable()
             && cpu >= 68020 && !cpu24BitAddressing && requestedJitCacheSize > 0;
@@ -15154,7 +15459,10 @@ private:
         }
         settings.insert(QStringLiteral("bsdsocket_emu"), expansionBsdsocket->isEnabled() && expansionBsdsocket->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
         settings.insert(QStringLiteral("scsi"), expansionScsiDevice->isEnabled() && expansionScsiDevice->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
-        settings.insert(QStringLiteral("uaescsimode"), configChoiceValue(scsiModeChoices, int(sizeof(scsiModeChoices) / sizeof(scsiModeChoices[0])), miscScsiMode->currentText()));
+        const QString scsiModeKey = loadedScsiModeConfigKey();
+        if (!scsiModeKey.isEmpty()) {
+            settings.insert(scsiModeKey, configChoiceValue(scsiModeChoices, int(sizeof(scsiModeChoices) / sizeof(scsiModeChoices[0])), miscScsiMode->currentText()));
+        }
         settings.insert(QStringLiteral("sana2"), expansionSana2->isEnabled() && expansionSana2->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
         const int displayIndex = qMax(0, hostDisplay->currentIndex());
         settings.insert(QStringLiteral("gfx_display"), QString::number(displayIndex));
@@ -15242,6 +15550,7 @@ private:
             settings.insert(filterKey(QStringLiteral("gfx_filter_scanlineoffset"), i), QString::number(state.scanlineOffset));
         }
         settings.insert(QStringLiteral("gfx_filter_enable_lace"), filterStateFromUi(2).enable ? QStringLiteral("1") : QStringLiteral("0"));
+        settings.insert(QStringLiteral("unix.gfx_shader"), filterStateFromUi(0).filter);
         for (int i = 0; i < MaxCdSlots; i++) {
             const QString value = cdSlotConfigValue(cdSlotState(i));
             /* Slot 0 is always written, empty included, so ejecting the CD
@@ -15726,6 +16035,7 @@ private:
             QStringLiteral("gfx_filter_scanlinelevel_lace"),
             QStringLiteral("gfx_filter_scanlineoffset_lace"),
             QStringLiteral("gfx_filter_enable_lace"),
+            QStringLiteral("unix.gfx_shader"),
             QStringLiteral("cdimage0"),
             QStringLiteral("cdimage1"),
             QStringLiteral("cdimage2"),
@@ -15982,7 +16292,7 @@ private:
 
     void loadConfigDialog()
     {
-        const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("Load configuration"), configurationDirectory(), QStringLiteral("WinUAE configuration (*.uae);;All files (*)"));
+        const QString path = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Load configuration"), configurationDirectory(), QStringLiteral("WinUAE configuration (*.uae);;All files (*)"));
         if (!path.isEmpty()) {
             loadConfig(path);
         }
@@ -15996,15 +16306,21 @@ private:
         }
     }
 
-    void loadConfig(const QString &path)
+    bool loadConfig(const QString &path)
     {
         const QString expandedPath = expandedPathText(path);
         WinUaeQtConfig config;
         QString error;
         if (!config.load(expandedPath, &error)) {
             QMessageBox::warning(this, windowTitle(), error);
-            return;
+            return false;
         }
+        return loadConfigDocument(config, expandedPath);
+    }
+
+    bool loadConfigDocument(const WinUaeQtConfig &config, const QString &path)
+    {
+        WinUaeQtConfig loaded = config;
         if (mountedDrives) {
             mountedDrives->clear();
         }
@@ -16029,19 +16345,50 @@ private:
                 quickstartSetConfig->setVisible(true);
             }
         }
-        moveQuickstartBeforeOverrides(config);
-        for (const WinUaeQtConfig::Setting &setting : config.orderedSettings()) {
+        moveQuickstartBeforeOverrides(loaded);
+        for (const WinUaeQtConfig::Setting &setting : loaded.orderedSettings()) {
             applySetting(setting.key, setting.value);
         }
+        selectPreferredCdSlotAfterLoad();
         updateOutputControlState();
         updateMountButtons();
         refreshInputMappingList();
-        loadedConfig = config;
+        updateFpuControls();
+        updateCpuControlState();
+        updateAdvancedChipsetControlState();
+        loadedConfig = loaded;
         refreshHardwareInfoPage();
+        const QString expandedPath = expandedPathText(path);
+        configPath->setText(expandedPath);
+        if (!expandedPath.isEmpty()) {
+            configName->setCurrentText(QFileInfo(expandedPath).completeBaseName());
+        }
+        refreshConfigList();
+        status->setText(expandedPath.isEmpty()
+            ? QStringLiteral("Loaded running configuration")
+            : QStringLiteral("Loaded %1").arg(expandedPath));
+        return true;
+    }
+
+    void setLoadedConfigDisplayPath(const QString &path)
+    {
+        if (path.isEmpty()) {
+            return;
+        }
+        const QString expandedPath = expandedPathText(path);
         configPath->setText(expandedPath);
         configName->setCurrentText(QFileInfo(expandedPath).completeBaseName());
         refreshConfigList();
         status->setText(QStringLiteral("Loaded %1").arg(expandedPath));
+    }
+
+    QString currentConfigPath() const
+    {
+        if (!configPath) {
+            return QString();
+        }
+        const QString path = configPath->text().trimmed();
+        return path.isEmpty() ? QString() : expandedPathText(path);
     }
 
     void applySetting(const QString &key, const QString &value)
@@ -16906,6 +17253,12 @@ private:
             displayKeepAspect->setChecked(configBoolValue(value));
         } else if (key == QStringLiteral("gfx_ntscpixels")) {
             filterNtscPixels->setChecked(configBoolValue(value));
+        } else if (key == QStringLiteral("unix.gfx_shader")) {
+            const QString shader = value.trimmed();
+            filterStates[0].filter = shader.isEmpty() ? QStringLiteral("none") : shader;
+            if (currentFilterTarget == 0) {
+                loadFilterStateToUi(0);
+            }
         } else if (applyFilterSetting(key, value)) {
         }
     }
@@ -16931,7 +17284,17 @@ private:
         requestStart(false);
     }
 
+    void requestRestart()
+    {
+        requestStart(false, WinUaeQtLauncherStatus::RestartRequested);
+    }
+
     void requestStart(bool hardReset)
+    {
+        requestStart(hardReset, WinUaeQtLauncherStatus::StartRequested);
+    }
+
+    void requestStart(bool hardReset, WinUaeQtLauncherStatus status)
     {
         const WinUaeQtConfig config = mergedConfig();
         const QStringList validationErrors = config.validateForLaunch();
@@ -16941,9 +17304,10 @@ private:
             return;
         }
 
-        result.status = WinUaeQtLauncherStatus::StartRequested;
+        result.status = status;
         result.hardReset = hardReset;
         result.config = config;
+        result.configPath = currentConfigPath();
         accept();
     }
 };
@@ -17070,26 +17434,11 @@ static void armQtSmokeExit(QDialog &dialog, QApplication *app = nullptr)
 
 bool winUaeQtArgumentsSpecifyConfig(const QStringList &arguments)
 {
-    return !initialConfigPathFromArguments(arguments).isEmpty();
+    return !winUaeQtInitialConfigPathFromArguments(arguments).isEmpty();
 }
 
-WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app)
+static WinUaeQtLauncherResult runWinUaeQtLauncherDialog(QApplication &app, WinUaeQtDialog &dialog)
 {
-    return runWinUaeQtLauncherForConfig(app, QString());
-}
-
-WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath)
-{
-    return runWinUaeQtLauncherForConfig(app, initialConfigPath, WinUaeQtHardwareInfoProvider());
-}
-
-WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
-{
-    setupApplicationStyle(app);
-    WinUaeQtDialog dialog(
-        nullptr,
-        initialConfigPath.isEmpty() ? initialConfigPathFromArguments(app.arguments()) : initialConfigPath,
-        hardwareProvider);
     if (WinUaeQtApplication *qtApp = dynamic_cast<WinUaeQtApplication *>(&app)) {
         qtApp->setConfigOpenHandler([&dialog](const QString &path) {
             dialog.openConfigFile(path);
@@ -17119,6 +17468,40 @@ WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QSt
     return result;
 }
 
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app)
+{
+    return runWinUaeQtLauncherForConfig(app, QString());
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath)
+{
+    return runWinUaeQtLauncherForConfig(app, initialConfigPath, WinUaeQtHardwareInfoProvider());
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
+{
+    return runWinUaeQtLauncherForConfig(app, initialConfigPath, QString(), hardwareProvider);
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const QString &initialConfigPath, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
+{
+    setupApplicationStyle(app);
+    WinUaeQtDialog dialog(
+        nullptr,
+        initialConfigPath.isEmpty() ? winUaeQtInitialConfigPathFromArguments(app.arguments()) : initialConfigPath,
+        displayConfigPath,
+        hardwareProvider);
+    return runWinUaeQtLauncherDialog(app, dialog);
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(QApplication &app, const WinUaeQtConfig &initialConfig, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
+{
+    setupApplicationStyle(app);
+    WinUaeQtDialog dialog(nullptr, QString(), QString(), hardwareProvider);
+    dialog.loadConfigSnapshot(initialConfig, displayConfigPath);
+    return runWinUaeQtLauncherDialog(app, dialog);
+}
+
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv)
 {
     return runWinUaeQtLauncherForConfig(argc, argv, QString());
@@ -17131,8 +17514,19 @@ WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const
 
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const QString &initialConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
 {
+    return runWinUaeQtLauncherForConfig(argc, argv, initialConfigPath, QString(), hardwareProvider);
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const QString &initialConfigPath, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
+{
     WinUaeQtApplication app(argc, argv);
-    return runWinUaeQtLauncherForConfig(app, initialConfigPath, hardwareProvider);
+    return runWinUaeQtLauncherForConfig(app, initialConfigPath, displayConfigPath, hardwareProvider);
+}
+
+WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const WinUaeQtConfig &initialConfig, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
+{
+    WinUaeQtApplication app(argc, argv);
+    return runWinUaeQtLauncherForConfig(app, initialConfig, displayConfigPath, hardwareProvider);
 }
 
 static QString runtimeDialogDirectory(const QString &initialPath)
@@ -17151,13 +17545,13 @@ WinUaeQtRuntimeFileDialogResult runWinUaeQtRuntimeFileDialog(QApplication &app, 
 
     QString selected;
     if (shortcut >= 0 && shortcut < 4) {
-        selected = QFileDialog::getOpenFileName(
+        selected = getOpenFileNamePreservingSymlinks(
             nullptr,
             QStringLiteral("Select disk image for DF%1:").arg(shortcut),
             runtimeDialogDirectory(initialPath),
             amigaDiskImageFilter());
     } else if (shortcut == 4) {
-        selected = QFileDialog::getOpenFileName(
+        selected = getOpenFileNamePreservingSymlinks(
             nullptr,
             QStringLiteral("Restore state"),
             runtimeDialogDirectory(initialPath),
@@ -17172,7 +17566,7 @@ WinUaeQtRuntimeFileDialogResult runWinUaeQtRuntimeFileDialog(QApplication &app, 
             selected += QStringLiteral(".uss");
         }
     } else if (shortcut == 6) {
-        selected = QFileDialog::getOpenFileName(
+        selected = getOpenFileNamePreservingSymlinks(
             nullptr,
             QStringLiteral("Select CD image"),
             runtimeDialogDirectory(initialPath),

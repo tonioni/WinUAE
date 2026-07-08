@@ -30,6 +30,7 @@ public:
     void removeValue(const QString &key);
 
     bool load(const QString &path, QString *error = nullptr);
+    bool loadFromText(const QString &contents, QString *error = nullptr);
     bool save(const QString &path, QString *error = nullptr) const;
 
     QStringList commandArguments() const;

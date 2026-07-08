@@ -55,6 +55,7 @@ static int s_gl_uniform_adjust = -1;
 static int s_gl_uniform_scanline = -1;
 static int s_gl_uniform_blur_noise = -1;
 static int s_gl_uniform_frame = -1;
+static int s_gl_uniform_scaler = -1;
 static unsigned int s_gl_frame_counter;
 #endif
 static bool s_setup_done;
@@ -1072,13 +1073,40 @@ static bool unix_gl_build_program(void)
         "uniform vec4 u_scanline;\n"
         "uniform vec4 u_blur_noise;\n"
         "uniform float u_frame;\n"
+        "uniform float u_scaler;\n"
         "varying vec2 v_tex;\n"
         "float rand(vec2 co) {\n"
         "    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);\n"
         "}\n"
+        "bool ceq(vec4 a, vec4 b) {\n"
+        "    return all(lessThan(abs(a.rgb - b.rgb), vec3(1.0 / 255.0)));\n"
+        "}\n"
+        "vec4 scale2x_sample(vec2 uv, vec2 texel) {\n"
+        "    vec2 p = uv * u_source_size;\n"
+        "    vec2 q = step(vec2(0.5), fract(p));\n"
+        "    vec2 base = (floor(p) + vec2(0.5)) * texel;\n"
+        "    vec4 e = texture2D(u_tex, base);\n"
+        "    vec4 up = texture2D(u_tex, base + vec2(0.0, -texel.y));\n"
+        "    vec4 dn = texture2D(u_tex, base + vec2(0.0, texel.y));\n"
+        "    vec4 lt = texture2D(u_tex, base + vec2(-texel.x, 0.0));\n"
+        "    vec4 rt = texture2D(u_tex, base + vec2(texel.x, 0.0));\n"
+        "    vec4 hn = mix(lt, rt, q.x);\n"
+        "    vec4 hf = mix(rt, lt, q.x);\n"
+        "    vec4 vn = mix(up, dn, q.y);\n"
+        "    vec4 vf = mix(dn, up, q.y);\n"
+        "    if (ceq(vn, hn) && !ceq(hn, vf) && !ceq(vn, hf)) {\n"
+        "        return hn;\n"
+        "    }\n"
+        "    return e;\n"
+        "}\n"
         "void main(void) {\n"
         "    vec2 texel = 1.0 / max(u_source_size, vec2(1.0));\n"
-        "    vec4 color = texture2D(u_tex, v_tex);\n"
+        "    vec4 color;\n"
+        "    if (u_scaler > 0.5) {\n"
+        "        color = scale2x_sample(v_tex, texel);\n"
+        "    } else {\n"
+        "        color = texture2D(u_tex, v_tex);\n"
+        "    }\n"
         "    float blur = clamp(u_blur_noise.x, 0.0, 1.0);\n"
         "    if (blur > 0.001) {\n"
         "        vec4 sum = color * 4.0;\n"
@@ -1135,6 +1163,7 @@ static bool unix_gl_build_program(void)
     s_gl_uniform_scanline = p_glGetUniformLocation(program, reinterpret_cast<const GLchar *>("u_scanline"));
     s_gl_uniform_blur_noise = p_glGetUniformLocation(program, reinterpret_cast<const GLchar *>("u_blur_noise"));
     s_gl_uniform_frame = p_glGetUniformLocation(program, reinterpret_cast<const GLchar *>("u_frame"));
+    s_gl_uniform_scaler = p_glGetUniformLocation(program, reinterpret_cast<const GLchar *>("u_scaler"));
     return true;
 }
 
@@ -1240,13 +1269,15 @@ static bool unix_gl_ensure_status_texture(int width)
 }
 
 static void unix_gl_draw_texture(GLuint texture, const SDL_FRect &dst, bool shader,
-    const struct gfx_filterdata *filter, int source_width, int source_height)
+    const struct gfx_filterdata *filter, int source_width, int source_height,
+    int scaler = 0)
 {
     glBindTexture(GL_TEXTURE_2D, texture);
     if (shader) {
         p_glUseProgram(s_gl_program);
         p_glUniform1i(s_gl_uniform_texture, 0);
         p_glUniform2f(s_gl_uniform_source_size, (GLfloat)source_width, (GLfloat)source_height);
+        p_glUniform1f(s_gl_uniform_scaler, (GLfloat)scaler);
 
         float luminance = filter ? filter->gfx_filter_luminance / 1000.0f : 0.0f;
         float contrast = filter ? 1.0f + filter->gfx_filter_contrast / 1000.0f : 1.0f;
@@ -1350,10 +1381,20 @@ static void unix_gl_present(const struct unix_video_frame *frame, const struct g
         return;
     }
 
+    /* Scale2x samples discrete texels; it requires nearest filtering. */
+    const TCHAR *shader_name = unix_gfx_shader_option();
+    const int scaler = shader_name && !_tcsicmp(shader_name, _T("scale2x")) ? 1 : 0;
+    static int logged_scaler = -1;
+    if (scaler != logged_scaler) {
+        write_log(_T("GL presenter: scaler mode %d (gfx_shader '%s')\n"),
+            scaler, shader_name ? shader_name : _T(""));
+        logged_scaler = scaler;
+    }
+    const bool bilinear = !scaler && filter && filter->gfx_filter_bilinear;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-        filter && filter->gfx_filter_bilinear ? GL_LINEAR : GL_NEAREST);
+        bilinear ? GL_LINEAR : GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-        filter && filter->gfx_filter_bilinear ? GL_LINEAR : GL_NEAREST);
+        bilinear ? GL_LINEAR : GL_NEAREST);
 
     glViewport(0, 0, output_width, output_height);
     glMatrixMode(GL_PROJECTION);
@@ -1368,7 +1409,7 @@ static void unix_gl_present(const struct unix_video_frame *frame, const struct g
     glScissor(layout.frame_clip.x,
         output_height - layout.frame_clip.y - layout.frame_clip.h,
         layout.frame_clip.w, layout.frame_clip.h);
-    unix_gl_draw_texture(s_gl_texture, layout.frame_dst, true, filter, frame->width, frame->height);
+    unix_gl_draw_texture(s_gl_texture, layout.frame_dst, true, filter, frame->width, frame->height, scaler);
     glDisable(GL_SCISSOR_TEST);
 
     if (unix_gl_ensure_status_texture(frame->width)) {

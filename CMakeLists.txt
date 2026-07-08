@@ -4,6 +4,10 @@ if(CMAKE_HOST_APPLE)
     set(WINUAE_UNIX_DEFAULT_MACOS_DEPLOYMENT_TARGET "13.0")
     set(WINUAE_UNIX_MACOS_DEPS_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/../winuae-macos-deps" CACHE PATH "Private macOS dependency prefix built by tools/macos-build-deps.sh")
     set(WINUAE_QEMU_UAE_DEPS_PREFIX "${WINUAE_UNIX_MACOS_DEPS_PREFIX}" CACHE PATH "Private macOS GLib prefix for the QEMU-UAE plugin")
+    if(WINUAE_UNIX_MACOS_DEPS_PREFIX)
+        list(PREPEND CMAKE_PREFIX_PATH "${WINUAE_UNIX_MACOS_DEPS_PREFIX}")
+        list(REMOVE_DUPLICATES CMAKE_PREFIX_PATH)
+    endif()
     if(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
         set(CMAKE_OSX_DEPLOYMENT_TARGET "${WINUAE_UNIX_DEFAULT_MACOS_DEPLOYMENT_TARGET}" CACHE STRING "Minimum macOS version for WinUAE Unix builds")
     elseif(CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "")
@@ -175,7 +179,7 @@ option(WINUAE_UNIX_WITH_INTEGRATED_QT_UI "Allow winuae_unix to host the Unix Qt 
 option(WINUAE_UNIX_WITH_LIBPNG "Build optional PNG screenshot support when libpng is available" ON)
 option(WINUAE_UNIX_WITH_ARCHIVES "Build bundled ZIP/LHA/LZX/DMS/WRP archive support" ON)
 option(WINUAE_UNIX_WITH_CHD "Build CHD hardfile and CD image support" ON)
-option(WINUAE_UNIX_WITH_CHD_FLAC "Build CHD FLAC codecs when a compatible libFLAC is available" ON)
+option(WINUAE_UNIX_WITH_CHD_FLAC "Build CHD FLAC codecs; required by the bundled CHD sources" ON)
 option(WINUAE_UNIX_WITH_LIBMPEG2 "Build CD32 FMV video decode support when libmpeg2 is available" ON)
 option(WINUAE_UNIX_WITH_BSDSOCKET "Build bsdsocket.library on top of POSIX sockets" ON)
 option(WINUAE_UNIX_WITH_UAESCSI "Build uaescsi.device using the shared CD/tape SCSI emulation layer" ON)
@@ -205,9 +209,16 @@ set(WINUAE_LZMA_SDK_SYSTEM_PATHS
     "/usr/share/lzma-sdk;/usr/include/lzma-sdk;/usr/src/lzma-sdk;/usr/include/lzma"
     CACHE STRING "System prefixes probed for an installed 7-Zip/LZMA SDK source tree")
 
-set(WINUAE_QEMU_UAE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qemu-uae-v11.0"
+set(WINUAE_QEMU_UAE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qemu-uae"
     CACHE PATH "QEMU-UAE plugin source directory")
 set(WINUAE_QEMU_UAE_PLUGIN_FILE "" CACHE FILEPATH "Prebuilt qemu-uae.so plugin to install or bundle")
+set(WINUAE_QEMU_UAE_BUILDER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../uae-ppc-plugin"
+    CACHE PATH "uae-ppc-plugin builder checkout used to build qemu-uae.so")
+set(WINUAE_QEMU_UAE_BUILDER_URL "https://github.com/reinauer/uae-ppc-plugin.git"
+    CACHE STRING "Git URL cloned at build time when the builder checkout is missing")
+option(WINUAE_QEMU_UAE_BUILDER_FETCH "Clone the uae-ppc-plugin builder when no local copy is found" ON)
+set(WINUAE_QEMU_UAE_QEMU_TARBALL "" CACHE FILEPATH
+    "Local QEMU source tarball for offline qemu-uae plugin builds")
 set(WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE "${CMAKE_INSTALL_LIBDIR}/winuae/plugins"
     CACHE STRING "Relative Unix install directory for runtime plugins")
 
@@ -245,6 +256,38 @@ foreach(WINUAE_UNIX_VERSION_LINE IN LISTS WINUAE_UNIX_VERSION_LINES)
 endforeach()
 set(WINUAE_UNIX_VERSION "${WINUAE_UNIX_VERSION_MAJOR}.${WINUAE_UNIX_VERSION_MINOR}.${WINUAE_UNIX_VERSION_REVISION}")
 
+# od-unix/target.h mirrors the beta versioning from od-win32/win32.h; fail the
+# configure when the mirror drifts after an upstream rebase.
+set(WINUAE_WIN32_PUBLICBETA 0)
+set(WINUAE_WIN32_BETA "")
+set(WINUAE_UNIX_PUBLICBETA 0)
+set(WINUAE_UNIX_BETA "")
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/od-win32/win32.h" WINUAE_WIN32_BETA_LINES REGEX "^#define[ \t]+WINUAE(PUBLIC)?BETA[ \t]+")
+foreach(WINUAE_BETA_LINE IN LISTS WINUAE_WIN32_BETA_LINES)
+    if(WINUAE_BETA_LINE MATCHES "WINUAEPUBLICBETA[ \t]+([0-9]+)")
+        set(WINUAE_WIN32_PUBLICBETA "${CMAKE_MATCH_1}")
+    elseif(NOT WINUAE_WIN32_BETA_FOUND AND WINUAE_BETA_LINE MATCHES "WINUAEBETA[ \t]+_T\\(\"([^\"]*)\"\\)")
+        # First match is the #if WINUAEPUBLICBETA branch; the #else branch is always empty.
+        set(WINUAE_WIN32_BETA "${CMAKE_MATCH_1}")
+        set(WINUAE_WIN32_BETA_FOUND TRUE)
+    endif()
+endforeach()
+if(WINUAE_WIN32_PUBLICBETA EQUAL 0)
+    set(WINUAE_WIN32_BETA "")
+endif()
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/od-unix/target.h" WINUAE_UNIX_BETA_LINES REGEX "^#define[ \t]+WINUAE(PUBLIC)?BETA[ \t]+")
+foreach(WINUAE_BETA_LINE IN LISTS WINUAE_UNIX_BETA_LINES)
+    if(WINUAE_BETA_LINE MATCHES "WINUAEPUBLICBETA[ \t]+([0-9]+)")
+        set(WINUAE_UNIX_PUBLICBETA "${CMAKE_MATCH_1}")
+    elseif(WINUAE_BETA_LINE MATCHES "WINUAEBETA[ \t]+\"([^\"]*)\"")
+        set(WINUAE_UNIX_BETA "${CMAKE_MATCH_1}")
+    endif()
+endforeach()
+if(NOT WINUAE_UNIX_PUBLICBETA STREQUAL WINUAE_WIN32_PUBLICBETA OR NOT WINUAE_UNIX_BETA STREQUAL WINUAE_WIN32_BETA)
+    message(FATAL_ERROR "od-unix/target.h beta mismatch: WINUAEPUBLICBETA=${WINUAE_UNIX_PUBLICBETA} WINUAEBETA=\"${WINUAE_UNIX_BETA}\" vs od-win32/win32.h WINUAEPUBLICBETA=${WINUAE_WIN32_PUBLICBETA} WINUAEBETA=\"${WINUAE_WIN32_BETA}\". Update the mirror block in od-unix/target.h.")
+endif()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS od-win32/win32.h od-unix/target.h)
+
 find_package(ZLIB REQUIRED)
 if(WINUAE_UNIX_WITH_LIBPNG)
     if(APPLE AND CMAKE_PREFIX_PATH)
@@ -255,6 +298,7 @@ if(WINUAE_UNIX_WITH_LIBPNG)
     endif()
     find_package(PNG QUIET)
 endif()
+set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH ON)
 find_package(PkgConfig QUIET)
 
 set(CMAKE_C_STANDARD 11)
@@ -579,6 +623,10 @@ if(WINUAE_UNIX_WITH_CHD)
 
     set(WINUAE_UNIX_CHD_FLAC_OK OFF)
     if(WINUAE_UNIX_WITH_CHD_FLAC AND PkgConfig_FOUND)
+        if(APPLE AND WINUAE_UNIX_MACOS_DEPS_PREFIX)
+            unset(__pkg_config_checked_FLAC CACHE)
+            unset(pkgcfg_lib_FLAC_FLAC CACHE)
+        endif()
         pkg_check_modules(FLAC QUIET flac)
         if(FLAC_FOUND)
             set(WINUAE_UNIX_CHD_FLAC_OK ON)
@@ -595,27 +643,32 @@ if(WINUAE_UNIX_WITH_CHD)
                         ERROR_STRIP_TRAILING_WHITESPACE
                     )
                     if(NOT WINUAE_UNIX_FLAC_DEPLOYMENT_RESULT EQUAL 0)
-                        message(STATUS "libFLAC is newer than CMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}; CHD FLAC codecs disabled. ${WINUAE_UNIX_FLAC_DEPLOYMENT_ERROR}")
+                        message(STATUS "libFLAC is newer than CMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}; CHD FLAC codecs unavailable. ${WINUAE_UNIX_FLAC_DEPLOYMENT_ERROR}")
                         set(WINUAE_UNIX_CHD_FLAC_OK OFF)
                     endif()
                 else()
-                    message(STATUS "libFLAC was found by pkg-config but not as a library path; CHD FLAC codecs disabled")
+                    message(STATUS "libFLAC was found by pkg-config but not as a library path; CHD FLAC codecs unavailable")
                     set(WINUAE_UNIX_CHD_FLAC_OK OFF)
                 endif()
             endif()
         endif()
     endif()
 
-    if(WINUAE_UNIX_CHD_FLAC_OK)
-        target_compile_definitions(winuae_core PRIVATE WITH_CHD_FLAC=1)
-        target_include_directories(winuae_core PRIVATE ${FLAC_INCLUDE_DIRS})
-        target_compile_options(winuae_core PRIVATE ${FLAC_CFLAGS_OTHER})
-        list(APPEND WINUAE_UNIX_EXTRA_SOURCES archivers/chd/flac.cpp)
-        list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${FLAC_LIBRARIES})
-        list(APPEND WINUAE_UNIX_EXTRA_LIBRARY_DIRS ${FLAC_LIBRARY_DIRS})
-    else()
-        target_compile_definitions(winuae_core PRIVATE WITH_CHD_FLAC=0)
+    if(NOT WINUAE_UNIX_CHD_FLAC_OK)
+        message(FATAL_ERROR
+            "CHD support in this source tree requires libFLAC headers and "
+            "library. Set WINUAE_UNIX_WITH_CHD=OFF or provide compatible "
+            "libFLAC, for example with WINUAE_FLAC_SOURCE and the "
+            "winuae_unix_macos_deps target on macOS."
+        )
     endif()
+
+    target_compile_definitions(winuae_core PRIVATE WITH_CHD_FLAC=1)
+    target_include_directories(winuae_core PRIVATE ${FLAC_INCLUDE_DIRS})
+    target_compile_options(winuae_core PRIVATE ${FLAC_CFLAGS_OTHER})
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES archivers/chd/flac.cpp)
+    list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${FLAC_LIBRARIES})
+    list(APPEND WINUAE_UNIX_EXTRA_LIBRARY_DIRS ${FLAC_LIBRARY_DIRS})
 endif()
 
 set(WINUAE_UNIX_LIBMPEG2_OK OFF)
@@ -848,6 +901,7 @@ set(WINUAE_UNIX_ENABLE_X86 ON)
 set(WINUAE_UNIX_ENABLE_PCEM ON)
 target_compile_definitions(winuae_core PRIVATE WITH_X86=1)
 list(APPEND WINUAE_UNIX_EXTRA_SOURCES
+    atonce.cpp
     x86.cpp
     ${WINUAE_UNIX_PCEM_COMMON_SOURCES}
     ${WINUAE_UNIX_PCEM_X86_SOURCES}
@@ -1678,9 +1732,15 @@ add_custom_target(winuae_unix_linux_package_metadata_check
 )
 
 if(APPLE)
+    set(WINUAE_UNIX_MACOS_DEPS_ENV
+        "WINUAE_MACOS_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+    )
+    if(WINUAE_UNIX_WITH_CHD)
+        list(APPEND WINUAE_UNIX_MACOS_DEPS_ENV "WINUAE_REQUIRE_FLAC=1")
+    endif()
     add_custom_target(winuae_unix_macos_deps
         COMMAND "${CMAKE_COMMAND}" -E env
-            "WINUAE_MACOS_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+            ${WINUAE_UNIX_MACOS_DEPS_ENV}
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/macos-build-deps.sh" "${WINUAE_UNIX_MACOS_DEPS_PREFIX}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
         COMMENT "Building private macOS dependencies for deployment target ${CMAKE_OSX_DEPLOYMENT_TARGET}"
@@ -1703,30 +1763,84 @@ if(WINUAE_QEMU_UAE_PLUGIN_FILE)
 else()
     set(WINUAE_QEMU_UAE_PLUGIN_PATH "${CMAKE_BINARY_DIR}/qemu-uae.so")
 endif()
+# On Linux the plugin is part of the default build so that plain
+# `cmake --build` + `cmake --install` flows (distro packaging) always
+# produce the mandatory qemu-uae.so. macOS keeps it behind the app/dmg
+# and package targets.
+set(WINUAE_QEMU_UAE_PLUGIN_ALL)
+if(UNIX AND NOT APPLE)
+    set(WINUAE_QEMU_UAE_PLUGIN_ALL ALL)
+endif()
 if(UNIX
     AND WINUAE_UNIX_WITH_PPC_QEMU
     AND WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN
-    AND EXISTS "${WINUAE_QEMU_UAE_SOURCE_DIR}/configure-qemu-uae")
-    add_custom_target(winuae_unix_qemu_uae_plugin
-        COMMAND "${CMAKE_COMMAND}" -E env
-            "WINUAE_MACOS_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
-            "QEMU_UAE_DEPS_PREFIX=${WINUAE_QEMU_UAE_DEPS_PREFIX}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tools/build-qemu-uae.sh"
-            "${WINUAE_QEMU_UAE_SOURCE_DIR}"
-            "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
-        WORKING_DIRECTORY "${WINUAE_QEMU_UAE_SOURCE_DIR}"
-        COMMENT "Building QEMU-UAE PPC plugin"
-        VERBATIM
-    )
+    AND NOT WINUAE_QEMU_UAE_PLUGIN_FILE)
+    if(EXISTS "${WINUAE_QEMU_UAE_SOURCE_DIR}/configure-qemu-uae")
+        message(STATUS
+            "QEMU-UAE plugin: building from sibling source ${WINUAE_QEMU_UAE_SOURCE_DIR}")
+        add_custom_target(winuae_unix_qemu_uae_plugin ${WINUAE_QEMU_UAE_PLUGIN_ALL}
+            COMMAND "${CMAKE_COMMAND}" -E env
+                "WINUAE_MACOS_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+                "QEMU_UAE_DEPS_PREFIX=${WINUAE_QEMU_UAE_DEPS_PREFIX}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/build-qemu-uae.sh"
+                "${WINUAE_QEMU_UAE_SOURCE_DIR}"
+                "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            WORKING_DIRECTORY "${WINUAE_QEMU_UAE_SOURCE_DIR}"
+            COMMENT "Building QEMU-UAE PPC plugin"
+            VERBATIM
+        )
+    elseif(EXISTS "${WINUAE_QEMU_UAE_BUILDER_DIR}/build-qemu-uae-plugin.sh"
+        OR WINUAE_QEMU_UAE_BUILDER_FETCH)
+        if(EXISTS "${WINUAE_QEMU_UAE_BUILDER_DIR}/build-qemu-uae-plugin.sh")
+            message(STATUS
+                "QEMU-UAE plugin: building through ${WINUAE_QEMU_UAE_BUILDER_DIR}")
+        else()
+            message(STATUS
+                "QEMU-UAE plugin: builder will be cloned from ${WINUAE_QEMU_UAE_BUILDER_URL}")
+        endif()
+        # OUTPUT-based so repeated `all` builds (e.g. the CPack preinstall
+        # step) skip the builder once the plugin exists; the external
+        # builder's configure step is not re-entrant.
+        add_custom_command(OUTPUT "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            COMMAND "${CMAKE_COMMAND}" -E env
+                "WINUAE_MACOS_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+                "QEMU_UAE_DEPS_PREFIX=${WINUAE_QEMU_UAE_DEPS_PREFIX}"
+                "QEMU_UAE_WORK_DIR=${CMAKE_BINARY_DIR}/_deps/qemu-uae"
+                "WINUAE_QEMU_UAE_BUILDER_DIR=${WINUAE_QEMU_UAE_BUILDER_DIR}"
+                "WINUAE_QEMU_UAE_BUILDER_URL=${WINUAE_QEMU_UAE_BUILDER_URL}"
+                "WINUAE_QEMU_UAE_BUILDER_FETCH=$<BOOL:${WINUAE_QEMU_UAE_BUILDER_FETCH}>"
+                "WINUAE_QEMU_UAE_QEMU_TARBALL=${WINUAE_QEMU_UAE_QEMU_TARBALL}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/build-qemu-uae-via-builder.sh"
+                "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/build-qemu-uae-via-builder.sh"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            COMMENT "Building QEMU-UAE PPC plugin through uae-ppc-plugin"
+            VERBATIM
+        )
+        add_custom_target(winuae_unix_qemu_uae_plugin ${WINUAE_QEMU_UAE_PLUGIN_ALL}
+            DEPENDS "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+        )
+    endif()
 endif()
 
-if(WINUAE_UNIX_WITH_PPC_QEMU)
+if(UNIX AND WINUAE_UNIX_WITH_PPC_QEMU)
     if(WINUAE_QEMU_UAE_PLUGIN_FILE)
         if(NOT EXISTS "${WINUAE_QEMU_UAE_PLUGIN_PATH}")
             message(FATAL_ERROR
                 "WINUAE_QEMU_UAE_PLUGIN_FILE does not exist: "
                 "${WINUAE_QEMU_UAE_PLUGIN_PATH}")
         endif()
+        message(STATUS
+            "QEMU-UAE plugin: using prebuilt ${WINUAE_QEMU_UAE_PLUGIN_PATH}")
+    elseif(NOT TARGET winuae_unix_qemu_uae_plugin)
+        message(FATAL_ERROR
+            "WINUAE_UNIX_WITH_PPC_QEMU requires the QEMU-UAE PPC plugin, but no "
+            "way to provide qemu-uae.so was found. Provide one of:\n"
+            "  -DWINUAE_QEMU_UAE_PLUGIN_FILE=/path/to/qemu-uae.so (prebuilt plugin)\n"
+            "  -DWINUAE_QEMU_UAE_BUILDER_DIR=/path/to/uae-ppc-plugin (builder checkout; "
+            "offline builds also want -DWINUAE_QEMU_UAE_QEMU_TARBALL=/path/to/qemu-11.0.1.tar.xz)\n"
+            "  -DWINUAE_QEMU_UAE_BUILDER_FETCH=ON to clone ${WINUAE_QEMU_UAE_BUILDER_URL} at build time\n"
+            "  a qemu-uae source tree at ${WINUAE_QEMU_UAE_SOURCE_DIR}")
     endif()
     set(WINUAE_UNIX_QEMU_UAE_PACKAGE_CHECK_DEPS)
     if(TARGET winuae_unix_qemu_uae_plugin)

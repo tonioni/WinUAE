@@ -26,6 +26,68 @@ unsigned int gui_ledstate;
 
 static int unix_gui_argc;
 static TCHAR **unix_gui_argv;
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+static TCHAR unix_gui_display_config_path[MAX_DPATH];
+#endif
+
+static bool is_runtime_config_snapshot(const TCHAR *path)
+{
+    const TCHAR *name = _tcsrchr(path, '/');
+    name = name ? name + 1 : path;
+
+    const TCHAR prefix[] = _T("winuae-runtime-");
+    const TCHAR suffix[] = _T(".uae");
+    const size_t len = _tcslen(name);
+    const size_t prefix_len = _tcslen(prefix);
+    const size_t suffix_len = _tcslen(suffix);
+
+    return len > prefix_len + suffix_len
+        && !_tcsncmp(name, prefix, prefix_len)
+        && !_tcscmp(name + len - suffix_len, suffix);
+}
+
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+static void copy_gui_config_path(TCHAR *out, size_t out_len, const TCHAR *path)
+{
+    if (!out || out_len == 0) {
+        return;
+    }
+    out[0] = 0;
+    if (!path || !path[0]) {
+        return;
+    }
+    _tcsncpy(out, path, out_len);
+    out[out_len - 1] = 0;
+}
+
+static void remember_gui_display_config_path(const TCHAR *path)
+{
+    if (!path || !path[0] || is_runtime_config_snapshot(path)) {
+        return;
+    }
+    copy_gui_config_path(
+        unix_gui_display_config_path,
+        sizeof unix_gui_display_config_path / sizeof unix_gui_display_config_path[0],
+        path);
+}
+
+static void get_gui_display_config_path(TCHAR *out, size_t out_len, const TCHAR *initial_config)
+{
+    if (!out || out_len == 0) {
+        return;
+    }
+    out[0] = 0;
+    if (unix_gui_display_config_path[0]) {
+        copy_gui_config_path(out, out_len, unix_gui_display_config_path);
+        return;
+    }
+    if (initial_config && initial_config[0] && !is_runtime_config_snapshot(initial_config)) {
+        copy_gui_config_path(out, out_len, initial_config);
+        return;
+    }
+    winUaeQtLauncherInitialConfigPath(unix_gui_argc, unix_gui_argv, out, out_len);
+}
+#endif
 
 void target_main_set_args(int argc, TCHAR **argv)
 {
@@ -41,23 +103,46 @@ int target_main_handle_early(int argc, TCHAR **argv)
 int gui_init(void)
 {
 #ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
-    /* Seed the launcher from default.uae like the Windows GUI: the core
-     * already loaded it into the prefs (main.cpp real_main), but the Qt
-     * launcher builds its state from the configuration file. */
-    TCHAR default_config[MAX_DPATH];
-    fetch_configurationpath(default_config, sizeof default_config / sizeof default_config[0]);
-    _tcscat(default_config, OPTIONSFILENAME);
+    TCHAR initial_config[MAX_DPATH];
+    initial_config[0] = 0;
+
     /* Command-line configs are resolved by the launcher itself and win
-     * over default.uae, like on Windows. */
-    const bool have_default = !winUaeQtLauncherArgumentsSpecifyConfig(unix_gui_argc, unix_gui_argv)
-        && access(default_config, R_OK) == 0;
-    const int action = runWinUaeQtLauncherForPrefsWithConfig(
+     * over default.uae, like on Windows. Otherwise seed the launcher from the
+     * config the core just loaded. */
+    if (!winUaeQtLauncherArgumentsSpecifyConfig(unix_gui_argc, unix_gui_argv)) {
+        if (optionsfile[0] && access(optionsfile, R_OK) == 0) {
+            _tcscpy(initial_config, optionsfile);
+        } else {
+            fetch_configurationpath(initial_config, sizeof initial_config / sizeof initial_config[0]);
+            _tcscat(initial_config, OPTIONSFILENAME);
+            if (access(initial_config, R_OK) != 0) {
+                initial_config[0] = 0;
+            }
+        }
+    }
+
+    TCHAR display_config[MAX_DPATH];
+    TCHAR selected_config[MAX_DPATH];
+    get_gui_display_config_path(
+        display_config,
+        sizeof display_config / sizeof display_config[0],
+        initial_config);
+    selected_config[0] = 0;
+
+    const int action = runWinUaeQtLauncherForPrefsWithConfigPaths(
         unix_gui_argc,
         unix_gui_argv,
         &changed_prefs,
-        have_default ? default_config : nullptr,
+        initial_config[0] ? initial_config : nullptr,
+        display_config[0] ? display_config : nullptr,
+        selected_config,
+        sizeof selected_config / sizeof selected_config[0],
         0,
         nullptr);
+    remember_gui_display_config_path(selected_config[0] ? selected_config : display_config);
+    if (initial_config[0] && is_runtime_config_snapshot(initial_config)) {
+        unlink(initial_config);
+    }
     if (action == WINUAE_QT_LAUNCHER_START) {
         return 1;
     }
@@ -164,24 +249,6 @@ void gui_flicker_led(int led, int, int status)
 void gui_disk_image_change(int, const TCHAR*, bool) {}
 
 #ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
-static bool write_runtime_config_snapshot(TCHAR *path, size_t path_len)
-{
-    const char *tmpdir = getenv("TMPDIR");
-    if (!tmpdir || !tmpdir[0]) {
-        tmpdir = "/tmp";
-    }
-    const int written = snprintf(path, path_len, "%s/winuae-runtime-%ld.uae", tmpdir, (long)getpid());
-    if (written < 0 || size_t(written) >= path_len) {
-        write_log("Unix Qt runtime UI: temporary config path is too long\n");
-        return false;
-    }
-    if (!cfgfile_save(&changed_prefs, path, 0)) {
-        write_log("Unix Qt runtime UI: failed to write temporary config '%s'\n", path);
-        return false;
-    }
-    return true;
-}
-
 static const TCHAR *runtime_shortcut_initial_path(int shortcut)
 {
     if (shortcut >= 0 && shortcut < 4) {
@@ -260,21 +327,28 @@ void gui_display(int shortcut)
     pause_sound();
 
     if (shortcut == -1) {
-        TCHAR snapshot_path[MAX_DPATH];
-        snapshot_path[0] = 0;
-        const bool have_snapshot = write_runtime_config_snapshot(snapshot_path, sizeof snapshot_path / sizeof snapshot_path[0]);
+        TCHAR display_config[MAX_DPATH];
+        TCHAR selected_config[MAX_DPATH];
+        get_gui_display_config_path(
+            display_config,
+            sizeof display_config / sizeof display_config[0],
+            nullptr);
+        selected_config[0] = 0;
 
         int exit_code = 0;
-        const int action = runWinUaeQtLauncherForPrefsWithConfig(
+        const int action = runWinUaeQtLauncherForPrefsWithConfigSnapshot(
             unix_gui_argc,
             unix_gui_argv,
             &changed_prefs,
-            have_snapshot ? snapshot_path : nullptr,
+            display_config[0] ? display_config : nullptr,
+            selected_config,
+            sizeof selected_config / sizeof selected_config[0],
             1,
             &exit_code);
-
-        if (have_snapshot) {
-            unlink(snapshot_path);
+        if (action == WINUAE_QT_LAUNCHER_START
+            || action == WINUAE_QT_LAUNCHER_RESET
+            || action == WINUAE_QT_LAUNCHER_RESTART) {
+            remember_gui_display_config_path(selected_config[0] ? selected_config : display_config);
         }
 
         if (action == WINUAE_QT_LAUNCHER_START || action == WINUAE_QT_LAUNCHER_RESET) {
@@ -289,6 +363,8 @@ void gui_display(int shortcut)
         } else if (action == WINUAE_QT_LAUNCHER_QUIT) {
             uae_quit();
         } else if (action == WINUAE_QT_LAUNCHER_RESTART) {
+            fixup_prefs(&changed_prefs, true);
+            copy_prefs(&changed_prefs, &currprefs);
             uae_restart(&changed_prefs, -1, nullptr);
         } else if (action == WINUAE_QT_LAUNCHER_ERROR) {
             write_log("Unix Qt runtime UI exited with error code %d\n", exit_code);
