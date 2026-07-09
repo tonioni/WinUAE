@@ -102,6 +102,10 @@
 #define UAE_UNIX_WITH_SHADER_PIPELINE 0
 #endif
 
+#ifndef UAE_UNIX_WITH_VIDEOGRAB
+#define UAE_UNIX_WITH_VIDEOGRAB 0
+#endif
+
 #ifndef UAE_UNIX_WITH_NATIVE_HARDDRIVES
 #define UAE_UNIX_WITH_NATIVE_HARDDRIVES 0
 #endif
@@ -2515,11 +2519,13 @@ static const ConfigChoice genlockModeChoices[] = {
     { "Noise (built-in)", "noise" },
     { "Test card (built-in)", "testcard" },
     { "Image file (png)", "image" },
+#if UAE_UNIX_WITH_VIDEOGRAB
     { "Video file", "video" },
     { "Capture device", "stream" },
     { "American Laser Games/Picmatic LaserDisc Player", "ld" },
     { "Sony LaserDisc Player", "sony_ld" },
     { "Pioneer LaserDisc Player", "pioneer_ld" }
+#endif
 };
 
 static const ConfigChoice keyboardModeChoices[] = {
@@ -6789,7 +6795,7 @@ private:
             if (genlockModeUsesImageFile(mode)) {
                 addBrowse(genlockFile, this, QStringLiteral("Select genlock image"), QStringLiteral("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
             } else if (genlockModeUsesVideoFile(mode)) {
-                addBrowse(genlockFile, this, QStringLiteral("Select genlock video"), QStringLiteral("Video files (*.avi *.mp4 *.mov *.mkv);;All files (*)"));
+                addBrowse(genlockFile, this, QStringLiteral("Select genlock video"), QStringLiteral("AVI video files (*.avi);;All files (*)"));
             }
             storeGenlockFilePath();
         });

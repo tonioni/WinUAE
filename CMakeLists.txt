@@ -328,6 +328,7 @@ option(WINUAE_UNIX_WITH_PPC_QEMU "Build Unix PPC accelerator support through the
 option(WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN "Build the sibling qemu-uae plugin for Unix packaging" ON)
 option(WINUAE_UNIX_WITH_DSP "Build shared DSP3210 accelerator support" ON)
 option(WINUAE_UNIX_WITH_AVIOUTPUT "Build Unix screenshot and video/audio capture output support" ON)
+option(WINUAE_UNIX_WITH_VIDEOGRAB "Build Unix genlock video/camera frame input support" ON)
 option(WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE "Build OpenGL-backed Unix shader/filter presentation support" ON)
 option(WINUAE_LZMA_SDK_FETCH "Fetch the 7-Zip/LZMA SDK into WINUAE_LZMA_SDK_DIR when missing" ON)
 option(WINUAE_UNIX_BUNDLE_DRIVE_SOUNDS "Bundle the external floppy-drive sound sample sets" ON)
@@ -586,6 +587,7 @@ set(WINUAE_UNIX_ENABLE_DRACO OFF)
 set(WINUAE_UNIX_ENABLE_PCEM OFF)
 set(WINUAE_UNIX_ENABLE_JIT OFF)
 set(WINUAE_UNIX_ENABLE_AVIOUTPUT OFF)
+set(WINUAE_UNIX_ENABLE_VIDEOGRAB OFF)
 set(WINUAE_UNIX_ENABLE_SHADER_PIPELINE OFF)
 set(WINUAE_UNIX_MIDI_LIBRARIES)
 set(WINUAE_UNIX_MIDI_INCLUDE_DIRS)
@@ -1151,6 +1153,15 @@ if(WINUAE_UNIX_WITH_AVIOUTPUT)
     set(WINUAE_UNIX_ENABLE_AVIOUTPUT ON)
     target_compile_definitions(winuae_unix_core_defs INTERFACE AVIOUTPUT=1)
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/avioutput.cpp)
+endif()
+
+if(WINUAE_UNIX_WITH_VIDEOGRAB)
+    set(WINUAE_UNIX_ENABLE_VIDEOGRAB ON)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE
+        VIDEOGRAB=1
+        WINUAE_UNIX_WITH_VIDEOGRAB=1
+    )
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/videograb.cpp)
 endif()
 
 if(WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE AND WINUAE_UNIX_WITH_SDL3)
@@ -1880,6 +1891,7 @@ if(WINUAE_UNIX_WITH_QT_UI)
             UAE_UNIX_WITH_DRACO=$<BOOL:${WINUAE_UNIX_ENABLE_DRACO}>
             UAE_UNIX_WITH_JIT=$<BOOL:${WINUAE_UNIX_ENABLE_JIT}>
             UAE_UNIX_WITH_AVIOUTPUT=$<BOOL:${WINUAE_UNIX_ENABLE_AVIOUTPUT}>
+            UAE_UNIX_WITH_VIDEOGRAB=$<BOOL:${WINUAE_UNIX_ENABLE_VIDEOGRAB}>
             UAE_UNIX_WITH_SHADER_PIPELINE=$<BOOL:${WINUAE_UNIX_ENABLE_SHADER_PIPELINE}>
             ${WINUAE_UNIX_MIDI_QT_DEFINITIONS}
         )

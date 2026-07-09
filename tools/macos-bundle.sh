@@ -203,6 +203,8 @@ cat > "${contents_dir}/Info.plist" <<EOF
     <string>${deployment_target}</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSCameraUsageDescription</key>
+    <string>WinUAE uses camera input for genlock capture-device emulation.</string>
     <key>CFBundleDocumentTypes</key>
     <array>
         <dict>
