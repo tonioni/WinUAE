@@ -25,6 +25,8 @@ Environment:
                               Optional entitlements plist passed to codesign.
   WINUAE_QEMU_UAE_PLUGIN      Optional qemu-uae.so path to copy into
                               Contents/PlugIns.
+  WINUAE_BUNDLE_REQUIRE_FFMPEG=1
+                              Fail if FFmpeg/libav dylibs were not bundled.
 EOF
 }
 
@@ -106,12 +108,66 @@ path_in_list() {
     return 1
 }
 
+expand_macho_path() {
+    local binary="$1"
+    local path="$2"
+    local loader_dir
+    loader_dir="$(cd "$(dirname "${binary}")" && pwd)"
+    path="${path//@loader_path/${loader_dir}}"
+    path="${path//@executable_path/${macos_dir}}"
+    printf '%s\n' "${path}"
+}
+
+append_dylib_search_roots() {
+    local binary="$1"
+    local rpath
+    while IFS= read -r rpath; do
+        [[ -n "${rpath}" ]] || continue
+        if ! path_in_list "${rpath}" ${search_roots[@]+"${search_roots[@]}"}; then
+            search_roots+=("${rpath}")
+        fi
+    done < <(otool -l "${binary}" | awk '
+        $1 == "cmd" && $2 == "LC_RPATH" { in_rpath = 1; next }
+        in_rpath && $1 == "path" { print $2; in_rpath = 0 }
+    ')
+}
+
+resolve_macho_dep() {
+    local binary="$1"
+    local dep="$2"
+    local candidate root suffix
+    case "${dep}" in
+        @rpath/*)
+            suffix="${dep#@rpath/}"
+            for root in "${search_roots[@]}"; do
+                candidate="$(expand_macho_path "${binary}" "${root}/${suffix}")"
+                if [[ -f "${candidate}" ]]; then
+                    printf '%s\n' "${candidate}"
+                    return
+                fi
+            done
+            ;;
+        @loader_path/*|@executable_path/*)
+            candidate="$(expand_macho_path "${binary}" "${dep}")"
+            if [[ -f "${candidate}" ]]; then
+                printf '%s\n' "${candidate}"
+            fi
+            ;;
+        *)
+            if [[ -f "${dep}" ]]; then
+                printf '%s\n' "${dep}"
+            fi
+            ;;
+    esac
+}
+
 copy_private_dylib_deps() {
     local root_binary="$1"
     local install_prefix="$2"
     local frameworks_dir="${contents_dir}/Frameworks"
     local queue=("${root_binary}")
     local visited=()
+    local search_roots=("${install_prefix}")
 
     mkdir -p "${frameworks_dir}"
     while [[ ${#queue[@]} -gt 0 ]]; do
@@ -121,23 +177,39 @@ copy_private_dylib_deps() {
             continue
         fi
         visited+=("${binary}")
+        append_dylib_search_roots "${binary}"
 
         local dep
         while IFS= read -r dep; do
             case "${dep}" in
-                ""|@*|/usr/lib/*|/System/Library/*)
+                ""|/usr/lib/*|/System/Library/*)
+                    continue
+                    ;;
+                *.framework/*)
+                    # macdeployqt handles private Qt frameworks with their
+                    # expected framework layout.
                     continue
                     ;;
             esac
-            if [[ ! -f "${dep}" ]]; then
+            local resolved_dep
+            resolved_dep="$(resolve_macho_dep "${binary}" "${dep}")"
+            if [[ -z "${resolved_dep}" || ! -f "${resolved_dep}" ]]; then
+                continue
+            fi
+            case "${resolved_dep}" in
+                /usr/lib/*|/System/Library/*|*.framework/*)
+                    continue
+                    ;;
+            esac
+            if [[ "${resolved_dep}" == "${frameworks_dir}/"* ]]; then
                 continue
             fi
 
             local name target
-            name="$(basename "${dep}")"
+            name="$(basename "${resolved_dep}")"
             target="${frameworks_dir}/${name}"
             if [[ ! -f "${target}" ]]; then
-                cp "${dep}" "${target}"
+                cp "${resolved_dep}" "${target}"
                 chmod u+w "${target}" 2>/dev/null || true
                 install_name_tool -id "@rpath/${name}" "${target}" \
                     2>/dev/null || true
@@ -152,10 +224,33 @@ copy_private_dylib_deps() {
     done
 }
 
+require_bundled_dylib_family() {
+    local family="$1"
+    local frameworks_dir="${contents_dir}/Frameworks"
+    if ! compgen -G "${frameworks_dir}/${family}*.dylib" >/dev/null; then
+        echo "error: required bundled dependency missing: ${family}*.dylib" >&2
+        exit 1
+    fi
+}
+
+require_ffmpeg_bundle() {
+    if [[ "${WINUAE_BUNDLE_REQUIRE_FFMPEG:-0}" != "1" ]]; then
+        return
+    fi
+    require_bundled_dylib_family libavformat
+    require_bundled_dylib_family libavcodec
+    require_bundled_dylib_family libavutil
+    require_bundled_dylib_family libswscale
+    require_bundled_dylib_family libswresample
+}
+
 rm -rf "${app_dir}"
 mkdir -p "${macos_dir}" "${resources_dir}/od-win32/resources"
 
 cp "${executable}" "${macos_dir}/WinUAE"
+install_name_tool -add_rpath "@loader_path/../Frameworks" \
+    "${macos_dir}/WinUAE" 2>/dev/null || true
+copy_private_dylib_deps "${macos_dir}/WinUAE" "@loader_path/../Frameworks"
 find "${source_dir}/od-win32/resources" -maxdepth 1 -type f \
     ! -name '*.rc' \
     ! -name '*.manifest' \
@@ -316,6 +411,7 @@ if [[ "${WINUAE_SKIP_MACDEPLOYQT:-0}" != "1" && -n "${macdeployqt_executable}" &
 fi
 
 copy_qemu_uae_plugin
+require_ffmpeg_bundle
 
 if [[ "${WINUAE_SKIP_MACOS_DEPLOYMENT_CHECK:-0}" != "1" ]]; then
     "${script_dir}/macos-check-deployment-target.sh" "${app_dir}" "${deployment_target}" >&2

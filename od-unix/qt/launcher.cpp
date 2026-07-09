@@ -100,6 +100,10 @@
 #define UAE_UNIX_WITH_VIDEOGRAB 0
 #endif
 
+#ifndef UAE_UNIX_WITH_FFMPEG
+#define UAE_UNIX_WITH_FFMPEG 0
+#endif
+
 #ifndef UAE_UNIX_WITH_NATIVE_HARDDRIVES
 #define UAE_UNIX_WITH_NATIVE_HARDDRIVES 0
 #endif
@@ -6770,7 +6774,11 @@ private:
             if (genlockModeUsesImageFile(mode)) {
                 addBrowse(genlockFile, this, QStringLiteral("Select genlock image"), QStringLiteral("Images (*.png *.bmp *.jpg *.jpeg);;All files (*)"));
             } else if (genlockModeUsesVideoFile(mode)) {
+#if UAE_UNIX_WITH_FFMPEG
+                addBrowse(genlockFile, this, QStringLiteral("Select genlock video"), QStringLiteral("Video files (*.avi *.mp4 *.mov *.mkv);;All files (*)"));
+#else
                 addBrowse(genlockFile, this, QStringLiteral("Select genlock video"), QStringLiteral("AVI video files (*.avi);;All files (*)"));
+#endif
             }
             storeGenlockFilePath();
         });
