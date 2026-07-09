@@ -46,9 +46,11 @@ volatile int bsd_int_requested;
 void machdep_free(void) {}
 void protect_roms(bool) {}
 void debugger_change(int) {}
+#ifndef WINUAE_UNIX_WITH_VIDEOGRAB
 void pausevideograb(int) {}
 bool getpausevideograb(void) { return false; }
 uae_s64 getsetpositionvideograb(uae_s64) { return -1; }
+#endif
 #ifndef WINUAE_UNIX_WITH_SAMPLER
 int sampler_init(void) { return 0; }
 void sampler_free(void) {}
