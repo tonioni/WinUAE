@@ -10,6 +10,20 @@
 #include <cstring>
 #include <vector>
 
+#ifdef WINUAE_UNIX_WITH_FFMPEG
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/error.h>
+#include <libavutil/imgutils.h>
+#include <libavutil/mathematics.h>
+#include <libavutil/opt.h>
+#include <libswresample/swresample.h>
+#include <libswscale/swscale.h>
+}
+#endif
+
 #ifdef UAE_UNIX_WITH_SDL3
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_camera.h>
@@ -48,6 +62,7 @@ struct AviInfo {
 enum VideoGrabMode {
     VIDEOGRAB_NONE,
     VIDEOGRAB_AVI,
+    VIDEOGRAB_FFMPEG,
     VIDEOGRAB_CAMERA
 };
 
@@ -67,11 +82,39 @@ static std::chrono::steady_clock::time_point play_base_time;
 static bool video_initialized;
 static bool avi_top_down;
 static uae_s64 loaded_frame = -1;
+static bool audio_muted;
 
 #ifdef UAE_UNIX_WITH_SDL3
 static SDL_Camera *camera;
 static bool camera_sdl_initialized;
 static bool camera_permission_denied_logged;
+#endif
+
+#ifdef WINUAE_UNIX_WITH_FFMPEG
+static AVFormatContext *ffmpeg_format;
+static AVCodecContext *ffmpeg_video_codec;
+static AVCodecContext *ffmpeg_audio_codec;
+static AVFrame *ffmpeg_video_frame;
+static AVFrame *ffmpeg_audio_frame;
+static AVPacket *ffmpeg_packet;
+static SwsContext *ffmpeg_sws;
+static SwrContext *ffmpeg_swr;
+static int ffmpeg_video_stream_index = -1;
+static int ffmpeg_audio_stream_index = -1;
+static AVRational ffmpeg_frame_rate = { 25, 1 };
+static uae_s64 ffmpeg_duration_frames;
+static uae_s64 ffmpeg_decoded_frame = -1;
+#ifdef UAE_UNIX_WITH_SDL3
+static SDL_AudioStream *ffmpeg_audio_stream;
+static bool ffmpeg_audio_sdl_initialized;
+#endif
+static float ffmpeg_audio_gain(void)
+{
+    if (audio_muted || !audio_chflags) {
+        return 0.0f;
+    }
+    return std::max(0, std::min(100, audio_volume)) / 100.0f;
+}
 #endif
 
 static bool fourcc_equals(const char id[4], const char *value)
@@ -525,6 +568,575 @@ static bool init_avi_videograb(const TCHAR *filename)
     return true;
 }
 
+#ifdef WINUAE_UNIX_WITH_FFMPEG
+static const char *ffmpeg_error_text(int err, char *buffer, size_t size)
+{
+    if (av_strerror(err, buffer, size) < 0) {
+        std::snprintf(buffer, size, "error %d", err);
+    }
+    return buffer;
+}
+
+static AVRational ffmpeg_frame_time_base(void)
+{
+    AVRational tb = { ffmpeg_frame_rate.den, ffmpeg_frame_rate.num };
+    if (tb.num <= 0 || tb.den <= 0) {
+        tb.num = 1;
+        tb.den = 25;
+    }
+    return tb;
+}
+
+static uae_s64 normalized_ffmpeg_frame(uae_s64 frame)
+{
+    if (ffmpeg_duration_frames <= 0) {
+        return frame < 0 ? 0 : frame;
+    }
+    frame %= ffmpeg_duration_frames;
+    if (frame < 0) {
+        frame += ffmpeg_duration_frames;
+    }
+    return frame;
+}
+
+static uae_s64 ffmpeg_frame_from_pts(uae_s64 pts)
+{
+    if (pts == AV_NOPTS_VALUE || !ffmpeg_format || ffmpeg_video_stream_index < 0) {
+        return ffmpeg_decoded_frame + 1;
+    }
+    AVStream *stream = ffmpeg_format->streams[ffmpeg_video_stream_index];
+    return av_rescale_q(pts, stream->time_base, ffmpeg_frame_time_base());
+}
+
+static uae_s64 ffmpeg_timestamp_from_frame(uae_s64 frame)
+{
+    if (!ffmpeg_format || ffmpeg_video_stream_index < 0) {
+        return 0;
+    }
+    AVStream *stream = ffmpeg_format->streams[ffmpeg_video_stream_index];
+    return av_rescale_q(frame, ffmpeg_frame_time_base(), stream->time_base);
+}
+
+static uae_s64 ffmpeg_current_frame(void)
+{
+    if (video_paused > 0) {
+        return normalized_ffmpeg_frame(current_frame);
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    const uae_s64 elapsed = (uae_s64)std::chrono::duration_cast
+        <std::chrono::microseconds>(now - play_base_time).count();
+    const uae_s64 delta = frame_usec > 0 ? elapsed / frame_usec : 0;
+    current_frame = normalized_ffmpeg_frame(play_base_frame + delta);
+    return current_frame;
+}
+
+static uae_s64 ffmpeg_guess_duration_frames(void)
+{
+    if (!ffmpeg_format || ffmpeg_video_stream_index < 0) {
+        return 0;
+    }
+
+    AVStream *stream = ffmpeg_format->streams[ffmpeg_video_stream_index];
+    if (stream->nb_frames > 0) {
+        return stream->nb_frames;
+    }
+    if (stream->duration != AV_NOPTS_VALUE && stream->duration > 0) {
+        return av_rescale_q(stream->duration, stream->time_base,
+            ffmpeg_frame_time_base());
+    }
+    if (ffmpeg_format->duration != AV_NOPTS_VALUE && ffmpeg_format->duration > 0) {
+        AVRational av_time_base = { 1, AV_TIME_BASE };
+        return av_rescale_q(ffmpeg_format->duration, av_time_base,
+            ffmpeg_frame_time_base());
+    }
+    return 0;
+}
+
+static bool ffmpeg_open_decoder(int stream_index, enum AVMediaType type,
+    AVCodecContext **ctx)
+{
+    if (!ffmpeg_format || stream_index < 0) {
+        return false;
+    }
+    AVStream *stream = ffmpeg_format->streams[stream_index];
+    if (stream->codecpar->codec_type != type) {
+        return false;
+    }
+
+    const AVCodec *codec = avcodec_find_decoder(stream->codecpar->codec_id);
+    if (!codec) {
+        write_log(_T("VIDEOGRAB: FFmpeg decoder not found for stream %d\n"),
+            stream_index);
+        return false;
+    }
+
+    *ctx = avcodec_alloc_context3(codec);
+    if (!*ctx) {
+        return false;
+    }
+
+    int err = avcodec_parameters_to_context(*ctx, stream->codecpar);
+    if (err < 0) {
+        char error[AV_ERROR_MAX_STRING_SIZE];
+        write_log(_T("VIDEOGRAB: FFmpeg codec parameters failed: %s\n"),
+            ffmpeg_error_text(err, error, sizeof error));
+        avcodec_free_context(ctx);
+        return false;
+    }
+
+    err = avcodec_open2(*ctx, codec, NULL);
+    if (err < 0) {
+        char error[AV_ERROR_MAX_STRING_SIZE];
+        write_log(_T("VIDEOGRAB: FFmpeg codec open failed: %s\n"),
+            ffmpeg_error_text(err, error, sizeof error));
+        avcodec_free_context(ctx);
+        return false;
+    }
+    return true;
+}
+
+#ifdef UAE_UNIX_WITH_SDL3
+static void ffmpeg_close_audio_output(void)
+{
+    if (ffmpeg_audio_stream) {
+        SDL_DestroyAudioStream(ffmpeg_audio_stream);
+        ffmpeg_audio_stream = NULL;
+    }
+    if (ffmpeg_audio_sdl_initialized) {
+        SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        ffmpeg_audio_sdl_initialized = false;
+    }
+}
+
+static bool ffmpeg_open_audio_output(void)
+{
+    if (!ffmpeg_audio_codec || ffmpeg_audio_codec->sample_rate <= 0 ||
+        ffmpeg_audio_codec->ch_layout.nb_channels <= 0) {
+        return false;
+    }
+
+    if (!(SDL_WasInit(SDL_INIT_AUDIO) & SDL_INIT_AUDIO)) {
+        if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
+            write_log(_T("VIDEOGRAB: SDL audio init failed: %s\n"),
+                SDL_GetError());
+            return false;
+        }
+        ffmpeg_audio_sdl_initialized = true;
+    }
+
+    AVChannelLayout out_layout;
+    av_channel_layout_default(&out_layout, 2);
+    if (swr_alloc_set_opts2(&ffmpeg_swr,
+            &out_layout,
+            AV_SAMPLE_FMT_S16,
+            ffmpeg_audio_codec->sample_rate,
+            &ffmpeg_audio_codec->ch_layout,
+            ffmpeg_audio_codec->sample_fmt,
+            ffmpeg_audio_codec->sample_rate,
+            0,
+            NULL) < 0 || !ffmpeg_swr || swr_init(ffmpeg_swr) < 0) {
+        av_channel_layout_uninit(&out_layout);
+        write_log(_T("VIDEOGRAB: FFmpeg audio resampler init failed\n"));
+        return false;
+    }
+    av_channel_layout_uninit(&out_layout);
+
+    SDL_AudioSpec spec;
+    std::memset(&spec, 0, sizeof spec);
+    spec.freq = ffmpeg_audio_codec->sample_rate;
+    spec.format = SDL_AUDIO_S16;
+    spec.channels = 2;
+    ffmpeg_audio_stream = SDL_OpenAudioDeviceStream(
+        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
+    if (!ffmpeg_audio_stream) {
+        write_log(_T("VIDEOGRAB: SDL audio stream open failed: %s\n"),
+            SDL_GetError());
+        return false;
+    }
+
+    SDL_ResumeAudioStreamDevice(ffmpeg_audio_stream);
+    write_log(_T("VIDEOGRAB: FFmpeg audio initialized, %d Hz stereo\n"),
+        spec.freq);
+    return true;
+}
+
+static void ffmpeg_filter_audio_channels(uae_s16 *samples, int frames)
+{
+    if (!samples || frames <= 0) {
+        return;
+    }
+    const float gain = ffmpeg_audio_gain();
+    if (gain <= 0.0f) {
+        std::memset(samples, 0, (size_t)frames * 2 * sizeof(uae_s16));
+        return;
+    }
+    if (audio_chflags == 1) {
+        for (int i = 0; i < frames; i++) {
+            samples[i * 2 + 1] = 0;
+        }
+    } else if (audio_chflags == 2) {
+        for (int i = 0; i < frames; i++) {
+            samples[i * 2] = 0;
+        }
+    }
+    if (gain < 1.0f) {
+        for (int i = 0; i < frames * 2; i++) {
+            samples[i] = (uae_s16)((float)samples[i] * gain);
+        }
+    }
+}
+
+static void ffmpeg_queue_audio_frame(AVFrame *frame)
+{
+    if (!ffmpeg_audio_stream || !ffmpeg_swr || !frame || frame->nb_samples <= 0) {
+        return;
+    }
+
+    const int out_samples = swr_get_out_samples(ffmpeg_swr, frame->nb_samples);
+    if (out_samples <= 0) {
+        return;
+    }
+
+    std::vector<uae_u8> audio((size_t)out_samples * 2 * sizeof(uae_s16));
+    uae_u8 *out_planes[] = { audio.data() };
+    const int converted = swr_convert(ffmpeg_swr, out_planes, out_samples,
+        (const uae_u8 **)frame->extended_data, frame->nb_samples);
+    if (converted <= 0) {
+        return;
+    }
+
+    ffmpeg_filter_audio_channels((uae_s16 *)audio.data(), converted);
+    const int bytes = converted * 2 * (int)sizeof(uae_s16);
+    if (!SDL_PutAudioStreamData(ffmpeg_audio_stream, audio.data(), bytes)) {
+        write_log(_T("VIDEOGRAB: SDL_PutAudioStreamData failed: %s\n"),
+            SDL_GetError());
+    }
+}
+
+static void ffmpeg_clear_audio(void)
+{
+    if (ffmpeg_audio_stream) {
+        SDL_ClearAudioStream(ffmpeg_audio_stream);
+    }
+    if (ffmpeg_swr) {
+        swr_close(ffmpeg_swr);
+        swr_init(ffmpeg_swr);
+    }
+}
+#else
+static void ffmpeg_close_audio_output(void)
+{
+}
+
+static bool ffmpeg_open_audio_output(void)
+{
+    return false;
+}
+
+static void ffmpeg_queue_audio_frame(AVFrame *)
+{
+}
+
+static void ffmpeg_clear_audio(void)
+{
+}
+#endif
+
+static void ffmpeg_decode_audio_packet(AVPacket *packet)
+{
+    if (!ffmpeg_audio_codec || !ffmpeg_audio_frame) {
+        return;
+    }
+    int err = avcodec_send_packet(ffmpeg_audio_codec, packet);
+    if (err < 0 && err != AVERROR(EAGAIN) && err != AVERROR_EOF) {
+        return;
+    }
+
+    for (;;) {
+        err = avcodec_receive_frame(ffmpeg_audio_codec, ffmpeg_audio_frame);
+        if (err == AVERROR(EAGAIN) || err == AVERROR_EOF) {
+            break;
+        }
+        if (err < 0) {
+            break;
+        }
+        ffmpeg_queue_audio_frame(ffmpeg_audio_frame);
+        av_frame_unref(ffmpeg_audio_frame);
+    }
+}
+
+static bool ffmpeg_copy_video_frame(AVFrame *frame, uae_s64 frame_index)
+{
+    if (!frame || !ffmpeg_video_codec) {
+        return false;
+    }
+
+    const int width = ffmpeg_video_codec->width;
+    const int height = ffmpeg_video_codec->height;
+    if (width <= 0 || height <= 0) {
+        return false;
+    }
+
+    const size_t row_bytes = (size_t)width * 3;
+    if (!resize_frame_buffer(row_bytes * (size_t)height)) {
+        return false;
+    }
+
+    std::vector<uae_u8> top_down(row_bytes * (size_t)height);
+    uae_u8 *dst_data[] = { top_down.data() };
+    int dst_linesize[] = { (int)row_bytes };
+
+    ffmpeg_sws = sws_getCachedContext(ffmpeg_sws,
+        width,
+        height,
+        ffmpeg_video_codec->pix_fmt,
+        width,
+        height,
+        AV_PIX_FMT_BGR24,
+        SWS_BILINEAR,
+        NULL,
+        NULL,
+        NULL);
+    if (!ffmpeg_sws) {
+        return false;
+    }
+
+    sws_scale(ffmpeg_sws, frame->data, frame->linesize, 0, height,
+        dst_data, dst_linesize);
+
+    uae_u8 *dst = frame_bytes();
+    for (int y = 0; y < height; y++) {
+        const uae_u8 *src = top_down.data() + (size_t)y * row_bytes;
+        std::memcpy(dst + (size_t)(height - 1 - y) * row_bytes, src,
+            row_bytes);
+    }
+
+    video_width = width;
+    video_height = height;
+    loaded_frame = frame_index;
+    ffmpeg_decoded_frame = frame_index;
+    return true;
+}
+
+static bool ffmpeg_decode_video_packet(AVPacket *packet, uae_s64 target_frame)
+{
+    int err = avcodec_send_packet(ffmpeg_video_codec, packet);
+    if (err < 0 && err != AVERROR(EAGAIN) && err != AVERROR_EOF) {
+        return false;
+    }
+
+    for (;;) {
+        err = avcodec_receive_frame(ffmpeg_video_codec, ffmpeg_video_frame);
+        if (err == AVERROR(EAGAIN) || err == AVERROR_EOF) {
+            break;
+        }
+        if (err < 0) {
+            return false;
+        }
+
+        const uae_s64 frame_index =
+            ffmpeg_frame_from_pts(ffmpeg_video_frame->best_effort_timestamp);
+        if (frame_index >= target_frame) {
+            const bool copied = ffmpeg_copy_video_frame(ffmpeg_video_frame,
+                frame_index);
+            av_frame_unref(ffmpeg_video_frame);
+            return copied;
+        }
+        ffmpeg_decoded_frame = frame_index;
+        av_frame_unref(ffmpeg_video_frame);
+    }
+    return false;
+}
+
+static bool ffmpeg_seek_frame(uae_s64 frame)
+{
+    if (!ffmpeg_format || ffmpeg_video_stream_index < 0) {
+        return false;
+    }
+
+    frame = normalized_ffmpeg_frame(frame);
+    const uae_s64 timestamp = ffmpeg_timestamp_from_frame(frame);
+    int err = av_seek_frame(ffmpeg_format, ffmpeg_video_stream_index,
+        timestamp, AVSEEK_FLAG_BACKWARD);
+    if (err < 0) {
+        char error[AV_ERROR_MAX_STRING_SIZE];
+        write_log(_T("VIDEOGRAB: FFmpeg seek to frame %lld failed: %s\n"),
+            frame, ffmpeg_error_text(err, error, sizeof error));
+        return false;
+    }
+    avcodec_flush_buffers(ffmpeg_video_codec);
+    if (ffmpeg_audio_codec) {
+        avcodec_flush_buffers(ffmpeg_audio_codec);
+    }
+    ffmpeg_decoded_frame = -1;
+    loaded_frame = -1;
+    ffmpeg_clear_audio();
+    return true;
+}
+
+static bool read_ffmpeg_frame(uae_s64 target_frame)
+{
+    if (!ffmpeg_format || !ffmpeg_video_codec || !ffmpeg_packet) {
+        return false;
+    }
+
+    target_frame = normalized_ffmpeg_frame(target_frame);
+    if (loaded_frame == target_frame && !frame_buffer.empty()) {
+        return true;
+    }
+
+    if (ffmpeg_decoded_frame < 0 || target_frame < ffmpeg_decoded_frame ||
+        target_frame > ffmpeg_decoded_frame + 120) {
+        if (!ffmpeg_seek_frame(target_frame)) {
+            return false;
+        }
+    }
+
+    bool looped = false;
+    for (;;) {
+        int err = av_read_frame(ffmpeg_format, ffmpeg_packet);
+        if (err == AVERROR_EOF) {
+            if (looped) {
+                return !frame_buffer.empty();
+            }
+            looped = true;
+            if (!ffmpeg_seek_frame(0)) {
+                return false;
+            }
+            current_frame = 0;
+            play_base_frame = 0;
+            play_base_time = std::chrono::steady_clock::now();
+            target_frame = 0;
+            continue;
+        }
+        if (err < 0) {
+            char error[AV_ERROR_MAX_STRING_SIZE];
+            write_log(_T("VIDEOGRAB: FFmpeg read failed: %s\n"),
+                ffmpeg_error_text(err, error, sizeof error));
+            return !frame_buffer.empty();
+        }
+
+        bool got_frame = false;
+        if (ffmpeg_packet->stream_index == ffmpeg_video_stream_index) {
+            got_frame = ffmpeg_decode_video_packet(ffmpeg_packet, target_frame);
+        } else if (ffmpeg_packet->stream_index == ffmpeg_audio_stream_index) {
+            ffmpeg_decode_audio_packet(ffmpeg_packet);
+        }
+        av_packet_unref(ffmpeg_packet);
+        if (got_frame) {
+            return true;
+        }
+    }
+}
+
+static void uninit_ffmpeg_videograb(void)
+{
+    ffmpeg_close_audio_output();
+    if (ffmpeg_swr) {
+        swr_free(&ffmpeg_swr);
+    }
+    if (ffmpeg_sws) {
+        sws_freeContext(ffmpeg_sws);
+        ffmpeg_sws = NULL;
+    }
+    if (ffmpeg_packet) {
+        av_packet_free(&ffmpeg_packet);
+    }
+    if (ffmpeg_video_frame) {
+        av_frame_free(&ffmpeg_video_frame);
+    }
+    if (ffmpeg_audio_frame) {
+        av_frame_free(&ffmpeg_audio_frame);
+    }
+    if (ffmpeg_video_codec) {
+        avcodec_free_context(&ffmpeg_video_codec);
+    }
+    if (ffmpeg_audio_codec) {
+        avcodec_free_context(&ffmpeg_audio_codec);
+    }
+    if (ffmpeg_format) {
+        avformat_close_input(&ffmpeg_format);
+    }
+    ffmpeg_video_stream_index = -1;
+    ffmpeg_audio_stream_index = -1;
+    ffmpeg_duration_frames = 0;
+    ffmpeg_decoded_frame = -1;
+}
+
+static bool init_ffmpeg_videograb(const TCHAR *filename)
+{
+    int err = avformat_open_input(&ffmpeg_format, filename, NULL, NULL);
+    if (err < 0) {
+        return false;
+    }
+
+    err = avformat_find_stream_info(ffmpeg_format, NULL);
+    if (err < 0) {
+        char error[AV_ERROR_MAX_STRING_SIZE];
+        write_log(_T("VIDEOGRAB: FFmpeg stream info failed for '%s': %s\n"),
+            filename, ffmpeg_error_text(err, error, sizeof error));
+        uninit_ffmpeg_videograb();
+        return false;
+    }
+
+    ffmpeg_video_stream_index = av_find_best_stream(ffmpeg_format,
+        AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
+    if (ffmpeg_video_stream_index < 0 ||
+        !ffmpeg_open_decoder(ffmpeg_video_stream_index, AVMEDIA_TYPE_VIDEO,
+            &ffmpeg_video_codec)) {
+        uninit_ffmpeg_videograb();
+        return false;
+    }
+
+    const int audio_index = av_find_best_stream(ffmpeg_format,
+        AVMEDIA_TYPE_AUDIO, -1, ffmpeg_video_stream_index, NULL, 0);
+    if (audio_index >= 0 &&
+        ffmpeg_open_decoder(audio_index, AVMEDIA_TYPE_AUDIO,
+            &ffmpeg_audio_codec)) {
+        ffmpeg_audio_frame = av_frame_alloc();
+        if (ffmpeg_audio_frame && ffmpeg_open_audio_output()) {
+            ffmpeg_audio_stream_index = audio_index;
+        } else {
+            av_frame_free(&ffmpeg_audio_frame);
+            avcodec_free_context(&ffmpeg_audio_codec);
+        }
+    }
+
+    ffmpeg_video_frame = av_frame_alloc();
+    ffmpeg_packet = av_packet_alloc();
+    if (!ffmpeg_video_frame || !ffmpeg_packet) {
+        uninit_ffmpeg_videograb();
+        return false;
+    }
+
+    AVStream *stream = ffmpeg_format->streams[ffmpeg_video_stream_index];
+    ffmpeg_frame_rate = av_guess_frame_rate(ffmpeg_format, stream, NULL);
+    if (ffmpeg_frame_rate.num <= 0 || ffmpeg_frame_rate.den <= 0) {
+        ffmpeg_frame_rate.num = 25;
+        ffmpeg_frame_rate.den = 1;
+    }
+    ffmpeg_duration_frames = ffmpeg_guess_duration_frames();
+    AVRational microsecond_base = { 1, 1000000 };
+    frame_usec = (uae_u32)std::max<uae_s64>(1,
+        av_rescale_q(1, ffmpeg_frame_time_base(), microsecond_base));
+    video_width = ffmpeg_video_codec->width;
+    video_height = ffmpeg_video_codec->height;
+    current_frame = 0;
+    play_base_frame = 0;
+    play_base_time = std::chrono::steady_clock::now();
+    video_paused = 0;
+    loaded_frame = -1;
+    ffmpeg_decoded_frame = -1;
+
+    write_log(_T("VIDEOGRAB: FFmpeg playing '%s', %dx%d, %.3f fps%s\n"),
+        filename, video_width, video_height,
+        (double)ffmpeg_frame_rate.num / (double)ffmpeg_frame_rate.den,
+        ffmpeg_audio_codec ? _T(", audio") : _T(""));
+    return true;
+}
+#endif
+
 #ifdef UAE_UNIX_WITH_SDL3
 static bool init_camera_videograb(void)
 {
@@ -655,6 +1267,9 @@ static bool get_camera_videograb(long **, int *, int *)
 
 void uninitvideograb(void)
 {
+#ifdef WINUAE_UNIX_WITH_FFMPEG
+    uninit_ffmpeg_videograb();
+#endif
 #ifdef UAE_UNIX_WITH_SDL3
     if (camera) {
         SDL_CloseCamera(camera);
@@ -682,6 +1297,7 @@ void uninitvideograb(void)
     loaded_frame = -1;
     audio_chflags = 0;
     audio_volume = 0;
+    audio_muted = false;
 }
 
 bool initvideograb(const TCHAR *filename)
@@ -695,11 +1311,17 @@ bool initvideograb(const TCHAR *filename)
         }
         videograb_mode = VIDEOGRAB_CAMERA;
     } else {
+#ifdef WINUAE_UNIX_WITH_FFMPEG
+        if (init_ffmpeg_videograb(filename)) {
+            videograb_mode = VIDEOGRAB_FFMPEG;
+        } else
+#endif
         if (!init_avi_videograb(filename)) {
             uninitvideograb();
             return false;
+        } else {
+            videograb_mode = VIDEOGRAB_AVI;
         }
-        videograb_mode = VIDEOGRAB_AVI;
     }
 
     video_initialized = true;
@@ -714,6 +1336,21 @@ bool getvideograb(long **buffer, int *width, int *height)
 
     if (videograb_mode == VIDEOGRAB_CAMERA) {
         return get_camera_videograb(buffer, width, height);
+    }
+
+    if (videograb_mode == VIDEOGRAB_FFMPEG) {
+#ifdef WINUAE_UNIX_WITH_FFMPEG
+        const uae_s64 frame = ffmpeg_current_frame();
+        if (!read_ffmpeg_frame(frame)) {
+            return false;
+        }
+        *buffer = frame_buffer.data();
+        *width = video_width;
+        *height = video_height;
+        return true;
+#else
+        return false;
+#endif
     }
 
     if (videograb_mode != VIDEOGRAB_AVI) {
@@ -743,14 +1380,30 @@ void pausevideograb(int pause)
         return;
     }
 
-    if (videograb_mode == VIDEOGRAB_AVI) {
+    if (videograb_mode == VIDEOGRAB_AVI || videograb_mode == VIDEOGRAB_FFMPEG) {
         if (pause > 0) {
-            current_frame = current_avi_frame();
+            if (videograb_mode == VIDEOGRAB_AVI) {
+                current_frame = current_avi_frame();
+            }
+#ifdef WINUAE_UNIX_WITH_FFMPEG
+            else if (videograb_mode == VIDEOGRAB_FFMPEG) {
+                current_frame = ffmpeg_current_frame();
+            }
+#endif
         } else {
             play_base_frame = current_frame;
             play_base_time = std::chrono::steady_clock::now();
         }
     }
+#if defined(WINUAE_UNIX_WITH_FFMPEG) && defined(UAE_UNIX_WITH_SDL3)
+    if (videograb_mode == VIDEOGRAB_FFMPEG && ffmpeg_audio_stream) {
+        if (pause > 0) {
+            SDL_PauseAudioStreamDevice(ffmpeg_audio_stream);
+        } else {
+            SDL_ResumeAudioStreamDevice(ffmpeg_audio_stream);
+        }
+    }
+#endif
     video_paused = pause > 0 ? 1 : 0;
 }
 
@@ -764,6 +1417,11 @@ uae_s64 getsetpositionvideograb(uae_s64 framepos)
         if (videograb_mode == VIDEOGRAB_AVI) {
             return current_avi_frame();
         }
+#ifdef WINUAE_UNIX_WITH_FFMPEG
+        if (videograb_mode == VIDEOGRAB_FFMPEG) {
+            return ffmpeg_current_frame();
+        }
+#endif
         return current_frame;
     }
 
@@ -774,6 +1432,15 @@ uae_s64 getsetpositionvideograb(uae_s64 framepos)
         loaded_frame = -1;
         return current_frame;
     }
+#ifdef WINUAE_UNIX_WITH_FFMPEG
+    if (videograb_mode == VIDEOGRAB_FFMPEG) {
+        current_frame = normalized_ffmpeg_frame(framepos);
+        play_base_frame = current_frame;
+        play_base_time = std::chrono::steady_clock::now();
+        ffmpeg_seek_frame(current_frame);
+        return current_frame;
+    }
+#endif
 
     current_frame = framepos;
     return current_frame;
@@ -787,6 +1454,11 @@ uae_s64 getdurationvideograb(void)
     if (videograb_mode == VIDEOGRAB_AVI) {
         return (uae_s64)avi_frames.size();
     }
+#ifdef WINUAE_UNIX_WITH_FFMPEG
+    if (videograb_mode == VIDEOGRAB_FFMPEG) {
+        return ffmpeg_duration_frames;
+    }
+#endif
     return 0;
 }
 
@@ -805,9 +1477,10 @@ void setvolumevideograb(int volume)
     audio_volume = volume;
 }
 
-void setchflagsvideograb(int chflags, bool)
+void setchflagsvideograb(int chflags, bool mute)
 {
     audio_chflags = chflags;
+    audio_muted = mute;
 }
 
 void isvideograb_status(void)
