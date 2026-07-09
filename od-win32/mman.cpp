@@ -899,6 +899,11 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 	return got;
 }
 
+bool uae_mman_alloc_nodirect(addrbank *, uae_u32)
+{
+	return false;
+}
+
 void *uae_shmat (addrbank *ab, int shmid, void *shmaddr, int shmflg, struct uae_mman_data *md)
 {
 	void *result = (void *)-1;

@@ -51,7 +51,6 @@ volatile int bsd_int_requested;
 #endif
 
 void machdep_free(void) {}
-void protect_roms(bool) {}
 void pausevideograb(int) {}
 bool getpausevideograb(void) { return false; }
 uae_s64 getsetpositionvideograb(uae_s64) { return -1; }
@@ -228,7 +227,6 @@ bool cpuboard_forced_hardreset(void) { return false; }
 bool cpuboard_fc_check(uaecptr, uae_u32 *, int, bool) { return false; }
 void cpuboard_gvpmaprom(int) {}
 #endif
-void unprotect_maprom(void) {}
 #ifndef WITH_CPUBOARD
 void cyberstorm_scsi_ram_put(uaecptr, uae_u32) {}
 uae_u32 cyberstorm_scsi_ram_get(uaecptr) { return 0; }
