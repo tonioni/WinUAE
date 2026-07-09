@@ -2320,7 +2320,7 @@ static void setsyncstopped(void)
 static void checksyncstopped(uae_u16 con0)
 {
 	if (issyncstopped(con0)) {
-		if (!currprefs.cpu_memory_cycle_exact) {
+		if (!currprefs.cpu_memory_cycle_exact || currprefs.m68k_speed < 0) {
 			setsyncstopped();
 		}
 	} else if (syncs_stopped) {
