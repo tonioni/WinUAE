@@ -9,6 +9,7 @@
 #include "options.h"
 #include "traps.h"
 #include "custom.h"
+#include "disk.h"
 #include "inputdevice.h"
 #include "gui.h"
 #include "registry.h"
@@ -247,6 +248,69 @@ void gui_flicker_led(int led, int, int status)
     }
 }
 void gui_disk_image_change(int, const TCHAR*, bool) {}
+
+bool gui_ask_disk(int drv, TCHAR *name, int name_len)
+{
+    if (!name || name_len <= 0) {
+        return false;
+    }
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    if (drv < 0 || drv >= 4) {
+        write_log("Unix Qt missing floppy dialog: invalid drive %d\n", drv);
+        return false;
+    }
+
+    static bool active;
+    if (active) {
+        return false;
+    }
+    active = true;
+
+    const int old_pause = pause_emulation;
+    pause_emulation = 1;
+    setsystime();
+    inputdevice_unacquire();
+    pause_sound();
+
+    TCHAR selected_path[MAX_DPATH];
+    selected_path[0] = 0;
+    int exit_code = 0;
+    const int action = runWinUaeQtRuntimeFileDialog(
+        unix_gui_argc,
+        unix_gui_argv,
+        drv,
+        name,
+        selected_path,
+        sizeof selected_path / sizeof selected_path[0],
+        &exit_code);
+
+    pause_emulation = old_pause;
+    setsystime();
+    resume_sound();
+    inputdevice_acquire(TRUE);
+    fpscounter_reset();
+
+    active = false;
+
+    if (action == WINUAE_QT_LAUNCHER_ERROR) {
+        write_log("Unix Qt missing floppy dialog exited with error code %d\n", exit_code);
+        return false;
+    }
+    if (action != WINUAE_QT_LAUNCHER_START) {
+        return false;
+    }
+    if (_tcslen(selected_path) >= size_t(name_len)) {
+        write_log("Unix Qt missing floppy dialog: selected path is too long\n");
+        return false;
+    }
+
+    _tcscpy(name, selected_path);
+    return true;
+#else
+    write_log("Unix Qt missing floppy dialog is not enabled in this build\n");
+    return false;
+#endif
+}
 
 #ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
 static const TCHAR *runtime_shortcut_initial_path(int shortcut)
