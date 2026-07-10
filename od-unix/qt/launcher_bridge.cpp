@@ -367,9 +367,46 @@ static WinUaeQtConfig::Settings bridgeHardwareOrderSettings(void *context)
     return settings;
 }
 
+static void bridgeCopyPath(TCHAR *dst, size_t dstSize, const char *path)
+{
+    if (!dst || !dstSize) {
+        return;
+    }
+    if (!path) {
+        path = "";
+    }
+    _tcsncpy(dst, path, dstSize - 1);
+    dst[dstSize - 1] = 0;
+}
+
 static void bridgeSaveScreenshot(void *)
 {
     screenshot(-1, 1, 0);
+}
+
+static bool bridgeSaveState(void *, const char *path)
+{
+    if (!path || !path[0] || strlen(path) >= MAX_DPATH) {
+        return false;
+    }
+
+    TCHAR statePath[MAX_DPATH];
+    bridgeCopyPath(statePath, sizeof statePath / sizeof(TCHAR), path);
+    savestate_initsave(statePath, 1, true, true);
+    return save_state(savestate_fname, STATE_SAVE_DESCRIPTION) != 0;
+}
+
+static bool bridgeRestoreState(void *, const char *path)
+{
+    if (!path || !path[0] || strlen(path) >= MAX_DPATH) {
+        return false;
+    }
+
+    TCHAR statePath[MAX_DPATH];
+    bridgeCopyPath(statePath, sizeof statePath / sizeof(TCHAR), path);
+    savestate_initsave(statePath, 1, true, false);
+    savestate_state = STATE_DORESTORE;
+    return true;
 }
 
 static bool bridgeSampleRipperEnabled(void *)
@@ -384,18 +421,6 @@ static void bridgeSetSampleRipperEnabled(void *, bool enabled)
     }
     sampleripper_enabled = enabled ? 1 : 0;
     audio_sampleripper(-1);
-}
-
-static void bridgeCopyPath(TCHAR *dst, size_t dstSize, const char *path)
-{
-    if (!dst || !dstSize) {
-        return;
-    }
-    if (!path) {
-        path = "";
-    }
-    _tcsncpy(dst, path, dstSize - 1);
-    dst[dstSize - 1] = 0;
 }
 
 static bool bridgeStatePlaybackEnabled(void *)
@@ -515,9 +540,11 @@ static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *pre
     provider.orderSettings = bridgeHardwareOrderSettings;
     provider.sampleRipperEnabled = bridgeSampleRipperEnabled;
     provider.setSampleRipperEnabled = bridgeSetSampleRipperEnabled;
+    provider.restoreState = bridgeRestoreState;
     if (runtimeActions) {
         provider.pollHostWindowEvents = bridgePollHostWindowEvents;
         provider.saveScreenshot = bridgeSaveScreenshot;
+        provider.saveState = bridgeSaveState;
         provider.statePlaybackEnabled = bridgeStatePlaybackEnabled;
         provider.stateRecordingEnabled = bridgeStateRecordingEnabled;
         provider.canSaveStateRecording = bridgeCanSaveStateRecording;

@@ -11652,8 +11652,31 @@ private:
         QPushButton *loadState = new QPushButton(QStringLiteral("Load state..."));
         QPushButton *saveState = new QPushButton(QStringLiteral("Save state..."));
         QPushButton *browseState = smallButton(QStringLiteral("..."));
-        saveState->setEnabled(false);
-        saveState->setToolTip(QStringLiteral("Saving emulator state requires runtime save-state support in the Unix GUI."));
+        if (hardwareProvider.saveState) {
+            connect(saveState, &QPushButton::clicked, this, [this]() {
+                QString selected = QFileDialog::getSaveFileName(
+                    this,
+                    QStringLiteral("Save state"),
+                    fileDialogInitialSavePath(stateFileName->currentText(), QStringLiteral("state.uss")),
+                    QStringLiteral("WinUAE state files (*.uss);;All files (*)"));
+                if (selected.isEmpty()) {
+                    return;
+                }
+                if (QFileInfo(selected).suffix().isEmpty()) {
+                    selected += QStringLiteral(".uss");
+                }
+                const QByteArray path = selected.toLocal8Bit();
+                if (!hardwareProvider.saveState(hardwareProvider.context, path.constData())) {
+                    status->setText(QStringLiteral("Failed to save state to %1").arg(selected));
+                    return;
+                }
+                setPathComboText(stateFileName, selected);
+                stateFileClear->setChecked(false);
+                status->setText(QStringLiteral("State saved to %1").arg(selected));
+            });
+        } else {
+            disableUnavailable(saveState, QStringLiteral("Saving state is only available from the integrated runtime UI."));
+        }
         stateFiles->addWidget(stateFileName, 0, 0);
         stateFiles->addWidget(stateFileClear, 0, 1);
         stateFiles->addWidget(browseState, 0, 2);
@@ -11672,16 +11695,23 @@ private:
         right->addWidget(groupBox(QStringLiteral("Keyboard LEDs"), keyboard));
         root->addLayout(right, 1);
 
-        const auto selectStateFile = [this]() {
+        const auto selectStateFile = [this](bool restore) {
             const QString selected = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Select state file"), fileDialogInitialPath(stateFileName->currentText()), QStringLiteral("WinUAE state files (*.uss);;All files (*)"));
             if (!selected.isEmpty()) {
                 setPathComboText(stateFileName, selected);
                 stateFileClear->setChecked(false);
+                if (restore && hardwareProvider.restoreState) {
+                    const QByteArray path = selected.toLocal8Bit();
+                    if (!hardwareProvider.restoreState(hardwareProvider.context, path.constData())) {
+                        status->setText(QStringLiteral("Failed to restore state from %1").arg(selected));
+                        return;
+                    }
+                }
                 status->setText(QStringLiteral("State file %1 selected for restore").arg(selected));
             }
         };
-        connect(loadState, &QPushButton::clicked, this, selectStateFile);
-        connect(browseState, &QPushButton::clicked, this, selectStateFile);
+        connect(loadState, &QPushButton::clicked, this, [selectStateFile]() { selectStateFile(true); });
+        connect(browseState, &QPushButton::clicked, this, [selectStateFile]() { selectStateFile(false); });
         connect(stateFileName, &QComboBox::currentTextChanged, this, [this](const QString &text) {
             stateFileClear->setChecked(text.trimmed().isEmpty());
         });

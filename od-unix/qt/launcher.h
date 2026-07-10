@@ -130,6 +130,8 @@ struct WinUaeQtHardwareInfoProvider {
     WinUaeQtConfig::Settings (*orderSettings)(void *context) = nullptr;
     void (*pollHostWindowEvents)(void *context) = nullptr;
     void (*saveScreenshot)(void *context) = nullptr;
+    bool (*saveState)(void *context, const char *path) = nullptr;
+    bool (*restoreState)(void *context, const char *path) = nullptr;
     bool (*sampleRipperEnabled)(void *context) = nullptr;
     void (*setSampleRipperEnabled)(void *context, bool enabled) = nullptr;
     bool (*statePlaybackEnabled)(void *context) = nullptr;
