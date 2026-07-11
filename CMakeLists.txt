@@ -1526,6 +1526,7 @@ set(WINUAE_CORE_SOURCES
     od-unix/hardfile_host.cpp
     od-unix/input.cpp
     od-unix/logging.cpp
+    od-unix/ldp_render.cpp
     od-unix/mman.cpp
     od-unix/path_expand.cpp
     od-unix/parallel.cpp
