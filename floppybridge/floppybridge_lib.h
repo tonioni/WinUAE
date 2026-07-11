@@ -48,6 +48,11 @@ public:
 		bdmMax = 2
 	};
 
+	enum class DriveSelection : unsigned char {
+		dsDriveA = 0, dsDriveB = 1, dsDrive0 = 2,
+		dsDrive1 = 3, dsDrive2 = 4, dsDrive3 = 5
+	};
+
 	// Information about the bridge driver DLL that was loaded.
 	struct BridgeInformation {
 		// Information about the bridge
@@ -70,6 +75,7 @@ public:
 	static const unsigned int ConfigOption_AutoDetectComport	= 0x04;	// The driver supports automatic com port detection and selection
 	static const unsigned int ConfigOption_DriveABCable			= 0x08;	// The driver allows you to specify using cable select for Drive A or Drive B
 	static const unsigned int ConfigOption_SmartSpeed			= 0x10;	// The driver supports dynamically switching between normal and Turbo hopefully without breaking copy protection
+	static const unsigned int ConfigOption_SupportsShugartMode	= 0x20;
 
 	// Information about a Bridge Driver (eg: DrawBridge, Greaseweazle etc)
 	struct DriverInformation {
@@ -236,6 +242,8 @@ public:
 	bool getDriveCableSelection(bool* connectToDriveB);
 	// Sets if the driver should use a drive connected as Drive B (true) on the cable rather than Drive A (false)
 	bool setDriveCableSelection(bool connectToDriveB);
+	bool getDriveSelection(DriveSelection* selection);
+	bool setDriveSelection(DriveSelection selection);
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// These require ConfigOption_SmartSpeed bit set in DriverInformation::configOptions

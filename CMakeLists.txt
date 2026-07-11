@@ -178,6 +178,8 @@ option(WINUAE_UNIX_WITH_QT_UI "Build the optional Unix Qt configuration UI" ON)
 option(WINUAE_UNIX_WITH_INTEGRATED_QT_UI "Allow winuae_unix to host the Unix Qt frontend" ON)
 option(WINUAE_UNIX_WITH_LIBPNG "Build optional PNG screenshot support when libpng is available" ON)
 option(WINUAE_UNIX_WITH_ARCHIVES "Build bundled ZIP/LHA/LZX/DMS/WRP archive support" ON)
+option(WINUAE_UNIX_WITH_FLOPPYBRIDGE "Build real-time FloppyBridge drive support" ON)
+option(WINUAE_UNIX_BUILD_FLOPPYBRIDGE_PLUGIN "Build FloppyBridge.so for Unix packaging" ON)
 option(WINUAE_UNIX_WITH_CHD "Build CHD hardfile and CD image support" ON)
 option(WINUAE_UNIX_WITH_CHD_FLAC "Build CHD FLAC codecs; required by the bundled CHD sources" ON)
 option(WINUAE_UNIX_WITH_LIBMPEG2 "Build CD32 FMV video decode support when libmpeg2 is available" ON)
@@ -219,6 +221,15 @@ set(WINUAE_QEMU_UAE_BUILDER_URL "https://github.com/reinauer/uae-ppc-plugin.git"
 option(WINUAE_QEMU_UAE_BUILDER_FETCH "Clone the uae-ppc-plugin builder when no local copy is found" ON)
 set(WINUAE_QEMU_UAE_QEMU_TARBALL "" CACHE FILEPATH
     "Local QEMU source tarball for offline qemu-uae plugin builds")
+set(WINUAE_FLOPPYBRIDGE_PLUGIN_FILE "" CACHE FILEPATH
+    "Prebuilt FloppyBridge.so plugin to install or bundle")
+set(WINUAE_FLOPPYBRIDGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../FloppyDriveBridge"
+    CACHE PATH "FloppyDriveBridge source checkout")
+set(WINUAE_FLOPPYBRIDGE_URL "https://github.com/RobSmithDev/FloppyDriveBridge.git"
+    CACHE STRING "FloppyDriveBridge Git URL")
+set(WINUAE_FLOPPYBRIDGE_REVISION "710fa15cb200303f8c4bde1c931786175f301a68"
+    CACHE STRING "Pinned FloppyDriveBridge source revision")
+option(WINUAE_FLOPPYBRIDGE_FETCH "Clone FloppyDriveBridge when its source checkout is missing" ON)
 set(WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE "${CMAKE_INSTALL_LIBDIR}/winuae/plugins"
     CACHE STRING "Relative Unix install directory for runtime plugins")
 
@@ -601,6 +612,13 @@ if(WINUAE_UNIX_WITH_ARCHIVES)
         archivers/dms/u_quick.cpp
         archivers/dms/u_rle.cpp
         archivers/wrp/warp.cpp
+    )
+endif()
+
+if(WINUAE_UNIX_WITH_FLOPPYBRIDGE)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE
+        FLOPPYBRIDGE=1
+        WINUAE_UNIX_WITH_FLOPPYBRIDGE=1
     )
 endif()
 
@@ -1401,6 +1419,7 @@ set(WINUAE_CORE_SOURCES
     devices.cpp
     disasm.cpp
     disk.cpp
+    $<$<BOOL:${WINUAE_UNIX_WITH_FLOPPYBRIDGE}>:floppybridge/floppybridge_lib.cpp>
     diskutil.cpp
     dlopen.cpp
     dongle.cpp
@@ -1614,6 +1633,7 @@ if(WINUAE_UNIX_WITH_QT_UI)
     if(WINUAE_UNIX_QT_WIDGETS_TARGET)
         add_library(winuae_unix_qt_frontend STATIC
             od-unix/qt/config.cpp
+            $<$<BOOL:${WINUAE_UNIX_WITH_FLOPPYBRIDGE}>:od-unix/qt/floppybridge_ui.cpp>
             od-unix/qt/launcher.cpp
             od-unix/qt/launcher_bridge.cpp
             od-unix/qt/mount_config.cpp
@@ -1641,6 +1661,8 @@ if(WINUAE_UNIX_WITH_QT_UI)
             UAE_UNIX_WITH_BSDSOCKET=$<BOOL:${WINUAE_UNIX_ENABLE_BSDSOCKET}>
             UAE_UNIX_WITH_UAESCSI=$<BOOL:${WINUAE_UNIX_ENABLE_UAESCSI}>
             UAE_UNIX_WITH_SAMPLER=$<BOOL:${WINUAE_UNIX_ENABLE_SAMPLER}>
+            UAE_UNIX_WITH_FLOPPYBRIDGE=$<BOOL:${WINUAE_UNIX_WITH_FLOPPYBRIDGE}>
+            $<$<BOOL:${WINUAE_UNIX_WITH_FLOPPYBRIDGE}>:FLOPPYBRIDGE=1>
             UAE_UNIX_WITH_NATIVE_HARDDRIVES=$<BOOL:${WINUAE_UNIX_ENABLE_NATIVE_HARDDRIVES}>
             UAE_UNIX_WITH_NATIVE_SCSI=$<BOOL:${WINUAE_UNIX_ENABLE_NATIVE_SCSI}>
             UAE_UNIX_WITH_MIDI=$<BOOL:${WINUAE_UNIX_ENABLE_MIDI}>
@@ -1871,6 +1893,71 @@ if(UNIX AND WINUAE_UNIX_WITH_PPC_QEMU)
     )
 endif()
 
+if(WINUAE_FLOPPYBRIDGE_PLUGIN_FILE)
+    get_filename_component(WINUAE_FLOPPYBRIDGE_PLUGIN_PATH
+        "${WINUAE_FLOPPYBRIDGE_PLUGIN_FILE}" ABSOLUTE
+        BASE_DIR "${CMAKE_BINARY_DIR}")
+else()
+    set(WINUAE_FLOPPYBRIDGE_PLUGIN_PATH "${CMAKE_BINARY_DIR}/FloppyBridge.so")
+endif()
+
+if(UNIX AND WINUAE_UNIX_WITH_FLOPPYBRIDGE
+    AND WINUAE_UNIX_BUILD_FLOPPYBRIDGE_PLUGIN
+    AND NOT WINUAE_FLOPPYBRIDGE_PLUGIN_FILE)
+    set(WINUAE_FLOPPYBRIDGE_BUILD_SOURCE_DIR)
+    if(EXISTS "${WINUAE_FLOPPYBRIDGE_SOURCE_DIR}/Makefile")
+        set(WINUAE_FLOPPYBRIDGE_BUILD_SOURCE_DIR
+            "${WINUAE_FLOPPYBRIDGE_SOURCE_DIR}")
+    endif()
+    add_custom_command(OUTPUT "${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}"
+        COMMAND "${CMAKE_COMMAND}" -E env
+            "CXX=${CMAKE_CXX_COMPILER}"
+            "WINUAE_MACOS_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+            "WINUAE_FLOPPYBRIDGE_SOURCE_DIR=${WINUAE_FLOPPYBRIDGE_BUILD_SOURCE_DIR}"
+            "WINUAE_FLOPPYBRIDGE_WORK_DIR=${CMAKE_BINARY_DIR}/_deps/floppybridge"
+            "WINUAE_FLOPPYBRIDGE_URL=${WINUAE_FLOPPYBRIDGE_URL}"
+            "WINUAE_FLOPPYBRIDGE_REVISION=${WINUAE_FLOPPYBRIDGE_REVISION}"
+            "WINUAE_FLOPPYBRIDGE_FETCH=$<BOOL:${WINUAE_FLOPPYBRIDGE_FETCH}>"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/build-floppybridge.sh"
+            "${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}"
+        DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/build-floppybridge.sh"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/floppybridge-linux-baud-smoke.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/patches/floppybridge-linux-b2000000.patch"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        COMMENT "Building FloppyBridge real-drive plugin"
+        VERBATIM
+    )
+    set(WINUAE_FLOPPYBRIDGE_PLUGIN_ALL)
+    if(NOT APPLE)
+        set(WINUAE_FLOPPYBRIDGE_PLUGIN_ALL ALL)
+    endif()
+    add_custom_target(winuae_unix_floppybridge_plugin
+        ${WINUAE_FLOPPYBRIDGE_PLUGIN_ALL}
+        DEPENDS "${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}")
+endif()
+
+if(UNIX AND WINUAE_UNIX_WITH_FLOPPYBRIDGE)
+    if(WINUAE_FLOPPYBRIDGE_PLUGIN_FILE
+        AND NOT EXISTS "${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}")
+        message(FATAL_ERROR "WINUAE_FLOPPYBRIDGE_PLUGIN_FILE does not exist: ${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}")
+    elseif(NOT WINUAE_FLOPPYBRIDGE_PLUGIN_FILE
+        AND NOT TARGET winuae_unix_floppybridge_plugin)
+        message(FATAL_ERROR "FloppyBridge support requires FloppyBridge.so")
+    endif()
+    set(WINUAE_FLOPPYBRIDGE_PACKAGE_CHECK_DEPS)
+    if(TARGET winuae_unix_floppybridge_plugin)
+        list(APPEND WINUAE_FLOPPYBRIDGE_PACKAGE_CHECK_DEPS
+            winuae_unix_floppybridge_plugin)
+    endif()
+    add_custom_target(winuae_unix_floppybridge_package_check
+        COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/tools/require-floppybridge-plugin.sh"
+            "${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}"
+        DEPENDS ${WINUAE_FLOPPYBRIDGE_PACKAGE_CHECK_DEPS}
+        COMMENT "Checking packaged FloppyBridge plugin"
+        VERBATIM)
+endif()
+
 if(TARGET winuae_unix AND NOT APPLE)
     install(PROGRAMS "$<TARGET_FILE:winuae_unix>"
         DESTINATION "${CMAKE_INSTALL_BINDIR}"
@@ -1891,6 +1978,10 @@ if(TARGET winuae_unix AND NOT APPLE)
         install(FILES "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
             DESTINATION "${WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE}"
         )
+    endif()
+    if(WINUAE_UNIX_WITH_FLOPPYBRIDGE)
+        install(FILES "${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}"
+            DESTINATION "${WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE}")
     endif()
     if(NOT APPLE)
         install(FILES od-unix/share/applications/net.winuae.WinUAE.desktop
@@ -1919,9 +2010,18 @@ if(APPLE AND TARGET winuae_unix)
         list(APPEND WINUAE_UNIX_MACOS_APP_DEPS
             winuae_unix_qemu_uae_package_check)
     endif()
+    if(TARGET winuae_unix_floppybridge_plugin)
+        list(APPEND WINUAE_UNIX_MACOS_APP_DEPS winuae_unix_floppybridge_plugin)
+    endif()
+    if(TARGET winuae_unix_floppybridge_package_check)
+        list(APPEND WINUAE_UNIX_MACOS_APP_DEPS
+            winuae_unix_floppybridge_package_check)
+    endif()
     add_custom_target(winuae_unix_macos_app
         COMMAND "${CMAKE_COMMAND}" -E env
             "WINUAE_QEMU_UAE_PLUGIN=${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            "WINUAE_FLOPPYBRIDGE_PLUGIN=${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}"
+            "WINUAE_BUNDLE_REQUIRE_FLOPPYBRIDGE=$<BOOL:${WINUAE_UNIX_WITH_FLOPPYBRIDGE}>"
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/macos-bundle.sh" "${CMAKE_BINARY_DIR}" "${CMAKE_BINARY_DIR}/package"
         DEPENDS ${WINUAE_UNIX_MACOS_APP_DEPS}
         COMMENT "Creating WinUAE.app"
@@ -1930,6 +2030,8 @@ if(APPLE AND TARGET winuae_unix)
     add_custom_target(winuae_unix_macos_dmg
         COMMAND "${CMAKE_COMMAND}" -E env
             "WINUAE_QEMU_UAE_PLUGIN=${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            "WINUAE_FLOPPYBRIDGE_PLUGIN=${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}"
+            "WINUAE_BUNDLE_REQUIRE_FLOPPYBRIDGE=$<BOOL:${WINUAE_UNIX_WITH_FLOPPYBRIDGE}>"
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/macos-dmg.sh" "${CMAKE_BINARY_DIR}" "${CMAKE_BINARY_DIR}/package"
         DEPENDS winuae_unix_macos_app
         COMMENT "Creating WinUAE drag-install DMG"
@@ -1994,5 +2096,11 @@ if(NOT APPLE)
     endif()
     if(TARGET package AND TARGET winuae_unix_qemu_uae_package_check)
         add_dependencies(package winuae_unix_qemu_uae_package_check)
+    endif()
+    if(TARGET package AND TARGET winuae_unix_floppybridge_plugin)
+        add_dependencies(package winuae_unix_floppybridge_plugin)
+    endif()
+    if(TARGET package AND TARGET winuae_unix_floppybridge_package_check)
+        add_dependencies(package winuae_unix_floppybridge_package_check)
     endif()
 endif()
