@@ -306,6 +306,8 @@ option(WINUAE_UNIX_WITH_PROWIZARD "Build Pro-Wizard module ripper support" ON)
 option(WINUAE_UNIX_WITH_QT_UI "Build the optional Unix Qt configuration UI" ON)
 option(WINUAE_UNIX_WITH_INTEGRATED_QT_UI "Allow winuae_unix to host the Unix Qt frontend" ON)
 option(WINUAE_UNIX_WITH_LIBPNG "Build optional PNG screenshot support when libpng is available" ON)
+option(WINUAE_UNIX_WITH_PRINTER_EMULATION "Build Epson matrix printer emulation" ON)
+option(WINUAE_FREETYPE_FETCH "Fetch FreeType for portable macOS builds" ON)
 option(WINUAE_UNIX_WITH_ARCHIVES "Build bundled ZIP/LHA/LZX/DMS/WRP archive support" ON)
 option(WINUAE_UNIX_WITH_UAENATIVE "Build uaenative.library host module support" ON)
 option(WINUAE_UNIX_WITH_LUA "Build Lua scripting support" ON)
@@ -565,6 +567,36 @@ if(WINUAE_UNIX_WITH_LUA)
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES luascript.cpp)
 endif()
 
+
+if(WINUAE_UNIX_WITH_PRINTER_EMULATION)
+    if(APPLE AND WINUAE_FREETYPE_FETCH)
+        include(FetchContent)
+        set(FT_DISABLE_BROTLI TRUE CACHE BOOL "" FORCE)
+        set(FT_DISABLE_BZIP2 TRUE CACHE BOOL "" FORCE)
+        set(FT_DISABLE_HARFBUZZ TRUE CACHE BOOL "" FORCE)
+        set(FT_DISABLE_PNG TRUE CACHE BOOL "" FORCE)
+        set(FT_DISABLE_ZLIB TRUE CACHE BOOL "" FORCE)
+        FetchContent_Declare(freetype
+            URL
+                https://downloads.sourceforge.net/project/freetype/freetype2/2.14.3/freetype-2.14.3.tar.xz
+                https://download.savannah.gnu.org/releases/freetype/freetype-2.14.3.tar.xz
+            URL_HASH SHA256=36bc4f1cc413335368ee656c42afca65c5a3987e8768cc28cf11ba775e785a5f
+            DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        )
+        set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+        FetchContent_MakeAvailable(freetype)
+        set(WINUAE_FREETYPE_TARGET freetype)
+        target_include_directories(winuae_core PRIVATE
+            "${freetype_SOURCE_DIR}/include")
+    else()
+        find_package(Freetype REQUIRED)
+        set(WINUAE_FREETYPE_TARGET ${FREETYPE_LIBRARIES})
+        target_include_directories(winuae_core PRIVATE ${FREETYPE_INCLUDE_DIRS})
+    endif()
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_PRINTER_EMULATION=1)
+    list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${WINUAE_FREETYPE_TARGET})
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES epsonprinter.cpp)
+endif()
 
 set(WINUAE_UNIX_ENABLE_UAESCSI OFF)
 set(WINUAE_UNIX_ENABLE_UAESERIAL OFF)
