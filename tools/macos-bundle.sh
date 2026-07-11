@@ -24,6 +24,9 @@ Environment:
   WINUAE_CODESIGN_ENTITLEMENTS
                               Optional entitlements plist passed to codesign.
   WINUAE_QEMU_UAE_PLUGIN      Optional qemu-uae.so path to copy into
+  WINUAE_FLOPPYBRIDGE_PLUGIN  Optional FloppyBridge.so path to copy into
+  WINUAE_BUNDLE_REQUIRE_FLOPPYBRIDGE
+                                Set to 0 when FloppyBridge support is disabled
                               Contents/PlugIns.
 EOF
 }
@@ -245,6 +248,22 @@ copy_qemu_uae_plugin() {
     fi
 }
 
+copy_floppybridge_plugin() {
+    if [[ "${WINUAE_BUNDLE_REQUIRE_FLOPPYBRIDGE:-1}" != "1" ]]; then
+        return
+    fi
+    local plugin="${WINUAE_FLOPPYBRIDGE_PLUGIN:-${build_dir}/FloppyBridge.so}"
+    if [[ ! -f "${plugin}" ]]; then
+        echo "error: FloppyBridge.so is required but missing: ${plugin}" >&2
+        exit 1
+    fi
+    mkdir -p "${contents_dir}/PlugIns"
+    cp "${plugin}" "${contents_dir}/PlugIns/FloppyBridge.so"
+    copy_private_dylib_deps \
+        "${contents_dir}/PlugIns/FloppyBridge.so" \
+        "@loader_path/../Frameworks"
+}
+
 macdeployqt_executable="${WINUAE_MACDEPLOYQT:-}"
 if [[ -z "${macdeployqt_executable}" ]]; then
     macdeployqt_executable="$(cmake_cache_value MACDEPLOYQT_EXECUTABLE)"
@@ -314,6 +333,7 @@ if [[ "${WINUAE_SKIP_MACDEPLOYQT:-0}" != "1" && -n "${macdeployqt_executable}" &
 fi
 
 copy_qemu_uae_plugin
+copy_floppybridge_plugin
 
 if [[ "${WINUAE_SKIP_MACOS_DEPLOYMENT_CHECK:-0}" != "1" ]]; then
     "${script_dir}/macos-check-deployment-target.sh" "${app_dir}" "${deployment_target}" >&2
