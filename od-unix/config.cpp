@@ -708,6 +708,16 @@ bool get_plugin_path(TCHAR *out, int size, const TCHAR *path)
     return true;
 }
 
+#ifdef WITH_UAENATIVE
+const TCHAR **uaenative_get_library_dirs(void)
+{
+    static const TCHAR *dirs[3];
+    dirs[0] = start_path_data;
+    dirs[1] = start_path_plugins;
+    return dirs;
+}
+#endif
+
 void stripslashes(TCHAR *p)
 {
     while (*p) {

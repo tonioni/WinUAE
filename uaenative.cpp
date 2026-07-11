@@ -90,6 +90,8 @@ static int g_max_handle = -1;
     #define ARCH_NAME _T("x86")
 #elif defined(__ppc__)
     #define ARCH_NAME _T("ppc")
+#elif defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64)
+	#define ARCH_NAME _T("arm64")
 #elif defined(__arm__)
 	#define ARCH_NAME _T("arm")
 #else
