@@ -2343,7 +2343,7 @@ static bool load_genlock_image(void)
 		bfree = bb;
 	}
 
-	if (!png_check_sig(b, 8))
+	if (png_sig_cmp(b, 0, 8))
 		goto end;
 
 	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0);

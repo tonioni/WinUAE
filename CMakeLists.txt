@@ -323,6 +323,7 @@ target_link_libraries(winuae_core PRIVATE winuae_unix_core_defs)
 target_compile_definitions(winuae_unix_core_defs INTERFACE
     UAE_TARGET_UNIX=1
     UAE_NOGUI=1
+    WITH_SPECIALMONITORS=1
     WINUAE_UNIX_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     WINUAE_UNIX_INSTALL_DATA_DIR="${CMAKE_INSTALL_FULL_DATADIR}/winuae"
     WINUAE_UNIX_INSTALL_DATADIR_RELATIVE="${CMAKE_INSTALL_DATADIR}/winuae"
@@ -1453,6 +1454,7 @@ set(WINUAE_CORE_SOURCES
     scp.cpp
     scsi.cpp
     scsitape.cpp
+    specialmonitors.cpp
     statusline.cpp
     test_card.cpp
     tinyxml2.cpp
