@@ -16,6 +16,11 @@
 #include "devices.h"
 #include "gfxboard.h"
 
+#if defined(DEBUGGER) && defined(WINUAE_UNIX_WITH_INTEGRATED_QT_UI)
+#include "debug.h"
+#include "qt/launcher_bridge.h"
+#endif
+
 #include <condition_variable>
 #include <mutex>
 #include <stdlib.h>
@@ -251,6 +256,11 @@ bool handle_events(void)
 
 int handle_msgpump(bool)
 {
+#if defined(DEBUGGER) && defined(WINUAE_UNIX_WITH_INTEGRATED_QT_UI)
+    // Like the Win32 message pump, keep the persistent debugger window alive
+    // while emulation is running after Continue.
+    winUaeQtDebuggerProcessEvents(debugger_active);
+#endif
     unix_host_check_quit();
     bool quit_requested = false;
     int got = unix_video_poll(&quit_requested);

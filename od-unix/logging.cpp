@@ -2,8 +2,10 @@
 #include "sysdeps.h"
 
 #include "debug.h"
+#include "host.h"
 #include "registry.h"
 #include "uae.h"
+#include "video.h"
 
 #include <errno.h>
 #include <stdarg.h>
@@ -118,6 +120,18 @@ static void init_debugger_type(void)
     if (debugger_type == 1 && !terminal_console_available() && gui_debugger_available()) {
         debugger_type = 2;
     }
+}
+
+static bool poll_host_window_events(void)
+{
+    unix_host_check_quit();
+    bool quit_requested = false;
+    unix_video_poll_window_events(&quit_requested);
+    if (quit_requested) {
+        uae_quit();
+    }
+    unix_host_check_quit();
+    return debugger_active != 0;
 }
 
 static void openconsole(void)
@@ -349,8 +363,25 @@ int console_get(TCHAR *out, int maxlen)
     if (!terminal_console_available()) {
         return -1;
     }
-    if (!fgets(out, maxlen, stdin)) {
-        return -1;
+    for (;;) {
+        fd_set set;
+        FD_ZERO(&set);
+        FD_SET(STDIN_FILENO, &set);
+        timeval timeout = {};
+        timeout.tv_usec = 100000;
+        const int ready = select(STDIN_FILENO + 1, &set, NULL, NULL, &timeout);
+        if (ready > 0) {
+            if (!fgets(out, maxlen, stdin)) {
+                return -1;
+            }
+            break;
+        }
+        if (ready < 0 && errno != EINTR) {
+            return -1;
+        }
+        if (!poll_host_window_events()) {
+            return -1;
+        }
     }
     size_t len = _tcslen(out);
     while (len > 0 && (out[len - 1] == '\n' || out[len - 1] == '\r')) {

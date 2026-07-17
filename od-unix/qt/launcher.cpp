@@ -17553,8 +17553,8 @@ public:
 
         input = new QLineEdit(this);
 
-        QPushButton *runButton = new QPushButton(QStringLiteral("Run"), this);
-        QPushButton *continueButton = new QPushButton(QStringLiteral("Continue"), this);
+        runButton = new QPushButton(QStringLiteral("Run"), this);
+        continueButton = new QPushButton(QStringLiteral("Continue"), this);
         QPushButton *closeButton = new QPushButton(QStringLiteral("Close"), this);
 
         QHBoxLayout *inputLayout = new QHBoxLayout;
@@ -17577,7 +17577,13 @@ public:
         connect(input, &QLineEdit::returnPressed, this, [this]() { submitInput(); });
         connect(runButton, &QPushButton::clicked, this, [this]() { submitInput(); });
         connect(continueButton, &QPushButton::clicked, this, [this]() { submitCommand(QStringLiteral("g")); });
-        connect(closeButton, &QPushButton::clicked, this, [this]() { submitCommand(QStringLiteral("x")); });
+        connect(closeButton, &QPushButton::clicked, this, [this]() {
+            if (debuggerActive) {
+                submitCommand(QStringLiteral("x"));
+            } else {
+                close();
+            }
+        });
     }
 
     void appendOutput(const QString &text)
@@ -17614,10 +17620,18 @@ public:
         input->setFocus(Qt::OtherFocusReason);
     }
 
+    void setDebuggerActive(bool active)
+    {
+        debuggerActive = active;
+        input->setEnabled(active);
+        runButton->setEnabled(active);
+        continueButton->setEnabled(active);
+    }
+
 protected:
     void closeEvent(QCloseEvent *event) override
     {
-        if (!hasPendingCommand) {
+        if (debuggerActive && !hasPendingCommand) {
             pendingCommand = QStringLiteral("x");
             hasPendingCommand = true;
         }
@@ -17627,6 +17641,9 @@ protected:
 private:
     void submitInput()
     {
+        if (!debuggerActive) {
+            return;
+        }
         const QString command = input->text().trimmed();
         if (command.isEmpty()) {
             return;
@@ -17637,6 +17654,9 @@ private:
 
     void submitCommand(const QString &command)
     {
+        if (!debuggerActive) {
+            return;
+        }
         appendOutput(QStringLiteral("\n%1\n").arg(command));
         pendingCommand = command;
         hasPendingCommand = true;
@@ -17645,8 +17665,11 @@ private:
     QPlainTextEdit *output = nullptr;
     QPlainTextEdit *state = nullptr;
     QLineEdit *input = nullptr;
+    QPushButton *runButton = nullptr;
+    QPushButton *continueButton = nullptr;
     QString pendingCommand;
     bool hasPendingCommand = false;
+    bool debuggerActive = true;
 };
 
 static std::unique_ptr<WinUaeQtApplication> debuggerOwnedApp;
@@ -17686,6 +17709,7 @@ static WinUaeQtDebuggerConsole *ensureDebuggerConsole(QApplication &app)
         }
     }
     debuggerConsole->show();
+    debuggerConsole->setDebuggerActive(true);
     debuggerConsole->raise();
     debuggerConsole->activateWindow();
     debuggerConsole->focusCommandInput();
@@ -17717,26 +17741,58 @@ void runWinUaeQtDebuggerUpdateInfo(const QString &text)
     debuggerPendingState = text;
 }
 
-int runWinUaeQtDebuggerConsoleGetInput(QApplication &app, QString *command)
+int runWinUaeQtDebuggerConsoleGetInput(
+    QApplication &app,
+    QString *command,
+    WinUaeQtDebuggerEventPump eventPump,
+    void *eventPumpContext)
 {
     WinUaeQtDebuggerConsole *dialog = ensureDebuggerConsole(app);
-    while (dialog && !dialog->takeCommand(command)) {
+    QTimer eventPumpTimer;
+    bool keepWaiting = true;
+    if (eventPump) {
+        QObject::connect(&eventPumpTimer, &QTimer::timeout, [&keepWaiting, eventPump, eventPumpContext]() {
+            keepWaiting = eventPump(eventPumpContext);
+        });
+        eventPumpTimer.start(100);
+    }
+    while (dialog && keepWaiting && !dialog->takeCommand(command)) {
         app.processEvents(QEventLoop::AllEvents | QEventLoop::WaitForMoreEvents);
         dialog = debuggerConsole;
     }
-    if (!dialog) {
+    if (!dialog || !keepWaiting) {
         return -1;
     }
     return command ? command->size() : 0;
 }
 
-int runWinUaeQtDebuggerConsoleGetInput(int argc, char **argv, QString *command)
+void runWinUaeQtDebuggerProcessEvents(bool debuggerActive)
+{
+    if (!debuggerConsole || !debuggerConsole->isVisible()) {
+        return;
+    }
+    debuggerConsole->setDebuggerActive(debuggerActive);
+    if (QApplication *app = qobject_cast<QApplication *>(QApplication::instance())) {
+        app->processEvents(QEventLoop::AllEvents);
+    }
+}
+
+int runWinUaeQtDebuggerConsoleGetInput(
+    int argc,
+    char **argv,
+    QString *command,
+    WinUaeQtDebuggerEventPump eventPump,
+    void *eventPumpContext)
 {
     QApplication *app = debuggerApplication(argc, argv);
     if (!app) {
         return -1;
     }
-    return runWinUaeQtDebuggerConsoleGetInput(*app, command);
+    return runWinUaeQtDebuggerConsoleGetInput(
+        *app,
+        command,
+        eventPump,
+        eventPumpContext);
 }
 
 void closeWinUaeQtDebuggerConsole()

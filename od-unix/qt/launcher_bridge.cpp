@@ -23,6 +23,7 @@
 #include "uae.h"
 #include "video.h"
 #include "audio.h"
+#include "debug.h"
 #include "inputrecord.h"
 #include "savestate.h"
 #include "newcpu.h"
@@ -481,6 +482,12 @@ static void bridgePollHostWindowEvents(void *)
     unix_host_check_quit();
 }
 
+static bool bridgePollDebuggerHostWindowEvents(void *context)
+{
+    bridgePollHostWindowEvents(context);
+    return debugger_active != 0;
+}
+
 static bool bridgeHostSettingGet(void *, const char *key, char *out, int outLen)
 {
     int size = outLen;
@@ -786,7 +793,12 @@ int runWinUaeQtDebuggerConsoleGetInput(int argc, char **argv, char *out, size_t 
         out[0] = 0;
     }
     QString command;
-    const int result = runWinUaeQtDebuggerConsoleGetInput(argc, argv, &command);
+    const int result = runWinUaeQtDebuggerConsoleGetInput(
+        argc,
+        argv,
+        &command,
+        bridgePollDebuggerHostWindowEvents,
+        nullptr);
     if (result < 0) {
         if (exitCode) {
             *exitCode = 0;
@@ -805,6 +817,11 @@ int runWinUaeQtDebuggerConsoleGetInput(int argc, char **argv, char *out, size_t 
         *exitCode = 0;
     }
     return bytes.size();
+}
+
+void winUaeQtDebuggerProcessEvents(int debuggerActive)
+{
+    runWinUaeQtDebuggerProcessEvents(debuggerActive != 0);
 }
 
 void runWinUaeQtDebuggerConsoleWrite(const char *text)
