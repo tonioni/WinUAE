@@ -108,7 +108,9 @@ static void init_debugger_type(void)
         return;
     }
     if (!regqueryint(NULL, _T("DebuggerType"), &debugger_type) || debugger_type <= 0) {
-        debugger_type = terminal_console_available() ? 1 : 2;
+        // Integrated UI builds should open the Qt debugger unless the user
+        // explicitly selected the terminal backend (DebuggerType=1).
+        debugger_type = gui_debugger_available() ? 2 : 1;
     }
     if (debugger_type == 2 && !gui_debugger_available()) {
         debugger_type = 1;
@@ -290,6 +292,13 @@ bool is_interactive_console(void)
 void reopen_console(void) {}
 void activate_console(void)
 {
+    init_debugger_type();
+    const bool wants_gui = debugger_active
+        && debugger_type == 2
+        && gui_debugger_available();
+    if ((wants_gui && consoleopen < 0) || (!wants_gui && consoleopen > 0)) {
+        close_console();
+    }
     open_console();
 }
 void deactivate_console(void) {}

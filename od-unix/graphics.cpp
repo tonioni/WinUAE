@@ -464,7 +464,7 @@ float target_getcurrentvblankrate(int monid)
     float rate = unix_video_get_display_refresh_rate(currprefs.gfx_apmode[idx].gfx_display);
     return rate > 0.0f ? rate : 60.0f;
 }
-int debuggable(void) { return 0; }
+int debuggable(void) { return 1; }
 
 void refreshtitle(void)
 {

@@ -132,9 +132,6 @@ void activate_debugger (void)
 		return;
 	}
 
-	debugger_load_libraries();
-	open_console();
-
 	debugger_used = 1;
 	inside_debugger = 1;
 	debug_pc = 0xffffffff;
@@ -142,10 +139,15 @@ void activate_debugger (void)
 	if (debugger_active) {
 		// already in debugger but some break point triggered
 		// during disassembly etc..
+		open_console();
+		activate_console();
 		return;
 	}
 	debug_cycles(1);
 	debugger_active = 1;
+	open_console();
+	activate_console();
+	debugger_load_libraries();
 	set_special (SPCFLAG_BRK);
 	debugging = 1;
 	mmu_triggered = 0;
