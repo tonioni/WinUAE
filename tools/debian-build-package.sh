@@ -102,9 +102,14 @@ fi
 echo
 echo "Built Debian package:"
 ppc_qemu_enabled=false
+drive_sounds_enabled=false
 if grep -Eq '^WINUAE_UNIX_WITH_PPC_QEMU:BOOL=(ON|TRUE|1)$' \
     "${build_dir}/CMakeCache.txt"; then
     ppc_qemu_enabled=true
+fi
+if grep -Eq '^WINUAE_UNIX_BUNDLE_DRIVE_SOUNDS:BOOL=(ON|TRUE|1)$' \
+    "${build_dir}/CMakeCache.txt"; then
+    drive_sounds_enabled=true
 fi
 for deb in "${debs[@]}"; do
     echo "  ${deb}"
@@ -124,5 +129,20 @@ for deb in "${debs[@]}"; do
             echo "error: package does not contain qemu-uae.so" >&2
             exit 1
         fi
+    fi
+    if [[ "${drive_sounds_enabled}" == true ]]; then
+        sample_dir="${build_dir}/plugins/floppysounds"
+        "${source_dir}/tools/require-drive-sounds.sh" "${sample_dir}"
+        packaged_samples="$(sed -n \
+            's#^.* \./usr/lib.*/winuae/plugins/floppysounds/##p' \
+            <<<"${contents}")"
+        for sample_path in "${sample_dir}"/*.wav; do
+            [[ -f "${sample_path}" ]] || continue
+            sample="${sample_path##*/}"
+            if ! grep -Fxq "${sample}" <<<"${packaged_samples}"; then
+                echo "error: package does not contain drive sound sample ${sample}" >&2
+                exit 1
+            fi
+        done
     fi
 done

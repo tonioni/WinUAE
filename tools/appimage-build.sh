@@ -127,6 +127,17 @@ for required in "${exe}" "${desktop}" "${icon}"; do
     fi
 done
 
+if grep -Eq '^WINUAE_UNIX_BUNDLE_DRIVE_SOUNDS:BOOL=(ON|TRUE|1)$' \
+    "${build_dir}/CMakeCache.txt"; then
+    drive_sounds_dir="$(find "${appdir}/usr" -type d \
+        -path '*/winuae/plugins/floppysounds' -print -quit)"
+    if [[ -z "${drive_sounds_dir}" ]]; then
+        echo "error: AppDir does not contain plugins/floppysounds" >&2
+        exit 1
+    fi
+    "${source_dir}/tools/require-drive-sounds.sh" "${drive_sounds_dir}"
+fi
+
 # SDL's Wayland backend dlopens libdecor, so linuxdeploy cannot discover it by
 # walking DT_NEEDED entries. Find and stage both the core runtime and one actual
 # decoration plugin. The workflow installs the small cairo plugin; gtk remains

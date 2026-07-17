@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <cstdlib>
 #include <string>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "options.h"
@@ -725,8 +726,74 @@ TCHAR *target_expand_environment(const TCHAR *path, TCHAR *out, int maxlen)
 
 bool get_plugin_path(TCHAR *out, int size, const TCHAR *path)
 {
-    uae_tcslcpy(out, path, size);
-    return true;
+    if (!out || size <= 0) {
+        return false;
+    }
+
+    std::string relative = path ? path : "";
+    for (char &c : relative) {
+        if (c == '\\') {
+            c = '/';
+        }
+    }
+
+    auto try_directory = [out, size, &relative](const std::string &base) {
+        std::string candidate = base;
+        if (!candidate.empty() && candidate[candidate.size() - 1] != '/') {
+            candidate += '/';
+        }
+        candidate += relative;
+
+        struct stat st;
+        if (candidate.empty() || stat(candidate.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
+            return false;
+        }
+        if (candidate[candidate.size() - 1] != '/') {
+            candidate += '/';
+        }
+        if (candidate.size() >= (size_t)size) {
+            return false;
+        }
+        uae_tcslcpy(out, candidate.c_str(), size);
+        return true;
+    };
+
+    if (start_path_plugins[0] && try_directory(start_path_plugins)) {
+        return true;
+    }
+    if (!relative.empty() && try_directory("")) {
+        return true;
+    }
+    if (try_directory("./plugins")) {
+        return true;
+    }
+
+#if defined(UAE_HOST_LINUX)
+    TCHAR executable[MAX_DPATH];
+    ssize_t executable_len = readlink("/proc/self/exe", executable, MAX_DPATH - 1);
+    if (executable_len > 0 && executable_len < MAX_DPATH) {
+        executable[executable_len] = 0;
+        TCHAR *slash = _tcsrchr(executable, '/');
+        if (slash) {
+            *slash = 0;
+            const std::string executable_dir = executable;
+            if (try_directory(executable_dir + "/plugins")) {
+                return true;
+            }
+#ifdef WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE
+            if (try_directory(executable_dir + "/../" WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE)) {
+                return true;
+            }
+#endif
+        }
+    }
+#endif
+
+    if (!relative.empty() && relative[relative.size() - 1] != '/') {
+        relative += '/';
+    }
+    uae_tcslcpy(out, relative.c_str(), size);
+    return false;
 }
 
 #ifdef WITH_UAENATIVE

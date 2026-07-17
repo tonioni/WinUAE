@@ -168,6 +168,135 @@ function(winuae_unix_find_lzma_sdk out_var)
     set("${out_var}" "${WINUAE_LZMA_SDK_SOURCE_DIR}" PARENT_SCOPE)
 endfunction()
 
+function(winuae_unix_drive_sounds_fingerprint sample_dir out_var)
+    file(GLOB sample_files LIST_DIRECTORIES FALSE "${sample_dir}/*.wav")
+    list(SORT sample_files)
+
+    set(sample_manifest "")
+    foreach(sample_file IN LISTS sample_files)
+        get_filename_component(sample_name "${sample_file}" NAME)
+        file(SHA256 "${sample_file}" sample_sha256)
+        string(APPEND sample_manifest "${sample_name}\t${sample_sha256}\n")
+    endforeach()
+    string(SHA256 sample_fingerprint "${sample_manifest}")
+    set("${out_var}" "${sample_fingerprint}" PARENT_SCOPE)
+endfunction()
+
+function(winuae_unix_prepare_drive_sounds out_var)
+    set(sample_dir "${WINUAE_DRIVE_SOUNDS_DIR}/plugins/floppysounds")
+    set(archive_marker "${sample_dir}/.archive-sha256")
+    set(samples_marker "${sample_dir}/.samples-sha256")
+    string(TOLOWER "${WINUAE_DRIVE_SOUNDS_SHA256}" expected_archive_sha256)
+    execute_process(
+        COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/tools/require-drive-sounds.sh"
+                "${sample_dir}"
+        RESULT_VARIABLE WINUAE_DRIVE_SOUNDS_CHECK_RESULT
+        OUTPUT_QUIET
+        ERROR_QUIET
+    )
+
+    set(WINUAE_DRIVE_SOUNDS_CACHE_MATCHES OFF)
+    if(WINUAE_DRIVE_SOUNDS_CHECK_RESULT EQUAL 0)
+        if(NOT WINUAE_DRIVE_SOUNDS_FETCH)
+            set(WINUAE_DRIVE_SOUNDS_CACHE_MATCHES ON)
+        elseif(EXISTS "${archive_marker}" AND EXISTS "${samples_marker}")
+            file(READ "${archive_marker}" cached_archive_sha256 LIMIT 128)
+            string(STRIP "${cached_archive_sha256}" cached_archive_sha256)
+            string(TOLOWER "${cached_archive_sha256}" cached_archive_sha256)
+            file(READ "${samples_marker}" cached_samples_sha256 LIMIT 128)
+            string(STRIP "${cached_samples_sha256}" cached_samples_sha256)
+            string(TOLOWER "${cached_samples_sha256}" cached_samples_sha256)
+            winuae_unix_drive_sounds_fingerprint("${sample_dir}" actual_samples_sha256)
+            if(cached_archive_sha256 STREQUAL expected_archive_sha256
+                AND cached_samples_sha256 STREQUAL actual_samples_sha256)
+                set(WINUAE_DRIVE_SOUNDS_CACHE_MATCHES ON)
+            endif()
+        endif()
+    endif()
+
+    if(NOT WINUAE_DRIVE_SOUNDS_CACHE_MATCHES)
+        if(NOT WINUAE_DRIVE_SOUNDS_FETCH)
+            message(FATAL_ERROR
+                "Drive sound samples were not found in ${sample_dir}. "
+                "Enable WINUAE_DRIVE_SOUNDS_FETCH or pre-seed "
+                "WINUAE_DRIVE_SOUNDS_DIR with the unpacked archive."
+            )
+        endif()
+
+        message(STATUS
+            "Fetching external floppy-drive sounds into "
+            "${WINUAE_DRIVE_SOUNDS_DIR}"
+        )
+        execute_process(
+            COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/tools/fetch-drive-sounds.sh"
+                    "${WINUAE_DRIVE_SOUNDS_DIR}"
+                    "${WINUAE_DRIVE_SOUNDS_URL}"
+                    "${expected_archive_sha256}"
+            RESULT_VARIABLE WINUAE_DRIVE_SOUNDS_FETCH_RESULT
+            OUTPUT_VARIABLE WINUAE_DRIVE_SOUNDS_FETCH_OUTPUT
+            ERROR_VARIABLE WINUAE_DRIVE_SOUNDS_FETCH_ERROR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_STRIP_TRAILING_WHITESPACE
+        )
+        if(NOT WINUAE_DRIVE_SOUNDS_FETCH_RESULT EQUAL 0)
+            message(FATAL_ERROR
+                "Failed to fetch the external floppy-drive sounds: "
+                "${WINUAE_DRIVE_SOUNDS_FETCH_ERROR}\n"
+                "${WINUAE_DRIVE_SOUNDS_FETCH_OUTPUT}"
+            )
+        endif()
+        winuae_unix_drive_sounds_fingerprint("${sample_dir}" fetched_samples_sha256)
+        file(WRITE "${samples_marker}" "${fetched_samples_sha256}\n")
+    endif()
+
+    execute_process(
+        COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/tools/require-drive-sounds.sh"
+                "${sample_dir}"
+        RESULT_VARIABLE WINUAE_DRIVE_SOUNDS_CHECK_RESULT
+        ERROR_VARIABLE WINUAE_DRIVE_SOUNDS_CHECK_ERROR
+        ERROR_STRIP_TRAILING_WHITESPACE
+    )
+    if(NOT WINUAE_DRIVE_SOUNDS_CHECK_RESULT EQUAL 0)
+        message(FATAL_ERROR "${WINUAE_DRIVE_SOUNDS_CHECK_ERROR}")
+    endif()
+    if(WINUAE_DRIVE_SOUNDS_FETCH)
+        if(NOT EXISTS "${archive_marker}")
+            message(FATAL_ERROR
+                "Drive sound cache is missing archive checksum marker: "
+                "${archive_marker}")
+        endif()
+        if(NOT EXISTS "${samples_marker}")
+            message(FATAL_ERROR
+                "Drive sound cache is missing sample checksum marker: "
+                "${samples_marker}")
+        endif()
+        file(READ "${archive_marker}" cached_archive_sha256 LIMIT 128)
+        string(STRIP "${cached_archive_sha256}" cached_archive_sha256)
+        string(TOLOWER "${cached_archive_sha256}" cached_archive_sha256)
+        if(NOT cached_archive_sha256 STREQUAL expected_archive_sha256)
+            message(FATAL_ERROR
+                "Drive sound cache checksum marker does not match "
+                "WINUAE_DRIVE_SOUNDS_SHA256")
+        endif()
+        file(READ "${samples_marker}" cached_samples_sha256 LIMIT 128)
+        string(STRIP "${cached_samples_sha256}" cached_samples_sha256)
+        string(TOLOWER "${cached_samples_sha256}" cached_samples_sha256)
+        winuae_unix_drive_sounds_fingerprint("${sample_dir}" actual_samples_sha256)
+        if(NOT cached_samples_sha256 STREQUAL actual_samples_sha256)
+            message(FATAL_ERROR
+                "Drive sound cache contents do not match the verified archive")
+        endif()
+    endif()
+
+    # Mirror the installed plugin layout beside the build-tree executable so
+    # external samples also work before installation.
+    set(stage_dir "${CMAKE_BINARY_DIR}/plugins/floppysounds")
+    file(REMOVE_RECURSE "${stage_dir}")
+    file(MAKE_DIRECTORY "${stage_dir}")
+    file(COPY "${sample_dir}/" DESTINATION "${stage_dir}")
+    set("${out_var}" "${stage_dir}" PARENT_SCOPE)
+endfunction()
+
 option(WINUAE_UNIX_BUILD_EXECUTABLE "Link the initial Unix command-line executable" ON)
 option(WINUAE_UNIX_WITH_SDL3 "Build the Unix SDL3 video/audio backend" ON)
 option(WINUAE_UNIX_WITH_SLIRP "Build built-in SLIRP user-mode networking and A2065 Ethernet support" ON)
@@ -200,6 +329,8 @@ option(WINUAE_UNIX_WITH_DSP "Build shared DSP3210 accelerator support" ON)
 option(WINUAE_UNIX_WITH_AVIOUTPUT "Build Unix screenshot and video/audio capture output support" ON)
 option(WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE "Build OpenGL-backed Unix shader/filter presentation support" ON)
 option(WINUAE_LZMA_SDK_FETCH "Fetch the 7-Zip/LZMA SDK into WINUAE_LZMA_SDK_DIR when missing" ON)
+option(WINUAE_UNIX_BUNDLE_DRIVE_SOUNDS "Bundle the external floppy-drive sound sample sets" ON)
+option(WINUAE_DRIVE_SOUNDS_FETCH "Fetch the external floppy-drive sound archive when missing" ON)
 
 set(WINUAE_LZMA_SDK_VERSION "16.04" CACHE STRING "7-Zip/LZMA SDK version used by archive and CHD support")
 set(WINUAE_LZMA_SDK_URL "https://www.7-zip.org/a/lzma1604.7z"
@@ -211,6 +342,15 @@ set(WINUAE_LZMA_SDK_DIR "${CMAKE_BINARY_DIR}/_deps/lzma-sdk/${WINUAE_LZMA_SDK_VE
 set(WINUAE_LZMA_SDK_SYSTEM_PATHS
     "/usr/share/lzma-sdk;/usr/include/lzma-sdk;/usr/src/lzma-sdk;/usr/include/lzma"
     CACHE STRING "System prefixes probed for an installed 7-Zip/LZMA SDK source tree")
+
+set(WINUAE_DRIVE_SOUNDS_URL
+    "https://download.abime.net/winuae/stuff/drive_sounds.zip"
+    CACHE STRING "URL for the external floppy-drive sound archive")
+set(WINUAE_DRIVE_SOUNDS_SHA256
+    "2efbe66d090c50f5b58e1248a1cab5c1886c7d203bd2f1d26d1ec382b3ffb088"
+    CACHE STRING "Expected SHA-256 for the external floppy-drive sound archive")
+set(WINUAE_DRIVE_SOUNDS_DIR "${CMAKE_BINARY_DIR}/_deps/drive-sounds"
+    CACHE PATH "Cache directory containing plugins/floppysounds from drive_sounds.zip")
 
 set(WINUAE_QEMU_UAE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qemu-uae"
     CACHE PATH "QEMU-UAE plugin source directory")
@@ -227,6 +367,14 @@ set(WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE "${CMAKE_INSTALL_LIBDIR}/winuae/plugi
 
 if(IS_ABSOLUTE "${WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE}")
     message(FATAL_ERROR "WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE must be relative")
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    if(WINUAE_UNIX_BUNDLE_DRIVE_SOUNDS)
+        winuae_unix_prepare_drive_sounds(WINUAE_DRIVE_SOUNDS_SAMPLE_DIR)
+    else()
+        file(REMOVE_RECURSE "${CMAKE_BINARY_DIR}/plugins/floppysounds")
+    endif()
 endif()
 
 set(WINUAE_UNIX_TARGET_ARCHES "${CMAKE_SYSTEM_PROCESSOR}")
@@ -1948,6 +2096,11 @@ if(TARGET winuae_unix AND NOT APPLE)
         install(FILES "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
             DESTINATION "${WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE}"
         )
+    endif()
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND WINUAE_UNIX_BUNDLE_DRIVE_SOUNDS)
+        install(DIRECTORY "${WINUAE_DRIVE_SOUNDS_SAMPLE_DIR}/"
+            DESTINATION "${WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE}/floppysounds"
+            FILES_MATCHING PATTERN "*.wav")
     endif()
     if(NOT APPLE)
         install(FILES od-unix/share/applications/net.winuae.WinUAE.desktop
