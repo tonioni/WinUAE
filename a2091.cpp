@@ -1601,9 +1601,18 @@ static void scsi_hsync(void)
 
 static int writeonlyreg (int reg)
 {
-	if (reg == WD_SCSI_STATUS)
+	if (reg == WD_SCSI_STATUS || reg == WD_AUXILIARY_STATUS)
 		return 1;
 	return 0;
+}
+
+static bool invalidreg (struct wd_chip_state *wd, int reg)
+{
+	// Registers after queue tag and before auxiliary status are undriven.
+	if (reg > WD_QUEUE_TAG && reg < WD_AUXILIARY_STATUS)
+		return true;
+	// queue tag is B revision only
+	return reg == WD_QUEUE_TAG && wd->wd33c93_ver < 2;
 }
 
 static void writewdreg (struct wd_chip_state *wd, int sasr, uae_u8 val)
@@ -1617,10 +1626,7 @@ static void writewdreg (struct wd_chip_state *wd, int sasr, uae_u8 val)
 			val &= ~0x20;
 		break;
 	}
-	if (sasr > WD_QUEUE_TAG && sasr < WD_AUXILIARY_STATUS)
-		return;
-	// queue tag is B revision only
-	if (sasr == WD_QUEUE_TAG && wd->wd33c93_ver < 2)
+	if (invalidreg(wd, sasr))
 		return;
 	wd->wdregs[sasr] = val;
 }
@@ -1697,7 +1703,7 @@ uae_u8 wdscsi_get (struct wd_chip_state *wd, struct wd_state *wds)
 	uae_u8 osasr = wd->sasr;
 #endif
 
-	v = wd->wdregs[wd->sasr];
+	v = invalidreg(wd, wd->sasr) ? 0xff : wd->wdregs[wd->sasr];
 	if (wd->sasr == WD_DATA) {
 		if (!wd->wd_data_avail) {
 			write_log (_T("%s WD_DATA READ without data request!? %08x\n"), WD33C93, M68K_GETPC);
