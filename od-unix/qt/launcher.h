@@ -2,6 +2,7 @@
 
 #include "config.h"
 
+#include <QStringList>
 #include <QVector>
 
 class QApplication;
@@ -117,6 +118,7 @@ struct WinUaeQtBoardCatalog {
 
 struct WinUaeQtHardwareInfoProvider {
     void *context = nullptr;
+    QStringList driveSoundSets;
     bool (*hostSettingGet)(void *context, const char *key, char *out, int outLen) = nullptr;
     void (*hostSettingSet)(void *context, const char *key, const char *value) = nullptr;
     void (*hostSettingsFlush)(void *context) = nullptr;

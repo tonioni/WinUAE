@@ -370,10 +370,19 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
     }
 
     for (int drive = 0; drive < 4; drive++) {
-        const QString key = QStringLiteral("floppy%1sound").arg(drive);
-        if (setting.key == key) {
-            if (textToInt(setting.value, &value)) {
+        const QString soundKey = QStringLiteral("floppy%1sound").arg(drive);
+        const QString externalKey = QStringLiteral("floppy%1soundext").arg(drive);
+        if (setting.key == soundKey || setting.key == externalKey) {
+            if (settingToInt(settings, soundKey, &value)) {
                 prefs->floppyslots[drive].dfxclick = value;
+            }
+            if (prefs->floppyslots[drive].dfxclick < 0 && settings.contains(externalKey)) {
+                copyTextSetting(
+                    prefs->floppyslots[drive].dfxclickexternal,
+                    sizeof prefs->floppyslots[drive].dfxclickexternal / sizeof(TCHAR),
+                    settings.value(externalKey));
+            } else {
+                prefs->floppyslots[drive].dfxclickexternal[0] = 0;
             }
             return ApplySettingResult::Handled;
         }

@@ -1660,6 +1660,7 @@ if(WINUAE_UNIX_BUILD_EXECUTABLE)
         add_custom_target(${target}
             COMMAND "${CMAKE_COMMAND}" -E env
                 "WINUAE_BUILD_DIR=${CMAKE_BINARY_DIR}"
+                ${ARGN}
                 "${CMAKE_CURRENT_SOURCE_DIR}/tools/${script}"
             DEPENDS winuae_unix
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -1690,7 +1691,15 @@ if(WINUAE_UNIX_BUILD_EXECUTABLE)
     add_winuae_unix_smoke_target(winuae_unix_smoke_ripple_hdf unix-smoke-ripple-hdf.sh)
     add_winuae_unix_smoke_target(winuae_unix_smoke_serial_tcp unix-smoke-serial-tcp.sh)
     add_winuae_unix_smoke_target(winuae_unix_smoke_path_config unix-smoke-path-config.sh)
-    add_winuae_unix_smoke_target(winuae_unix_smoke_config_roundtrip unix-smoke-config-roundtrip.sh)
+    set(WINUAE_UNIX_CONFIG_ROUNDTRIP_ENV)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND WINUAE_UNIX_BUNDLE_DRIVE_SOUNDS)
+        list(APPEND WINUAE_UNIX_CONFIG_ROUNDTRIP_ENV
+            "WINUAE_QT_EXPECT_DRIVE_SOUND_SETS_DIR=${WINUAE_DRIVE_SOUNDS_SAMPLE_DIR}")
+    endif()
+    add_winuae_unix_smoke_target(
+        winuae_unix_smoke_config_roundtrip
+        unix-smoke-config-roundtrip.sh
+        ${WINUAE_UNIX_CONFIG_ROUNDTRIP_ENV})
     if(WINUAE_UNIX_ENABLE_JIT)
         add_winuae_unix_smoke_target(winuae_unix_smoke_jit unix-smoke-jit.sh)
     endif()
@@ -1762,6 +1771,7 @@ if(WINUAE_UNIX_WITH_QT_UI)
     if(WINUAE_UNIX_QT_WIDGETS_TARGET)
         add_library(winuae_unix_qt_frontend STATIC
             od-unix/qt/config.cpp
+            od-unix/qt/drive_sound_sets.cpp
             od-unix/qt/launcher.cpp
             od-unix/qt/launcher_bridge.cpp
             od-unix/qt/mount_config.cpp
@@ -1861,6 +1871,13 @@ if(WINUAE_UNIX_WITH_QT_UI)
         )
         target_link_libraries(winuae_unix_qt_path_utils_test PRIVATE ${WINUAE_UNIX_QT_WIDGETS_TARGET})
         winuae_unix_register_test(winuae_unix_qt_path_utils_test)
+
+        add_executable(winuae_unix_qt_drive_sound_sets_test EXCLUDE_FROM_ALL
+            od-unix/qt/drive_sound_sets.cpp
+            od-unix/qt/drive_sound_sets_test.cpp
+        )
+        target_link_libraries(winuae_unix_qt_drive_sound_sets_test PRIVATE ${WINUAE_UNIX_QT_WIDGETS_TARGET})
+        winuae_unix_register_test(winuae_unix_qt_drive_sound_sets_test)
 
         if(WINUAE_UNIX_WITH_INTEGRATED_QT_UI)
             target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_INTEGRATED_QT_UI=1)
