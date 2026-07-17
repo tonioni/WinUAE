@@ -388,7 +388,7 @@ SDL3 audio uses the WinUAE `sound_output`, `sound_frequency`, `sound_channels`, 
   -s 'unix.soundcardname=SDL:Default Audio Device'
 ```
 
-The Qt Sound page lists SDL playback devices and writes both `unix.soundcard` and `unix.soundcardname` so saved configs can recover by name if the device index changes. Floppy click sounds are off by default, matching the shared WinUAE defaults; enable them per drive with `floppy0sound=1` through `floppy3sound=1`.
+The Qt Sound page lists SDL playback devices and writes both `unix.soundcard` and `unix.soundcardname` so saved configs can recover by name if the device index changes. Floppy click sounds are off by default, matching the shared WinUAE defaults. Like the Windows UI, the per-drive sound selector scans `plugins/floppysounds` for `drive_click_*.wav` and lists every discovered external set after `Built-in A500`. External selections are stored as `floppyNsound=-1` plus `floppyNsoundext=<set>` and the runtime log reports the selected set and number of sample files loaded.
 
 ## Clipboard
 

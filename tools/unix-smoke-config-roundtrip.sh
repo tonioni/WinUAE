@@ -3,13 +3,37 @@ set -eu
 
 # Verifies that configuration values survive the trip through the Qt
 # launcher's widgets: load a config, export the merged config, and compare
-# the keys that GitHub issue #1 reported as unreliable (CPU, FPU, memory).
+# representative hardware and host settings.
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 BUILD_DIR=${WINUAE_BUILD_DIR:-/tmp/winuae_cmake_build}
 EXE=${WINUAE_EXE:-"$BUILD_DIR/winuae"}
 WORK=$(mktemp -d /tmp/winuae_config_roundtrip.XXXXXX)
 trap 'rm -rf "$WORK"' EXIT INT TERM
+
+drive_sound_primary=RoundtripExternalOne
+drive_sound_secondary=RoundtripExternalTwo
+if [ -n "${WINUAE_QT_EXPECT_DRIVE_SOUND_SETS_DIR:-}" ]; then
+    drive_sound_count=0
+    for sample in "$WINUAE_QT_EXPECT_DRIVE_SOUND_SETS_DIR"/drive_click_*.wav; do
+        [ -f "$sample" ] || continue
+        set_name=${sample##*/drive_click_}
+        set_name=${set_name%.wav}
+        drive_sound_count=$((drive_sound_count + 1))
+        if [ "$drive_sound_count" -eq 1 ]; then
+            drive_sound_primary=$set_name
+        elif [ "$drive_sound_count" -eq 2 ]; then
+            drive_sound_secondary=$set_name
+            break
+        fi
+    done
+    if [ "$drive_sound_count" -eq 0 ]; then
+        echo "error: no drive_click_*.wav sets found in $WINUAE_QT_EXPECT_DRIVE_SOUND_SETS_DIR" >&2
+        exit 1
+    elif [ "$drive_sound_count" -eq 1 ]; then
+        drive_sound_secondary=$drive_sound_primary
+    fi
+fi
 
 if [ ! -x "$EXE" ]; then
     echo "error: emulator executable not found: $EXE" >&2
@@ -94,11 +118,29 @@ megachipmem_size=32
 mbresmem_size=16
 floppy0=$WORK/boot.adf
 nr_floppies=2
+floppy0soundext=$drive_sound_primary
+floppy0sound=-1
+floppy1sound=-1
+floppy1soundext=$drive_sound_secondary
+floppy2sound=1
+floppy2soundext=STALE
+floppy3sound=0
+floppy3soundext=STALE
 unix.gfx_shader=scale2x
 EOF
 
 run_case a4000 "$WORK/a4000.uae" \
-    "cpu_model fpu_model cpu_24bit_addressing cachesize chipset chipmem_size fastmem_size z3mem_size megachipmem_size mbresmem_size floppy0 nr_floppies unix.gfx_shader"
+    "cpu_model fpu_model cpu_24bit_addressing cachesize chipset chipmem_size fastmem_size z3mem_size megachipmem_size mbresmem_size floppy0 nr_floppies floppy0sound floppy0soundext floppy1sound floppy1soundext floppy2sound floppy3sound unix.gfx_shader" \
+    "floppy2soundext floppy3soundext"
+
+cat > "$WORK/missing-sound.uae" <<EOF
+config_description=Roundtrip missing drive sound
+floppy0sound=-1
+floppy0soundext=CustomMissingSet
+EOF
+
+run_case missing-sound "$WORK/missing-sound.uae" \
+    "floppy0sound floppy0soundext"
 
 cat > "$WORK/a500.uae" <<EOF
 config_description=Roundtrip A500
