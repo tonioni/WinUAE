@@ -553,8 +553,18 @@ static TCHAR *getfilepath (TCHAR *s)
 	return NULL;
 }
 
-typedef HRESULT (CALLBACK* SHCREATEITEMFROMPARSINGNAME)
-	(PCWSTR,IBindCtx*,REFIID,void**); // Vista+ only
+typedef HRESULT(CALLBACK* SHCREATEITEMFROMPARSINGNAME)
+	(PCWSTR, IBindCtx*, REFIID, void**); // Vista+ only
+
+static void addplace(SHCREATEITEMFROMPARSINGNAME psh, IFileOpenDialog *pfd, const TCHAR *path)
+{
+	IShellItem *shellitem = NULL;
+	HRESULT hr = psh(path, NULL, IID_IShellItem, (void **)&shellitem);
+	if (SUCCEEDED(hr)) {
+		hr = pfd->AddPlace(shellitem, FDAP_BOTTOM);
+		shellitem->Release();
+	}
+}
 
 // OPENFILENAME->IFileOpenDialog wrapper
 static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
@@ -567,6 +577,7 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 	int ret;
 	COMDLG_FILTERSPEC *fs = NULL;
 	int filtercnt = 0;
+	TCHAR tmp[MAX_DPATH];
 
 	static const GUID fsdialogguid = { 0xe768b477, 0x3684, 0x4128, { 0x91, 0x55, 0x8c, 0x8f, 0xd9, 0x2d, 0x16, 0x7b } };
 
@@ -636,14 +647,28 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 		pfd->SetDefaultExtension (opn->lpstrDefExt);
 	}
 	if (opn->lpstrInitialDir) {
-		TCHAR tmp[MAX_DPATH];
 		const TCHAR *p = opn->lpstrInitialDir;
 		if (GetFullPathName (p, sizeof tmp / sizeof (TCHAR), tmp, NULL)) 
 			p = tmp;
 		hr = pSHCreateItemFromParsingName (p, NULL, IID_IShellItem, (void**)&shellitem);
-		if (SUCCEEDED (hr))
+		if (SUCCEEDED (hr)) {
 			pfd->SetFolder (shellitem);
+			shellitem->Release();
+		}
 	}
+
+	addplace(pSHCreateItemFromParsingName, pfd, start_path_exe);
+	addplace(pSHCreateItemFromParsingName, pfd, start_path_data);
+	fetch_path(_T("ConfigurationPath"), tmp, sizeof(tmp) / sizeof(TCHAR));
+	addplace(pSHCreateItemFromParsingName, pfd, tmp);
+	fetch_path(_T("FloppyPath"), tmp, sizeof(tmp) / sizeof(TCHAR));
+	addplace(pSHCreateItemFromParsingName, pfd, tmp);
+	fetch_path(_T("KickstartPath"), tmp, sizeof(tmp) / sizeof(TCHAR));
+	addplace(pSHCreateItemFromParsingName, pfd, tmp);
+	fetch_path(_T("hdfPath"), tmp, sizeof(tmp) / sizeof(TCHAR));
+	addplace(pSHCreateItemFromParsingName, pfd, tmp);
+	fetch_path(_T("StatefilePath"), tmp, sizeof(tmp) / sizeof(TCHAR));
+	addplace(pSHCreateItemFromParsingName, pfd, tmp);
 
 	externaldialogactive = 1;
 	// GUI control without GUI
@@ -748,8 +773,6 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 
 
 	pfd->Release ();
-	if (shellitem)
-		shellitem->Release ();
 	if (filtercnt) {
 		xfree (fs);
 	}
@@ -2810,6 +2833,9 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	TCHAR szFormat[MAX_DPATH];
 	TCHAR szFilter[MAX_DPATH] = { 0 };
 
+	// If control is pressed, override Paths panel path selection.
+	bool qualpress = GetAsyncKeyState(VK_CONTROL) < 0;
+
 	memset (&openFileName, 0, sizeof (OPENFILENAME));
 
 	if (path_out && path_out[0]) {
@@ -2836,15 +2862,23 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		case 6:
 		case 7:
-			getfilter (flag, _T("KickstartPath"), previousfilter, filtername);
-			fetch_path (_T("KickstartPath"), init_path, sizeof (init_path) / sizeof (TCHAR));
+			getfilter(flag, _T("KickstartPath"), previousfilter, filtername);
+			if (qualpress) {
+				fetch_path(_T("romPath"), init_path, sizeof(init_path) / sizeof(TCHAR));
+			} else {
+				fetch_path(_T("KickstartPath"), init_path, sizeof (init_path) / sizeof (TCHAR));
+			}
 			guid = &diskselectionguids[2];
 			break;
 		case 4:
 		case 5:
 		case 8:
-			getfilter (flag, _T("ConfigurationPath"), previousfilter, filtername);
-			fetch_path (_T("ConfigurationPath"), init_path, sizeof (init_path) / sizeof (TCHAR));
+			getfilter(flag, _T("ConfigurationPath"), previousfilter, filtername);
+			if (qualpress) {
+				fetch_path(_T("configPath"), init_path, sizeof(init_path) / sizeof(TCHAR));
+			} else {
+				fetch_path (_T("ConfigurationPath"), init_path, sizeof (init_path) / sizeof (TCHAR));
+			}
 			guid = &diskselectionguids[3];
 			break;
 		case 9:
@@ -2855,21 +2889,23 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 					_tcscpy (init_path, savestate_fname);
 					for (;;) {
 						TCHAR *p;
-						if (my_existsdir (init_path)) {
+						if (my_existsdir(init_path)) {
 							ok = 1;
 							break;
 						}
-						p = _tcsrchr (init_path, '\\');
+						p = _tcsrchr(init_path, '\\');
 						if (!p)
-							p = _tcsrchr (init_path, '/');
+							p = _tcsrchr(init_path, '/');
 						if (!p)
 							break;
 						*p = 0;
 					}
 				}
-				if (!ok) {
-					getfilter (flag, _T("StatefilePath"), previousfilter, filtername);
-					fetch_path (_T("StatefilePath"), init_path, sizeof (init_path) / sizeof (TCHAR));
+				getfilter(flag, _T("StatefilePath"), previousfilter, filtername);
+				if (qualpress) {
+					fetch_path(_T("statePath"), init_path, sizeof (init_path) / sizeof (TCHAR));
+				} else if (!ok) {
+					fetch_path(_T("StatefilePath"), init_path, sizeof(init_path) / sizeof(TCHAR));
 				}
 				guid = &diskselectionguids[4];
 			}
@@ -2877,7 +2913,11 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		case 11:
 		case 19:
 			getfilter(flag, _T("NVRAMPath"), previousfilter, filtername);
-			fetch_path(_T("NVRAMPath"), init_path, sizeof(init_path) / sizeof(TCHAR));
+			if (qualpress) {
+				fetch_path(_T("nvrPath"), init_path, sizeof(init_path) / sizeof(TCHAR));
+			} else {
+				fetch_path(_T("NVRAMPath"), init_path, sizeof(init_path) / sizeof(TCHAR));
+			}
 			guid = &diskselectionguids[10];
 			break;
 		case 15:
@@ -3293,10 +3333,42 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 					setdpath (_T("FloppyPath"), openFileName.lpstrFile);
 				}
 			} else if (flag == 2 || flag == 3 || flag == 23) {
-				amiga_path = _tcsstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
+				amiga_path = _tcsstr(openFileName.lpstrFile, openFileName.lpstrFileTitle);
 				if (amiga_path && amiga_path != openFileName.lpstrFile) {
 					*amiga_path = 0;
-					setdpath (_T("hdfPath"), openFileName.lpstrFile);
+					setdpath(_T("hdfPath"), openFileName.lpstrFile);
+				}
+			} else if (flag == 4 || flag == 5 || flag == 8) {
+				if (qualpress) {
+					amiga_path = _tcsstr(openFileName.lpstrFile, openFileName.lpstrFileTitle);
+					if (amiga_path && amiga_path != openFileName.lpstrFile) {
+						*amiga_path = 0;
+						setdpath(_T("configPath"), openFileName.lpstrFile);
+					}
+				}
+			} else if (flag == 6 || flag == 7) {
+				if (qualpress) {
+					amiga_path = _tcsstr(openFileName.lpstrFile, openFileName.lpstrFileTitle);
+					if (amiga_path && amiga_path != openFileName.lpstrFile) {
+						*amiga_path = 0;
+						setdpath(_T("romPath"), openFileName.lpstrFile);
+					}
+				}
+			} else if (flag == 9|| flag == 10) {
+				if (qualpress) {
+					amiga_path = _tcsstr(openFileName.lpstrFile, openFileName.lpstrFileTitle);
+					if (amiga_path && amiga_path != openFileName.lpstrFile) {
+						*amiga_path = 0;
+						setdpath(_T("statePath"), openFileName.lpstrFile);
+					}
+				}
+			} else if (flag == 11 || flag == 19) {
+				if (qualpress) {
+					amiga_path = _tcsstr(openFileName.lpstrFile, openFileName.lpstrFileTitle);
+					if (amiga_path && amiga_path != openFileName.lpstrFile) {
+						*amiga_path = 0;
+						setdpath(_T("nvrPath"), openFileName.lpstrFile);
+					}
 				}
 			} else if (flag == 17) {
 				amiga_path = _tcsstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
