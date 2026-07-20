@@ -4489,8 +4489,9 @@ static void denise_shift_sprites_aga(int shift)
 		sp->databs64 <<= shift;
 		if (!denise_sprfmode64) {
 			// if not 64-bit FMODE: clear any bits shifted from bits 32-63.
-			sp->dataas64 &= ~((uae_u64)((1 << shift) - 1) << 32);
-			sp->databs64 &= ~((uae_u64)((1 << shift) - 1) << 32);
+			uae_u64 mask = ((uae_u64)((1 << shift) - 1)) << 32;
+			sp->dataas64 &= ~mask;
+			sp->databs64 &= ~mask;
 		}
 		sidx++;
 	}
@@ -4527,8 +4528,9 @@ static uae_u32 denise_render_sprites_aga(int add)
 			sp->databs64 <<= shift;
 			if (!denise_sprfmode64) {
 				// if not 64-bit FMODE: clear any bits shifted from bits 32-63.
-				sp->dataas64 &= ~((uae_u64)((1 << shift) - 1) << 32);
-				sp->databs64 &= ~((uae_u64)((1 << shift) - 1) << 32);
+				uae_u64 mask = ((uae_u64)((1 << shift) - 1)) << 32;
+				sp->dataas64 &= ~mask;
+				sp->databs64 &= ~mask;
 			}
 		}
 		sidx++;
