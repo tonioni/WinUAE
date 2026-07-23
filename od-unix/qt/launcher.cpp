@@ -15180,12 +15180,14 @@ private:
         insertCheckBoxSetting(settings, QStringLiteral("unix.screenshot_paletted"), screenshotPaletted);
         insertCheckBoxSetting(settings, QStringLiteral("unix.screenshot_clip"), screenshotClip);
         insertCheckBoxSetting(settings, QStringLiteral("unix.screenshot_auto"), screenshotAuto);
-        settings.insert(QStringLiteral("kickstart_rom_file"), romFile->currentText());
-        if (!extendedRomFile->currentText().isEmpty()) {
-            settings.insert(QStringLiteral("kickstart_ext_rom_file"), extendedRomFile->currentText());
+        settings.insert(QStringLiteral("kickstart_rom_file"), romComboValue(romFile));
+        const QString extRom = romComboValue(extendedRomFile);
+        if (!extRom.isEmpty()) {
+            settings.insert(QStringLiteral("kickstart_ext_rom_file"), extRom);
         }
-        if (!cartFile->currentText().isEmpty()) {
-            settings.insert(QStringLiteral("cart_file"), cartFile->currentText());
+        const QString cartRom = romComboValue(cartFile);
+        if (!cartRom.isEmpty()) {
+            settings.insert(QStringLiteral("cart_file"), cartRom);
         }
         if (!flashFile->text().isEmpty()) {
             settings.insert(QStringLiteral("flash_file"), flashFile->text());
@@ -15341,22 +15343,15 @@ private:
             settings.insert(QStringLiteral("cpu_multiplier"), QString::number(cpuMultiplierValue(cpuFrequency->currentText())));
         }
         settings.insert(QStringLiteral("chipmem_size"), QString::number(chipMemConfigValue()));
-        if (z2Fast->currentText() != QStringLiteral("None")) {
-            settings.insert(QStringLiteral("fastmem_size"), QString::number(megabytesFromText(z2Fast->currentText())));
-        }
-        const int slow = slowMemConfigValue();
-        if (slow) {
-            settings.insert(QStringLiteral("bogomem_size"), QString::number(slow));
-        }
-        if (z3Fast->currentText() != QStringLiteral("None")) {
-            settings.insert(QStringLiteral("z3mem_size"), QString::number(megabytesFromText(z3Fast->currentText())));
-        }
-        if (z3ChipMem->currentText() != QStringLiteral("None")) {
-            settings.insert(QStringLiteral("megachipmem_size"), QString::number(megabytesFromText(z3ChipMem->currentText())));
-        }
-        if (processorSlotMem->currentText() != QStringLiteral("None")) {
-            settings.insert(QStringLiteral("mbresmem_size"), QString::number(megabytesFromText(processorSlotMem->currentText())));
-        }
+        /* Always emit the RAM-size keys (0 when "None"). The launcher applies its
+         * config on top of the running prefs without a reset, so omitting a key
+         * leaves any previously-configured RAM in place - e.g. a basic A500+ with
+         * Z2 Fast = None would otherwise still boot with stale Z2 fast RAM. */
+        settings.insert(QStringLiteral("fastmem_size"), QString::number(megabytesFromText(z2Fast->currentText())));
+        settings.insert(QStringLiteral("bogomem_size"), QString::number(slowMemConfigValue()));
+        settings.insert(QStringLiteral("z3mem_size"), QString::number(megabytesFromText(z3Fast->currentText())));
+        settings.insert(QStringLiteral("megachipmem_size"), QString::number(megabytesFromText(z3ChipMem->currentText())));
+        settings.insert(QStringLiteral("mbresmem_size"), QString::number(megabytesFromText(processorSlotMem->currentText())));
         settings.insert(QStringLiteral("z3mapping"),
             configChoiceValue(z3MappingChoices, int(sizeof(z3MappingChoices) / sizeof(z3MappingChoices[0])), z3Mapping->currentText()));
         settings.insert(QStringLiteral("cachesize"), QString::number(jitActive ? requestedJitCacheSize : 0));
@@ -15497,8 +15492,10 @@ private:
         settings.insert(QStringLiteral("iconified_pause"), extensionMinimizedPause->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
         settings.insert(QStringLiteral("iconified_nosound"), extensionMinimizedNoSound->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
         settings.insert(QStringLiteral("iconified_input"), QString::number(extensionMinimizedNoJoy->isChecked() ? 0 : 4));
+        /* Emit gfxcard_size unconditionally (0 when "None") so switching the RTG
+         * board off clears a previously-configured board instead of leaving it. */
+        settings.insert(QStringLiteral("gfxcard_size"), QString::number(megabytesFromText(rtgMem->currentText())));
         if (rtgMem->currentText() != QStringLiteral("None")) {
-            settings.insert(QStringLiteral("gfxcard_size"), QString::number(megabytesFromText(rtgMem->currentText())));
             settings.insert(QStringLiteral("gfxcard_type"), rtgType->currentText());
             const QString options = rtgOptionsValue();
             if (!options.isEmpty()) {
