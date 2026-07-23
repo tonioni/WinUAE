@@ -4241,39 +4241,34 @@ static int get_reg_chip(int reg)
 	return 1;
 }
 
+static uae_u64 wordto64convert(int fm, uae_u16 value)
+{
+	uae_u16 noise = regs.chipset_latch_rw;
+	uae_u64 v;
+
+	if (fm == 0) {
+		v = ((uae_u64)value << 48) | ((uae_u64)0 << 32) | ((uae_u64)value << 16) | (uae_u64)0;
+	} else if (fm == 1) {
+		v = ((uae_u64)value << 48) | ((uae_u64)value << 32) | ((uae_u64)value << 16) | (uae_u64)value;
+	} else if (fm == 2) {
+		v = ((uae_u64)noise << 48) | ((uae_u64)value << 32) | ((uae_u64)value << 16) | (uae_u64)value;
+	} else {
+		v = ((uae_u64)noise << 48) | ((uae_u64)value << 32) | ((uae_u64)value << 16) | (uae_u64)value;
+	}
+	return v;
+}
+
 static void custom_wput_dma64(int reg, uaecptr pt, uae_u32 value, int c)
 {
 	uae_u16 noise = regs.chipset_latch_rw;
 	if (c & 0x10) {
 		// BPL
-		if (fetchmode_fmode_bpl == 0) {
-			uae_u64 v = ((uae_u64)value << 48) | ((uae_u64)0 << 32) | ((uae_u64)value << 16) | (uae_u64)value;
-			write_drga_dat_bpl64(reg, pt, v);
-		} else if (fetchmode_fmode_bpl == 1) {
-			uae_u64 v = ((uae_u64)value << 48) | ((uae_u64)value << 32) | ((uae_u64)value << 16) | (uae_u64)value;
-			write_drga_dat_bpl64(reg, pt, v);
-		} else if (fetchmode_fmode_bpl == 2) {
-			uae_u64 v = ((uae_u64)noise << 48) | ((uae_u64)value << 32) | ((uae_u64)value << 16) | (uae_u64)value;
-			write_drga_dat_bpl64(reg, pt, v);
-		} else if (fetchmode_fmode_bpl == 3) {
-			uae_u64 v = ((uae_u64)noise << 48) | ((uae_u64)value << 32) | ((uae_u64)value << 16) | (uae_u64)value;
-			write_drga_dat_bpl64(reg, pt, v);
-		}
+		uae_u64 v = wordto64convert(fetchmode_fmode_bpl, value);
+		write_drga_dat_bpl64(reg, pt, v);
 	} else if (c & 0x20) {
 		// SPR
-		if (fetchmode_fmode_spr == 0) {
-			uae_u64 v = ((uae_u64)value << 48) | ((uae_u64)0 << 32) | ((uae_u64)value << 16) | (uae_u64)value;
-			write_drga_dat_spr_wide(reg, pt, v);
-		} else if (fetchmode_fmode_spr == 1) {
-			uae_u64 v = ((uae_u64)value << 48) | ((uae_u64)value << 32) | ((uae_u64)value << 16) | (uae_u64)value;
-			write_drga_dat_spr_wide(reg, pt, v);
-		} else if (fetchmode_fmode_spr == 2) {
-			uae_u64 v = ((uae_u64)noise << 48) | ((uae_u64)value << 32) | ((uae_u64)value << 16) | (uae_u64)value;
-			write_drga_dat_spr_wide(reg, pt, v);
-		} else if (fetchmode_fmode_spr == 3) {
-			uae_u64 v = ((uae_u64)noise << 48) | ((uae_u64)value << 32) | ((uae_u64)value << 16) | (uae_u64)value;
-			write_drga_dat_spr_wide(reg, pt, v);
-		}
+		uae_u64 v = wordto64convert(fetchmode_fmode_spr, value);
+		write_drga_dat_spr_wide(reg, pt, v);
 	} else {
 		write_drga(reg, pt, value);
 	}
@@ -11791,7 +11786,8 @@ static void handle_rga_out(void)
 				if (!dmastate) {
 					write_drga_dat_spr(r->reg, pt, dat);
 				} else {
-					write_drga_dat_spr_wide(r->reg, pt, ((uae_u64)dat << 48) | ((uae_u64)dat << 16));
+					uae_u64 v = wordto64convert(fetchmode_fmode_spr, dat);
+					write_drga_dat_spr_wide(r->reg, pt, v);
 				}
 				sdat = dat;
 			} else if (fetchmode_fmode_spr < 3) {
@@ -11855,9 +11851,10 @@ static void handle_rga_out(void)
 				regs.chipset_latch_rw = (uae_u16)dat;
 			} else {
 				if (fetchmode_fmode_bpl == 0) {
-					uae_u32 dat = fetch16(r);
-					write_drga_dat_bpl64(r->reg, pt, ((uae_u64)dat << 48) | ((uae_u64)dat << 16));
-					regs.chipset_latch_rw = (uae_u16)dat;
+					uae_u16 dat = fetch16(r);
+					uae_u64 v = wordto64convert(fetchmode_fmode_bpl, dat);
+					write_drga_dat_bpl64(r->reg, pt, v);
+					regs.chipset_latch_rw = dat;
 				} else if (fetchmode_fmode_bpl < 3) {
 					uae_u32 dat = fetch32_bpl(r);
 					write_drga_dat_bpl64(r->reg, pt, ((uae_u64)dat << 32) | (uae_u64)dat);
