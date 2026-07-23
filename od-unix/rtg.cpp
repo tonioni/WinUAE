@@ -11,6 +11,7 @@
 #include "gfxboard.h"
 #include "video.h"
 #include "xwin.h"
+#include "devices.h"
 
 static uae_u32 REGPARAM3 gfxmem_lget(uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 gfxmem_wget(uaecptr) REGPARAM;
@@ -2718,10 +2719,37 @@ uae_u32 picasso_demux(uae_u32, TrapContext *ctx)
     }
 }
 
+// Clear the persistent uaegfx board state on every machine reset and re-init
+// Picasso96, mirroring the win32 target's picasso_reset(). Without this the
+// static board pointers survive a reset and a second boot's Picasso96 fails
+// with "couldn't create context for uaegfx".
+static void unix_picasso_reset(int hardreset)
+{
+    if (savestate_state != STATE_RESTORE) {
+        unix_uaegfx_base = 0;
+        unix_uaegfx_old = 0;
+        unix_uaegfx_active = 0;
+        unix_uaegfx_abi_interrupt = 0;
+        unix_uaegfx_interrupt_enabled = false;
+        unix_reserved_gfxmem = 0;
+        unix_picasso_amem = 0;
+        unix_picasso_amemend = 0;
+        unix_picasso_boardinfo = 0;
+        for (int monid = 0; monid < MAX_AMIGAMONITORS; monid++) {
+            unix_picasso_reset_palette(&picasso96_state[monid]);
+            InitPicasso96(monid);
+        }
+    }
+    for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
+        adisplays[i].picasso_requested_on = false;
+    }
+}
+
 void uaegfx_install_code(uaecptr start)
 {
     unix_uaegfx_rom = start;
     org(start);
+    device_add_reset(unix_picasso_reset);
 }
 
 #ifndef GFXBOARD
