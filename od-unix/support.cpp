@@ -168,8 +168,6 @@ uae_u32 getlocaltime(void)
 
 void target_run(void) {}
 void target_quit(void) {}
-void target_restart(void) {}
-void target_reset(void) {}
 void target_cpu_speed(void) {}
 void target_addtorecent(const TCHAR*, int) {}
 void target_setdefaultstatefilename(const TCHAR*) {}

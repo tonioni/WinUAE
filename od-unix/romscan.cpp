@@ -227,6 +227,35 @@ static std::vector<std::string> rom_scan_paths(struct uae_prefs *prefs)
 	return paths;
 }
 
+bool unix_resolve_rom_path(struct uae_prefs *prefs, TCHAR *path, int size)
+{
+	if (!path || !path[0] || size <= 0) {
+		return false;
+	}
+	// Leave absolute paths and ":NAME" config-name references untouched;
+	// matches the file[0]/':' guard cfgfile uses for its ROM multipath.
+	if (path[0] == '/' || path[0] == '\\' || _tcschr(path, ':')) {
+		return false;
+	}
+
+	for (const std::string &dir : rom_scan_paths(prefs)) {
+		TCHAR full[MAX_DPATH];
+		uae_tcslcpy(full, dir.c_str(), sizeof full / sizeof(TCHAR));
+		fixtrailing(full);
+		if (_tcslen(full) + _tcslen(path) >= sizeof full / sizeof(TCHAR)) {
+			continue;
+		}
+		_tcscat(full, path);
+
+		struct stat st;
+		if (stat(full, &st) == 0 && S_ISREG(st.st_mode)) {
+			uae_tcslcpy(path, full, size);
+			return true;
+		}
+	}
+	return false;
+}
+
 static void add_nofile_roms(romscan_state *state)
 {
 	for (int id = 1;; id++) {

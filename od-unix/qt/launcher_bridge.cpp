@@ -8,6 +8,9 @@
 #include <QString>
 #include <QStringList>
 
+#include <algorithm>
+#include <vector>
+
 #include <stdio.h>
 #include <string.h>
 
@@ -18,6 +21,7 @@
 #include "memory.h"
 #include "autoconf.h"
 #include "rommgr.h"
+#include "romscan.h"
 #include "xwin.h"
 #include "host.h"
 #include "uae.h"
@@ -523,6 +527,83 @@ static void bridgeHostSettingsFlush(void *)
     registry_flush();
 }
 
+static uae_u32 bridgeRomTypeMask(int kind)
+{
+    switch (kind) {
+    case WINUAE_QT_ROM_KIND_EXTENDED:
+        return ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS | ROMTYPE_ALG;
+    case WINUAE_QT_ROM_KIND_CARTRIDGE:
+        return ROMTYPE_FREEZER | ROMTYPE_ARCADIAGAME | ROMTYPE_CD32CART;
+    case WINUAE_QT_ROM_KIND_MAIN:
+    default:
+        return ROMTYPE_KICK | ROMTYPE_KICKCD32;
+    }
+}
+
+// List the detected ROMs of a given kind by database name, mirroring win32
+// addromfiles(): same type-acceptance test, dedupe by name, sort by priority.
+static QVector<WinUaeQtRomChoice> bridgeRomList(void *, int kind)
+{
+    struct RomEntry {
+        int priority;
+        QString name;
+        QString path;
+    };
+    std::vector<RomEntry> entries;
+    const uae_u32 type = bridgeRomTypeMask(kind);
+    struct romlist *rl = romlist_getit();
+    const int count = romlist_count();
+    for (int i = 0; rl && i < count; i++) {
+        struct romdata *rd = rl[i].rd;
+        if (!rd) {
+            continue;
+        }
+        const bool match =
+            (((rd->type & ROMTYPE_GROUP_MASK) & (type & ROMTYPE_GROUP_MASK))
+                && ((rd->type & ROMTYPE_SUB_MASK) == (type & ROMTYPE_SUB_MASK) || !(type & ROMTYPE_SUB_MASK)))
+            || (rd->type & type) == ROMTYPE_NONE
+            || (rd->type & type) == ROMTYPE_NOT;
+        if (!match) {
+            continue;
+        }
+        TCHAR name[MAX_DPATH];
+        getromname(rd, name);
+        if (!name[0]) {
+            continue;
+        }
+        const QString qname = QString::fromLocal8Bit(name);
+        bool dup = false;
+        for (const RomEntry &e : entries) {
+            if (e.name.compare(qname, Qt::CaseInsensitive) == 0) {
+                dup = true;
+                break;
+            }
+        }
+        if (dup) {
+            continue;
+        }
+        entries.push_back({ rd->sortpriority, qname,
+            rl[i].path ? QString::fromLocal8Bit(rl[i].path) : QString() });
+    }
+    std::stable_sort(entries.begin(), entries.end(), [](const RomEntry &a, const RomEntry &b) {
+        if (a.priority != b.priority) {
+            return a.priority < b.priority;
+        }
+        return a.name.compare(b.name, Qt::CaseInsensitive) < 0;
+    });
+    QVector<WinUaeQtRomChoice> out;
+    out.reserve(int(entries.size()));
+    for (const RomEntry &e : entries) {
+        out.append({ e.name, e.path });
+    }
+    return out;
+}
+
+static void bridgeRescanRoms(void *context)
+{
+    unix_romscan_refresh(static_cast<struct uae_prefs *>(context), true);
+}
+
 static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *prefs, bool runtimeActions)
 {
     WinUaeQtHardwareInfoProvider provider;
@@ -530,6 +611,8 @@ static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *pre
     provider.hostSettingGet = bridgeHostSettingGet;
     provider.hostSettingSet = bridgeHostSettingSet;
     provider.hostSettingsFlush = bridgeHostSettingsFlush;
+    provider.romList = bridgeRomList;
+    provider.rescanRoms = bridgeRescanRoms;
     provider.boardCatalog = bridgeBoardCatalog;
     provider.applyConfig = bridgeApplyHardwareConfig;
     provider.boards = bridgeHardwareBoards;

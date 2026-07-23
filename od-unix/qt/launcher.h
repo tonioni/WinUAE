@@ -115,12 +115,30 @@ struct WinUaeQtBoardCatalog {
     QVector<WinUaeQtRtgBoardCatalogItem> rtgBoards;
 };
 
+// A known (detected) ROM: its database name and the file that provides it.
+struct WinUaeQtRomChoice {
+    QString name;
+    QString path;
+};
+
+// Which ROM combo a list is for; the bridge maps these to core ROMTYPE masks.
+enum {
+    WINUAE_QT_ROM_KIND_MAIN = 0,      // main Kickstart
+    WINUAE_QT_ROM_KIND_EXTENDED = 1,  // extended/CD ROM
+    WINUAE_QT_ROM_KIND_CARTRIDGE = 2, // freezer/cartridge
+};
+
 struct WinUaeQtHardwareInfoProvider {
     void *context = nullptr;
     bool (*hostSettingGet)(void *context, const char *key, char *out, int outLen) = nullptr;
     void (*hostSettingSet)(void *context, const char *key, const char *value) = nullptr;
     void (*hostSettingsFlush)(void *context) = nullptr;
     WinUaeQtBoardCatalog (*boardCatalog)(void *context) = nullptr;
+    // Known/detected ROMs of the given WINUAE_QT_ROM_KIND_*, by database name,
+    // matching the Win32 kickstart dropdowns (only recognised ROMs are listed).
+    QVector<WinUaeQtRomChoice> (*romList)(void *context, int kind) = nullptr;
+    // Force a rescan of the configured ROM search paths into the shared romlist.
+    void (*rescanRoms)(void *context) = nullptr;
     bool (*applyConfig)(void *context, const WinUaeQtConfig &config) = nullptr;
     QVector<WinUaeQtHardwareBoard> (*boards)(void *context) = nullptr;
     bool (*customOrder)(void *context) = nullptr;

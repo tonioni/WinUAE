@@ -6191,7 +6191,7 @@ private:
         }
 
         if (config == 1 && quickstartMode && !quickstartMode->isChecked()) {
-            const QString fmvRom = cartFile ? cartFile->currentText().trimmed() : QString();
+            const QString fmvRom = romComboValue(cartFile);
             if (!fmvRom.isEmpty()) {
                 setQuickstartExpansionBoard(QStringLiteral("cd32fmv"), fmvRom);
             }
@@ -11280,45 +11280,6 @@ private:
         return page;
     }
 
-    bool isRomCandidateFile(const QFileInfo &info) const
-    {
-        if (!info.isFile() || info.size() <= 0 || info.size() >= 10 * 1024 * 1024) {
-            return false;
-        }
-        const QString suffix = info.suffix().toLower();
-        return suffix == QStringLiteral("rom")
-            || suffix == QStringLiteral("bin")
-            || suffix == QStringLiteral("kick")
-            || suffix == QStringLiteral("a500")
-            || suffix == QStringLiteral("a600")
-            || suffix == QStringLiteral("a1200")
-            || suffix == QStringLiteral("a4000")
-            || suffix == QStringLiteral("cd32")
-            || suffix == QStringLiteral("cdtv");
-    }
-
-    void collectRomCandidates(const QDir &dir, int depth, QStringList *paths) const
-    {
-        if (!dir.exists() || !paths) {
-            return;
-        }
-        const QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::Readable, QDir::Name | QDir::IgnoreCase);
-        for (const QFileInfo &info : files) {
-            if (isRomCandidateFile(info)) {
-                paths->append(info.absoluteFilePath());
-            }
-        }
-
-        const bool recursive = recursiveRoms && recursiveRoms->isChecked();
-        if (!recursive || depth >= 2) {
-            return;
-        }
-        const QFileInfoList dirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::Readable, QDir::Name | QDir::IgnoreCase);
-        for (const QFileInfo &info : dirs) {
-            collectRomCandidates(QDir(info.absoluteFilePath()), depth + 1, paths);
-        }
-    }
-
     void replacePathComboItems(QComboBox *field, const QStringList &paths)
     {
         if (!field) {
@@ -11363,25 +11324,110 @@ private:
         status->setText(QStringLiteral("Disk history cleared"));
     }
 
+    // ROM combos display the ROM name but carry the real path in item data. Read
+    // the path back: the selected named item's data, or the raw edit text for a
+    // custom/typed path.
+    QString romComboValue(QComboBox *field) const
+    {
+        if (!field) {
+            return QString();
+        }
+        const QString text = field->currentText().trimmed();
+        const int idx = field->currentIndex();
+        if (idx >= 0 && field->itemText(idx).trimmed() == text) {
+            const QString data = field->itemData(idx).toString();
+            if (!data.isEmpty()) {
+                return data;
+            }
+        }
+        return text;
+    }
+
+    // Select the item whose stored path matches value (exact, or by file name
+    // since configs abbreviate ROMs to a bare name); otherwise show value as-is.
+    void setRomComboSelection(QComboBox *field, const QString &value)
+    {
+        if (!field) {
+            return;
+        }
+        QSignalBlocker blocker(field);
+        if (value.isEmpty()) {
+            field->setCurrentIndex(-1);
+            field->setCurrentText(QString());
+            return;
+        }
+        int match = -1;
+        for (int i = 0; i < field->count() && match < 0; i++) {
+            const QString data = field->itemData(i).toString();
+            if (!data.isEmpty() && data.compare(value, Qt::CaseInsensitive) == 0) {
+                match = i;
+            }
+        }
+        if (match < 0 && !value.contains(QLatin1Char(':'))) {
+            const QString base = QFileInfo(value).fileName();
+            for (int i = 0; i < field->count() && match < 0; i++) {
+                const QString data = field->itemData(i).toString();
+                if (!data.isEmpty() && QFileInfo(data).fileName().compare(base, Qt::CaseInsensitive) == 0) {
+                    match = i;
+                }
+            }
+        }
+        if (match >= 0) {
+            field->setCurrentIndex(match);
+            return;
+        }
+        // Not a recognised ROM (custom or not scanned): keep the value, shown by
+        // its file name (or verbatim for a ":NAME" config reference).
+        const QString display = value.contains(QLatin1Char(':')) ? value : QFileInfo(value).fileName();
+        field->insertItem(0, display, value);
+        field->setCurrentIndex(0);
+    }
+
+    // Fill a ROM combo with the detected ROMs of a kind (by database name, like
+    // win32), keeping the real path in item data. Returns how many were listed.
+    int populateRomCombo(QComboBox *field, int kind)
+    {
+        if (!field) {
+            return 0;
+        }
+        const QString current = romComboValue(field);
+        QVector<WinUaeQtRomChoice> roms;
+        if (hardwareProvider.romList) {
+            roms = hardwareProvider.romList(hardwareProvider.context, kind);
+        }
+        {
+            QSignalBlocker blocker(field);
+            field->clear();
+            for (const WinUaeQtRomChoice &rom : roms) {
+                field->addItem(rom.name, rom.path);
+            }
+        }
+        setRomComboSelection(field, current);
+        return roms.size();
+    }
+
     void rescanRomPathCandidates(bool showResult)
     {
-        const QString root = romsPath ? expandedPathText(romsPath->text()) : QString();
-        QStringList candidates;
-        if (!root.isEmpty()) {
-            collectRomCandidates(QDir(root), 0, &candidates);
+        // Push the current System ROMs path into the core and rescan it into the
+        // shared romlist so the dropdowns reflect it. Done on open too, not just
+        // the "Rescan ROMs" button, because the startup scan runs before the
+        // config's rom_path is parsed and can miss it.
+        if (hardwareProvider.applyConfig) {
+            hardwareProvider.applyConfig(hardwareProvider.context, mergedConfig());
         }
-        candidates.removeDuplicates();
-        candidates.sort(Qt::CaseInsensitive);
+        if (hardwareProvider.rescanRoms) {
+            hardwareProvider.rescanRoms(hardwareProvider.context);
+        }
 
-        replacePathComboItems(romFile, candidates);
-        replacePathComboItems(extendedRomFile, candidates);
-        replacePathComboItems(cartFile, candidates);
+        const int found = populateRomCombo(romFile, WINUAE_QT_ROM_KIND_MAIN);
+        populateRomCombo(extendedRomFile, WINUAE_QT_ROM_KIND_EXTENDED);
+        populateRomCombo(cartFile, WINUAE_QT_ROM_KIND_CARTRIDGE);
 
         if (showResult) {
-            if (candidates.isEmpty()) {
-                QMessageBox::information(this, windowTitle(), QStringLiteral("No ROM files were found in the configured System ROMs path."));
+            if (found == 0) {
+                QMessageBox::information(this, windowTitle(), QStringLiteral("No Kickstart ROMs were found in the configured System ROMs path."));
             } else {
-                status->setText(QStringLiteral("Found %1 ROM file%2").arg(candidates.size()).arg(candidates.size() == 1 ? QString() : QStringLiteral("s")));
+                status->setText(QStringLiteral("Found %1 Kickstart ROM%2").arg(found).arg(found == 1 ? QString() : QStringLiteral("s")));
             }
         }
     }
@@ -13435,9 +13481,9 @@ private:
         expansionSana2->setChecked(false);
         clearExpansionBoardStates();
 
-        romFile->setCurrentText(envString("WINUAE_KICKSTART_ROM"));
-        extendedRomFile->setCurrentText(QString());
-        cartFile->setCurrentText(QString());
+        setRomComboSelection(romFile, envString("WINUAE_KICKSTART_ROM"));
+        setRomComboSelection(extendedRomFile, QString());
+        setRomComboSelection(cartFile, QString());
         flashFile->clear();
         rtcFile->clear();
         mapRom->setChecked(false);
@@ -16388,6 +16434,11 @@ private:
         updateAdvancedChipsetControlState();
         loadedConfig = loaded;
         refreshHardwareInfoPage();
+        // Rescan the loaded config's ROM path into the romlist and fill the ROM
+        // dropdowns. Kept after loadedConfig/refreshHardwareInfoPage so mergedConfig()
+        // reflects the config just loaded. (The startup scan runs before the
+        // config's rom_path is known, so the list would otherwise be empty on open.)
+        rescanRomPathCandidates(false);
         const QString expandedPath = expandedPathText(path);
         configPath->setText(expandedPath);
         if (!expandedPath.isEmpty()) {
@@ -16522,11 +16573,11 @@ private:
         } else if (key == QStringLiteral("unix.screenshot_auto") || key == QStringLiteral("unix.ui.screenshot_auto")) {
             screenshotAuto->setChecked(configBoolValue(value));
         } else if (key == QStringLiteral("kickstart_rom_file")) {
-            setPathComboText(romFile, value);
+            setRomComboSelection(romFile, value);
         } else if (key == QStringLiteral("kickstart_ext_rom_file")) {
-            setPathComboText(extendedRomFile, value);
+            setRomComboSelection(extendedRomFile, value);
         } else if (key == QStringLiteral("cart_file")) {
-            setPathComboText(cartFile, value);
+            setRomComboSelection(cartFile, value);
         } else if (key == QStringLiteral("flash_file")) {
             flashFile->setText(value);
         } else if (key == QStringLiteral("rtc_file")) {

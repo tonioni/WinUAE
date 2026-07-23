@@ -12,6 +12,7 @@
 #include "custom.h"
 #include "gfxboard.h"
 #include "options.h"
+#include "romscan.h"
 
 enum class ApplySettingResult {
     Fallback,
@@ -302,14 +303,19 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
     }
     if (setting.key == QStringLiteral("kickstart_rom_file")) {
         copyTextSetting(prefs->romfile, sizeof prefs->romfile / sizeof(TCHAR), setting.value);
+        // cfgfile abbreviates a scanned ROM to a bare name relative to the ROM
+        // search path; resolve it to a full path so the core can load it.
+        unix_resolve_rom_path(prefs, prefs->romfile, sizeof prefs->romfile / sizeof(TCHAR));
         return ApplySettingResult::Handled;
     }
     if (setting.key == QStringLiteral("kickstart_ext_rom_file")) {
         copyTextSetting(prefs->romextfile, sizeof prefs->romextfile / sizeof(TCHAR), setting.value);
+        unix_resolve_rom_path(prefs, prefs->romextfile, sizeof prefs->romextfile / sizeof(TCHAR));
         return ApplySettingResult::Handled;
     }
     if (setting.key == QStringLiteral("kickstart_ext_rom_file2")) {
         copyTextSetting(prefs->romextfile2, sizeof prefs->romextfile2 / sizeof(TCHAR), setting.value);
+        unix_resolve_rom_path(prefs, prefs->romextfile2, sizeof prefs->romextfile2 / sizeof(TCHAR));
         return ApplySettingResult::Handled;
     }
     if (setting.key == QStringLiteral("flash_file")) {
@@ -318,6 +324,7 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
     }
     if (setting.key == QStringLiteral("cart_file")) {
         copyTextSetting(prefs->cartfile, sizeof prefs->cartfile / sizeof(TCHAR), setting.value);
+        unix_resolve_rom_path(prefs, prefs->cartfile, sizeof prefs->cartfile / sizeof(TCHAR));
         return ApplySettingResult::Handled;
     }
     if (setting.key == QStringLiteral("rtc_file")) {
