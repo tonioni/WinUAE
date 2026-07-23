@@ -921,10 +921,23 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
     return ApplySettingResult::Fallback;
 }
 
-bool applyWinUaeQtConfigToPrefs(const WinUaeQtConfig &config, struct uae_prefs *prefs)
+bool applyWinUaeQtConfigToPrefs(const WinUaeQtConfig &config, struct uae_prefs *prefs, bool fullReset)
 {
     if (!prefs) {
         return false;
+    }
+
+    // On the Start/Reset commit path, reset prefs to defaults before applying so
+    // the merged config alone defines the machine. This applies a config *text*
+    // onto prefs (unlike win32, which copies a prefs struct), so any key the
+    // launcher omits when empty - an ejected CD/floppy, a dropped extended/cart
+    // ROM, a reassigned hardfile - would otherwise leave a stale value behind.
+    // default_prefs()'s memset clears them all at once, mirroring win32's
+    // prefs_to_gui (default_prefs + copy) and cfgfile_load's default baseline.
+    // The preview/refresh path (fullReset == false) instead applies onto the live
+    // prefs so it can enumerate boards for the current config without a full wipe.
+    if (fullReset) {
+        default_prefs(prefs, false, 0);
     }
 
     const WinUaeQtConfig::Settings &settings = config.settings();

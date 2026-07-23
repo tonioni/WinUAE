@@ -706,7 +706,9 @@ static int bridgeHandleLauncherResult(
             && !bridgeCopyPath(result.configPath, selectedConfigPath, selectedConfigPathLen)) {
             fprintf(stderr, "Unix Qt UI warning: selected config path is too long\n");
         }
-        if (!applyWinUaeQtConfigToPrefs(result.config, prefs)) {
+        // Commit: reset prefs to defaults first so the merged config fully
+        // defines the machine (win32 prefs_to_gui-style full replace).
+        if (!applyWinUaeQtConfigToPrefs(result.config, prefs, true)) {
             fprintf(stderr, "Unix Qt UI failed: no preferences target available\n");
             if (exitCode) {
                 *exitCode = 1;
