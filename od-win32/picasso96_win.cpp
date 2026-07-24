@@ -3920,19 +3920,19 @@ static uae_u32 REGPARAM2 picasso_BlitTemplate(TrapContext *ctx)
 									break;
 								case 2:
 									{
-										uae_u16 *addr = (uae_u16 *)uae_mem2;
+										uae_u16 *addr = (uae_u16*)uae_mem2;
 										addr[bits] ^= rgbmask;
 									}
 									break;
 								case 3:
 									{
-										uae_u32 *addr = (uae_u32 *)(uae_mem2 + bits * 3);
-										do_put_mem_long(addr, do_get_mem_long(addr) ^ 0xffffff);
-									}
+										uae_u32 *addr = (uae_u32*)(uae_mem2 + bits * 3);
+										*addr ^= rgbmask;
+								}
 									break;
 								case 4:
 									{
-										uae_u32 *addr = (uae_u32 *)uae_mem2;
+										uae_u32 *addr = (uae_u32*)uae_mem2;
 										addr[bits] ^= rgbmask;
 									}
 									break;
