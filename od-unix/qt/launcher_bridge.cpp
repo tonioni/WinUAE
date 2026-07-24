@@ -604,6 +604,23 @@ static void bridgeRescanRoms(void *context)
     unix_romscan_refresh(static_cast<struct uae_prefs *>(context), true);
 }
 
+static WinUaeQtQuickstartRoms bridgeQuickstartRoms(void *, const QString &quickstart)
+{
+    WinUaeQtQuickstartRoms out;
+    if (quickstart.isEmpty()) {
+        return out;
+    }
+    struct uae_prefs *temp = new uae_prefs();
+    default_prefs(temp, false, 0);
+    QByteArray value = quickstart.toLocal8Bit();
+    cfgfile_parse_option(temp, _T("quickstart"), value.data(), 0);
+    out.rom = QString::fromLocal8Bit(temp->romfile);
+    out.romExt = QString::fromLocal8Bit(temp->romextfile);
+    out.cart = QString::fromLocal8Bit(temp->cartfile);
+    delete temp;
+    return out;
+}
+
 static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *prefs, bool runtimeActions)
 {
     WinUaeQtHardwareInfoProvider provider;
@@ -613,6 +630,7 @@ static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *pre
     provider.hostSettingsFlush = bridgeHostSettingsFlush;
     provider.romList = bridgeRomList;
     provider.rescanRoms = bridgeRescanRoms;
+    provider.quickstartRoms = bridgeQuickstartRoms;
     provider.boardCatalog = bridgeBoardCatalog;
     provider.applyConfig = bridgeApplyHardwareConfig;
     provider.boards = bridgeHardwareBoards;

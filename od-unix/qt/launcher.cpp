@@ -6231,6 +6231,13 @@ private:
         applyQuickstartConfigurationMemory(quickModel->currentText(), config);
         applyQuickstartExpansionPreset(quickModel->currentText(), config);
         applyQuickstartCompatibilityToUi();
+        if (hardwareProvider.quickstartRoms) {
+            const WinUaeQtQuickstartRoms roms =
+                hardwareProvider.quickstartRoms(hardwareProvider.context, quickstartConfigValue());
+            setRomComboSelection(romFile, roms.rom);
+            setRomComboSelection(extendedRomFile, roms.romExt);
+            setRomComboSelection(cartFile, roms.cart);
+        }
         quickstartUpdating = false;
     }
 
