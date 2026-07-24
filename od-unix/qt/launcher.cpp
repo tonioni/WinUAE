@@ -16401,20 +16401,7 @@ private:
     bool loadConfigDocument(const WinUaeQtConfig &config, const QString &path)
     {
         WinUaeQtConfig loaded = config;
-        if (mountedDrives) {
-            mountedDrives->clear();
-        }
-        if (configDescription) {
-            configDescription->clear();
-        }
-        for (int i = 0; i < MaxDiskSwapperSlots; i++) {
-            setDiskSwapperPath(i, QString());
-        }
-        clearCdSlots();
-        clearExpansionBoardStates();
-        inputMappingSettings.clear();
-        inputOwnedMappingKeys.clear();
-        hardwareOrderOwnedKeys.clear();
+        resetDefaults();
         /* A config without a quickstart line is a full configuration: leave
          * quickstart mode off so no quickstart key gets synthesized into the
          * merged config. The quickstart key handler re-enables it. */
