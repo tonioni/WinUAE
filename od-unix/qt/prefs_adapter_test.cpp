@@ -17,6 +17,16 @@
 
 static QStringList parsedLines;
 
+void default_prefs(struct uae_prefs *prefs, bool, int)
+{
+    memset(prefs, 0, sizeof(*prefs));
+}
+
+bool unix_resolve_rom_path(struct uae_prefs *, TCHAR *, int)
+{
+    return false;
+}
+
 int gfxboard_get_id_from_index(int index)
 {
     static const int ids[] = {
