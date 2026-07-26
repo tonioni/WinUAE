@@ -79,7 +79,7 @@ struct gui_info
 	struct gui_info_drive drives[4];
 };
 #define NUM_LEDS (LED_MAX)
-#define VISIBLE_LEDS (LED_MAX - 1)
+#define VISIBLE_LEDS (LED_MAX)
 
 extern struct gui_info gui_data;
 

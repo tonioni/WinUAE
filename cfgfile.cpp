@@ -251,8 +251,7 @@ static const TCHAR *ppc_cpu_idle[] = {
 };
 static const TCHAR *waitblits[] = { _T("disabled"), _T("automatic"), _T("noidleonly"), _T("always"), 0 };
 static const TCHAR *autoext2[] = { _T("disabled"), _T("copy"), _T("replace"), 0 };
-static const TCHAR *leds[] = { _T("power"), _T("df0"), _T("df1"), _T("df2"), _T("df3"), _T("hd"), _T("cd"), _T("fps"), _T("cpu"), _T("snd"), _T("md"), _T("net"), 0 };
-static const int leds_order[] = { 3, 6, 7, 8, 9, 4, 5, 2, 1, 0, 9, 10 };
+static const TCHAR *leds[] = { _T("power"), _T("df0"), _T("df1"), _T("df2"), _T("df3"), _T("hd"), _T("cd"), _T("fps"), _T("lines"), _T("cpu"), _T("snd"), _T("md"), _T("net"), _T("caps"), 0};
 static const TCHAR *lacer[] = { _T("off"), _T("i"), _T("p"), 0 };
 /* another boolean to choice update.. */
 static const TCHAR *cycleexact[] = { _T("false"), _T("memory"), _T("true"), 0  };
@@ -1459,7 +1458,7 @@ static void write_leds (struct zfile *f, const TCHAR *name, int mask)
 	for (int i = 0; leds[i]; i++) {
 		bool got = false;
 		for (int j = 0; leds[j]; j++) {
-			if (leds_order[j] == i) {
+			if (defaultosdledpos[i] == j) {
 				if (mask & (1 << j)) {
 					if (got)
 						_tcscat (tmp, _T(":"));
