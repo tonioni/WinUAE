@@ -1,4 +1,42 @@
 
+Beta 10:
+
+- AGA Lisa bitplane and sprite shifter FMODE change side-effects should be now fully accurate. Bitplane and sprite data storage and shifters now always use 64-bit variables to match real Lisa behavior. OCS/ECS is unchanged (16-bit).
+- OSD leds are dynamically positioned. Leds that are only shown if configuration has led's device type enabled (for example CD, HD, NET, MD etc) do not leave empty gaps anymore. DF0-DF3 are always shown even if disabled because they have always been shown and also some programs do try to access non-existing drives. show_leds_enabled and show_leds_enabled_rtg config file entries hide all non-configured leds. Does not affect windowed mode bottom bar.
+- Fixed uaegfx 24-bit mode BltTemplate with COMPLEMENT drawing mode. (p96cts test)
+- S3 Trio (CyberVision) hardware line draw fix. (p96cts test)
+- NCR77C32BLT (Retina/Altais) color expansion + transparency fix (p96cts test)
+- SLIRP now starts without DNS support if host OS DNS service is not available. Previously missing DNS service aborted SLIRP initialization. (SR)
+- A2065: drop too large packets that can't fit in A2065 buffers. (SR)
+- Fixed KS 1.3 + 68020/030 + cycle-exact + fastest possible + no genlock hang at boot.
+- 53C710 SCSI chip (A4091, A4000T, Warp Engine etc) emulation updates. A4091 diagnostics software tests pass.
+- A3000 SDMAC and WD SCSI chip emulation updates. Diagnostics software tests pass. Also $DD4000-$DDFFFF region is inaccessible (Fat Gary generates bus error or bus timeout)
+- 68030 MMU emulation fixes. When bus error handlers "stack" (Another bus error exception happens during bus error handler), "reg fixup" was done twice: -(an) or (an)+ address mode decrement/increment reset back to original pre-exception value was done twice. Restore original retried instructions opcode, if bus error handler's RTE faults again, new fault put RTE's opcode to exception stack frame, not the original faulting opcode. (Amix random problems, possibly also other unix variants)
+
+Lisa bitplane and sprite shifter basic function (logic found using tests programs, no Lisa schematics seem to be available):
+
+Lisa bitplane and sprite shifters are 2x32-bits and chained together with logic that forces always zero bits from second 32-bit shifter to first shifter if FMODE is NOT 3. First 32-bits are always shifted out normally, even if FMODE is 0.
+
+When FMODE matches data size (=DMA transfer or when FMODE=0 and Copper/CPU BPLxDAT/SPRxDATx write)
+
+FMODE = 0: First shifter is loaded, upper 16-bits contain loaded data, lower 16-bits are zeroed. Second shifter: upper 16-bits with loaded data, lower 16-bits are zeroed.
+FMODE = 1/2: First shifter is loaded with 32-bits of data. Second shifter is loaded with same data as first shifter.
+FMODE = 3: Shifter is loaded with full 64-bits of data.
+
+Copper/CPU BPLxDAT/SPRxDATx write:
+
+FMODE = 0: 16-bits of loaded data + 16xzeros + 16-bits of loaded data + 16xzeros
+FMODE = 1: 16-bits of loaded data x 4.
+FMODE = 2: 16-bits of bus noise (previous bus data) + 16-bits of loaded data x 3.
+FMODE = 3: 16-bits of bus noise (previous bus data) + 16-bits of loaded data x 3.
+
+Whole 64-bits is always loaded, it is not possible to only load part of BPLxDAT or SPRxDATAx.
+
+Examples:
+If FMODE=0 and SPRxDATA is loaded with value 0x1234, then FMODE is changed to 3 before sprite starts: 1234000012340000 appears on screen.
+If FMODE=1 and SPRxDATA is loaded with value 0x1234, then FMODE is changed to 3 before sprite starts: 1234123412341234 appears on screen. (I think this can be useful)
+If FMODE 3 sprite is currently being shifted out to screen and FMODE is changed to 0 and then quickly back to 1: sprite gets "cut" in two parts due to second shifter to first shifter forces zeros during FMODE=0 period. Both shifters still shift but second shifter's output is dropped and replaced with zeros.
+
 Beta 9:
 
 - Added Vortex ATonce plus 286 bridge board emulation (https://github.com/na103/Dueottosei/). NOTE: this is quite different than Commodore bridgeboards.
