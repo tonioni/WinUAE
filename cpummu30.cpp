@@ -3428,6 +3428,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 
 		regs.wb2_status = v >> 8;
 		regs.wb3_status = mmu030_state_2 >> 8;
+		mmu030_state_2 &= 0x00ff;
 		mmu030fixupmod(regs.wb2_status, 1, -1);
 		mmu030fixupmod(regs.wb3_status, 1, -1);
 
