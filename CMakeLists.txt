@@ -1586,6 +1586,14 @@ target_include_directories(winuae_unix_threading_test PRIVATE
 target_link_libraries(winuae_unix_threading_test PRIVATE pthread)
 winuae_unix_register_test(winuae_unix_threading_test)
 
+add_executable(winuae_unix_serial_tx_test EXCLUDE_FROM_ALL
+    od-unix/serial_tx_test.cpp
+)
+target_include_directories(winuae_unix_serial_tx_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+)
+winuae_unix_register_test(winuae_unix_serial_tx_test)
+
 if(WINUAE_UNIX_WITH_INTEGRATED_QT_UI AND NOT WINUAE_UNIX_WITH_QT_UI)
     message(STATUS
         "WINUAE_UNIX_WITH_INTEGRATED_QT_UI requires "

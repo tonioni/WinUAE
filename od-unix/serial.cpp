@@ -12,6 +12,7 @@
 #include "custom.h"
 #include "options.h"
 #include "serial.h"
+#include "serial_tx.h"
 #include "uae.h"
 #ifdef WITH_MIDI
 #include "midi.h"
@@ -588,15 +589,18 @@ void SERDAT(uae_u16 w)
 	if (!serdev) {
 		return;
 	}
-	const int c = w & 0xff;
-	if (w & 0x100) {
-		writeser(((w >> 8) & 1) | 0xa8);
-	}
-	if (currprefs.serial_crlf && c == 10 && serial_send_previous != 13) {
+	uae_u8 encoded[2];
+	const int encoded_size = unix_serial_encode_tx(serper, w, encoded);
+	if (encoded_size == 1 && currprefs.serial_crlf
+		&& encoded[0] == 10 && serial_send_previous != 13) {
 		writeser(13);
 	}
-	writeser(c);
-	serial_send_previous = (uae_u8)c;
+	for (int i = 0; i < encoded_size; i++) {
+		writeser(encoded[i]);
+	}
+	if (encoded_size == 1) {
+		serial_send_previous = encoded[0];
+	}
 }
 
 void serial_rbf_change(bool set)
