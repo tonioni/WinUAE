@@ -24350,7 +24350,6 @@ void gui_led (int led, int on, int brightness)
 		on = 1;
 	} else if (led == LED_FPS) {
 		float fps = gui_data.fps / 10.0f;
-		extern float p96vblank;
 		pos = 2;
 		ptr = drive_text + pos * LED_STRING_WIDTH;
 		if (fps > 9999.9)
