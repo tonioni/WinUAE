@@ -1154,6 +1154,7 @@ type_init(ne2000_register_types)
 #endif
 
 #define MAX_PACKET_SIZE 1600
+#define MIN_PACKET_SIZE 14
 #define MAX_RECEIVE_BUFFER_INDEX 256
 static int receive_buffer_index;
 static uae_u8 *receive_buffer;
@@ -1194,10 +1195,14 @@ static void gotfunc(void *devv, const uae_u8 *databuf, int len)
 #ifdef DEBUG_NE2000
 	write_log("NE2000: %d byte received (%d %d)\n", len, receive_buffer_read, receive_buffer_write);
 #endif
+	// host can hand us anything, including coalesced frames much larger
+	// than the wire MTU. Check the size before looking at the header.
+	if (len < MIN_PACKET_SIZE || len > MAX_PACKET_SIZE)
+		return;
+	if (!receive_buffer)
+		return;
 	// immediately check if we don't need this packet. for better performance.
 	if (!ne2000_canreceive(&ncs, databuf))
-		return;
-	if (len > MAX_PACKET_SIZE) 
 		return;
 	uae_sem_wait(&ne2000_sem);
 	int nextwrite = (receive_buffer_write + 1) & (MAX_RECEIVE_BUFFER_INDEX - 1);
