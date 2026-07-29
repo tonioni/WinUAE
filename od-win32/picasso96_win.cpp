@@ -4349,6 +4349,7 @@ static void PlanarToDirect(TrapContext *ctx, struct RenderInfo *ri, struct BitMa
 			}
 			v &= depthmask;
 			uae_u8 vi = (v ^ mask) & depthmask;
+			v &= mask;
 
 			uae_u32 inval = 0;
 			if (minterm != BLIT_FALSE && minterm != BLIT_TRUE && minterm != BLIT_NOTSRC && minterm != BLIT_SRC) {
