@@ -247,10 +247,10 @@ STATIC_INLINE void endianswap (uae_u32 *vp, int bpp)
 {
 	switch (bpp)
 	{
-	case 2:
+		case 2:
 		*vp = _byteswap_ushort(*vp);
 		break;
-	case 4:
+		case 4:
 		*vp = _byteswap_ulong(*vp);
 		break;
 	}
@@ -3758,7 +3758,7 @@ static uae_u32 REGPARAM2 picasso_BlitPattern(TrapContext *ctx)
 								case 3:
 									{
 										uae_u32 *addr = (uae_u32*)(uae_mem2 + bits * 3);
-										do_put_mem_long (addr, do_get_mem_long (addr) ^ 0x00ffffff);
+										*addr ^= rgbmask;
 									}
 									break;
 								case 4:
