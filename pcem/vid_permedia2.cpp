@@ -325,7 +325,7 @@ void permedia2_recalctimings(svga_t *svga)
 
         if (svga_mode) {
 
-
+            // TODO
 
         } else {
             // graphics processor mode
@@ -384,6 +384,9 @@ void permedia2_recalctimings(svga_t *svga)
             // GP video enabled
             if (!(permedia2->vc_regs[0x58 / 4] & 1)) {
                 bpp = 0;
+                svga->scrblank = 1;
+            } else {
+                svga->scrblank = 0;
             }
             svga->linedbl = 0;
             if (permedia2->vc_regs[0x58 / 4] & 4) {
