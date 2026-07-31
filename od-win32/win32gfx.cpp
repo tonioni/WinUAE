@@ -1893,6 +1893,7 @@ static int open_windows(struct AmigaMonitor *mon, bool mousecapture, bool starte
 
 	inputdevice_unacquire();
 	reset_sound();
+	draw_denise_line_queue_flush();
 	if (mon->hAmigaWnd == NULL)
 		wait_keyrelease();
 
@@ -3051,9 +3052,7 @@ void close_windows(struct AmigaMonitor *mon)
 
 	setDwmEnableMMCSS (FALSE);
 	reset_sound ();
-#if 0
-	S2X_free(mon->monitor_id);
-#endif
+	draw_denise_line_queue_flush();
 	freevidbuffer(mon->monitor_id, &avidinfo->drawbuffer);
 	freevidbuffer(mon->monitor_id, &avidinfo->tempbuffer);
 	close_hwnds(mon);
