@@ -417,6 +417,7 @@ typedef void (*LINETOSRC_FUNC)(void);
 static LINETOSRC_FUNC lts;
 static bool lts_changed, lts_request;
 typedef void (*LINETOSRC_FUNCF)(int,int,int,int,int,int,int,int,uae_u32,uae_u8**,uae_u8**,int,int*,int,struct linestate*);
+static int lts_hres_shift;
 
 static int denise_hcounter, denise_hcounter_next, denise_hcounter_new, denise_hcounter_prev, denise_hcounter_cmp;
 static bool denise_accurate_mode;
@@ -5674,9 +5675,10 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 	}
 
 	if (buf1) {
-		int maxw = addrdiff((uae_u32*)xlinebuffer_end, buf1);
-		if ((denise_pixtotal_max << hresolution) > maxw) {
-			denise_pixtotal_max = maxw >> hresolution;
+		int maxw = addrdiff((uae_u32*)xlinebuffer_end, buf1) >> lts_hres_shift;
+		int resw = denise_pixtotal_max;
+		if (resw > maxw) {
+			denise_pixtotal_max = maxw;
 		}
 	}
 
@@ -6257,6 +6259,8 @@ static void select_lts(void)
 	if (denise_max_planes <= 5 && (bm == CMODE_EXTRAHB || bm == CMODE_EXTRAHB_ECS_KILLEHB)) {
 		bm = CMODE_NORMAL;
 	}
+
+	lts_hres_shift = hresolution;
 
 	if (aga_mode) {
 
