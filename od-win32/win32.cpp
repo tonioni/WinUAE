@@ -3308,7 +3308,15 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 			DiskSelection(isfullscreen() > 0 ? NULL : hWnd, IDC_DF3, 0, &changed_prefs, NULL, NULL);
 			disk_insert(3, changed_prefs.floppyslots[3].df);
 			break;
-
+		case ID_ST_DISPLAYS_CHIPSET:
+			toggle_rtg(0, 0);
+			break;
+		case ID_ST_MONITORS_PREVIOUSDISPLAY:
+			toggle_rtg(0, MAX_RTG_BOARDS + 1);
+			break;
+		case ID_ST_MONITORS_NEXTDISPLAY:
+			toggle_rtg(0, -1);
+			break;
 		}
 		break;
 	}

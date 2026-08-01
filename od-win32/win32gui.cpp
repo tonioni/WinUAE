@@ -11719,6 +11719,9 @@ static void enable_for_expansiondlg(HWND hDlg)
 	ew(hDlg, IDC_RTG_Z2Z3, z3);
 	ew(hDlg, IDC_MONITOREMU_MON, rtg5);
 	//ew(hDlg, IDC_MONITOREMU_ACTIVEMON, TRUE);
+	hide(hDlg, IDC_ACTIVATEMONITOR, full_property_sheet || workprefs.rtgboards[gui_rtg_index].rtgmem_size == 0);
+	setchecked(hDlg, IDC_ACTIVATEMONITOR, gfxboard_monitor_visible(&workprefs.rtgboards[gui_rtg_index]) >= 0);
+	ew(hDlg, IDC_ACTIVATEMONITOR, !full_property_sheet && workprefs.rtgboards[gui_rtg_index].rtgmem_size);
 	ew(hDlg, IDC_RTG_8BIT, rtg);
 	ew(hDlg, IDC_RTG_16BIT, rtg);
 	ew(hDlg, IDC_RTG_24BIT, rtg);
@@ -11727,7 +11730,7 @@ static void enable_for_expansiondlg(HWND hDlg)
 	ew(hDlg, IDC_RTG_CENTER, rtg2);
 	ew(hDlg, IDC_RTG_INTEGERSCALE, rtg2);
 	ew(hDlg, IDC_RTG_NONSQUAREPIXELS, rtg2);
-	hide(hDlg, IDC_RTG_NONSQUAREPIXELS, TRUE); // not yet implemen ted
+	hide(hDlg, IDC_RTG_NONSQUAREPIXELS, TRUE); // not implemented yet
 	ew(hDlg, IDC_RTG_SCALE_ALLOW, rtg2);
 	ew(hDlg, IDC_RTG_SCALE_ASPECTRATIO, rtg2);
 	ew(hDlg, IDC_RTG_VBLANKRATE, rtg2);
@@ -11990,6 +11993,13 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			recursive++;
 			switch (LOWORD (wParam))
 			{
+			case IDC_ACTIVATEMONITOR:
+				if (gfxboard_monitor_visible(&workprefs.rtgboards[gui_rtg_index]) >= 0) {
+					toggle_rtg(workprefs.rtgboards[gui_rtg_index].monitor_id, 0);
+				} else {
+					toggle_rtg(workprefs.rtgboards[gui_rtg_index].monitor_id, gui_rtg_index + 1);
+				}
+				break;
 			case IDC_RTG_SCALE:
 				workprefs.gf[1].gfx_filter_autoscale = ischecked(hDlg, IDC_RTG_SCALE) ? RTG_MODE_SCALE : 0;
 				setchecked(hDlg, IDC_RTG_CENTER,  false);

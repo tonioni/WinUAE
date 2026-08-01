@@ -1378,6 +1378,7 @@
 #define IDC_SER_RTSCTSDTRDTECD          1867
 #define IDC_SER_RI                      1868
 #define IDC_SER_CRLF                    1869
+#define IDC_ACTIVATEMONITOR             1869
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1419,6 +1420,10 @@
 #define ID_ST_CDEJECTALL                40047
 #define ID_CDDRIVES_CD                  40048
 #define ID_ST_CD0                       40049
+#define ID_ST_MENU_MONITORS             40050
+#define ID_ST_MONITORS_NEXTDISPLAY      40051
+#define ID_ST_MONITORS_PREVIOUSDISPLAY  40052
+#define ID_ST_DISPLAYS_CHIPSET          40053
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -1428,8 +1433,8 @@
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        407
-#define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1869
+#define _APS_NEXT_COMMAND_VALUE         40054
+#define _APS_NEXT_CONTROL_VALUE         1870
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
