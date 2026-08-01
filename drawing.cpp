@@ -535,7 +535,7 @@ static int denise_y_start, denise_y_end;
 
 static int denise_pixtotal, denise_pixtotalv, denise_linecnt, denise_startpos, denise_cck, denise_endcycle;
 static int denise_pixtotalskip_start, denise_pixtotalskip_end, denise_hdelay;
-static int denise_pixtotal_max;
+static int denise_pixtotal_max, denise_pixtotal_totalmax;
 static uae_u32 *buf1, *buf2, *buf_d;
 static uae_u8 *gbuf;
 static uae_u8 pixx0, pixx1, pixx2, pixx3;
@@ -5341,6 +5341,24 @@ void end_draw_denise(void)
 	}
 }
 
+static void set_pixtotal_max(void)
+{
+	denise_pixtotal_max = denise_pixtotal_totalmax;
+	if (buf1) {
+		int maxw = addrdiff((uae_u32*)xlinebuffer_end, (uae_u32*)xlinebuffer) >> lts_hres_shift;
+		int resw = denise_pixtotal_max;
+		if (resw > maxw) {
+			denise_pixtotal_max = maxw;
+		}
+		int xshift = linetoscr_x_adjust >> lts_hres_shift;
+		if (xshift > 0) {
+			denise_pixtotal_max -= xshift * 2;
+		}
+	} else {
+		denise_pixtotal_max = -0x7fffffff;
+	}
+}
+
 // emulate black level calibration (vb and hb)
 static uae_u8 blc_prev[3];
 static void emulate_black_level_calibration(uae_u32 *b1, uae_u32 *b2, uae_u32 *db, int dtotal, int cstart, int clen)
@@ -5568,17 +5586,17 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
 	struct vidbuffer *vb = vidinfo->inbuffer;
 	int eraselines = 0;
-	int xshift = 0;
 
 	xlinebuffer = NULL;
 	xlinebuffer2 = NULL;
 	xlinebuffer_genlock = NULL;
 
-	denise_pixtotal_max = (denise_pixtotalv - denise_pixtotalskip_end) * 2;
+	denise_pixtotal_totalmax = (denise_pixtotalv - denise_pixtotalskip_end) * 2;
 	denise_pixtotal = -denise_pixtotalskip_start;
 
 	if (!vb->locked) {
-		denise_pixtotal_max = -0x7fffffff;
+		denise_pixtotal_totalmax = -0x7fffffff;
+		denise_pixtotal_max = denise_pixtotal_totalmax;
 		return;
 	}
 
@@ -5634,7 +5652,7 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 				break;
 		}
 		setxlinebuffer(0, gfx_ypos);
-		xshift = linetoscr_x_adjust >> hresolution;
+		int xshift = linetoscr_x_adjust >> lts_hres_shift;
 		denise_pixtotal -= xshift;
 	}
 
@@ -5674,21 +5692,7 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 		}
 	}
 
-	if (buf1) {
-		int maxw = addrdiff((uae_u32*)xlinebuffer_end, buf1) >> lts_hres_shift;
-		int resw = denise_pixtotal_max;
-		if (resw > maxw) {
-			denise_pixtotal_max = maxw;
-		}
-	}
-
-	if (xshift > 0) {
-		denise_pixtotal_max -= xshift * 2;
-	}
-	if (!buf1) {
-		denise_pixtotal_max = -0x7fffffff;
-	}
-
+	set_pixtotal_max();
 }
 
 static void draw_denise_vsync(int erase)
@@ -6371,6 +6375,8 @@ static void select_lts(void)
 	}
 	lts_request = false;
 	denise_hcounter_prev = denise_hcounter;
+
+	set_pixtotal_max();
 }
 
 STATIC_INLINE uae_u8 getbpl_aga(void)
