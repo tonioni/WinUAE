@@ -1,4 +1,30 @@
 
+Beta 11:
+
+- Added "Visible display" checkbox to RTG panel. Only shown when emulation is running and selected RTG board is active. If visible: unticking it will switch to native screen and if not visible, it will switch to RTG mode. Hopefully this is more discoverable and more intuitive way to manually switch displays than END+F9 key shortcut.
+- Added Chipset/Next display/Previous display to systray menu.
+- CyberVision/BlizzardVision PPC autoswitch support (Permedia 2 SVGA chip display blanking and DPMS register bits emulated)
+- CSMK3/CSPPC/BPPC and CyberVision/BlizzardVision PPC and no PCI bridges configured: automatically add G-REX. (In real world G-REX is not needed but functionally CVPPC/BPPC slot is single slot G-REX)
+- Merlin RTG board hardware mouse cursor horizontal offset fixed.
+- Piccolo and PiccoloSD64 RTG board 8-bit colors fixed.
+- PiccoloSD64 32-bit mode swapped color components fixed.
+- CyberVision PPC/BlizzardVision PPC (Permedia 2) hardware line draw fix (p96cts test)
+- uaegfx BlitPlanar2Direct plane mask was ignored when minterm was not inverting the source. (p96cts test)
+- Refactored OSD led code.
+- OSD CD led was only activated after first CD access, enable it immediately when starting config with one or more CD drives. (b10)
+- OSD FPS shows now RTG refresh rate if RTG is active and chipset sync is disabled, matching windowed mode status bar FPS value.
+- NE2000: drop packets that are too big.
+- NE2000 and A2065: do not receive packets that have source mac == our emulated card. Host side may reflect all sent frames back which can confuse network stacks.
+- Fixed random crashes when switching from (usually doublescanned hires) native WB mode to RTG mode without closing the native screen first (for example ScreenMode Prefs Test-button could trigger it but selecting new WB RTG mode resolution would not). Since v6.0. Resolution mid screen change didn't immediately recalculate all native rendering parameters causing possible drawing buffer overflow.
+- If $b00000-$b7ffff was used for ROM image (last 512k slot of 2M ROM), it was not directly accessible, causing crash in non-more compatible CPU/JIT modes. (Broken when second 1M space was it was split to 2x512k regions long time ago)
+- Fixed hunk executable ROM loader. It only worked if only first hunk had relocations. (Always been broken, it probably worked with some early hunk AROS ROMs)
+- If executable (hunk or elf) is loaded as a ROM: ROM region is not write-protected. This allows custom ROMs with writable DATA or BSS chunks.
+- Some chipset emulation optimizations.
+
+Still same todo list:
+- Fix remove interlace artifacts. (This is so boring to fix..)
+- Fix display port adapters. (and this one too)
+
 Beta 10:
 
 - AGA Lisa bitplane and sprite shifter FMODE change side-effects should be now fully accurate. Bitplane and sprite data storage and shifters now always use 64-bit variables to match real Lisa behavior. OCS/ECS is unchanged (16-bit).
