@@ -5228,6 +5228,13 @@ static void handle_nosignal(void)
 		resetfulllinestate();
 		if (!nosignal_cnt) {
 			denise_clearbuffers();
+			vsync_lines = maxvpos + lof_store;
+			agnus_vsync_start = get_cck_cycles();
+			linear_vpos_prev[2] = vsync_lines;
+			linear_vpos_prev[1] = vsync_lines;
+			linear_vpos_prev[0] = vsync_lines;
+			check_display_mode_change();
+			vsync_check_vsyncmode();
 		}
 		if (!ad->specialmonitoron) {
 			if (currprefs.gfx_monitorblankdelay > 0) {
@@ -12181,6 +12188,9 @@ static void sync_imm_evhandler(void)
 	custom_trigger_start();
 
 	do_imm_dmal();
+
+	int diff = ((int)(get_cycles() - eventtab[ev_sync].oldcycles)) / CYCLE_UNIT;
+	currcycle_cck += diff;
 
 	start_sync_imm_handler();
 }
