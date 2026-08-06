@@ -666,9 +666,17 @@ static int get_dev_hd_reg(uaecptr addr, struct ide_board* board)
 	return reg;
 }
 
-static int get_ripple_reg(uaecptr addr, struct ide_board *board, int *portnum)
+static int get_ripple_reg(uaecptr addr, struct ide_board *board, int *portnum, int *romoffset)
 {
 	int reg = -1;
+	int bankOffset = (board->userdata & 0x03) << 16;
+
+	if ((board->userdata & 0x100) == 0) {
+		*romoffset = (addr & board->mask);
+	} else if (addr & 0x10000) {
+		*romoffset = (addr & 0xFFFF) | bankOffset;
+	}
+
 	*portnum = (addr & 0x2000) ? 1 : 0;
 
 	if (addr & 0x3000) {
@@ -1143,17 +1151,14 @@ static uae_u32 ide_read_byte2(struct ide_board *board, uaecptr addr)
 
 		}
 	} else if (board->type == RIPPLE_IDE) {
-			if (board->rom && board->userdata == 0) {
-				v = board->rom[(addr & board->rom_mask)];
-				return v;
-			}
 			int portnum = 0;
-			int regnum = get_ripple_reg(addr,board,&portnum);
-			if (!ide_isdrive(board->ide[portnum]) && !ide_isdrive(board->ide[portnum]->pair)) {
+			int romoffset = -1;
+			int regnum = get_ripple_reg(addr,board,&portnum,&romoffset);
+			if (board->rom && romoffset >= 0) {
+				v = board->rom[romoffset];
+			} else if (!ide_isdrive(board->ide[portnum]) && !ide_isdrive(board->ide[portnum]->pair)) {
 				v = 0xff;
-				return v;
-			}
-			if (regnum >= 0 && board->ide[portnum]) {
+			} else if (regnum >= 0 && board->ide[portnum]) {
 				v = get_ide_reg_multi(board,regnum,portnum,1);
 			}
 
@@ -1503,15 +1508,14 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 			}
 
 		} else if (board->type == RIPPLE_IDE) {
-			if (board->rom && board->userdata == 0) {
-				v = board->rom[addr & board->rom_mask];
-				v <<= 8;
-				v |= board->rom[(addr + 1) & board->rom_mask];
-				return v;
-			}
 			int portnum = 0;
-			int regnum = get_ripple_reg(addr,board,&portnum);
-			if (regnum == IDE_DATA && board->ide[portnum]) {
+			int romoffset = -1;
+			int regnum = get_ripple_reg(addr,board,&portnum,&romoffset);
+			if (romoffset >= 0) {
+				v = board->rom[romoffset];
+				v <<= 8;
+				v |= board->rom[romoffset + 1];
+			} else if (regnum == IDE_DATA && board->ide[portnum]) {
 				v = get_ide_reg_multi(board, regnum, portnum, 1);
 			}
 
@@ -1951,10 +1955,13 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 			}
 
 		} else if (board->type == RIPPLE_IDE) {
-			if ((addr & 0x3000) && board->userdata == 0) board->userdata = 1;
+			if (addr & 0x3000) board->userdata |= 0x100;
 			int portnum = 0;
-			int reg = get_ripple_reg(addr,board,&portnum);
-			if (board->ide[portnum] && reg >= 0) {
+			int romoffset = -1;
+			int reg = get_ripple_reg(addr,board,&portnum,&romoffset);
+			if ((addr & board->mask) == 0x8000) {
+				board->userdata = 0x100 | (v >> 6);
+			} else if (board->ide[portnum] && reg >= 0) {
 				put_ide_reg_multi(board,reg,v,portnum,1);
 			}
 
@@ -2187,13 +2194,14 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 			}
 
 		} else if (board->type == RIPPLE_IDE) {
-			if ((addr & 0x3000) && board->userdata == 0)
-				board->userdata = 1;
-			if (board->configured) {
-				int portnum = 0;
-				int reg = get_ripple_reg(addr, board, &portnum);
-				if (reg >= 0 && board->ide[portnum])
-					put_ide_reg_multi(board,reg,v,portnum,1);
+			if (addr & 0x3000) board->userdata |= 0x100;
+			int portnum = 0;
+			int romoffset = -1;
+			int reg = get_ripple_reg(addr,board,&portnum,&romoffset);
+			if ((addr & board->mask) == 0x8000) {
+				board->userdata = 0x100 | (v >> 14);
+			} else if (reg >= 0 && board->ide[portnum]) {
+				put_ide_reg_multi(board,reg,v,portnum,1);
 			}
 
 		} else if (board->type == AIDE_IDE) {
@@ -3436,7 +3444,7 @@ bool ripple_init(struct autoconfig_info *aci)
 	ide->configured     = 0;
 	ide->bank           = &ide_bank_generic;
 	ide->type           = RIPPLE_IDE;
-	ide->rom_size       = 131072;
+	ide->rom_size       = 262144;
 	ide->userdata       = 0;
 	ide->intena         = false;
 	ide->mask           = 131072 - 1;
@@ -3456,7 +3464,7 @@ bool ripple_init(struct autoconfig_info *aci)
 		ew(ide, i * 4, b);
 	}
 
-	load_rom_rc(aci->rc, ROMTYPE_RIPPLE, 65536, 0, ide->rom, 131072, LOADROM_EVENONLY_ODDONE);
+	load_rom_rc(aci->rc, ROMTYPE_RIPPLE, 131072, 0, ide->rom, 262144, LOADROM_EVENONLY_ODDONE);
 
 	aci->addrbank = ide->bank;
 	return true;
