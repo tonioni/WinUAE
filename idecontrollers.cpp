@@ -671,10 +671,12 @@ static int get_ripple_reg(uaecptr addr, struct ide_board *board, int *portnum, i
 	int reg = -1;
 	int bankOffset = (board->userdata & 0x03) << 16;
 
-	if ((board->userdata & 0x100) == 0) {
-		*romoffset = (addr & board->mask);
-	} else if (addr & 0x10000) {
-		*romoffset = (addr & 0xFFFF) | bankOffset;
+	if (!(addr & 1)) {
+		if ((board->userdata & 0x100) == 0) {
+			*romoffset = ((addr & board->mask) >> 1);
+		} else if (addr & 0x10000) {
+			*romoffset = (((addr & 0xFFFF) | bankOffset) >> 1);
+		}
 	}
 
 	*portnum = (addr & 0x2000) ? 1 : 0;
@@ -1155,7 +1157,7 @@ static uae_u32 ide_read_byte2(struct ide_board *board, uaecptr addr)
 			int romoffset = -1;
 			int regnum = get_ripple_reg(addr,board,&portnum,&romoffset);
 			if (board->rom && romoffset >= 0) {
-				v = board->rom[romoffset];
+				v = flash_read(board->flashrom,romoffset);
 			} else if (!ide_isdrive(board->ide[portnum]) && !ide_isdrive(board->ide[portnum]->pair)) {
 				v = 0xff;
 			} else if (regnum >= 0 && board->ide[portnum]) {
@@ -1511,10 +1513,10 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 			int portnum = 0;
 			int romoffset = -1;
 			int regnum = get_ripple_reg(addr,board,&portnum,&romoffset);
-			if (romoffset >= 0) {
-				v = board->rom[romoffset];
+			if (board->rom && romoffset >= 0) {
+				v = flash_read(board->flashrom,romoffset);
 				v <<= 8;
-				v |= board->rom[romoffset + 1];
+				v |= 0xff;
 			} else if (regnum == IDE_DATA && board->ide[portnum]) {
 				v = get_ide_reg_multi(board, regnum, portnum, 1);
 			}
@@ -1961,6 +1963,8 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 			int reg = get_ripple_reg(addr,board,&portnum,&romoffset);
 			if ((addr & board->mask) == 0x8000) {
 				board->userdata = 0x100 | (v >> 6);
+			} else if (board->rom && romoffset >= 0) {
+				flash_write(board->flashrom,romoffset,v);
 			} else if (board->ide[portnum] && reg >= 0) {
 				put_ide_reg_multi(board,reg,v,portnum,1);
 			}
@@ -2200,6 +2204,8 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 			int reg = get_ripple_reg(addr,board,&portnum,&romoffset);
 			if ((addr & board->mask) == 0x8000) {
 				board->userdata = 0x100 | (v >> 14);
+			} else if (board->rom && romoffset >= 0) {
+				flash_write(board->flashrom,romoffset,v >> 8);
 			} else if (reg >= 0 && board->ide[portnum]) {
 				put_ide_reg_multi(board,reg,v,portnum,1);
 			}
@@ -3444,7 +3450,7 @@ bool ripple_init(struct autoconfig_info *aci)
 	ide->configured     = 0;
 	ide->bank           = &ide_bank_generic;
 	ide->type           = RIPPLE_IDE;
-	ide->rom_size       = 262144;
+	ide->rom_size       = 131072;
 	ide->userdata       = 0;
 	ide->intena         = false;
 	ide->mask           = 131072 - 1;
@@ -3464,7 +3470,8 @@ bool ripple_init(struct autoconfig_info *aci)
 		ew(ide, i * 4, b);
 	}
 
-	load_rom_rc(aci->rc, ROMTYPE_RIPPLE, 131072, 0, ide->rom, 262144, LOADROM_EVENONLY_ODDONE);
+	ide->romfile = load_rom_rc_zfile(aci->rc, ROMTYPE_RIPPLE, 131072, 0, ide->rom, 131072, LOADROM_ONEFILL);
+	ide->flashrom = flash_new(ide->rom, ide->rom_size, ide->rom_size, 0x01, 0x20, ide->romfile, FLASHROM_PARALLEL_EEPROM | FLASHROM_DATA_PROTECT);
 
 	aci->addrbank = ide->bank;
 	return true;
