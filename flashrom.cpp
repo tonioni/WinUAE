@@ -757,6 +757,8 @@ bool flash_write(void *fdv, uaecptr addr, uae_u8 v)
 	if (addr * other_byte_mult >= fd->allocsize) {
 		return false;
 	}
+	
+	int addr_masked = (addr & 0x7fff);
 
 	int oldstate = fd->state;
 	bool det = false;
@@ -779,29 +781,29 @@ bool flash_write(void *fdv, uaecptr addr, uae_u8 v)
 	}
 
 	// unlock
-	if ((addr & 0x7FFF) == 0x5555 && fd->state <= 2 && v == 0xaa) {
+	if (addr_masked == 0x5555 && fd->state <= 2 && v == 0xaa) {
 		fd->state = 1;
 		det = true;
 	}
-	if ((addr & 0x7FFF) == 0x2aaa && fd->state == 1 && v == 0x55) {
+	if (addr_masked == 0x2aaa && fd->state == 1 && v == 0x55) {
 		fd->state = 2;
 		det = true;
 	}
 
 	// software id exit and reset first byte
-	if ((addr & 0x7FFF) == 0x5555 && fd->state == 3 && v == 0xaa) {
+	if (addr_masked == 0x5555 && fd->state == 3 && v == 0xaa) {
 		fd->state = 1;
 		det = true;
 	}
 
 	// autoselect
-	if ((addr & 0x7FFF) == 0x5555 && fd->state == 2 && v == 0x90) {
+	if (addr_masked == 0x5555 && fd->state == 2 && v == 0x90) {
 		fd->state = 3;
 		det = true;
 	}
 
 	// data protect enable
-	if ((addr & 0x7FFF) == 0x5555 && fd->state == 2 && v == 0xa0) {
+	if (addr_masked == 0x5555 && fd->state == 2 && v == 0xa0) {
 		fd->state = 7;
 		det = true;
 		fd->writeprot = -1;
@@ -809,26 +811,26 @@ bool flash_write(void *fdv, uaecptr addr, uae_u8 v)
 	}
 
 	// data protect disable
-	if ((addr & 0x7FFF) == 0x5555 && fd->state == 6 && v == 0x20) {
+	if (addr_masked == 0x5555 && fd->state == 6 && v == 0x20) {
 		fd->state = 0;
 		fd->writeprot = 0;
 		return false;
 	}
 
 	// chip/sector erase/protect disable
-	if ((addr & 0x7FFF) == 0x5555 && fd->state == 2 && v == 0x80) {
+	if (addr_masked == 0x5555 && fd->state == 2 && v == 0x80) {
 		fd->state = 4;
 		det = true;
 	}
-	if ((addr & 0x7FFF) == 0x5555 && fd->state == 4 && v == 0xaa) {
+	if (addr_masked == 0x5555 && fd->state == 4 && v == 0xaa) {
 		fd->state = 5;
 		det = true;
 	}
-	if ((addr & 0x7FFF) == 0x2aaa && fd->state == 5 && v == 0x55) {
+	if (addr_masked == 0x2aaa && fd->state == 5 && v == 0x55) {
 		fd->state = 6;
 		det = true;
 	}
-	if ((addr & 0x7FFF) == 0x5555 && fd->state == 6 && v == 0x10) {
+	if (addr_masked == 0x5555 && fd->state == 6 && v == 0x10) {
 		for (int i = 0; i < fd->allocsize; i++)  {
 			int a = i * other_byte_mult;
 			if (fd->rom[a] != 0xff) {
