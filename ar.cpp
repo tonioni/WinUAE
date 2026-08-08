@@ -515,7 +515,7 @@ static uae_u8 armode_read, armode_write;
 static struct zfile *arrom_zfile;
 static void *arrom_flash[2];
 static uae_u32 arrom_start, arrom_size, arrom_mask;
-static uae_u32 arram_start, arram_size, arram_mask, arram_size_total;
+static uae_u32 arram_start, arram_size, arram_mask;
 
 static int ar_wait_pop = 0; /* bool used by AR1 when waiting for the program counter to exit it's ram. */
 uaecptr wait_for_pc = 0;    /* The program counter that we wait for. */
@@ -536,7 +536,7 @@ int is_ar_pc_in_ram (void)
 
 
 /* flag writing == 1 for writing memory, 0 for reading from memory. */
-STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
+static int ar3a (uaecptr addr, uae_u8 b, int writing)
 {
 	/*	if (addr < 8) //|| writing ) */
 	/*	{ */
@@ -1754,11 +1754,17 @@ int action_replay_load (void)
 		arram_size = 0x10000;
 	}
 
-	arram_size_total = arram_size;
 	if (!_tcscmp(ident, _T("DeMoNv1")) || !_tcscmp(ident, _T("DeMoNv2"))) {
-		arram_size_total = 1024 * 1204;
-		arrom_zfile = f;
+		zfile_fclose(f);
 		f = NULL;
+		arrom_zfile = read_rom_name(currprefs.cartfile, true);
+		if (!arrom_zfile) {
+			arrom_zfile = read_rom_name(currprefs.cartfile, false);
+			if (!arrom_zfile) {
+				return 0;
+			}
+		}
+		arram_size = 0xb80000 - 0xa80000;
 		arrom_flash[0] = flash_new(armemory_rom, 131072, 262144, 0x1f, 0xd5, arrom_zfile, FLASHROM_PARALLEL_EEPROM | FLASHROM_DATA_PROTECT | FLASHROM_EVERY_OTHER_BYTE);
 		arrom_flash[1] = flash_new(armemory_rom, 131072, 262144, 0x1f, 0xd5, arrom_zfile, FLASHROM_PARALLEL_EEPROM | FLASHROM_DATA_PROTECT | FLASHROM_EVERY_OTHER_BYTE_ODD);
 		if (!_tcscmp(ident, _T("DeMoNv2"))) {
@@ -1772,7 +1778,7 @@ int action_replay_load (void)
 
 	arram_mask = arram_size - 1;
 	arrom_mask = arrom_size - 1;
-	armemory_ram = xcalloc (uae_u8, arram_size_total);
+	armemory_ram = xcalloc (uae_u8, arram_size);
 
 	write_log (_T("Action Replay %d installed at %08X, size %08X\n"), armodel, arrom_start, arrom_size);
 	action_replay_version();
