@@ -656,16 +656,17 @@ void flash_free(void *fdv)
 	if (!fd)
 		return;
 	if (fd->zf && fd->modified) {
-		if (fd->flags & FLASHROM_EVERY_OTHER_BYTE) {
-			zfile_fseek(fd->zf, (fd->flags & FLASHROM_EVERY_OTHER_BYTE_ODD) ? 1 : 0, SEEK_SET);
+		if (fd->flags & (FLASHROM_EVERY_OTHER_BYTE | FLASHROM_EVERY_OTHER_BYTE_ODD)) {
+			int odd = (fd->flags & FLASHROM_EVERY_OTHER_BYTE_ODD) ? 1 : 0;
+			zfile_fseek(fd->zf, odd, SEEK_SET);
 			int last = fd->lastwriteoffset + 1;
 			last += 511;
 			last &= ~511;
 			if (last > fd->allocsize) {
 				last = fd->allocsize;
 			}
-			for (int i = 0; i < last; i++) {
-				zfile_fwrite(&fd->rom[i * 2], 1, 1, fd->zf);
+			for (int i = 0; i < last / 2; i++) {
+				zfile_fwrite(&fd->rom[i * 2 + odd], 1, 1, fd->zf);
 				zfile_fseek(fd->zf, 1, SEEK_CUR);
 			}
 		} else if (fd->flags & FLASHROM_SKIP_EVERY_OTHER_BYTE) {
@@ -772,8 +773,7 @@ bool flash_write(void *fdv, uaecptr addr, uae_u8 v)
 	addr &= fd->mask;
 
 	if (fd->state == 7 || fd->state == 8) {
-		int a = addr * other_byte_mult + odd;
-		writeflash(fd, a, v);
+		writeflash(fd, addr, v);
 		return true;
 	}
 
@@ -870,8 +870,7 @@ bool flash_write(void *fdv, uaecptr addr, uae_u8 v)
 	}
 
 	if (!det && (fd->flags & FLASHROM_PARALLEL_EEPROM)) {
-		int a = addr * other_byte_mult + odd;
-		writeflash(fd, a, v);
+		writeflash(fd, addr, v);
 		return true;
 	}
 	return false;
