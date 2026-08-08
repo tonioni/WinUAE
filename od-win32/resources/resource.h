@@ -739,6 +739,7 @@
 #define IDC_CARTCHOOSER                 1399
 #define IDC_SAVE                        1400
 #define IDC_CPUBOARDROMSUBSELECT        1400
+#define IDC_CARTFILECUSTOM              1400
 #define IDC_LOAD                        1401
 #define IDC_RTCCHOOSER                  1401
 #define IDC_SCSIROMCHOOSER              1402
@@ -923,6 +924,7 @@
 #define IDC_INPUTDEVICETEXT             1610
 #define IDC_ALWAYSONTOP                 1610
 #define IDC_SCSIROMFILEAUTOBOOT         1610
+#define IDC_CUSTOMCARTFILE              1610
 #define IDC_AVIOUTPUT_FILE              1611
 #define IDC_INPUTLIST                   1611
 #define IDC_CATWEASEL                   1611
