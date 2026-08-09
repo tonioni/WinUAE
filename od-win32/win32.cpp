@@ -2006,8 +2006,7 @@ static void StartCustomResize(AmigaMonitor *mon, HWND hWindow, int nEdge, int x,
 	inresizefirst = TRUE;
 	SetCapture(hWindow);
 	nSizingEdge = nEdge;
-	ptResizePos.x = x;
-	ptResizePos.y = y;
+	GetCursorPos(&ptResizePos);
 	GetWindowRect(hWindow, &rcResizeStartWindowRect);
 	getsizemove(mon);
 }
@@ -2533,6 +2532,9 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_KILLFOCUS:
 		//write_log(_T("killfocus\n"));
 		focus = 0;
+		if (inresizing) {
+			EndCustomResize(hWnd, FALSE);
+		}
 		return 0;
 
 	case WM_MOUSELEAVE:
@@ -2542,9 +2544,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_MOUSEMOVE:
 	{
-		if (inresizing) {
-			CustomResizeMouseMove(mon, hWnd);
-		} else {
+		if (!inresizing) {
 			int wm = dinput_winmouse();
 
 			monitor_off = 0;
@@ -2946,6 +2946,10 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 	if (all_events_disabled)
 		return 0;
+
+	if (inresizing && message == WM_MOUSEMOVE) {
+		CustomResizeMouseMove(mon, hWnd);
+	}
 
 	switch (message)
 	{
