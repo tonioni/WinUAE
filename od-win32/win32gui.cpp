@@ -10611,7 +10611,7 @@ struct romdataentry
 	int id;
 };
 
-static bool addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, DWORD dtxt, const TCHAR *path, const TCHAR *ident, int type1, int type2, bool all)
+static struct romdata *addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, DWORD dtxt, const TCHAR *path, const TCHAR *ident, int type1, int type2, bool all)
 {
 	int idx;
 	TCHAR tmp[MAX_DPATH];
@@ -10621,6 +10621,7 @@ static bool addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, DWORD dtxt, const TCHA
 	struct romdataentry *rde = xcalloc(struct romdataentry, MAX_ROMMGR_ROMS);
 	int ridx = 0;
 	bool matched = false;
+	struct romdata *foundrd = NULL;
 	
 	if (path) {
 		rdx = scan_single_rom(path);
@@ -10632,6 +10633,7 @@ static bool addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, DWORD dtxt, const TCHA
 		for (int i = 0; rl[i]; i++) {
 			rde[ridx].name = my_strdup(rl[i]->name);
 			rde[ridx].ident = my_strdup(rl[i]->configname);
+			rde[ridx].id = rl[i]->id;
 			rde[ridx].priority = rl[i]->sortpriority;
 			ridx++;
 		}
@@ -10750,6 +10752,7 @@ static bool addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, DWORD dtxt, const TCHA
 			SetDlgItemText(hDlg, dtxt, path);
 			xSendDlgItemMessage(hDlg, d, CB_SETCURSEL, selidx, 0);
 		}
+		foundrd = getromdatabyid(selrde->id);
 	} else {
 		SetDlgItemText(hDlg, dtxt, path);
 		if (d != dtxt) {
@@ -10764,7 +10767,7 @@ static bool addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, DWORD dtxt, const TCHA
 	}
 	xfree(rde);
 
-	return matched;
+	return foundrd;
 }
 
 static void getromfile(HWND hDlg, DWORD d, TCHAR *path, int size, TCHAR *ident)
@@ -10788,12 +10791,12 @@ static void getromfile(HWND hDlg, DWORD d, TCHAR *path, int size, TCHAR *ident)
 					_stprintf(path, _T(":%s"), rd->configname);
 				}
 				if (ident) {
-					_tcscpy(ident, rd->configname);
+					_stprintf(ident, _T(":%s"), rd->configname);
 				}
 			} else if (rl) {
 				_tcsncpy(path, rl->path, size);
 				if (rl->rd && rl->rd->configname) {
-					_tcscpy(ident, rl->rd->configname);
+					_stprintf(ident, _T(":%s"), rl->rd->configname);
 				}
 			}
 		}
@@ -12746,9 +12749,10 @@ static void values_to_kickstartdlg(HWND hDlg)
 	addromfiles(fkey, hDlg, IDC_ROMFILE2, IDC_ROMFILE2, workprefs.romextfile, NULL,
 		ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS | ROMTYPE_ALG, 0, false);
 
-	if (!addromfiles(fkey, hDlg, IDC_CARTFILE, IDC_CARTFILECUSTOM, workprefs.cartfile, workprefs.cartident,
-		ROMTYPE_FREEZER | ROMTYPE_ARCADIAGAME | ROMTYPE_CD32CART, 0, ischecked(hDlg, IDC_CUSTOMCARTFILE))) {
-		if (workprefs.cartfile[0]) {
+	struct romdata *cartrd = addromfiles(fkey, hDlg, IDC_CARTFILE, IDC_CARTFILECUSTOM, workprefs.cartfile, workprefs.cartident,
+		ROMTYPE_FREEZER | ROMTYPE_ARCADIAGAME | ROMTYPE_CD32CART, 0, ischecked(hDlg, IDC_CUSTOMCARTFILE));
+	if (!cartrd || cartrd->crc32 == 0xffffffff) {
+		if (workprefs.cartfile[0] || (cartrd && cartrd->crc32 == 0xffffffff)) {
 			setchecked(hDlg, IDC_CUSTOMCARTFILE, true);
 		}
 	}
