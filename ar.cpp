@@ -1515,11 +1515,10 @@ int action_replay_unload (int in_memory_reset)
 	return 1;
 }
 
-static int superiv_init (struct romdata *rd, struct zfile *f)
+static int superiv_init (struct romdata *rd, struct zfile *f, int flags)
 {
 	uae_u32 chip = currprefs.chipmem.size - 0x10000;
 	int subtype = rd->id;
-	int flags = rd->type & ROMTYPE_MASK;
 	const TCHAR *memname1, *memname2, *memname3;
 
 	memname1 = memname2 = memname3 = NULL;
@@ -1632,9 +1631,7 @@ static int superiv_init (struct romdata *rd, struct zfile *f)
 
 int action_replay_load (void)
 {
-	struct zfile *f;
 	uae_u8 header[8];
-	struct romdata *rd;
 
 	armodel = 0;
 	action_replay_flag = ACTION_REPLAY_INACTIVE;
@@ -1650,25 +1647,40 @@ int action_replay_load (void)
 
 	write_log_debug (_T("Entered action_replay_load ()\n"));
 
-	rd = getromdatabypath (currprefs.cartfile);
-	if (rd) {
-		if (rd->id == 62)
-			return superiv_init (rd, NULL);
-		if (rd->type & ROMTYPE_CD32CART)
-			return 0;
+	struct romdata *rd = getromdatabypath(currprefs.cartfile);
+	TCHAR *ident = currprefs.cartident;
+	if (ident[0] == ':') {
+		ident++;
+	} else {
+		ident = _T("");
 	}
-	f = read_rom_name(currprefs.cartfile, false);
+	if (rd && rd->id == 62) {
+		return superiv_init(rd, NULL, rd->type);
+	}
+	if (rd && (rd->type & ROMTYPE_CD32CART)) {
+		return 0;
+	}
+	struct zfile *f = read_rom_name(currprefs.cartfile, false);
 	if (!f) {
 		write_log (_T("failed to load '%s' cartridge ROM\n"), currprefs.cartfile);
 		return 0;
 	}
 	rd = getromdatabyzfile(f);
 	if (!rd) {
-		write_log (_T("Unknown cartridge ROM '%s'\n"), currprefs.cartfile);
+		if (!_tcscmp(ident, _T("SuperIV"))) {
+			return superiv_init(rd, f, ROMTYPE_SUPERIV);
+		}
+		if (!_tcscmp(ident, _T("XPower"))) {
+			return superiv_init(rd, f, ROMTYPE_XPOWER);
+		}
+		if (!_tcscmp(ident, _T("NPower"))) {
+			return superiv_init(rd, f, ROMTYPE_NORDIC);
+		}
+		write_log (_T("Unknown cartridge ROM '%s', assuming Action Replay I/II/III\n"), currprefs.cartfile);
 	} else {
 		int type = rd->type & ROMTYPE_MASK;
 		if (type == ROMTYPE_SUPERIV || rd->type == ROMTYPE_NORDIC || rd->type == ROMTYPE_XPOWER) {
-			return superiv_init (rd, f);
+			return superiv_init(rd, f, rd->type);
 		}
 	}
 	zfile_fseek(f, 0, SEEK_END);
@@ -2233,18 +2245,16 @@ static uae_u16 wswap (uae_u16 v,int b15,int b14,int b13,int b12, int b11, int b1
 // middle (even)
 static void descramble1 (uae_u8 *buf, int size)
 {
-	int i;
-
-	for (i = 0; i < size; i++)
+	for (int i = 0; i < size; i++) {
 		buf[i] = bswap (buf[i], 4, 1, 5, 3, 0, 7, 6, 2);
+	}
 }
 static void descramble1a (uae_u8 *buf, int size)
 {
-	int i;
 	uae_u8 tbuf[NPSIZE];
 
 	memcpy (tbuf, buf, size);
-	for (i = 0; i < size; i++) {
+	for (int i = 0; i < size; i++) {
 		int a = (i ^ AXOR) & (size - 1);
 		buf[i] = tbuf[wswap (a, 15, 9, 10, 4, 6, 5, 3, 8, 14, 13, 0, 12, 11, 2, 1, 7)];
 	}
@@ -2252,18 +2262,16 @@ static void descramble1a (uae_u8 *buf, int size)
 // corner (odd)
 static void descramble2 (uae_u8 *buf, int size)
 {
-	int i;
-
-	for (i = 0; i < size; i++)
+	for (int i = 0; i < size; i++) {
 		buf[i] = bswap (buf[i], 5, 4, 3, 2, 1, 0, 7, 6);
+	}
 }
 static void descramble2a (uae_u8 *buf, int size)
 {
-	int i;
 	uae_u8 tbuf[NPSIZE];
 
 	memcpy (tbuf, buf, size);
-	for (i = 0; i < size; i++) {
+	for (int i = 0; i < size; i++) {
 		int a = (i ^ AXOR) & (size - 1);
 		buf[i] = tbuf[wswap (a, 15, 2, 4, 0, 1, 10, 11, 8, 13, 14, 12, 9, 7, 5, 6, 3)];
 	}
