@@ -558,11 +558,16 @@ typedef HRESULT(CALLBACK* SHCREATEITEMFROMPARSINGNAME)
 
 static void addplace(SHCREATEITEMFROMPARSINGNAME psh, IFileOpenDialog *pfd, const TCHAR *path)
 {
-	IShellItem *shellitem = NULL;
-	HRESULT hr = psh(path, NULL, IID_IShellItem, (void **)&shellitem);
-	if (SUCCEEDED(hr)) {
-		hr = pfd->AddPlace(shellitem, FDAP_BOTTOM);
-		shellitem->Release();
+	if (path[0]) {
+		IShellItem *shellitem = NULL;
+		TCHAR path2[MAX_DPATH];
+		_tcscpy(path2, path);
+		fullpath(path2, sizeof(path2) / sizeof(TCHAR), false);
+		HRESULT hr = psh(path2, NULL, IID_IShellItem, (void**)&shellitem);
+		if (SUCCEEDED(hr)) {
+			hr = pfd->AddPlace(shellitem, FDAP_BOTTOM);
+			shellitem->Release();
+		}
 	}
 }
 
@@ -666,6 +671,8 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 	fetch_path(_T("KickstartPath"), tmp, sizeof(tmp) / sizeof(TCHAR));
 	addplace(pSHCreateItemFromParsingName, pfd, tmp);
 	fetch_path(_T("hdfPath"), tmp, sizeof(tmp) / sizeof(TCHAR));
+	addplace(pSHCreateItemFromParsingName, pfd, tmp);
+	fetch_path(_T("CDPath"), tmp, sizeof(tmp) / sizeof(TCHAR));
 	addplace(pSHCreateItemFromParsingName, pfd, tmp);
 	fetch_path(_T("StatefilePath"), tmp, sizeof(tmp) / sizeof(TCHAR));
 	addplace(pSHCreateItemFromParsingName, pfd, tmp);
@@ -2117,12 +2124,13 @@ int scan_roms (HWND hDlg, int show)
 	fkey2 = regcreatetree (NULL, _T("DetectedROMS"));
 	if (fkey2) {
 		id = 1;
-		for (;;) {
+		while (id < MAX_ROMMGR_ROMS) {
 			struct romdata *rd = getromdatabyid (id);
-			if (!rd)
-				break;
-			if (rd->crc32 == 0xffffffff)
-				addrom (fkey, rd, NULL);
+			if (rd) {
+				if (rd->crc32 == 0xffffffff) {
+					addrom (fkey, rd, NULL);
+				}
+			}
 			id++;
 		}
 		regclosetree (fkey2);
@@ -3294,7 +3302,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			_tcscpy (workprefs.rtcfile, full_path);
 			fullpath(workprefs.rtcfile, MAX_DPATH);
 			break;
-		case IDC_CARTFILE:
+		case IDC_CUSTOMCARTFILE:
 			_tcscpy (workprefs.cartfile, full_path);
 			fullpath (workprefs.cartfile, MAX_DPATH);
 			break;
@@ -10598,64 +10606,111 @@ static void fix_values_memorydlg (void)
 struct romdataentry
 {
 	TCHAR *name;
+	TCHAR *ident;
 	int priority;
+	int id;
 };
 
-static void addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, const TCHAR *path, int type1, int type2)
+static struct romdata *addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, DWORD dtxt, const TCHAR *path, const TCHAR *ident, int type1, int type2, bool all)
 {
 	int idx;
 	TCHAR tmp[MAX_DPATH];
 	TCHAR tmp2[MAX_DPATH];
-	TCHAR seltmp[MAX_DPATH];
+	int seltmp = -1;
 	struct romdata *rdx = NULL;
 	struct romdataentry *rde = xcalloc(struct romdataentry, MAX_ROMMGR_ROMS);
 	int ridx = 0;
+	bool matched = false;
+	struct romdata *foundrd = NULL;
 	
-	if (path)
+	if (path) {
 		rdx = scan_single_rom(path);
+	}
 	idx = 0;
-	seltmp[0] = 0;
-	for (; fkey;) {
-		int size = sizeof(tmp) / sizeof(TCHAR);
-		int size2 = sizeof(tmp2) / sizeof(TCHAR);
-		if (!regenumstr(fkey, idx, tmp, &size, tmp2, &size2))
-			break;
-		if (_tcslen(tmp) == 7 || _tcslen(tmp) == 13) {
-			int group = 0;
-			int subitem = 0;
-			int idx2 = _tstol(tmp + 4);
-			if (_tcslen(tmp) == 13) {
-				group = _tstol(tmp + 8);
-				subitem = _tstol(tmp + 11);
+	if (all) {
+		int ids[3] = { type1, type2 >= 0 ? type2 : -1, -1 };
+		struct romdata **rl = getromdatalistbyids(ids);
+		for (int i = 0; rl[i]; i++) {
+			rde[ridx].name = my_strdup(rl[i]->name);
+			rde[ridx].ident = my_strdup(rl[i]->configname);
+			rde[ridx].id = rl[i]->id;
+			rde[ridx].priority = rl[i]->sortpriority;
+			ridx++;
+		}
+	} else {
+		for (; fkey;) {
+			int size = sizeof(tmp) / sizeof(TCHAR);
+			int size2 = sizeof(tmp2) / sizeof(TCHAR);
+			if (!regenumstr(fkey, idx, tmp, &size, tmp2, &size2)) {
+				break;
 			}
-			if (idx2 >= 0) {
-				struct romdata *rd = getromdatabyidgroup(idx2, group, subitem);
-				for (int i = 0; i < 2; i++) {
-					int type = i ? type2 : type1;
-					if (type) {
-						if (rd && ((((rd->type & ROMTYPE_GROUP_MASK) & (type & ROMTYPE_GROUP_MASK)) && ((rd->type & ROMTYPE_SUB_MASK) == (type & ROMTYPE_SUB_MASK) || !(type & ROMTYPE_SUB_MASK))) ||
-								   (rd->type & type) == ROMTYPE_NONE || (rd->type & type) == ROMTYPE_NOT)) {
-							getromname(rd, tmp);
-							int j;
-							for (j = 0; j < ridx; j++) {
-								if (!_tcsicmp(rde[j].name, tmp)) {
-									break;
+			if (_tcslen(tmp) == 7 || _tcslen(tmp) == 13) {
+				int group = 0;
+				int subitem = 0;
+				int idx2 = _tstol(tmp + 4);
+				if (_tcslen(tmp) == 13) {
+					group = _tstol(tmp + 8);
+					subitem = _tstol(tmp + 11);
+				}
+				if (idx2 >= 0) {
+					struct romdata *rd = getromdatabyidgroup(idx2, group, subitem);
+					for (int i = 0; i < 2; i++) {
+						int type = i ? type2 : type1;
+						if (type) {
+							if (rd && ((((rd->type & ROMTYPE_GROUP_MASK) & (type & ROMTYPE_GROUP_MASK)) && ((rd->type & ROMTYPE_SUB_MASK) == (type & ROMTYPE_SUB_MASK) || !(type & ROMTYPE_SUB_MASK))) ||
+									   (rd->type & type) == ROMTYPE_NONE || (rd->type & type) == ROMTYPE_NOT)) {
+								getromname(rd, tmp);
+								int j;
+								for (j = 0; j < ridx; j++) {
+									if (!_tcsicmp(rde[j].name, tmp)) {
+										break;
+									}
 								}
+								if (j >= ridx) {
+									rde[ridx].name = my_strdup(tmp);
+									rde[ridx].ident = my_strdup(rd->configname);
+									rde[ridx].priority = rd->sortpriority;
+									rde[ridx].id = rd->id;
+									ridx++;
+								}
+								if (rd == rdx) {
+									seltmp = rde[j].id;
+									matched = true;
+								}
+								break;
 							}
-							if (j >= ridx) {
-								rde[ridx].name = my_strdup(tmp);
-								rde[ridx].priority = rd->sortpriority;
-								ridx++;
-							}
-							if (rd == rdx)
-								_tcscpy(seltmp, tmp);
-							break;
 						}
 					}
 				}
 			}
+			idx++;
 		}
-		idx++;
+	}
+
+
+
+	if (!matched && ident && ident[0] == ':' && ident[1]) {
+		for (int i = 0; i < ridx; i++) {
+			if (rde[i].ident && !_tcscmp(rde[i].ident, ident + 1)) {
+				seltmp = rde[i].id;
+				matched = true;
+				break;
+			}
+		}
+	}
+
+	// still not found? Must be custom rom without romscanner result.
+	if (!matched && ident && ident[0] == ':' && ident[1]) {
+		struct romdata *rd = getrombyident(ident + 1);
+		if (rd != NULL) {
+			rde[ridx].name = my_strdup(rd->name);
+			rde[ridx].ident = my_strdup(rd->configname);
+			rde[ridx].priority = rd->sortpriority;
+			rde[ridx].id = rd->id;
+			seltmp = rde[ridx].id;
+			matched = true;
+			ridx++;
+		}
 	}
 
 	for (int i = 0; i < ridx; i++) {
@@ -10673,22 +10728,49 @@ static void addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, const TCHAR *path, int
 		}
 	}
 
+	struct romdataentry *selrde = NULL;
+	int selidx = -1;
+	for (int i = 0; i < ridx; i++) {
+		if (rde[i].id == seltmp) {
+			selrde = &rde[i];
+			selidx = i + 1;
+			break;
+		}
+	}
+
 	xSendDlgItemMessage(hDlg, d, CB_RESETCONTENT, 0, 0);
 	xSendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM)_T(""));
 	for (int i = 0; i < ridx; i++) {
 		struct romdataentry *rdep = &rde[i];
 		xSendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM)rdep->name);
-		xfree(rdep->name);
 	}
-	if (seltmp[0])
-		xSendDlgItemMessage(hDlg, d, CB_SELECTSTRING, (WPARAM) -1, (LPARAM) seltmp);
-	else
-		SetDlgItemText(hDlg, d, path);
 
+	if (selrde) {
+		if (d == dtxt) {
+			xSendDlgItemMessage(hDlg, d, CB_SELECTSTRING, (WPARAM)-1, (LPARAM)selrde->name);
+		} else {
+			SetDlgItemText(hDlg, dtxt, path);
+			xSendDlgItemMessage(hDlg, d, CB_SETCURSEL, selidx, 0);
+		}
+		foundrd = getromdatabyid(selrde->id);
+	} else {
+		SetDlgItemText(hDlg, dtxt, path);
+		if (d != dtxt) {
+			xSendDlgItemMessage(hDlg, d, CB_SETCURSEL, selidx, 0);
+		}
+	}
+
+	for (int i = 0; i < ridx; i++) {
+		struct romdataentry *rdep = &rde[i];
+		xfree(rdep->name);
+		xfree(rdep->ident);
+	}
 	xfree(rde);
+
+	return foundrd;
 }
 
-static void getromfile(HWND hDlg, DWORD d, TCHAR *path, int size)
+static void getromfile(HWND hDlg, DWORD d, TCHAR *path, int size, TCHAR *ident)
 {
 	LRESULT val = xSendDlgItemMessage(hDlg, d, CB_GETCURSEL, 0, 0L);
 	if (val == CB_ERR) {
@@ -10702,10 +10784,21 @@ static void getromfile(HWND hDlg, DWORD d, TCHAR *path, int size)
 		rd = getromdatabyname(tmp1);
 		if (rd) {
 			struct romlist *rl = getromlistbyromdata(rd);
-			if (rd->configname)
-				_stprintf(path, _T(":%s"), rd->configname);
-			else if (rl)
+			if (rd->configname) {
+				if (rl) {
+					_tcsncpy(path, rl->path, size);
+				} else {
+					_stprintf(path, _T(":%s"), rd->configname);
+				}
+				if (ident) {
+					_stprintf(ident, _T(":%s"), rd->configname);
+				}
+			} else if (rl) {
 				_tcsncpy(path, rl->path, size);
+				if (rl->rd && rl->rd->configname) {
+					_stprintf(ident, _T(":%s"), rl->rd->configname);
+				}
+			}
 		}
 	}
 }
@@ -11112,7 +11205,7 @@ static void values_from_expansion2dlg(HWND hDlg)
 	bool isnew = false;
 
 	int checked = ischecked(hDlg, IDC_SCSIROMSELECTED);
-	getromfile(hDlg, IDC_SCSIROMFILE, tmp, MAX_DPATH / sizeof(TCHAR));
+	getromfile(hDlg, IDC_SCSIROMFILE, tmp, MAX_DPATH / sizeof(TCHAR), NULL);
 	if (tmp[0] || checked) {
 		const struct expansionromtype *ert = &expansionroms[scsiromselected];
 		if (!get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index))
@@ -11124,7 +11217,7 @@ static void values_from_expansion2dlg(HWND hDlg)
 			_tcscpy(brc->roms[index].romfile, _T(":ENABLED"));
 		} else {
 			changed = _tcscmp(tmp, brc->roms[index].romfile) != 0;
-			getromfile(hDlg, IDC_SCSIROMFILE, brc->roms[index].romfile, MAX_DPATH / sizeof(TCHAR));
+			getromfile(hDlg, IDC_SCSIROMFILE, brc->roms[index].romfile, MAX_DPATH / sizeof(TCHAR), NULL);
 		}
 		brc->roms[index].autoboot_disabled = ischecked(hDlg, IDC_SCSIROMFILEAUTOBOOT);
 		brc->roms[index].inserted = ischecked(hDlg, IDC_SCSIROMFILEPCMCIA);
@@ -11176,10 +11269,10 @@ static void values_from_expansion2dlg(HWND hDlg)
 	}
 
 	workprefs.cpuboard_settings = accelerator_gui_item.expansionrom_gui_settings;
-	getromfile(hDlg, IDC_CPUBOARDROMFILE, tmp, sizeof(brc->roms[index].romfile) / sizeof(TCHAR));
+	getromfile(hDlg, IDC_CPUBOARDROMFILE, tmp, sizeof(brc->roms[index].romfile) / sizeof(TCHAR), NULL);
 	if (tmp[0]) {
 		brc = get_device_rom_new(&workprefs, ROMTYPE_CPUBOARD, 0, &index);
-		getromfile(hDlg, IDC_CPUBOARDROMFILE, brc->roms[index].romfile, sizeof(brc->roms[index].romfile) / sizeof(TCHAR));
+		getromfile(hDlg, IDC_CPUBOARDROMFILE, brc->roms[index].romfile, sizeof(brc->roms[index].romfile) / sizeof(TCHAR), NULL);
 	} else {
 		clear_device_rom(&workprefs, ROMTYPE_CPUBOARD, 0, true);
 	}
@@ -11223,7 +11316,7 @@ static void values_to_expansion2_expansion_roms(HWND hDlg, UAEREG *fkey)
 			hide(hDlg, IDC_SCSIROMFILE, 0);
 			hide(hDlg, IDC_SCSIROMSELECTED, 1);
 			setchecked(hDlg, IDC_SCSIROMSELECTED, false);
-			addromfiles(fkey, hDlg, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL, romtype, romtype_extra);
+			addromfiles(fkey, hDlg, IDC_SCSIROMFILE, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL, NULL, romtype, romtype_extra, false);
 			setchecked(hDlg, IDC_SCSIROMFILEAUTOBOOT, brc && brc->roms[index].autoboot_disabled);
 		}
 		if (deviceflags & EXPANSIONTYPE_PCMCIA) {
@@ -11393,8 +11486,8 @@ static void values_to_expansion2dlg (HWND hDlg, int mode)
 	if (workprefs.cpuboard_type) {
 		const struct cpuboardsubtype *cst = &cpuboards[workprefs.cpuboard_type].subtypes[workprefs.cpuboard_subtype];
 		brc = get_device_rom(&workprefs, ROMTYPE_CPUBOARD, 0, &index);
-		addromfiles(fkey, hDlg, IDC_CPUBOARDROMFILE, brc ? brc->roms[index].romfile : NULL,
-			cst->romtype, cst->romtype_extra);
+		addromfiles(fkey, hDlg, IDC_CPUBOARDROMFILE, IDC_CPUBOARDROMFILE, brc ? brc->roms[index].romfile : NULL, NULL,
+			cst->romtype, cst->romtype_extra, false);
 	} else {
 		xSendDlgItemMessage(hDlg, IDC_CPUBOARDROMFILE, CB_RESETCONTENT, 0, 0);
 	}
@@ -12617,6 +12710,31 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	return FALSE;
 }
 
+static void initcartfilecustom(HWND hDlg)
+{
+	int allowed = ROMTYPE_FREEZER | ROMTYPE_CD32CART;
+	struct romdata *rd = getromdatabypath(workprefs.cartfile);
+	// rom path set but no romscanner rom found?
+	if (!rd && workprefs.cartfile[0]) {
+		setchecked(hDlg, IDC_CUSTOMCARTFILE, true);
+	}
+	if (!ischecked(hDlg, IDC_CUSTOMCARTFILE) || (rd && !(rd->type & allowed))) {
+		ew(hDlg, IDC_CARTFILECUSTOM, FALSE);
+		ew(hDlg, IDC_CARTCHOOSER, FALSE);
+		SendMessage(GetDlgItem(hDlg, IDC_CARTFILECUSTOM), WM_SETTEXT, 0, (LPARAM)_T(""));
+		if ((rd && !(rd->type & allowed))) {
+			hide(hDlg, IDC_CUSTOMCARTFILE, true);
+		} else {
+			hide(hDlg, IDC_CUSTOMCARTFILE, false);
+		}
+	} else {
+		SendMessage(GetDlgItem(hDlg, IDC_CARTFILECUSTOM), WM_SETTEXT, 0, (LPARAM)workprefs.cartfile);
+		ew(hDlg, IDC_CARTFILECUSTOM, TRUE);
+		ew(hDlg, IDC_CARTCHOOSER, TRUE);
+		hide(hDlg, IDC_CUSTOMCARTFILE, false);
+	}
+}
+
 static int customromselectnum;
 static void values_to_kickstartdlg(HWND hDlg)
 {
@@ -12626,12 +12744,19 @@ static void values_to_kickstartdlg(HWND hDlg)
 
 	load_keyring(&workprefs, NULL);
 
-	addromfiles(fkey, hDlg, IDC_ROMFILE, workprefs.romfile,
-		ROMTYPE_KICK | ROMTYPE_KICKCD32, 0);
-	addromfiles(fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile,
-		ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS | ROMTYPE_ALG, 0);
-	addromfiles(fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
-		ROMTYPE_FREEZER | ROMTYPE_ARCADIAGAME | ROMTYPE_CD32CART, 0);
+	addromfiles(fkey, hDlg, IDC_ROMFILE, IDC_ROMFILE, workprefs.romfile, NULL,
+		ROMTYPE_KICK | ROMTYPE_KICKCD32, 0, false);
+	addromfiles(fkey, hDlg, IDC_ROMFILE2, IDC_ROMFILE2, workprefs.romextfile, NULL,
+		ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS | ROMTYPE_ALG, 0, false);
+
+	struct romdata *cartrd = addromfiles(fkey, hDlg, IDC_CARTFILE, IDC_CARTFILECUSTOM, workprefs.cartfile, workprefs.cartident,
+		ROMTYPE_FREEZER | ROMTYPE_ARCADIAGAME | ROMTYPE_CD32CART, 0, ischecked(hDlg, IDC_CUSTOMCARTFILE));
+	if (!cartrd || cartrd->crc32 == 0xffffffff) {
+		if (workprefs.cartfile[0] || (cartrd && cartrd->crc32 == 0xffffffff)) {
+			setchecked(hDlg, IDC_CUSTOMCARTFILE, true);
+		}
+	}
+	initcartfilecustom(hDlg);
 
 	regclosetree(fkey);
 
@@ -12683,9 +12808,10 @@ static void values_to_kickstartdlg2(HWND hDlg)
 
 static void values_from_kickstartdlg(HWND hDlg)
 {
-	getromfile(hDlg, IDC_ROMFILE, workprefs.romfile, sizeof(workprefs.romfile) / sizeof(TCHAR));
-	getromfile(hDlg, IDC_ROMFILE2, workprefs.romextfile, sizeof(workprefs.romextfile) / sizeof(TCHAR));
-	getromfile(hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof(workprefs.cartfile) / sizeof(TCHAR));
+	getromfile(hDlg, IDC_ROMFILE, workprefs.romfile, sizeof(workprefs.romfile) / sizeof(TCHAR), NULL);
+	getromfile(hDlg, IDC_ROMFILE2, workprefs.romextfile, sizeof(workprefs.romextfile) / sizeof(TCHAR), NULL);
+	getromfile(hDlg, IDC_CARTFILE, workprefs.cartfile, sizeof(workprefs.cartfile) / sizeof(TCHAR), workprefs.cartident);
+	initcartfilecustom(hDlg);
 
 	read_kickstart_version(&workprefs);
 	int v = xSendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_GETCURSEL, 0, 0);
@@ -12773,7 +12899,7 @@ static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
 		values_to_kickstartdlg(hDlg);
 		break;
 	case IDC_CARTCHOOSER:
-		DiskSelection(hDlg, IDC_CARTFILE, 6, &workprefs, NULL, path);
+		DiskSelection(hDlg, IDC_CUSTOMCARTFILE, 6, &workprefs, NULL, path);
 		values_to_kickstartdlg(hDlg);
 		break;
 	}
@@ -12794,7 +12920,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	{
 	case WM_INITDIALOG:
 		{
-			int ids[] = { IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, -1 };
+			int ids[] = { IDC_ROMFILE, IDC_ROMFILE2, IDC_CUSTOMCARTFILE, -1 };
 			pages[KICKSTART_ID] = hDlg;
 			currentpage = KICKSTART_ID;
 			init_kickstart (hDlg);
@@ -12803,6 +12929,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			setmultiautocomplete (hDlg, ids);
 			setac (hDlg, IDC_FLASHFILE);
 			setac (hDlg, IDC_RTCFILE);
+			initcartfilecustom(hDlg);
 			return TRUE;
 		}
 
@@ -12831,8 +12958,13 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			{
 			case IDC_ROMFILE:
 			case IDC_ROMFILE2:
-			case IDC_CARTFILE:
 			case IDC_UAEBOARD_TYPE:
+				values_from_kickstartdlg(hDlg);
+				break;
+			case IDC_CARTFILE:
+				if (ischecked(hDlg, IDC_CUSTOMCARTFILE) && xSendDlgItemMessage(hDlg, IDC_CARTFILE, CB_GETCURSEL, 0, 0L) < 1) {
+					values_to_kickstartdlg(hDlg);
+				}
 				values_from_kickstartdlg(hDlg);
 				break;
 			case IDC_CUSTOMROMSELECT:
@@ -12867,7 +12999,15 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		case IDC_MAPROM:
 			workprefs.maprom = ischecked (hDlg, IDC_MAPROM) ? 0x0f000000 : 0;
 			break;
+
+		case IDC_CUSTOMCARTFILE:
+			if (ischecked(hDlg, IDC_CUSTOMCARTFILE) && xSendDlgItemMessage(hDlg, IDC_CARTFILE, CB_GETCURSEL, 0, 0L) < 1) {
+				values_to_kickstartdlg(hDlg);
+			}
+			initcartfilecustom(hDlg);
+			break;
 		}
+
 		recursive--;
 		break;
 	}
@@ -22258,7 +22398,7 @@ static const int ignorewindows[] = {
 	-1,
 	IDD_INPUT, IDC_INPUTDEVICE, IDC_INPUTLIST, IDC_INPUTAMIGA,
 	-1,
-	IDD_KICKSTART, IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_FLASHFILE, IDC_RTCFILE, IDC_SCSIROMSELECT, IDC_SCSIROMFILE, IDC_CPUBOARDROMFILE,
+	IDD_KICKSTART, IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_CUSTOMCARTFILE, IDC_FLASHFILE, IDC_RTCFILE, IDC_SCSIROMSELECT, IDC_SCSIROMFILE, IDC_CPUBOARDROMFILE,
 	-1,
 	IDD_LOADSAVE, IDC_CONFIGTREE, IDC_EDITNAME, IDC_EDITDESCRIPTION, IDC_CONFIGLINK, IDC_EDITPATH,
 	-1,
@@ -22870,7 +23010,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			dragrompath = prefs->romfile;
 		} else if (draghit(IDC_ROMFILE2, pt)) {
 			dragrompath = prefs->romextfile;
-		} else if (draghit(IDC_CARTFILE, pt)) {
+		} else if (draghit(IDC_CUSTOMCARTFILE, pt)) {
 			dragrompath = prefs->cartfile;
 		} else if (draghit(IDC_FLASHFILE, pt)) {
 			dragrompath = prefs->flashfile;

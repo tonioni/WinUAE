@@ -4770,7 +4770,7 @@ static int do_specialties (int cycles)
 
 		if (action_replay_flag == ACTION_REPLAY_ACTIVATE || action_replay_flag == ACTION_REPLAY_DORESET)
 			action_replay_enter();
-		if ((action_replay_flag == ACTION_REPLAY_HIDE || action_replay_flag == ACTION_REPLAY_ACTIVE) && !is_ar_pc_in_rom()) {
+		if ((action_replay_flag == ACTION_REPLAY_HIDE || action_replay_flag == ACTION_REPLAY_ACTIVE) && !is_ar_pc_in_rom() && !is_ar_pc_in_ram()) {
 			action_replay_hide();
 			unset_special (SPCFLAG_ACTION_REPLAY);
 		}
@@ -7027,7 +7027,6 @@ void m68k_dumpstate(uaecptr *nextpc, uaecptr prevpc)
 	m68k_disasm (pc, nextpc, pc, 1);
 	if (nextpc) {
 		console_out_f (_T("Next PC: %08x\n"), *nextpc);
-		*nextpc = pc;
 	}
 }
 

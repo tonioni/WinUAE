@@ -7888,7 +7888,7 @@ static void debug_1 (void)
 	custom_dumpstate(0);
 	m68k_dumpstate(&nextpc, debug_pc);
 	debug_pc = 0xffffffff;
-	nxdis = nextpc; nxmem = 0;
+	nxdis = m68k_getpc(); nxmem = 0;
 	debugger_active = 1;
 
 	for (;;) {
