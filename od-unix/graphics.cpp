@@ -26,6 +26,7 @@
 extern int pause_emulation;
 extern int p96syncrate;
 extern void picasso_trigger_vblank(void);
+extern void inputdevice_handle_inputcode(void);
 extern void unix_rtg_overlay_sprite(int monid, uae_u32 *dst, int width, int height, int rowpixels);
 
 uae_u32 p96_rgbx16[65536];
@@ -246,6 +247,14 @@ void graphics_reset(bool) {}
 bool handle_events(void)
 {
     handle_msgpump(false);
+    if (pause_emulation) {
+        // Drain queued AKS_* actions (e.g. a second press of the pause
+        // hotkey) while paused. Without this, unpausing never happens
+        // since the caller's while (handle_events()) loop is the only
+        // thing running and nothing else drains the queue; see
+        // od-win32/win32.cpp's handle_events() for the same call.
+        inputdevice_handle_inputcode();
+    }
     return pause_emulation != 0;
 }
 
