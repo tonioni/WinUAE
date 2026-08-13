@@ -91,6 +91,7 @@ static uae_u32 s_status_bc[256];
 static bool s_status_colors_ready;
 static Uint8 s_status_click_button;
 static SDL_MouseButtonFlags s_suppressed_mouse_buttons;
+static int s_vsync_applied = -1;
 
 struct unix_pending_video_frame {
     std::vector<uae_u8> pixels;
@@ -1183,7 +1184,6 @@ static bool unix_gl_ensure_context(int width, int height)
         return false;
     }
     SDL_GL_MakeCurrent(s_window, s_gl_context);
-    SDL_GL_SetSwapInterval(1);
     if (!unix_gl_build_program()) {
         SDL_GL_DestroyContext(s_gl_context);
         s_gl_context = NULL;
@@ -1728,7 +1728,6 @@ bool unix_video_init(int width, int height, int pixbytes)
             s_available = false;
             return false;
         }
-        SDL_SetRenderVSync(s_renderer, 1);
         SDL_SetRenderDrawColor(s_renderer, 0, 0, 0, 255);
         SDL_RenderClear(s_renderer);
         SDL_RenderPresent(s_renderer);
@@ -1962,6 +1961,29 @@ int unix_video_poll_window_events(bool *quit_requested)
     return unix_video_poll_internal(quit_requested, false);
 }
 
+// Presenting with vsync forced on unconditionally caps emulation throughput
+// at the host refresh rate no matter how fast frames are produced, which
+// defeats warp mode (and ignores gfx_vsync=false). Keep the swap interval in
+// sync with the user's vsync preference, but always disable it while turbo
+// mode is active so warp mode isn't refresh-rate limited.
+static void unix_video_sync_vsync_state(void)
+{
+    const bool want_vsync = currprefs.gfx_apmode[APMODE_NATIVE].gfx_vsync > 0 && !currprefs.turbo_emulation;
+    const int wanted = want_vsync ? 1 : 0;
+    if (s_vsync_applied == wanted) {
+        return;
+    }
+    s_vsync_applied = wanted;
+#ifdef WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE
+    if (s_gl_active) {
+        SDL_GL_SetSwapInterval(wanted);
+    }
+#endif
+    if (s_renderer) {
+        SDL_SetRenderVSync(s_renderer, wanted);
+    }
+}
+
 static void unix_video_present_on_event_thread(const struct unix_video_frame *frame)
 {
     if (!frame || !frame->pixels || frame->width <= 0 || frame->height <= 0 || frame->rowbytes <= 0) {
@@ -1970,6 +1992,7 @@ static void unix_video_present_on_event_thread(const struct unix_video_frame *fr
     if (!unix_video_init(frame->width, frame->height, frame->pixbytes)) {
         return;
     }
+    unix_video_sync_vsync_state();
     const struct gfx_filterdata *filter = filterdata_for_frame(frame);
     auto_resize_window_for_rtg(frame, filter);
 #ifdef WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE
