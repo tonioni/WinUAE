@@ -10092,10 +10092,14 @@ static void check_vsyncs_fast(void)
 		}
 	}
 	if (beamcon0_has_hsync) {
+		agnus_hsync_start = get_cck_cycles() + hsstrt;
 		count_hsyncs(hsstrt, hsstop);
 	} else {
+		agnus_hsync_start = get_cck_cycles() + 0x18;
 		count_hsyncs(18, 35);
 	}
+	agnus_hsstrt_cck = get_cck_cycles();
+	hsync_ccks = maxhpos;
 	if (programmed_register_accessed_v && programmed_register_accessed_h) {
 		if (hcenter < maxhpos) {
 			if (lof_store && vpos == vsstrt) {
