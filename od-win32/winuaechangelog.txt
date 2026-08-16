@@ -1,4 +1,16 @@
 
+Beta 12
+
+- RTG panel "Visible display" was only ticked when hardware emulated board was active, it was not ticked in uaegfx modes.
+- Fast CPU mode + P96 RTG mode active + new P96 Disable Amiga video option enabled (Programmed mode with HSSTRT and VSSTRT set to out of range values which disables both syncs): internal refresh rate variables was not always fully updated, causing for example bad audio.
+- Fast drawing mode didn't flush all pending delayed special cases and caused odd display glitches in some situations.
+- All Windows file/directory dialogs now have shortcut to configurations/adf/rom/hdf/statefiles paths listed (Location and naming on file/directory dialog window depend on used Windows version). This was already partially done in previous beta.
+- Freezer cartridge custom ROM support. "Custom Cartridge ROM" checkbox added next to cartridge ROM selection. Ticking it allows to override possible ROM scanner detected path. NOTE: if cartridge is not listed because ROM scanner didn't detect it and you want to use custom ROM: tick custom checkbox first, after that select the cartridge model. Ticking without cartridge selected includes all hidden cartridges. (Previously any custom ROM via config file selected AR1/2/3 depending on ROM image size)
+- DeMoN v1 and v2 cartridge emulation (Flash ROM, 1024k RAM. v2 USB is not emulated), DeMoN v1/v2 variants of Action Replay V confirmed working.
+- Do not send any clock sync requests (Syncronize clock misc panel option) if AmigaOS is not running (wait for heartbeat first) because program that took over the system may not want any unexpected interrupts. Clock sync method was changed in b1.
+- Power led switch off/dim option didn't work on the fly.
+- Debugger z command fixed.
+
 Beta 11:
 
 - Added "Visible display" checkbox to RTG panel. Only shown when emulation is running and selected RTG board is active. If visible: unticking it will switch to native screen and if not visible, it will switch to RTG mode. Hopefully this is more discoverable and more intuitive way to manually switch displays than END+F9 key shortcut.
