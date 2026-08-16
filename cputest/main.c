@@ -525,7 +525,7 @@ static void start_test(void)
 	}
 	if (cpu_lvl >= 4) {
 		// 68040/060 CACR (IE=1)
-		cpustatearraynew[2] = disablecaches ? 0x00000000 :0x00008000;
+		cpustatearraynew[2] = disablecaches ? 0x00000000 : 0x00008000;
 	} else {
 		// 68020/30 CACR (CI=1,IE=1)
 		cpustatearraynew[2] = disablecaches ? 0x0000 : 0x0009;
@@ -3975,6 +3975,7 @@ int main(int argc, char *argv[])
 		printf("-nofpiar = ignore FPIAR.\n");
 		printf("-cycles [range adjust] = check cycle counts.\n");
 		printf("-cyclecnt <address>. Use custom hardware cycle counter.\n");
+		printf("-nocache = disable caches during test execution.\n");
 #ifdef AMIGA
 		printf("-uae = running in UAE, automatic bus error enable/disable.\n");
 #endif
