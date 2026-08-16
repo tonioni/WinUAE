@@ -10093,8 +10093,10 @@ static void check_vsyncs_fast(void)
 		}
 	}
 	if (beamcon0_has_hsync) {
-		agnus_hsync_start = get_cck_cycles() + hsstrt;
-		count_hsyncs(hsstrt, hsstop);
+		if (hsstrt <= maxhpos && hsstop <= maxhpos) {
+			agnus_hsync_start = get_cck_cycles() + hsstrt;
+			count_hsyncs(hsstrt, hsstop);
+		}
 	} else {
 		agnus_hsync_start = get_cck_cycles() + 0x18;
 		count_hsyncs(18, 35);
