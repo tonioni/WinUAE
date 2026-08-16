@@ -1933,6 +1933,7 @@ static void init_beamcon0(void)
 
 	maxvpos_nom = maxvpos;
 	maxvpos_display = vsync_lines;
+	int hsync_ccks2 = custom_fastmode ? maxhpos : hsync_ccks;
 
 	int hbs = -1, hbe = -1, hblen = 0, total = 0;
 	if (currprefs.cs_hvcsync < HVSYNC_SYNCPOS && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
@@ -1955,7 +1956,7 @@ static void init_beamcon0(void)
 	}
 	display_hstart_cyclewait_start = hbe / 2;
 	display_hstart_cyclewait_end = -hbs / 2;
-	maxhpos_display = hsync_ccks * 2 - hblen;
+	maxhpos_display = hsync_ccks2 * 2 - hblen;
 
 	if (currprefs.gfx_overscanmode < OVERSCANMODE_BROADCAST) {
 		// one pixel row missing from right border if OCS
@@ -1969,7 +1970,7 @@ static void init_beamcon0(void)
 			maxvpos_display--;
 		}
 	} else if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
-		maxhpos_display = hsync_ccks * 2;
+		maxhpos_display = hsync_ccks2 * 2;
 		display_hstart_cyclewait_start = 0;
 		display_hstart_cyclewait_end = 0;
 	}
@@ -1981,7 +1982,7 @@ static void init_beamcon0(void)
 		display_hstart_cyclewait_end = 0;
 	}
 
-	denisehtotal = hsync_ccks;
+	denisehtotal = hsync_ccks2;
 	denisehtotal <<= CCK_SHRES_SHIFT;
 	// ECS Denise has 1 extra lores pixel in right border
 	if (ecs_denise) {
@@ -2029,10 +2030,10 @@ static void init_beamcon0(void)
 
 	if (beamcon0 & BEAMCON0_VARBEAMEN) {
 		float half = (beamcon0 & BEAMCON0_PAL) ? 0: ((beamcon0 & BEAMCON0_LOLDIS) ? 0 : 0.5f);
-		vblank_hz_nom = vblank_hz = clk / (vsync_lines * (hsync_ccks + half));
+		vblank_hz_nom = vblank_hz = clk / (vsync_lines * (hsync_ccks2 + half));
 		vblank_hz_shf = vblank_hz;
-		vblank_hz_lof = clk / ((vsync_lines + 1.0f) * (hsync_ccks + half));
-		vblank_hz_lace = clk / ((vsync_lines + 0.5f) * (hsync_ccks + half));
+		vblank_hz_lof = clk / ((vsync_lines + 1.0f) * (hsync_ccks2 + half));
+		vblank_hz_lace = clk / ((vsync_lines + 0.5f) * (hsync_ccks2 + half));
 
 		maxvpos_nom = maxvpos;
 		maxvpos_display = vsync_lines;
@@ -11342,7 +11343,11 @@ static void check_hsyncs_hardwired(void)
 		agnus_hsstrt_cck = get_cck_cycles();
 		check_vidsyncs();
 		if (!beamcon0_has_hsync) {
-			hsync_ccks = get_cck_cycles_diff(agnus_hsync_start);
+			int c = get_cck_cycles_diff(agnus_hsync_start);
+			// value may be temporarily negative when switching between modes.
+			if (c > 0) {
+				hsync_ccks = c;
+			}
 			vsync_linecnt++;
 			agnus_hsync_start = get_cck_cycles();
 			display_hstart_cyclewait_started = true;
@@ -11570,7 +11575,11 @@ static void check_hsyncs_programmed(void)
 #endif
 		}
 		if (beamcon0_has_hsync) {
-			hsync_ccks = get_cck_cycles_diff(agnus_hsync_start);
+			int c = get_cck_cycles_diff(agnus_hsync_start);
+			// value may be temporarily negative when switching between modes.
+			if (c > 0) {
+				hsync_ccks = c;
+			}
 			vsync_linecnt++;
 			agnus_hsync_start = get_cck_cycles();
 			display_hstart_cyclewait_started = true;
