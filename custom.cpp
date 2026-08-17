@@ -101,8 +101,6 @@ uae_u8 agnus_hpos;
 int agnus_hpos_prev, agnus_hpos_next, agnus_vpos_next;
 static int agnus_pos_change;
 static uae_u32 dmal_shifter;
-static uae_u16 pipelined_write_addr;
-static uae_u16 pipelined_write_value;
 static struct rgabuf rga_pipe[RGA_SLOT_TOTAL + 1];
 struct denise_rga rga_denise[DENISE_RGA_SLOT_TOTAL];
 static struct linestate *current_line_state;
@@ -110,7 +108,6 @@ static struct linestate lines[MAX_SCANDOUBLED_LINES + 1][2];
 static int rga_denise_cycle, rga_denise_cycle_start, rga_denise_cycle_count_start, rga_denise_cycle_count_end;
 static int draw_line_next_line, draw_line_wclks;
 static uae_u32 rga_denise_cycle_line = 1;
-static struct pipeline_reg preg;
 static struct pipeline_func pfunc[MAX_PIPELINE_REG];
 static int pfunc_active_count;
 static uae_u16 prev_strobe;
@@ -129,22 +126,6 @@ static int scandoubled_bpl_ptr_active[MAX_SCANDOUBLED_LINES + 1][2];
 static evt_t blitter_dma_change_cycle, copper_dma_change_cycle, sprite_dma_change_cycle_on, sprite_dma_change_cycle_off;
 static bool copper_dma_change_cycle_pending;
 
-static void empty_pipeline(void)
-{
-	if (preg.p) {
-		*preg.p = preg.v;
-		preg.p = NULL;
-	}
-}
-static void push_pipeline(uae_u16 *p, uae_u16 v)
-{
-	if (preg.p) {
-		// cpu or fast copper can cause this
-		empty_pipeline();
-	}
-	preg.p = p;
-	preg.v = v;
-}
 static void pipelined_custom_write(evfunc2 func, uae_u16 v, uae_u16 cck)
 {
 	if (!cck || isrestore()) {
@@ -3999,66 +3980,6 @@ static void SPRxPOS(uae_u16 v, int num)
 	sprstartstop(s);
 }
 
-
-// Undocumented AGA feature: if sprite is 64 pixel wide, SPRxDATx is written and next
-// cycle is DMA fetch: sprite's first 32 pixels get replaced with bitplane data.
-#if 0
-static void sprite_get_bpl_data(int hpos, struct sprite *s, uae_u16 *dat)
-{
-	int nr = get_bitplane_dma_rel(hpos, 1);
-	uae_u32 v = (uae_u32)((fmode & 3) ? fetched_aga[nr] : fetched_aga_spr[nr]);
-	dat[0] = v >> 16;
-	dat[1] = (uae_u16)v;
-}
-#endif
-
-/*
- SPRxDATA and SPRxDATB is moved to shift register when SPRxPOS matches.
-
- When copper writes to SPRxDATx exactly when SPRxPOS matches:
- - If sprite low x bit (SPRCTL bit 0) is not set, shift register copy
-   is done first (previously loaded SPRxDATx value is shown) and then
-   new SPRxDATx gets stored for future use.
- - If sprite low x bit is set, new SPRxDATx is stored, then SPRxPOS
-   matches and value written to SPRxDATx is visible.
-
- - Writing to SPRxPOS when SPRxPOS matches: shift register
-   copy is always done first, then new SPRxPOS value is stored
-   for future use. (SPRxCTL not tested)
-*/
-
-#if 0
-static void SPRxDATA(uae_u16 v, int num)
-{
-	struct sprite *s = &spr[num];
-	SPRxDATA_1(v, num);
-	// if 32 (16-bit double CAS only) or 64 pixel wide sprite and SPRxDATx write:
-	// - first 16 pixel part: previous chipset bus data
-	// - following 16 pixel parts: written data
-	if (fmode & 8) {
-		if ((fmode & 4) && get_bitplane_dma_rel(hpos, -1)) {
-			sprite_get_bpl_data(hpos, s, &s->data[0]);
-		} else {
-			s->data[0] = last_custom_value;
-		}
-	}
-}
-
-static void SPRxDATB(uae_u16 v, int num)
-{
-	struct sprite *s = &spr[num];
-	SPRxDATB_1(v, num);
-	// See above
-	if (fmode & 8) {
-		if ((fmode & 4) && get_bitplane_dma_rel(hpos, -1)) {
-			sprite_get_bpl_data(hpos, s, &s->datb[0]);
-		} else {
-			s->datb[0] = last_custom_value;
-		}
-	}
-}
-#endif
-
 static void SPRxPTH(uae_u16 v, int num)
 {
 	spr[num].pt &= 0xffff;
@@ -4288,12 +4209,6 @@ static void custom_wput_dma64(int reg, uaecptr pt, uae_u32 value, int c)
 	} else {
 		write_drga(reg, pt, value);
 	}
-}
-
-static void custom_wput_pipelined(uaecptr pt, uae_u16 v)
-{
-	pipelined_write_addr = pt;
-	pipelined_write_value = v;
 }
 
 static void custom_wput_copper(uaecptr pt, uaecptr addr, uae_u32 value, int noget)
@@ -6658,7 +6573,6 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		struct denise_rga *r = &rga_denise[i];
 		memset(r, 0, sizeof(struct denise_rga));
 	}
-	preg.p = NULL;
 	for (int i = 0 ; i < MAX_PIPELINE_REG; i++) {
 		struct pipeline_func *p = &pfunc[i];
 		memset(p, 0, sizeof(struct pipeline_func));
@@ -6677,7 +6591,6 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	blitter_dma_change_cycle = 0;
 	sprite_dma_change_cycle_on = 0;
 
-	pipelined_write_addr = 0x1fe;
 	prev_strobe = 0x3c;
 	dmal_next = false;
 	syncs_stopped = false;
@@ -9441,18 +9354,6 @@ static void decide_bpl(int hpos)
 		// ECS/AGA
 		bool dma = dmacon_bpl;
 
-#if 0
-		// BPRUN latched: off
-		if (bprun == 3) {
-			if (ddf_stopping == 1) {
-				// If bpl sequencer counter was all ones (last cycle of block): ddf passed jumps to last step.
-				if (islastbplseq()) {
-					ddf_stopping = 2;
-				}
-			}
-			bprun = 0;
-		}
-#endif
 		// Hard start limit
 		if (hpos == 0x18) {
 			ddf_limit_in = false;
@@ -9527,30 +9428,6 @@ static void decide_bpl(int hpos)
 			hwi_old = hwi;
 		}
 
-#if 0
-		if (bprun == 2) {
-			bprun = 3;
-			// If DDF has passed, jumps to last step.
-			// (For example Scoopex Crash landing crack intro)
-			if (ddf_stopping == 1) {
-				ddf_stopping = 2;
-			} else if (ddf_stopping == 0) {
-				// If DDF has not passed, set it as passed.
-				ddf_stopping = 1;
-#ifdef DEBUGGER
-				if (debug_dma) {
-					record_dma_event_agnus(AGNUS_EVENT_BPRUN2, true);
-				}
-#endif
-			}
-#ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_event_agnus(AGNUS_EVENT_BPRUN, false);
-			}
-#endif
-		}
-#endif
-#if 1
 		if (bprun == 3) {
 			bprun = 0;
 		}
@@ -9567,7 +9444,6 @@ static void decide_bpl(int hpos)
 			}
 #endif
 		}
-#endif
 
 	} else {
 
@@ -10769,15 +10645,6 @@ static void decide_hsync(void)
 			draw_line_next_line = 1;
 		}
 	}
-}
-
-static void handle_pipelined_write(void)
-{
-	if (pipelined_write_addr == 0x1fe) {
-		return;
-	}
-	custom_wput_1(pipelined_write_addr, pipelined_write_value, 1 | 0x8000);
-	pipelined_write_addr = 0x1fe;
 }
 
 #if 0
@@ -12081,7 +11948,6 @@ static void do_cck(bool docycles)
 	}
 
 	decide_hsync();
-	empty_pipeline();
 
 	inc_cck();
 	if (docycles) {
@@ -12090,7 +11956,6 @@ static void do_cck(bool docycles)
 
 	dmacon_bpl = (dmacon & DMA_BITPLANE) && (dmacon & 0x200);
 
-	handle_pipelined_write();
 	handle_pipelined_custom_write(false);
 
 	shift_rga();
@@ -12121,7 +11986,6 @@ static void sync_equalline_handler(void)
 
 	eventtab[ev_sync].active = 0;
 
-	handle_pipelined_write();
 	handle_pipelined_custom_write(false);
 
 	int rdc_offset = REFRESH_FIRST_HPOS - hpos_delta;
