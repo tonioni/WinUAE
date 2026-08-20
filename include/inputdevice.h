@@ -239,6 +239,7 @@ extern int input_mousehack_status(TrapContext *ctx, int mode, uaecptr diminfo, u
 extern void input_mousehack_mouseoffset (uaecptr pointerprefs);
 extern int mousehack_alive (void);
 extern void mousehack_wakeup(void);
+extern bool mousehack_pending(void);
 extern void mousehack_write(int reg, uae_u16 val);
 extern void setmouseactive(int monid, int);
 extern bool ismouseactive(void);

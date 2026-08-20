@@ -18055,7 +18055,7 @@ static BOOL bNoMidiIn = FALSE;
 static void enable_for_gameportsdlg (HWND hDlg)
 {
 	int v = full_property_sheet;
-	ew (hDlg, IDC_PORT_TABLET, v && workprefs.input_tablet != TABLET_REAL);
+	ew (hDlg, IDC_PORT_TABLET, ((v) || (!v && mousehack_pending())) && workprefs.input_tablet != TABLET_REAL);
 	ew (hDlg, IDC_PORT_TABLET_MODE, v && is_tablet());
 	ew (hDlg, IDC_PORT_TABLET_LIBRARY, v && is_tablet());
 	ew (hDlg, IDC_PORT_TABLET_CURSOR, v && workprefs.input_tablet > 0);
