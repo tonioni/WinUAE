@@ -6532,8 +6532,6 @@ void init_eventtab(void)
 	eventtab[ev_misc].handler = MISC_handler;
 	eventtab[ev_audio].handler = audio_evhandler2;
 
-	eventtab2[ev2_blitter].handler = blitter_handler;
-
 	events_schedule();
 }
 

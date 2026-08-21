@@ -4789,7 +4789,7 @@ static int do_specialties (int cycles)
 	}
 #endif
 
-	while ((spcflags & SPCFLAG_BLTNASTY) && dmaen (DMA_BLITTER) && cycles > 0 && ((currprefs.waiting_blits && currprefs.cpu_model >= 68020) || !currprefs.blitter_cycle_exact)) {
+	while ((spcflags & SPCFLAG_BLTNASTY) && dmaen (DMA_BLITTER) && cycles > 0 && ((currprefs.waiting_blits && currprefs.cpu_model >= 68020) || !blitter_cycle_exact)) {
 		int c = blitnasty();
 		if (c < 0) {
 			break;
