@@ -3009,13 +3009,20 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 		*eap = cur_regs.regs[reg + 8];
 		break;
 	case Apdi:
+	{
+		int size;
 		*regused = reg + 8;
 		if (fpuopsize < 0) {
-			*eap = cur_regs.regs[reg + 8] - (1 << dp->size);
+			size = 1 << dp->size;
 		} else {
-			*eap = cur_regs.regs[reg + 8] - bytesizes[fpuopsize];
+			size = bytesizes[fpuopsize];
 		}
+		if (reg == 7 && size == 1) {
+			size = 2;
+		}
+		*eap = cur_regs.regs[reg + 8] - size;
 		break;
+	}
 	case Ad16:
 	{
 		uae_u16 v;
@@ -3532,7 +3539,8 @@ static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, stru
 	}
 	case Apdi:
 	{
-		if (cur_regs.regs[reg + 8] == target + (1 << dp->size)) {
+		int size = reg == 7 && dp->size == 0 ? 2 : (1 << dp->size);
+		if (cur_regs.regs[reg + 8] == target + size) {
 			*eap = target;
 			*regused = reg + 8;
 			return  0;
