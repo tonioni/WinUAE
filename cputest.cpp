@@ -3088,7 +3088,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 		}
 		if (currprefs.cpu_model < 68020 || (v & 0x100) == 0) {
 			// brief format extension
-			uae_u32 add = 0;
+			uae_s32 add = 0;
 			int maxcnt = 1000;
 			for (;;) {
 				int ereg;
@@ -3115,16 +3115,13 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				}
 				*regused = ereg;
 				add = cur_regs.regs[ereg];
+				if (!(v & 0x0800)) {
+					add = (uae_s32)(uae_s16)add;
+				}
 				if (currprefs.cpu_model >= 68020) {
 					add <<= (v >> 9) & 3; // SCALE
 				}
-				if (v & 0x0800) {
-					// L
 					addr += add;
-				} else {
-					// W
-					addr += (uae_s16)add;
-				}
 				addr += (uae_s8)(v & 0xff); // DISPLACEMENT
 				if (fpuopsize >= 0) {
 					if (check_valid_addr(addr, bytesizes[fpuopsize], 2))
