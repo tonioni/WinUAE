@@ -3084,6 +3084,9 @@ static void update_ecs_features(void)
 	update_hblank();
 	update_bordercolor();
 	exthblanken = exthblankon_aga || exthblankon_ecs;
+	if (!exthblanken) {
+		extblank = false;
+}
 }
 
 static void update_fmode(void)
@@ -6135,11 +6138,11 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		// detect horizontal blanking
 		if (!denise_vblank_active) {
 			int ipc = internal_pixel_cnt + (denise_strlong_seen ? lol * 8 : 0);
-			linear_denise_frame_hbstrt = hbstrt_offset + (denise_strlong_seen ? lol * 8 : 0);
+			linear_denise_frame_hbstrt = hbstrt_offset + (hbstrt_offset >= 0 ? (denise_strlong_seen ? lol * 8 : 0) : 0);
 			linear_denise_frame_hbstop = hbstop_offset;
 			//write_log("%d %d\n", linear_denise_frame_hbstrt, linear_denise_frame_hbstop);
 
-			if (linear_denise_frame_hbstrt == linear_denise_frame_hbstrt_tmp && linear_denise_frame_hbstop == linear_denise_frame_hbstop_tmp) {
+			if (linear_denise_frame_hbstrt == linear_denise_frame_hbstrt_tmp && linear_denise_frame_hbstop == linear_denise_frame_hbstop_tmp && linear_denise_frame_hbstrt >= 0 && linear_denise_frame_hbstop >= 0) {
 				denise_hbstrt_relative_cnt++;
 				if (denise_hbstrt_relative_cnt > maxvpos_display / 2) {
 					int ss = linear_denise_frame_hbstrt_sel;
