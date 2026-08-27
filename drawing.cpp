@@ -3086,7 +3086,7 @@ static void update_ecs_features(void)
 	exthblanken = exthblankon_aga || exthblankon_ecs;
 	if (!exthblanken) {
 		extblank = false;
-}
+	}
 }
 
 static void update_fmode(void)
@@ -4003,20 +4003,24 @@ static void expand_drga(struct denise_rga *rd)
 			} else {
 				if (!agnus_lol && (!denise_lol_shift_prev || denise_lol_shift_enable)) {
 					int add = 1 << hresolution;
-					buf1 += add;
-					buf2 += add;
-					buf_d += add;
-					if (gbuf) {
-						gbuf += add;
+					if (buf1) {
+						buf1 += add;
+						buf2 += add;
+						buf_d += add;
+						if (gbuf) {
+							gbuf += add;
+						}
 					}
 					denise_lol_shift_prev = add;
 					denise_lol_shift_enable = true;
 				} else if (agnus_lol && denise_lol_shift_prev > 0) {
-					buf1 -= denise_lol_shift_prev;
-					buf2 -= denise_lol_shift_prev;
-					buf_d -= denise_lol_shift_prev;
-					if (gbuf) {
-						gbuf -= denise_lol_shift_prev;
+					if (buf1) {
+						buf1 -= denise_lol_shift_prev;
+						buf2 -= denise_lol_shift_prev;
+						buf_d -= denise_lol_shift_prev;
+						if (gbuf) {
+							gbuf -= denise_lol_shift_prev;
+						}
 					}
 					denise_lol_shift_prev = 0;
 					denise_lol_shift_enable = true;
@@ -6637,7 +6641,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 						t = decode_denise_specials_debug(t, cnt);
 					}
 #endif
-					* buf1++ = t;
+					*buf1++ = t;
 					*buf2++ = t;
 					if (gbuf) {
 						*gbuf++ = dtgbuf[h ^ lol][ipix];
