@@ -514,6 +514,7 @@ struct denise_spr
 	uae_u16 pos, ctl;
 	uae_u16 dataa, datab;
 	uae_u64 dataa64, datab64;
+	uae_u64 dataa64_delayed, datab64_delayed;
 	int xpos, xpos_lores;
 	int armed, armeds;
 	uae_u16 dataas, databs;
@@ -2695,6 +2696,19 @@ static void spr_arms(struct denise_spr *s, int state)
 	}
 }
 
+static void sprwrite_64_cck_aligned(int reg, uae_u64 v)
+{
+	int num = reg / 8;
+	struct denise_spr *s = &dspr[num];
+
+	if (s->armed && s->xpos_lores == denise_hcounter) {
+		s->dataas64 = s->dataa64_delayed;
+		s->databs64 = s->datab64_delayed;
+		spr_arms(s, 1);
+		s->shiftercopydone = true;
+	}
+}
+
 static void sprwrite_64(int reg, uae_u64 v)
 {
 	int num = reg / 8;
@@ -2705,7 +2719,6 @@ static void sprwrite_64(int reg, uae_u64 v)
 		s->datab64 = v;
 	} else {
 		s->dataa64 = v;
-		spr_arm(s, 1);
 	}
 }
 
@@ -2723,6 +2736,21 @@ static void sprwrite_64(int reg, uae_u64 v)
    copy is always done first, then new SPRxPOS value is stored
    for future use.
 */
+
+// SPRxDATA write arm happens 0.5 CCK later than SPRxDATA sprite pattern write.
+static void sprwrite_data_arm(int reg, uae_u16 V)
+{
+	int num = reg / 8;
+	struct denise_spr *s = &dspr[num];
+
+	if ((reg & (0x02 | 0x04)) == 0x04) {
+		// if same cycle would arm the sprite and match it, match is missed
+		if (!s->armed && (s->xpos & (1 << 2)) && s->xpos - (1 << 2) == (denise_hcounter << 2)) {
+			return;
+		}
+		spr_arm(s, 1);
+	}
+}
 
 static void sprwrite(int reg, uae_u16 v)
 {
@@ -2748,17 +2776,14 @@ static void sprwrite(int reg, uae_u16 v)
 			s->datab = v;
 			if (!aga_mode) {
 				s->datab64 = v;
+				s->datab64_delayed = v;
 			}
 		} else {
 			s->dataa = v;
 			if (!aga_mode) {
 				s->dataa64 = v;
+				s->dataa64_delayed = v;
 			}
-			// if same cycle would arm the sprite and match it, match is missed
-			if (!s->armed && (s->xpos & (1 << 2)) && s->xpos - (1 << 2) == (denise_hcounter << 2)) {
-				return;
-			}
-			spr_arm(s, 1);
 		}
 	} else {
 		if (second) {
@@ -3837,9 +3862,17 @@ static void expand_drga_early(struct denise_rga *rd)
 		case 0x174: case 0x176:
 		case 0x17c: case 0x17e:
 		{
-			if (!aga_mode) {
 				int sreg = rd->rga - 0x140;
+			if (!aga_mode) {
 				sprwrite(sreg, rd->v);
+			} else {
+				sprwrite_64_cck_aligned(sreg, rd->v64);
+				struct denise_spr *s = &dspr[sreg / 8];
+				if (sreg & 2) {
+					s->datab64_delayed = rd->v64;
+				} else {
+					s->dataa64_delayed = rd->v64;
+				}
 			}
 		}
 		break;
@@ -4073,6 +4106,22 @@ static void expand_drga(struct denise_rga *rd)
 		}
 		break;
 
+		// SPRxDATA ARM
+		case 0x144:
+		case 0x14c:
+		case 0x154:
+		case 0x15c:
+		case 0x164:
+		case 0x16c:
+		case 0x174:
+		case 0x17c:
+		{
+			// SPRxDATA arming sprite is CCK aligned. SPRxDATx sprite pattern data write is 0.5 CCK faster.
+			int sreg = rd->rga - 0x140;
+			sprwrite_data_arm(sreg, rd->v);
+		}
+		break;
+
 		case 0x100:
 		expand_bplcon0(rd->v);
 		break;
@@ -4136,9 +4185,9 @@ static void flush_fast_rga(uae_u32 linecnt)
 		if (linecnt <= rd->line) {
 			break;
 		}
-		expand_drga(rd);
-		expand_drga_early(rd);
 		expand_drga_early2x(rd);
+		expand_drga_early(rd);
+		expand_drga(rd);
 		rp++;
 		rp &= DENISE_RGA_SLOT_FAST_TOTAL - 1;
 		rga_denise_fast_read = rp;
@@ -7748,6 +7797,9 @@ uae_u8 *restore_custom_sprite_denise(int num, uae_u8 *src, uae_u16 pos, uae_u16 
 		s->dataa64 |= (data[2] << 16) | (data[3]);
 		s->datab64 |= (datb[2] << 16) | (datb[3]);
 	}
+
+	s->dataa64_delayed = s->dataa64;
+	s->datab64_delayed = s->datab64;
 
 	return src;
 }
