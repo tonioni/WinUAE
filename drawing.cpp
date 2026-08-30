@@ -503,8 +503,8 @@ static bool denise_burst;
 static int *debug_dma_dhpos_odd;
 static struct dma_rec *debug_dma_ptr;
 static int denise_cycle_half;
-static int denise_vblank_extra_top, denise_vblank_extra_bottom;
-static int denise_hblank_extra_left, denise_hblank_extra_right;
+static int denise_vblank_extra_top[2], denise_vblank_extra_bottom[2];
+static int denise_hblank_extra_left[2], denise_hblank_extra_right[2];
 static uae_u32 dtbuf[2][4];
 static uae_u8 dtgbuf[2][4];
 
@@ -769,18 +769,19 @@ void check_custom_limits(void)
 	struct amigadisplay *ad = &adisplays[0];
 	struct gfx_filterdata *fd = &currprefs.gf[ad->gf_index];
 
-	int vls = visible_left_start;
-	int vrs = visible_right_stop;
-	int vts = visible_top_start;
-	int vbs = visible_bottom_stop;
-
 	int left = fd->gfx_filter_left_border < 0 ? 0 : fd->gfx_filter_left_border >> (RES_MAX - currprefs.gfx_resolution);
 	int right = fd->gfx_filter_right_border < 0 ? 0 : fd->gfx_filter_right_border >> (RES_MAX - currprefs.gfx_resolution);
 	int top = fd->gfx_filter_top_border < 0 ? 0 : fd->gfx_filter_top_border;
 	int bottom = fd->gfx_filter_bottom_border < 0 ? 0 : fd->gfx_filter_bottom_border;
 
-	denise_vblank_extra_top = -1;
-	denise_vblank_extra_bottom = 30000;
+	denise_vblank_extra_top[0] = -1;
+	denise_vblank_extra_bottom[0] = 30000;
+	denise_hblank_extra_left[0] = -1;
+	denise_hblank_extra_right[0] = 30000;
+	denise_vblank_extra_top[1] = -1;
+	denise_vblank_extra_bottom[1] = 30000;
+	denise_hblank_extra_left[1] = -1;
+	denise_hblank_extra_right[1] = 30000;
 
 	if (left > 0) {
 		left += (0x38 * 4) >> (RES_MAX - currprefs.gfx_resolution);
@@ -789,29 +790,40 @@ void check_custom_limits(void)
 		right += (0x38 * 4) >> (RES_MAX - currprefs.gfx_resolution);
 	}
 
-	if (left > visible_left_start) {
-		visible_left_start = left;
-	}
-	if (right > left && right < visible_right_stop) {
-		visible_right_stop = right;
-	}
-
-	if (top > visible_top_start) {
-		visible_top_start = top;
-	}
-	if (bottom > top && bottom < visible_bottom_stop) {
-		visible_bottom_stop = bottom;
-	}
-
 	int vshift = currprefs.gfx_vresolution;
 	if (doublescan == 1 && vshift > 0) {
 		vshift--;
 	}
 
-	denise_vblank_extra_top = visible_top_start >> vshift;
-	denise_vblank_extra_bottom = visible_bottom_stop >> vshift;
-	denise_hblank_extra_left = visible_left_start;
-	denise_hblank_extra_right = visible_right_stop;
+	denise_vblank_extra_top[0] = visible_top_start >> vshift;
+	denise_vblank_extra_bottom[0] = visible_bottom_stop >> vshift;
+	denise_hblank_extra_left[0] = visible_left_start;
+	denise_hblank_extra_right[0] = visible_right_stop;
+
+	if (left > visible_left_start) {
+		visible_left_start = left;
+		denise_hblank_extra_left[1] = visible_left_start;
+	}
+	if (right > left && right < visible_right_stop) {
+		visible_right_stop = right;
+		denise_hblank_extra_right[1] = visible_right_stop;
+	}
+
+	if (top > visible_top_start) {
+		visible_top_start = top;
+		denise_vblank_extra_top[1] = visible_top_start >> vshift;
+	}
+	if (bottom > top && bottom < visible_bottom_stop) {
+		visible_bottom_stop = bottom;
+		denise_vblank_extra_bottom[1] = visible_bottom_stop >> vshift;
+	}
+
+	if (currprefs.gfx_overscanmode < OVERSCANMODE_OVERSCAN) {
+		denise_vblank_extra_top[1] = denise_vblank_extra_top[0];
+		denise_vblank_extra_bottom[1] = denise_vblank_extra_bottom[0];
+		denise_hblank_extra_left[1] = denise_hblank_extra_left[0];
+		denise_hblank_extra_right[1] = denise_hblank_extra_right[0];
+	}
 
 	//write_log("%d %d %d %d\n", denise_vblank_extra_top, denise_vblank_extra_bottom, visible_top_start, visible_bottom_stop);
 }
@@ -5922,12 +5934,12 @@ static void edgeblanking(int hbstrt_offset, int hbstop_offset, int internal_pixe
 			}
 		}
 	}
-	if ((denise_hblank_extra_left > visible_left_border || visible_right_border > denise_hblank_extra_right) && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
-		int ww1 = denise_hblank_extra_left > visible_left_border ? (denise_hblank_extra_left - visible_left_border) << 0 : 0;
-		int ww2 = visible_right_border > denise_hblank_extra_right ? (visible_right_border - denise_hblank_extra_right) << 0 : 0;
+	if ((denise_hblank_extra_left[1] > visible_left_border || visible_right_border > denise_hblank_extra_right[1]) && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
+		int ww1 = denise_hblank_extra_left[1] > visible_left_border ? (denise_hblank_extra_left[1] - visible_left_border) << 0 : 0;
+		int ww2 = visible_right_border > denise_hblank_extra_right[1] ? (visible_right_border - denise_hblank_extra_right[1]) << 0 : 0;
 
-		hbstrt_ptr1 = hbstop_ptr1 ? hbstop_ptr1 + denise_hblank_extra_right - visible_left_border : NULL;
-		hbstrt_ptr2 = hbstop_ptr2 ? hbstop_ptr2 + denise_hblank_extra_right - visible_left_border : NULL;
+		hbstrt_ptr1 = hbstop_ptr1 ? hbstop_ptr1 + denise_hblank_extra_right[1] - visible_left_border : NULL;
+		hbstrt_ptr2 = hbstop_ptr2 ? hbstop_ptr2 + denise_hblank_extra_right[1] - visible_left_border : NULL;
 
 		for (int i = 0; i < 4; i++) {
 			int add = 1 << hresolution;
@@ -6051,7 +6063,8 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 	}
 
 	bool line_is_blanked = false;
-	bool hidden = this_line->linear_vpos >= denise_vblank_extra_bottom || this_line->linear_vpos < denise_vblank_extra_top;
+	bool hidden = this_line->linear_vpos >= denise_vblank_extra_bottom[0] || this_line->linear_vpos < denise_vblank_extra_top[0];
+	bool hiddenblank = this_line->linear_vpos >= denise_vblank_extra_bottom[1] || this_line->linear_vpos < denise_vblank_extra_top[1];
 	diw_disable = borderline;
 
 	if ((denise_pixtotal_max == -0x7fffffff && denise_vsync_bpl_detect) || blanked) {
@@ -6142,7 +6155,7 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 			return;
 		}
 
-		if (hidden) {
+		if (hiddenblank) {
 			blankline();
 		}
 
@@ -7108,10 +7121,10 @@ static void tvadjust(int *hbstrt_offset, int *hbstop_offset, int rshift, struct 
 	if (currprefs.gfx_overscanmode < OVERSCANMODE_OVERSCAN) {
 
 		int hbstop_left = (ls->hbstop_offset - ls->internal_pixel_start_cnt) >> rshift;
-		int hbstop_right = hbstop_left + denise_hblank_extra_right - visible_left_border;
+		int hbstop_right = hbstop_left + denise_hblank_extra_right[1] - visible_left_border;
 
-		int ww1 = denise_hblank_extra_left > visible_left_border ? (denise_hblank_extra_left - visible_left_border) << 0 : 0;
-		int ww2 = visible_right_border > denise_hblank_extra_right ? (visible_right_border - denise_hblank_extra_right) << 0 : 0;
+		int ww1 = denise_hblank_extra_left[1] > visible_left_border ? (denise_hblank_extra_left[1] - visible_left_border) << 0 : 0;
+		int ww2 = visible_right_border > denise_hblank_extra_right[1] ? (visible_right_border - denise_hblank_extra_right[1]) << 0 : 0;
 
 		if (hbstrt_offset && ww2 > 0) {
 			*hbstrt_offset -= ww2;
@@ -7241,8 +7254,8 @@ void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, st
 		return;
 	}
 
-	bool hidden = this_line->linear_vpos >= denise_vblank_extra_bottom || this_line->linear_vpos < denise_vblank_extra_top;
-	if (ls->blankedline || hidden) {
+	bool hiddenblank = this_line->linear_vpos >= denise_vblank_extra_bottom[1] || this_line->linear_vpos < denise_vblank_extra_top[1];
+	if (ls->blankedline || hiddenblank) {
 		blankline();
 		return;
 	}
@@ -7358,9 +7371,14 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 		return;
 	}
 
-	bool hidden = this_line->linear_vpos >= denise_vblank_extra_bottom || this_line->linear_vpos < denise_vblank_extra_top;
-	if (ls->blankedline || hidden) {
+	bool hidden = this_line->linear_vpos >= denise_vblank_extra_bottom[0] || this_line->linear_vpos < denise_vblank_extra_top[0];
+	bool hiddenblank = this_line->linear_vpos >= denise_vblank_extra_bottom[1] || this_line->linear_vpos < denise_vblank_extra_top[1];
+	if (ls->blankedline || hiddenblank) {
 		blankline();
+		return;
+	}
+	if (hidden) {
+		draw_denise_border_line_fast(gfx_ypos, true, how, ls);
 		return;
 	}
 
