@@ -2953,6 +2953,15 @@ static void COPJMP(int num, bool bsce)
 		cop_state.vblankip = cop1lc;
 	}
 
+	// Copper latches are reset immediately
+	cop_state.irload1 = 0;
+	cop_state.irload2 = 0;
+	cop_state.load1 = 0;
+	cop_state.load2 = 0;
+	cop_state.ir[1] &= ~1;
+	cop_state.start = 0;
+	cop_state.skiplatch = false;
+
 	if (custom_disabled) {
 		copper_enabled_thisline = 0;
 		immediate_copper(num);
@@ -8933,6 +8942,9 @@ static void process_copper(struct rgabuf *r)
 	}
 
 #ifdef DEBUGGER
+	if (cop_state.strobe & 3) {
+		reg = 0x1fe;
+	}
 	if (debug_dma) {
 		if (memwatch_enabled) {
 			debug_getpeekdma_chipram(ip, MW_MASK_COPPER, reg);
@@ -8950,6 +8962,9 @@ static void process_copper(struct rgabuf *r)
 			if (!cop_state.skiplatch) {
 				reg = cop_state.ir[0];
 			}
+		}
+		if (!cop_state.load1 && !cop_state.load2 && !cop_state.start && !cop_state.irload1 && !cop_state.irload2) {
+			m = 0; // Copper DMA cycle that was pending but COPJMPx sequence in previous cycle made it no-op.
 		}
 		if (cop_state.load1) {
 			m = 5;
@@ -9168,14 +9183,7 @@ static void generate_copper(void)
 
 	if (cop_state.startstrobe) {
 		// Copper state machine restart after COPxJMP strobe
-		if (cop_state.startstrobe & 8) {
-			cop_state.irload1 = 0;
-			cop_state.irload2 = 0;
-			cop_state.ir[1] &= ~1;
-			cop_state.start = 0;
-			cop_state.skiplatch = false;
 			cop_state.startstrobe &= ~8;
-		}
 		if (cop_state.startstrobe & 15) {
 			cop_state.strobe = cop_state.startstrobe;
 		}
