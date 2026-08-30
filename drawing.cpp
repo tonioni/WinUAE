@@ -660,6 +660,7 @@ extern bool lof_display;
 
 static int gclow, gcloh, gclox, gcloy, gclorealh;
 static int stored_left_start, stored_top_start, stored_width, stored_height;
+static int horizontal_compatibility_offset;
 
 void get_custom_topedge (int *xp, int *yp, bool max)
 {
@@ -667,18 +668,16 @@ void get_custom_topedge (int *xp, int *yp, bool max)
 		int x = visible_left_border;
 		int y = minfirstline << currprefs.gfx_vresolution;
 
-		x -= 1 << currprefs.gfx_resolution;
-#if 0
-		int dbl1, dbl2;
-		dbl2 = dbl1 = currprefs.gfx_vresolution;
-		if (doublescan > 0 && interlace_seen <= 0) {
-			dbl1--;
-			dbl2--;
+		// backwards compatibility offset
+		x -= horizontal_compatibility_offset << hresolution;
+		if (!ecs_denise) {
+			x -= 1 << hresolution;
 		}
-		x = -(visible_left_border + (DISPLAY_LEFT_SHIFT << currprefs.gfx_resolution));
-		y = -minfirstline << currprefs.gfx_vresolution;
-		y = xshift (y, dbl2);
-#endif
+		if (denise_strlong_seen) {
+			x -= 2 << hresolution;
+		}
+		x += 0x38 / 2;
+
 		*xp = x;
 		*yp = y;
 	} else {
@@ -1444,19 +1443,21 @@ static void center_image(void)
 	if (visible_left_border < 0) {
 		visible_left_border = 0;
 	}
+	horizontal_compatibility_offset = 0;
 	if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
 		if (ecs_denise) {
-			visible_left_border += 1 << currprefs.gfx_resolution;
+			horizontal_compatibility_offset = 1;
 		} else {
-			visible_left_border += 2 << currprefs.gfx_resolution;
+			horizontal_compatibility_offset = 2;
 		}
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_BROADCAST) {
 		if (ecs_denise) {
-			visible_left_border += 3 << currprefs.gfx_resolution;
+			horizontal_compatibility_offset = 3;
 		} else {
-			visible_left_border += 4 << currprefs.gfx_resolution;
+			horizontal_compatibility_offset = 4;
 		}
 	}
+	visible_left_border += horizontal_compatibility_offset << currprefs.gfx_resolution;
 	visible_right_border = visible_left_border + w;
 	visible_left_border &= ~((1 << currprefs.gfx_resolution) - 1);
 	visible_right_border &= ~((1 << currprefs.gfx_resolution) - 1);

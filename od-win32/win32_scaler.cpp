@@ -503,7 +503,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 			//write_log (_T("%dx%d %dx%d\n"), cx, cy, currprefs.gfx_resolution, currprefs.gfx_vresolution);
 
 			getmanualpos(monid, &cx, &cy, &cw, &ch);
-			set_custom_limits(cw, ch, cx, cy, false);
+			set_custom_limits(cw, ch, cx, cy, true);
 			store_custom_limits(cw, ch, cx, cy);
 			scl = true;
 
