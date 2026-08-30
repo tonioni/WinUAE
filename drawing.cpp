@@ -5809,6 +5809,8 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 					gbuf++;
 				}
 			}
+			xlinebuffer += sizeof(uae_u32);
+			xlinebuffer2 += sizeof(uae_u32);
 		}
 		if (denise_strlong_seen && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME && !ecs_denise) {
 			int size = currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN ? 2 : 1;
