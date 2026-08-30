@@ -712,7 +712,6 @@ int diwfirstword_total, diwlastword_total;
 int ddffirstword_total, ddflastword_total;
 static int diwfirstword_total_old, diwlastword_total_old;
 static int ddffirstword_total_old, ddflastword_total_old;
-bool vertical_changed, horizontal_changed;
 int firstword_bplcon1;
 
 static int copper_access;
@@ -5382,13 +5381,13 @@ static void reset_autoscale(void)
 {
 	first_bpl_vpos = -1;
 	if (first_bplcon0 != first_bplcon0_old) {
-		vertical_changed = horizontal_changed = true;
+		centering_reset(true, true);
 	}
 	first_bplcon0_old = first_bplcon0;
 
 	if (first_planes_vpos != first_planes_vpos_old ||
 		last_planes_vpos != last_planes_vpos_old) {
-		vertical_changed = true;
+		centering_reset(false, true);
 	}
 	first_planes_vpos_old = first_planes_vpos;
 	last_planes_vpos_old = last_planes_vpos;
@@ -5397,7 +5396,7 @@ static void reset_autoscale(void)
 		diwlastword_total != diwlastword_total_old ||
 		ddffirstword_total != ddffirstword_total_old ||
 		ddflastword_total != ddflastword_total_old) {
-		horizontal_changed = true;
+		centering_reset(true, false);
 	}
 	diwfirstword_total_old = diwfirstword_total;
 	diwlastword_total_old = diwlastword_total;
@@ -9183,7 +9182,7 @@ static void generate_copper(void)
 
 	if (cop_state.startstrobe) {
 		// Copper state machine restart after COPxJMP strobe
-			cop_state.startstrobe &= ~8;
+		cop_state.startstrobe &= ~8;
 		if (cop_state.startstrobe & 15) {
 			cop_state.strobe = cop_state.startstrobe;
 		}

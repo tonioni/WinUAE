@@ -207,4 +207,6 @@ bool denise_get_hboffsets(int *hbs, int *hbe, int *hblen, int *total);
 bool denise_get_hbstate(bool);
 void denise_set_hdiw(bool hdiw);
 bool denise_get_hdiw(void);
+void centering_reset(bool h, bool v);
+
 #endif /* UAE_DRAWING_H */

@@ -646,10 +646,10 @@ bool isnativevidbuf(int monid)
 	return !vidinfo->outbuffer->hardwiredpositioning;
 }
 
+static bool vertical_changed, horizontal_changed;
 extern int plffirstline_total, plflastline_total;
 extern int diwfirstword_total, diwlastword_total;
 extern int ddffirstword_total, ddflastword_total;
-extern bool vertical_changed, horizontal_changed;
 extern int firstword_bplcon1;
 extern bool lof_display;
 
@@ -1349,6 +1349,16 @@ void init_row_map(void)
 	visible_right_stop = MAX_STOP;
 	visible_top_start = 0;
 	visible_bottom_stop = MAX_STOP;
+}
+
+void centering_reset(bool h, bool v)
+{
+	if (h) {
+		horizontal_changed = true;
+	}
+	if (v) {
+		vertical_changed = true;
+	}
 }
 
 static bool cancenter(void)
@@ -3864,7 +3874,7 @@ static void expand_drga_early(struct denise_rga *rd)
 			spr_unalign_val[0] = rd->v;
 			break;
 
-			// SPRxDATA/SPRxDATB
+		// SPRxDATA/SPRxDATB
 		case 0x144: case 0x146:
 		case 0x14c: case 0x14e:
 		case 0x154: case 0x156:
@@ -3874,7 +3884,7 @@ static void expand_drga_early(struct denise_rga *rd)
 		case 0x174: case 0x176:
 		case 0x17c: case 0x17e:
 		{
-				int sreg = rd->rga - 0x140;
+			int sreg = rd->rga - 0x140;
 			if (!aga_mode) {
 				sprwrite(sreg, rd->v);
 			} else {
