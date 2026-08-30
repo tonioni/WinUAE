@@ -5986,6 +5986,19 @@ static void edgeblanking(int hbstrt_offset, int hbstop_offset, int internal_pixe
 	}
 }
 
+static void blankline(void)
+{
+	if (xlinebuffer) {
+		memset(xlinebuffer_start, DEBUG_TVOVERSCAN_V_GRAYSCALE, xlinebuffer_end - xlinebuffer_start);
+		if (xlinebuffer2 && xlinebuffer != xlinebuffer2) {
+			memset(xlinebuffer2_start, DEBUG_TVOVERSCAN_V_GRAYSCALE, xlinebuffer2_end - xlinebuffer2_start);
+		}
+		if (xlinebuffer_genlock) {
+			memset(xlinebuffer_genlock_start, 0, xlinebuffer_genlock_end - xlinebuffer_genlock_start);
+		}
+	}
+}
+
 static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip_start, int skip_end, int dtotal,
 	int calib_start, int calib_len, bool lol, int hdelay, bool blanked, bool borderline, bool finalseg, struct linestate *ls)
 {
@@ -6106,15 +6119,7 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 			lts_changed = false;
 		}
 
-		if (xlinebuffer) {
-			memset(xlinebuffer_start, DEBUG_TVOVERSCAN_V_GRAYSCALE, xlinebuffer_end - xlinebuffer_start);
-			if (xlinebuffer2 && xlinebuffer != xlinebuffer2) {
-				memset(xlinebuffer2_start, DEBUG_TVOVERSCAN_V_GRAYSCALE, xlinebuffer2_end - xlinebuffer2_start);
-			}
-			if (xlinebuffer_genlock) {
-				memset(xlinebuffer_genlock_start, 0, xlinebuffer_genlock_end - xlinebuffer_genlock_start);
-			}
-		}
+		blankline();
 
 		last_bpl_pix = 0;
 		setlasthamcolor();
@@ -6136,15 +6141,7 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		}
 
 		if (hidden) {
-			if (xlinebuffer) {
-				memset(xlinebuffer_start, DEBUG_TVOVERSCAN_V_GRAYSCALE, xlinebuffer_end - xlinebuffer_start);
-				if (xlinebuffer2 && xlinebuffer != xlinebuffer2) {
-					memset(xlinebuffer2_start, DEBUG_TVOVERSCAN_V_GRAYSCALE, xlinebuffer2_end - xlinebuffer2_start);
-				}
-				if (xlinebuffer_genlock) {
-					memset(xlinebuffer_genlock_start, 0, xlinebuffer_genlock_end - xlinebuffer_genlock_start);
-				}
-			}
+			blankline();
 		}
 
 #if 0
@@ -7242,7 +7239,9 @@ void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, st
 		return;
 	}
 
-	if (ls->blankedline) {
+	bool hidden = this_line->linear_vpos >= denise_vblank_extra_bottom || this_line->linear_vpos < denise_vblank_extra_top;
+	if (ls->blankedline || hidden) {
+		blankline();
 		return;
 	}
 
@@ -7358,8 +7357,8 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	}
 
 	bool hidden = this_line->linear_vpos >= denise_vblank_extra_bottom || this_line->linear_vpos < denise_vblank_extra_top;
-
 	if (ls->blankedline || hidden) {
+		blankline();
 		return;
 	}
 
