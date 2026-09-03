@@ -27,7 +27,7 @@ struct romscan_state {
 };
 
 static bool romscan_dirty = true;
-static bool romscan_recursive;
+static int recursiveromscan;
 
 static bool is_rom_extension(const TCHAR *path, bool deepscan)
 {
@@ -154,7 +154,7 @@ static bool scan_rom_file(const TCHAR *path, romscan_state *state)
 	return state->got != had_rom;
 }
 
-static void scan_rom_directory(const TCHAR *path, bool recursive, int level, romscan_state *state)
+static void scan_rom_directory(const TCHAR *path, int level, romscan_state *state)
 {
 	struct my_opendir_s *dir = my_opendir(path);
 	if (!dir) {
@@ -181,8 +181,10 @@ static void scan_rom_directory(const TCHAR *path, bool recursive, int level, rom
 		}
 		if (S_ISREG(st.st_mode) && st.st_size < 10000000) {
 			scan_rom_file(full, state);
-		} else if (recursive && S_ISDIR(st.st_mode) && level < 2 && name[0] != '.') {
-			scan_rom_directory(full, recursive, level + 1, state);
+		} else if (S_ISDIR(st.st_mode) && name[0] != '.') {
+			if (recursiveromscan < 0 || recursiveromscan > level) {
+				scan_rom_directory(full, level + 1, state);
+			}
 		}
 	}
 	my_closedir(dir);
@@ -284,7 +286,7 @@ static int scan_rom_paths(struct uae_prefs *prefs)
 
 	for (const std::string &path : rom_scan_paths(prefs)) {
 		write_log(_T("ROM scan directory '%s'\n"), path.c_str());
-		scan_rom_directory(path.c_str(), romscan_recursive, 0, &state);
+		scan_rom_directory(path.c_str(), 0, &state);
 	}
 	add_nofile_roms(&state);
 
@@ -301,8 +303,9 @@ void unix_romscan_mark_dirty(void)
 
 void unix_romscan_set_recursive(bool recursive)
 {
-	if (romscan_recursive != recursive) {
-		romscan_recursive = recursive;
+	const int value = recursive ? 2 : 0;
+	if (recursiveromscan != value) {
+		recursiveromscan = value;
 		unix_romscan_mark_dirty();
 	}
 }
