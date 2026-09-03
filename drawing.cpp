@@ -456,6 +456,7 @@ static int bpldat_fmode;
 static int fetchmode_size_denise, fetchmode_mask_denise;
 static int delayed_vblank_ecs, delayed_pvblank_aga;
 static bool denise_hdiw, denise_hblank, denise_phblank, denise_vblank, denise_pvblank;
+static bool denise_vblank_ocs_prev;
 static bool diw_disable;
 static bool denise_blank_active, denise_blank_active2, denise_hblank_active, denise_vblank_active;
 static bool debug_special_csync, debug_special_hvsync;
@@ -896,10 +897,6 @@ void set_custom_limits (int w, int h, int dx, int dy, bool blank)
 		int startypos = linear_vpos_vb_end << vshift;
 		visible_top_start = startypos + dy;
 		visible_bottom_stop = startypos + dy + h;
-		if (dy <= 0 && currprefs.gfx_overscanmode < OVERSCANMODE_BROADCAST) {
-			visible_top_start += 1 << vshift;
-			visible_bottom_stop -= 1 << vshift;
-		}
 		visible_top_start += hhadd;
 		visible_bottom_stop -= hhadd;
 	}
@@ -3557,6 +3554,7 @@ void denise_reset(bool hard)
 	denise_hblank = false;
 	denise_phblank = false;
 	denise_vblank = false;
+	denise_vblank_ocs_prev = false;
 	denise_hblank_active = false;
 	denise_vblank_active = false;
 	denise_blank_active = denise_blank_active2 = false;
@@ -3990,6 +3988,9 @@ static void handle_strobes(struct denise_rga *rd)
 	} else {
 
 		if (rd->rga == 0x03c && previous_strobe != 0x03c) {
+			if (denise_vblank) {
+				denise_vblank_ocs_prev = true;
+			}
 			denise_vblank = false;
 #ifdef DEBUGGER
 			if (debug_dma) {
@@ -3997,6 +3998,9 @@ static void handle_strobes(struct denise_rga *rd)
 			}
 #endif
 		} else if (rd->rga == 0x038 && previous_strobe != 0x038) {
+			if (!denise_vblank) {
+				denise_vblank_ocs_prev = true;
+			}
 			denise_vblank = true;
 #ifdef DEBUGGER
 			if (debug_dma) {
@@ -6166,7 +6170,8 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 			return;
 		}
 
-		if (hiddenblank) {
+		// currprefs.gfx_overscanmode < OVERSCANMODE_BROADCAST: hide OCS Denise blanking start/end bug.
+		if (hiddenblank || (denise_vblank_ocs_prev && currprefs.gfx_overscanmode < OVERSCANMODE_BROADCAST)) {
 			blankline();
 		}
 
@@ -6304,6 +6309,7 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 		resolution_count[denise_res]++;
 	}
 	lines_count++;
+	denise_vblank_ocs_prev = false;
 }
 
 bool denise_get_hbstate(bool clear)
