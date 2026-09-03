@@ -244,7 +244,11 @@ static bool parseVsyncMode(const QString &value, int *out)
 
 static void parseSettingOption(struct uae_prefs *prefs, const QString &key, const QString &value)
 {
-    if (value.isEmpty() || key.startsWith(QStringLiteral("unix.ui."))) {
+    if (value.isEmpty()) {
+        return;
+    }
+    if (key.startsWith(QStringLiteral("unix.ui.")) &&
+        key != QStringLiteral("unix.ui.recursive_roms")) {
         return;
     }
     if (key == QStringLiteral("uaescsimode") || key == QStringLiteral("unix.uaescsimode")) {
