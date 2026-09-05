@@ -7396,10 +7396,6 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 		blankline();
 		return;
 	}
-	if (hidden) {
-		draw_denise_border_line_fast(gfx_ypos, true, how, ls);
-		return;
-	}
 
 	uae_u32 *buf1p = buf1;
 	uae_u32 *buf2p = buf2 != buf1 ? buf2 : NULL;
