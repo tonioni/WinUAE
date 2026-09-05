@@ -3066,7 +3066,7 @@ static void DMACON(int hpos, uae_u16 v)
 		set_special(SPCFLAG_BLTNASTY);
 	}
 
-	if (dmaen(DMA_BLITTER) && blt_info.blit_pending) {
+	if (dmaen(DMA_BLITTER) && (blt_info.blit_pending || blt_info.blit_stuck)) {
 		blitter_check_start();
 	}
 
