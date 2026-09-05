@@ -5738,6 +5738,8 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 	xlinebuffer = NULL;
 	xlinebuffer2 = NULL;
 	xlinebuffer_genlock = NULL;
+	buf1 = NULL;
+	buf2 = NULL;
 
 	denise_pixtotal_totalmax = (denise_pixtotalv - denise_pixtotalskip_end) * 2;
 	denise_pixtotal = -denise_pixtotalskip_start;
