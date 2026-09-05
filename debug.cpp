@@ -6228,7 +6228,7 @@ int instruction_breakpoint(TCHAR **c)
 							}
 						}
 					} else {
-						bpn->enabled = false;
+						bpn->enabled = 0;
 						console_out_f(_T("Breakpoint %d removed.\n"), bpidx);
 					}
 				}
@@ -6271,12 +6271,54 @@ int instruction_breakpoint(TCHAR **c)
 			}
 			console_out(_T("All breakpoints removed.\n"));
 			return 0;
-		} else if (nc == 'R' && (*c)[1] == 0) {
+		} else if (nc == 'R') {
 			if (more_params(c)) {
+				next_char(c);
 				int bpnum = readint(c, NULL);
 				if (bpnum >= 0 && bpnum < BREAKPOINT_TOTAL) {
-					bpnodes[bpnum].enabled = 0;
-					console_out_f(_T("Breakpoint %d removed.\n"), bpnum);
+					if (bpnodes[bpnum].enabled) {
+						bpnodes[bpnum].enabled = 0;
+						console_out_f(_T("Breakpoint %d removed.\n"), bpnum);
+					}
+				}
+			}
+			return 0;
+		} else if (nc == 'T') {
+			if (more_params(c)) {
+				next_char(c);
+				if (_totupper(peekchar(c)) == 'A') {
+					bool isenabled = false;
+					for (i = 0; i < BREAKPOINT_TOTAL; i++) {
+						if (bpnodes[i].enabled > 0) {
+							isenabled = true;
+						}
+					}
+					for (i = 0; i < BREAKPOINT_TOTAL; i++) {
+						if (isenabled && bpnodes[i].enabled > 0) {
+							bpnodes[i].enabled = -1;
+						}
+						if (!isenabled && bpnodes[i].enabled < 0) {
+							bpnodes[i].enabled = 1;
+						}
+					}
+					if (isenabled) {
+						console_out(_T("All breakpoints disabled.\n"));
+					} else {
+						console_out(_T("All breakpoints enabled.\n"));
+					}
+					return 0;
+				} else {
+					int bpnum = readint(c, NULL);
+					if (bpnum >= 0 && bpnum < BREAKPOINT_TOTAL) {
+						if (bpnodes[bpnum].enabled) {
+							bpnodes[bpnum].enabled = bpnodes[bpnum].enabled > 0 ? -1 : 1;
+							if (bpnodes[bpnum].enabled > 0) {
+								console_out_f(_T("Breakpoint %d enabled.\n"), bpnum);
+							} else {
+								console_out_f(_T("Breakpoint %d disabled.\n"), bpnum);
+							}
+						}
+					}
 				}
 			}
 			return 0;
@@ -6299,6 +6341,9 @@ int instruction_breakpoint(TCHAR **c)
 				}
 				if (bpn->chain > 0) {
 					console_out_f(_T(" H=%d"), bpn->chain);
+				}
+				if (bpn->enabled < 0) {
+					console_out_f(_T(" (disabled)"));
 				}
 				console_out_f(_T("\n"));
 				got = 1;
@@ -7956,7 +8001,7 @@ static bool check_breakpoint(struct breakpoint_node *bpn, uaecptr pc)
 {
 	int bpnum = -1;
 
-	if (!bpn->enabled) {
+	if (bpn->enabled <= 0) {
 		return false;
 	}
 	if (bpn->type == BREAKPOINT_REG_PC) {
@@ -8106,7 +8151,7 @@ void debug (void)
 					// if this breakpoint is chained, ignore it
 					for (j = 0; j < BREAKPOINT_TOTAL; j++) {
 						struct breakpoint_node *bpn2 = &bpnodes[j];
-						if (bpn2->enabled && bpn2->chain == i) {
+						if (bpn2->enabled > 0 && bpn2->chain == i) {
 							break;
 						}
 					}
@@ -8285,7 +8330,7 @@ void debug (void)
 	}
 	if (!trace_mode) {
 		for (int i = 0; i < BREAKPOINT_TOTAL; i++) {
-			if (bpnodes[i].enabled)
+			if (bpnodes[i].enabled > 0)
 				trace_mode = TRACE_CHECKONLY;
 		}
 	}
