@@ -2458,6 +2458,8 @@ void drawing_init(void)
 		uae_sem_init(&write_sem, 0, 1);
 		denise_thread_state = 1;
 		uae_start_thread(_T("denise"), denise_thread, NULL, NULL);
+	} else {
+		draw_denise_line_queue_flush();
 	}
 
 	refresh_indicator_init();
