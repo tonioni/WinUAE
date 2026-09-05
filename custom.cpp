@@ -9827,7 +9827,9 @@ static void check_vidsyncs(void)
 
 static void update_fast_vb(void)
 {
-	vb_fast = get_strobe_reg(0) != 0x3c;
+	bool equ = ecs_agnus ? agnus_p_ve : agnus_ve;
+	bool vb = (beamcon0 & BEAMCON0_VARVBEN) ? (agnus_pvb || agnus_pvb_end_line) && !agnus_pvb_start_line : (agnus_vb > 0 || agnus_vb_end_line);
+	vb_fast = equ || vb;
 }
 
 static void count_hsyncs(evt_t start, evt_t end)
@@ -10006,7 +10008,6 @@ static void check_vsyncs_fast(void)
 	}
 
 	check_vidsyncs();
-	update_fast_vb();
 }
 
 static void check_vsyncs(void)
@@ -10977,6 +10978,7 @@ static void custom_trigger_start(void)
 
 	setmaxhpos();
 	agnus_trigger_cck = get_cck_cycles();
+	update_fast_vb();
 
 	start_dmal();
 	check_bpl_vdiw();
