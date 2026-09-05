@@ -5037,6 +5037,7 @@ static void denise_handle_quick_strobe(uae_u16 strobe, int offset, int vpos)
 	denise_hcounter_new &= 511;
 	denise_hcounter = denise_hcounter_new;
 	denise_hcounter_cmp = denise_hcounter;
+	denise_vblank_ocs_prev = false;
 
 	//write_log("%d %04x %d %d\n", vpos, strobe, offset, denise_hcounter_new);
 
