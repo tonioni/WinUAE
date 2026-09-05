@@ -674,10 +674,7 @@ void get_custom_topedge (int *xp, int *yp, bool max)
 		if (!ecs_denise) {
 			x -= 1 << hresolution;
 		}
-		if (denise_strlong_seen) {
-			x -= 2 << hresolution;
-		}
-		x += 0x38 / 2;
+		x += (0x38 / 4) << hresolution;
 
 		*xp = x;
 		*yp = y;
