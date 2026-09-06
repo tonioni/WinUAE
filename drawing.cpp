@@ -673,6 +673,10 @@ void get_custom_topedge (int *xp, int *yp, bool max)
 		x -= horizontal_compatibility_offset << hresolution;
 		if (!ecs_denise) {
 			x -= 1 << hresolution;
+			if (denise_strlong_seen) {
+				int size = currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN ? 2 : 1;
+				x += size << (hresolution + 2);
+			}
 		}
 		x += (0x38 / 4) << hresolution;
 
