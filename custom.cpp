@@ -583,9 +583,6 @@ int maxvsize_display = AMIGA_HEIGHT_MAX;
 int maxvpos_display_vsync;
 int vsync_startline;
 static bool maxvpos_display_vsync_next;
-static int maxhposm1;
-int maxhposm0 = MAXHPOS_PAL;
-static bool maxhposeven;
 static int hsyncendpos, hsyncstartpos;
 int hdisplay_left_border;
 
@@ -2333,9 +2330,6 @@ static void setmaxhpos(void)
 	maxhpos = maxhpos_short + lol;
 	maxhpos_lol = lol;
 	maxhpos_long = linetoggle ? maxhpos_short + 1 : -1;
-	maxhposm0 = maxhpos;
-	maxhposm1 = maxhpos - 1;
-	maxhposeven = (maxhposm1 & 1) == 0;
 }
 
 #define CPU_ACCURATE (currprefs.cpu_model < 68020 || (currprefs.cpu_model == 68020 && currprefs.cpu_memory_cycle_exact))
