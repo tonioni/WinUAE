@@ -1,4 +1,27 @@
 
+Beta 13:
+
+- Fixed random crash in Denise side drawing thread writing to invalid pointer during blanking periods.
+- ECS Denise programmed blanking state got stuck blanked if BPLCON3 EXTHBLANKEN was reset during hblank period.
+- OCS/ECS write to SPRxDATA ARM enable is CCK aligned, only SPRxDATA sprite pattern data is loaded 0.5 CCK earlier.
+- "Sprite SPRxDATA write exactly when horizontal position would match and also arm the sprite: use previously loaded SPRxDATA value" was not fully working in AGA mode.
+- Copper COPJMPx when previous Copper DMA was pending was not emulated fully correctly. COPxJMP write or frame start COPJMP1 and pending Copper move in next cycle: cycle still happens but register write does not happen. (This and all above are Ross test accidentally found side-effects)
+- NTSC line length detection was unreliable, it would randomly choose long field length instead of short field length, causing display to be 2 lores pixels wider than expected and possibly also had horizontal offset.
+- ECS Denise programmed modes didn't set internal hblank start/end values and caused mispositioned display if Chipset panel monitor positioning mode was blanking based.
+- On the fly blitter cycle-exact to non-cycle-exect switch may have caused hung emulation if blitter was in nasty mode, blitter cycle-diagram didn't have idle cycles and was active during switch.
+- Rewrote "blitter stuck" handling in non-CE modes. This happens when blitter DMA is switched off after starting the blit but before it had finished. Previously this was checked every 10 CCKs using events which was unnecessarily CPU heavy. Now it simply checks DMACON writes. Amix boot without immediate blitter can trigger this.
+- ARM64 JIT fix from Amiberry (slow division instructions)
+- Virtual mouse driver can be enabled/disabled on the fly. NOTE: Can be only enabled on the fly if configuration has UAE Boot ROM enabled.
+- Virtual mouse absolute coordinates are not injected to AmigaOS side if no absolute coordinates have yet been received from host, for example some mouse setting configuration combinations made early boot menu unusable, mouse always jumped to top/left when pressing mouse buttons.
+- Optimized cycle-exact mode event handling.
+- 68030 MMU fix from AnimaInCorpore (MMU bus error stack frame handling in prefetch mode should use new loaded opcode word from pipeline prefill instead of exception stack frame stored previous opcode value)
+- Save current floppy speed to statefile.
+- Manual filter panel horizontal position had offset when old config was loaded.
+- Screen when fast drawing mode active and part of top or bottom border was not visible on screen: screenshot before filtering missing parts could have wrong background color or missing blanking.
+- Debugger breakpoints disable/enable option: ft <num> = enable/disable breakpoint. fta = disable all if one or more is enabled. Enable all if all are disabled.
+- Built-in AROS ROM updated.
+- Built-in AROS ROM was not loaded in relative paths mode.
+
 Beta 12
 
 - RTG panel "Visible display" was only ticked when hardware emulated board was active, it was not ticked in uaegfx modes.

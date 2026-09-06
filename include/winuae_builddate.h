@@ -6,6 +6,6 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEDATE MAKEBD(2026, 8, 16)
+#define WINUAEDATE MAKEBD(2026, 9, 6)
 
 #endif
