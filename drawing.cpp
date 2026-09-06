@@ -3723,6 +3723,11 @@ static void do_exthblankon_ecs(void)
 			copy_strlong();
 			memset(dtbuf, 0, sizeof(dtbuf));
 		}
+		if (extblank) {
+			hbstrt_offset = internal_pixel_cnt;
+		} else {
+			hbstop_offset = internal_pixel_cnt;
+		}
 	}
 	if (delayed_sprite_vblank_ecs > 0 && denise_blank_active2) {
 		denise_sprite_blank_active = true;
