@@ -676,9 +676,13 @@ void get_custom_topedge (int *xp, int *yp, bool max)
 			if (denise_strlong_seen) {
 				int size = currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN ? 2 : 1;
 				x += size << (hresolution + 2);
+				y += 1 << currprefs.gfx_vresolution;
 			}
 		}
 		x += (0x38 / 4) << hresolution;
+		if (interlace_seen) {
+			y -= 1;
+		}
 
 		*xp = x;
 		*yp = y;
