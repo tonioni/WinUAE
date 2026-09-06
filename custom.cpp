@@ -4936,7 +4936,7 @@ static void vsync_check_vsyncmode(void)
 							current_linear_hpos_temp = linear_hpos_prev[0] > linear_hpos_prev[1] ? linear_hpos_prev[1] : linear_hpos_prev[0];
 						}
 						current_linear_vpos_temp = vp;
-						current_linear_temp_change = 2;
+						current_linear_temp_change = 3;
 					}
 				}
 			}
@@ -4950,12 +4950,12 @@ static void vsync_check_vsyncmode(void)
 			abs(current_linear_hpos - current_linear_hpos_temp) >= 1 ||
 			abs(current_linear_vpos - current_linear_vpos_temp) >= 2)
 		{
-			current_linear_temp_change = 2;
+			current_linear_temp_change = 3;
 		}
 	}
 
 	if (!current_linear_temp_change && denise_get_hbstate(false) && currprefs.cs_hvcsync < HVSYNC_SYNCPOS) {
-		current_linear_temp_change = 2;
+		current_linear_temp_change = 3;
 	}
 
 	bool framesync = false;
@@ -5010,7 +5010,7 @@ static void vsync_check_vsyncmode(void)
 			init_beamcon_delay = 0;
 		}
 		if (init_beamcon_delay < 0) {
-			init_beamcon_delay = 2;
+			init_beamcon_delay = 3;
 		} else if (init_beamcon_delay > 0) {
 			init_beamcon_delay--;
 			if (init_beamcon_delay == 0) {
@@ -11063,6 +11063,7 @@ static void custom_trigger_start(void)
 	if (!eventtab[ev_sync].active) {
 		custom_fastmode = 0;
 	} else {
+		add_vsync_linecnt();
 		check_vsyncs_fast();
 	}
 
@@ -12054,7 +12055,6 @@ static void sync_equalline_handler(void)
 	agnus_hsync_start += diff;
 
 	fast_lines_cnt++;
-	add_vsync_linecnt();
 
 	custom_trigger_start();
 
