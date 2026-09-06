@@ -1910,7 +1910,7 @@ static void init_beamcon0(void)
 
 	maxvpos_nom = maxvpos;
 	maxvpos_display = vsync_lines;
-	int hsync_ccks2 = custom_fastmode ? maxhpos : hsync_ccks;
+	int hsync_ccks2 = custom_fastmode ? maxhpos_short : hsync_ccks;
 
 	int hbs = -1, hbe = -1, hblen = 0, total = 0;
 	if (currprefs.cs_hvcsync < HVSYNC_SYNCPOS && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
@@ -4986,7 +4986,7 @@ static void vsync_check_vsyncmode(void)
 				current_linear_vpos_vb_end = linear_vpos_vblank_end;
 				current_linear_vpos_vb_start = linear_vpos_vblank_start;
 				current_linear_vpos_vb_vsync = linear_vpos_vblank_vsync;
-				current_linear_hpos_short = current_linear_hpos - maxhpos_lol;
+				current_linear_hpos_short = current_linear_hpos;
 				current_linear_vpos_nom = current_linear_vpos - lof_store;
 				linear_vpos_values_changed = 0;
 				init_beamcon0();
@@ -6791,7 +6791,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		fmode_saved = fmode;
 		beamcon0_saved = new_beamcon0;
 
-		hsync_ccks = maxhpos;
+		hsync_ccks = maxhpos_short;
 
 		if (currprefs.cs_compatible == CP_DRACO || currprefs.cs_compatible == CP_CASABLANCA) {
 			// fake draco interrupts
@@ -9985,7 +9985,7 @@ static void check_vsyncs_fast(void)
 		count_hsyncs(18, 35);
 	}
 	agnus_hsstrt_cck = get_cck_cycles();
-	hsync_ccks = maxhpos;
+	hsync_ccks = maxhpos_short;
 	if (programmed_register_accessed_v && programmed_register_accessed_h) {
 		if (hcenter < maxhpos) {
 			if (lof_store && vpos == vsstrt) {
@@ -10871,6 +10871,11 @@ static void custom_trigger_start_nosync(void)
 	}
 }
 
+static void add_vsync_linecnt(void)
+{
+	vsync_linecnt++;
+}
+
 static void custom_trigger_start(void)
 {
 	if (vdiwstate == diw_states::DIW_waiting_stop && dmaen(DMA_BITPLANE)) {
@@ -10986,7 +10991,7 @@ static void custom_trigger_start(void)
 			write_log("Chipset emulation inactive\n");
 			resetfulllinestate();
 		}
-		vsync_linecnt++;
+		add_vsync_linecnt();
 		check_vsyncs_fast();
 		linear_hpos_prev[2] = linear_hpos_prev[1];
 		linear_hpos_prev[1] = linear_hpos_prev[0];
@@ -11194,6 +11199,15 @@ static void update_agnus_pcsync(int hp, bool prevsy)
 	}
 }
 
+static void hsync_set(int c)
+{
+	if (hsync_ccks + 1 == c) {
+		hsync_ccks = c - 1;
+	} else {
+		hsync_ccks = c;
+	}
+}
+
 static void check_hsyncs_hardwired(void)
 {
 	int hp = agnus_hpos;
@@ -11222,9 +11236,9 @@ static void check_hsyncs_hardwired(void)
 			int c = get_cck_cycles_diff(agnus_hsync_start);
 			// value may be temporarily negative when switching between modes.
 			if (c > 0) {
-				hsync_ccks = c;
+				hsync_set(c);
 			}
-			vsync_linecnt++;
+			add_vsync_linecnt();
 			agnus_hsync_start = get_cck_cycles();
 			display_hstart_cyclewait_started = true;
 			write_drga_flag(DENISE_RGA_FLAG_LOL | (lol ? DENISE_RGA_FLAG_LOL_ON : 0), DENISE_RGA_FLAG_LOL | DENISE_RGA_FLAG_LOL_ON);
@@ -11454,9 +11468,10 @@ static void check_hsyncs_programmed(void)
 			int c = get_cck_cycles_diff(agnus_hsync_start);
 			// value may be temporarily negative when switching between modes.
 			if (c > 0) {
-				hsync_ccks = c;
+				hsync_set(c);
 			}
-			vsync_linecnt++;
+			add_vsync_linecnt();
+
 			agnus_hsync_start = get_cck_cycles();
 			display_hstart_cyclewait_started = true;
 			if (hsstrt > 8) {
@@ -12039,7 +12054,7 @@ static void sync_equalline_handler(void)
 	agnus_hsync_start += diff;
 
 	fast_lines_cnt++;
-	vsync_linecnt++;
+	add_vsync_linecnt();
 
 	custom_trigger_start();
 
