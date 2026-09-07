@@ -589,7 +589,7 @@ static void clearbuffer(struct vidbuffer *dst)
 		return;
 	uae_u8 *p = dst->bufmem_allocated;
 	for (int y = 0; y < dst->height_allocated; y++) {
-		memset (p, 0, dst->width_allocated * dst->pixbytes);
+		memset(p, 0, dst->width_allocated * dst->pixbytes);
 		p += dst->rowbytes;
 	}
 }
@@ -663,7 +663,7 @@ static int gclow, gcloh, gclox, gcloy, gclorealh;
 static int stored_left_start, stored_top_start, stored_width, stored_height;
 static int horizontal_compatibility_offset;
 
-void get_custom_topedge (int *xp, int *yp, bool max)
+void get_custom_topedge(int *xp, int *yp, bool max)
 {
 	if (isnativevidbuf(0) && !max) {
 		int x = visible_left_border;
@@ -676,13 +676,18 @@ void get_custom_topedge (int *xp, int *yp, bool max)
 			if (denise_strlong_seen) {
 				int size = currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN ? 2 : 1;
 				x += size << (hresolution + 2);
-				y += 1 << currprefs.gfx_vresolution;
+			}
+		} else if (ecs_denise && ecs_agnus) {
+			if (denise_strlong_seen) {
+				y -= 1 << currprefs.gfx_vresolution;
 			}
 		}
-		x += (0x38 / 4) << hresolution;
 		if (interlace_seen) {
-			y -= 1;
+			y--;
+		} else {
+			y += 1 << currprefs.gfx_vresolution;
 		}
+		x += (0x38 / 4) << hresolution;
 
 		*xp = x;
 		*yp = y;
