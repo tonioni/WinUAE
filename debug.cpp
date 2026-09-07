@@ -100,6 +100,15 @@ static void debug_cycles(int mode)
 	last_hpos2 = current_hpos();
 }
 
+static void initialize_debugger(void)
+{
+	if (!debugger_active) {
+		disasm_init();
+		debugmem_enable();
+		debug_pc = 0xffffffff;
+	}
+}
+
 void deactivate_debugger (void)
 {
 	inside_debugger = 0;
@@ -7263,7 +7272,7 @@ static bool parsecmd(TCHAR *cmd, bool *out)
 	return false;
 }
 
-static bool debug_line (TCHAR *input)
+static bool debug_line_2(TCHAR *input)
 {
 	TCHAR cmd, *inptr;
 	uaecptr addr;
@@ -8779,6 +8788,7 @@ void debug_parser (const TCHAR *cmd, TCHAR *out, uae_u32 outsize)
 		out[0] = 0;
 		setconsolemode (out, outsize);
 	}
+	initialize_debugger();
 	debug_line (input);
 	setconsolemode (NULL, 0);
 	xfree (input);
