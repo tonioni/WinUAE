@@ -7924,6 +7924,42 @@ static bool debug_line (TCHAR *input)
 	return false;
 }
 
+static bool debug_line(TCHAR *input)
+{
+	TCHAR *in = my_strdup(input);
+	TCHAR *ins = in, *inp = in;
+	TCHAR quoted = 0;
+	bool ret = false;
+
+	while (*inp) {
+		TCHAR c = *inp++;
+		if (c == '"' || c == '\'') {
+			if (quoted == c) {
+				quoted = 0;
+			} else {
+				quoted = c;
+			}
+		}
+		if (!quoted && c == ';') {
+			inp--;
+			*inp = 0;
+			ret = debug_line_2(ins);
+			ins = inp;
+			if (ret) {
+				break;
+			}
+			inp++;
+			ins = inp;
+		}
+	}
+	if (*ins) {
+		ret = debug_line_2(ins);
+	}
+
+	xfree(in);
+	return ret;
+}
+
 static TCHAR input[MAX_LINEWIDTH];
 
 static void debug_1 (void)
