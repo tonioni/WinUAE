@@ -239,6 +239,7 @@ static void write_rga_update(struct rgabuf *r, uae_u32 *p)
 {
 	if (p && r->p) {
 		// DMA address pointer conflict causes both old and new address to becomes old OR new.
+		r->conflict2 = p; 
 		r->conflict = r->p;
 		*r->p |= *p;
 		*p = *r->p;
@@ -261,6 +262,7 @@ struct rgabuf *write_rga(int slot, int type, uae_u16 v, uae_u32 *p)
 			p ? *p : 0, r->pv, (p ? *p : 0) | r->pv, 
 			v,
 			slot);
+		//activate_debugger();
 	}
 	// RGA bus address conflict causes AND operation
 	r->reg &= v;
@@ -437,7 +439,8 @@ uae_u16 last_custom_value;
 static bool dmacon_bpl, dmacon_bpl2;
 
 static uae_u32 cop1lc, cop2lc, copcon;
-
+static uae_u32 cop1lc2, cop2lc2;
+static evt_t cop1lc2_cck, cop2lc2_cck;
 
 /*
 * Horizontal hardwired defaults
@@ -728,7 +731,7 @@ struct copper {
 	int vcmp, hcmp;
 	uaecptr vblankip;
 
-	int strobe;
+	int strobe, prev_strobe;
 	int inst;
 	bool load1;
 	bool load2;
@@ -737,6 +740,7 @@ struct copper {
 	int irload1;
 	int irload2;
 	uae_u32 startstrobe;
+	uae_u16 prelatch;
 	bool blitwait;
 	bool cycle_alloc;
 	bool validmove;
@@ -1672,6 +1676,8 @@ static void update_display_vars(void)
 		vb->outwidth = vb->inwidth;
 		vb->outheight = vb->inheight;
 	}
+
+	//write_log("******  %d %d %d %d %d %d %d %dx%d\n", current_linear_vblank_lines, current_linear_vpos, display_vblankstart_skip, display_vblankend_skip, current_linear_vpos_vb_end, minfirstline, linear_vpos_vb_end, vb->inwidth, vb->inheight);
 
 	check_nocustom();
 
@@ -2901,75 +2907,98 @@ static void immediate_copper(int num)
 	}
 }
 
-STATIC_INLINE void COP1LCH(uae_u16 v)
+static void COP1LCH(uae_u16 v)
 {
+	cop1lc2 = cop1lc;
+	cop1lc2_cck = get_cck_cycles();
 	cop1lc = (cop1lc & 0xffff) | ((uae_u32)v << 16);
 
-#if 0
-	if (agnus_hpos == 2 && vpos == 0 && safecpu() && !copper_access && is_copper_dma(false)) {
-		if (cop_state.state == COP_strobe_vbl_delay) {
-			cop_state.strobeip = cop1lc | ((regs.chipset_latch_rw & 0xffff) << 16);
-		}
-	}
-#endif
-}
-STATIC_INLINE void COP1LCL(uae_u16 v)
-{
-	cop1lc = (cop1lc & ~0xffff) | (v & 0xfffe);
-
-#if 0
 	// really strange chipset bug: if COP1LCL is written exactly at cycle 2, vpos 0,
 	// vblank triggered COP1JMP loads to internal COPPTR COP1LC OR last data in chip bus!
-	if (agnus_hpos == 2 && vpos == 0 && safecpu() && !copper_access && is_copper_dma(true)) {
-		if (cop_state.state == COP_strobe_vbl_delay) {
-			cop_state.strobeip = cop1lc | (regs.chipset_latch_rw & 0xfffe);
+	if (!copper_access && ((cop_state.startstrobe >> 8) & 7) == 4 + 1) {
+		if (safecpu() && is_copper_dma(false)) {
+			cop_state.startstrobe |= 0x08 << 8;
+			cop_state.prelatch = regs.chipset_latch_write;
 		}
 	}
-#endif
 }
-STATIC_INLINE void COP2LCH(uae_u16 v)
+static void COP1LCL(uae_u16 v)
 {
+	cop1lc2 = cop1lc;
+	cop1lc2_cck = get_cck_cycles();
+	cop1lc = (cop1lc & ~0xffff) | (v & 0xfffe);
+
+	if (!copper_access && ((cop_state.startstrobe >> 8) & 7) == 4 + 1) {
+		if (safecpu() && is_copper_dma(false)) {
+			cop_state.startstrobe |= 0x10 << 8;
+			cop_state.prelatch = regs.chipset_latch_write;
+		}
+	}
+}
+static void COP2LCH(uae_u16 v)
+{
+	cop2lc2 = cop2lc;
+	cop2lc2_cck = get_cck_cycles();
 	cop2lc = (cop2lc & 0xffff) | ((uae_u32)v << 16);
 }
-STATIC_INLINE void COP2LCL(uae_u16 v)
+static void COP2LCL(uae_u16 v)
 {
+	cop2lc2 = cop2lc;
+	cop2lc2_cck = get_cck_cycles();
 	cop2lc = (cop2lc & ~0xffff) | (v & 0xfffe);
 }
 
 static void compute_spcflag_copper(void);
 
+static uaecptr getcop(int n)
+{
+	uaecptr pt;
+	evt_t cck = get_cck_cycles() - 1;
+	if (n == 1) {
+		if (cck == cop1lc2_cck) {
+			pt = cop1lc2;
+		} else {
+			pt = cop1lc;
+		}
+	} else {
+		if (cck == cop2lc2_cck) {
+			pt = cop2lc2;
+		} else {
+			pt = cop2lc;
+		}
+	}
+	return pt;
+}
+
 static uaecptr getstrobecopip(void)
 {
-	if (cop_state.strobe == 3) {
-		return cop1lc | cop2lc;
-	} else if (cop_state.strobe == 2) {
-		return cop2lc;
+	int st = cop_state.strobe & 3;
+	if (st == 3) {
+		return getcop(1) | getcop(2);
+	} else if (st == 2) {
+		return getcop(2);
 	} else {
-		return cop1lc;
+		return getcop(1);
 	}
 }
 
 static void COPJMP(int num, bool bsce)
 {
-	uae_u32 st = 0;
+	uae_u16 st = 0;
 	
-	st |= 8 << 0;
-	st |= num << 4;
+	st |= 0x80 << 0;
+	st |= num << 8;
 	if (!bsce) {
-		cop_state.startstrobe |= st << 4;
+		cop_state.startstrobe |= st << 8;
+		// COPJMPx bug emulated only if accurate 68000
+		if (!safecpu()) {
+			cop_state.startstrobe |= 4 << 16;
+		}
 	} else {
 		cop_state.startstrobe |= st << 0;
+		cop_state.startstrobe |= 4 << 8;
 		cop_state.vblankip = cop1lc;
 	}
-
-	// Copper latches are reset immediately
-	cop_state.irload1 = 0;
-	cop_state.irload2 = 0;
-	cop_state.load1 = 0;
-	cop_state.load2 = 0;
-	cop_state.ir[1] &= ~1;
-	cop_state.start = 0;
-	cop_state.skiplatch = false;
 
 	if (custom_disabled) {
 		copper_enabled_thisline = 0;
@@ -7868,6 +7897,11 @@ uae_u8 *restore_custom(uae_u8 *src)
 	diwhigh_saved = diwhigh;
 	fmode_inuse = -1;
 
+	cop1lc2 = cop1lc;
+	cop2lc2 = cop2lc;
+	cop1lc2_cck = 0;
+	cop2lc2_cck = 0;
+
 	ddfstrt_val = ddfstrt | 1;
 	ddfstrt_val_old = ddfstrt_val;
 	ddfstrt_cycle = 0;
@@ -8944,6 +8978,15 @@ static uae_u64 fetch64(struct rgabuf *r)
 	return v;
 }
 
+uaecptr copper_blitter_conflict(struct rgabuf *r)
+{
+	cop_state.strobe = cop_state.prev_strobe;
+	cop_state.ip = getstrobecopip();
+	cop_state.strobe = 0;
+	return cop_state.ip;
+}
+
+
 static void process_copper(struct rgabuf *r)
 {
 	uaecptr ip = cop_state.ip;
@@ -9044,13 +9087,26 @@ static void process_copper(struct rgabuf *r)
 	}
 
 	if (cop_state.strobe) {
-		int strobe = cop_state.strobe & 3;
-		if (strobe) {
+		if (cop_state.strobe & 3) {
 #ifdef DEBUGGER
 			uaecptr previp = cop_state.ip;
 #endif
-			cop_state.strobe = strobe;
 			cop_state.ip = getstrobecopip();
+			if (cop_state.strobe & (0x08 | 0x10)) {
+				uae_u16 latch = cop_state.prelatch;
+				uaecptr pt = cop_state.ip;
+				if (cop_state.strobe & 8) {
+					cop_state.ip = pt | (latch << 16);
+				} else if (cop_state.strobe & 0x10) {
+					cop_state.ip = pt | (latch & 0xfffe);
+				}
+				static int warned = 100;
+				if (warned > 0) {
+					warned--;
+					write_log("Copper COP1LCx load while interenal VB triggered strobe bug %04x %08x -> %08x!\n", latch, pt, cop_state.ip);
+				}
+			}
+			cop_state.prev_strobe = cop_state.strobe;
 			cop_state.strobe = 0;
 #ifdef DEBUGGER
 			if (debug_copper) {
@@ -9201,18 +9257,35 @@ static void generate_copper(void)
 		}
 	}
 
+	if (odd_cycle) {
+		// set if non-buggy COPJMP sequence and DMA enabled, clear otherwise
+		cop_state.cycle_alloc = cop_state.strobe && dma;
+	}
+
 	if (cop_state.startstrobe) {
 		// Copper state machine restart after COPxJMP strobe
-		cop_state.startstrobe &= ~8;
-		if (cop_state.startstrobe & 15) {
-			cop_state.strobe = cop_state.startstrobe;
+		cop_state.startstrobe &= ~0x80;
+		if (cop_state.startstrobe & 7) {
+			cop_state.strobe = cop_state.startstrobe & 0x7f;
+			cop_state.irload1 = 0;
+			cop_state.irload2 = 0;
+			cop_state.load1 = 0;
+			cop_state.load2 = 0;
+			cop_state.ir[1] &= ~1;
+			cop_state.start = 0;
+			cop_state.skiplatch = false;
+			cop_state.cycle_alloc = false;
 		}
-		cop_state.startstrobe >>= 4;
+		cop_state.startstrobe >>= 8;
 	}
 
 	if (cop_state.strobe) {
 		// Initial DMA request after COPxJMP strobe
 		if (ena_odd) {
+			// Internally triggered COPJMP1 can't cause blitter conflict
+			if (cop_state.strobe & 4) {
+				cop_state.cycle_alloc = true;
+			}
 			if (!rga) {
 				rga = alloc_copper_cycle();
 			}
@@ -9221,11 +9294,7 @@ static void generate_copper(void)
 	}
 
 	// Copper cycle allocation to CPU/Blitter priority logic is selected 1 CCK earlier
-	cop_state.cycle_alloc = false;
 	if (act_even) {
-		if (cop_state.strobe || (cop_state.startstrobe & 15)) {
-			cop_state.cycle_alloc = true;
-		}
 		if (cop_state.start == 1) {
 			cop_state.cycle_alloc = true;
 		}

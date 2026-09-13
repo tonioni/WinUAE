@@ -1641,10 +1641,9 @@ void process_blitter(struct rgabuf *rga)
 
 			// copper conflict: after blitter dma transfer,
 			// copy new copper pointer to conflicting blitter address pointer.
-			if (rga->conflict) {
-				rga->p = rga->conflict;
-				*rga->p = rga->conflictaddr;
-				rga->pv = rga->conflictaddr;
+			if (rga->conflict && rga->conflict2) {
+				uaecptr addr = copper_blitter_conflict(rga);
+				*rga->conflict2 = addr;
 			}
 		} else {
 			markidlecycle();
@@ -1682,10 +1681,9 @@ void process_blitter(struct rgabuf *rga)
 
 		// copper conflict: after blitter dma transfer,
 		// copy new copper pointer to conflicting blitter address pointer OR used modulo (if any)
-		if (rga->conflict) {
-			rga->p = rga->conflict;
-			*rga->p = rga->conflictaddr | rga->bltmod;
-			rga->pv = rga->conflictaddr | rga->bltmod;
+		if (rga->conflict && rga->conflict2) {
+			uaecptr addr = copper_blitter_conflict(rga);
+			*rga->conflict2 = addr;
 		}
 
 	}
