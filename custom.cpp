@@ -2057,22 +2057,38 @@ static void init_hz_reset(void)
 	linear_hpos = currprefs.ntscmode ? MAXHPOS_NTSC : MAXHPOS_PAL;
 	linear_vpos += lof_store;
 	minfirstline = (currprefs.ntscmode ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL) - 1;
-	//linear_vpos -= vsync_startline;
 	linear_vpos_prev[0] = linear_vpos;
 	linear_vpos_prev[1] = linear_vpos;
 	linear_vpos_prev[2] = linear_vpos;
 	linear_hpos_prev[0] = linear_hpos;
 	linear_hpos_prev[1] = linear_hpos + lol;
 	linear_hpos_prev[2] = linear_hpos;
-	current_linear_vpos = linear_vpos; // +vsync_startline - lof_store;
+	current_linear_vpos = linear_vpos;
 	current_linear_hpos = linear_hpos;
 	current_linear_vpos_nom = current_linear_vpos;
 	current_linear_hpos_short = linear_hpos;
 	current_linear_hpos_temp = current_linear_hpos;
 	current_linear_vpos_temp = current_linear_vpos;
-	linear_vpos_vblank_lines = current_linear_vblank_lines = minfirstline;
-	linear_vpos_vb_end = current_linear_vpos_vb_end = minfirstline - vsync_startline;
-	linear_vpos_vb_start = current_linear_vpos_vb_start = current_linear_vpos + 1;
+	if (currprefs.ntscmode) {
+		linear_vpos_vblank_lines = current_linear_vblank_lines = minfirstline + 1;
+		linear_vpos_vb_end = current_linear_vpos_vb_end = minfirstline - vsync_startline;
+		linear_vpos_vb_start = current_linear_vpos_vb_start = current_linear_vpos - vsync_startline - 1;
+		current_linear_vpos_vb_vsync = linear_vpos_vblank_vsync = vsync_startline + 1;
+	} else {
+		linear_vpos_vblank_lines = current_linear_vblank_lines = minfirstline + 1;
+		linear_vpos_vb_end = current_linear_vpos_vb_end = minfirstline - vsync_startline + 1;
+		linear_vpos_vb_start = current_linear_vpos_vb_start = current_linear_vpos - vsync_startline;
+		current_linear_vpos_vb_vsync = linear_vpos_vblank_vsync = vsync_startline;
+	}
+	if (lof_store) {
+		linear_vpos_vb_start--;
+		current_linear_vpos_vb_start--;
+		linear_vpos_vblank_vsync++;
+		current_linear_vpos_vb_vsync++;
+		linear_vpos_vb_end--;
+		current_linear_vpos_vb_end--;
+	}
+	current_linear_hblen = current_linear_hblen_temp = 0;
 	current_linear_temp_change = 0;
 	hsync_ccks = linear_hpos;
 	vsync_lines = linear_vpos;
@@ -4943,12 +4959,13 @@ static void vsync_check_vsyncmode(void)
 		}
 	}
 	if (!current_linear_temp_change && !agnus_afterreset) {
-		if (abs(current_linear_vblank_lines - linear_vpos_vblank_lines) >= 2 ||
-			abs(current_linear_vpos_vb_end - linear_vpos_vblank_end) >= 2 ||
-			abs(current_linear_vpos_vb_start - linear_vpos_vblank_start) >= 2 ||
-			abs(current_linear_vpos_vb_vsync - linear_vpos_vblank_vsync) >= 2 ||
+		int ydiff = prevlofs[0] == prevlofs[1] && prevlofs[0] == prevlofs[2] ? 1 : 2;
+		if (abs(current_linear_vblank_lines - linear_vpos_vblank_lines) >= ydiff ||
+			abs(current_linear_vpos_vb_end - linear_vpos_vblank_end) >= ydiff ||
+			abs(current_linear_vpos_vb_start - linear_vpos_vblank_start) >= ydiff ||
+			abs(current_linear_vpos_vb_vsync - linear_vpos_vblank_vsync) >= ydiff ||
 			abs(current_linear_hpos - current_linear_hpos_temp) >= 1 ||
-			abs(current_linear_vpos - current_linear_vpos_temp) >= 2)
+			abs(current_linear_vpos - current_linear_vpos_temp) >= ydiff)
 		{
 			current_linear_temp_change = 3;
 		}
@@ -5023,11 +5040,21 @@ static void vsync_check_vsyncmode(void)
 	if (agnus_afterreset > 0) {
 		agnus_afterreset--;
 		if (!agnus_afterreset) {
-			current_linear_vblank_lines = linear_vpos_vblank_lines;
-			current_linear_vpos_vb_end = linear_vpos_vblank_end;
-			current_linear_vpos_vb_start = linear_vpos_vblank_start;
-			current_linear_vpos_vb_vsync = linear_vpos_vblank_vsync;
-			current_linear_hblen = current_linear_hblen_temp;
+			if (current_linear_vblank_lines != linear_vpos_vblank_lines ||
+				current_linear_vpos_vb_end != linear_vpos_vblank_end ||
+				current_linear_vpos_vb_start != linear_vpos_vblank_start ||
+				current_linear_vpos_vb_vsync != linear_vpos_vblank_vsync ||
+				current_linear_hblen != current_linear_hblen_temp)
+			{
+				current_linear_vblank_lines = linear_vpos_vblank_lines;
+				current_linear_vpos_vb_end = linear_vpos_vblank_end;
+				current_linear_vpos_vb_start = linear_vpos_vblank_start;
+				current_linear_vpos_vb_vsync = linear_vpos_vblank_vsync;
+				current_linear_hblen = current_linear_hblen_temp;
+				framesync = true;
+				init_beamcon0();
+				display_redraw = true;
+			}
 		}
 	}
 	if (varsync_changed > 0) {
