@@ -11090,8 +11090,10 @@ static void custom_trigger_start(void)
 	if (!eventtab[ev_sync].active) {
 		custom_fastmode = 0;
 	} else {
-		add_vsync_linecnt();
-		check_vsyncs_fast();
+		if (!custom_disabled) {
+			add_vsync_linecnt();
+			check_vsyncs_fast();
+		}
 	}
 
 #if 0
