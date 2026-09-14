@@ -1,4 +1,14 @@
 
+Beta 14:
+
+- RTG mode: refresh rate was calculated incorrectly, causing side-effects like bad sound. (b10 and b13)
+- Native mode vertical blank start/end detection was still unreliable, caused display to have +-1 line vertical offset in some situations.
+- Copper bugs (COPJMPx blitter conflict, weird conflict when COP1LCx is written exactly when VB triggered COPJMP1 starts) reimplemented for 6.1.
+- Adjusted normal Overscan setting screenshot positioning to match previous versions.
+- warpboot_delay was never loaded from config file. (warpboot_delay = how many frames to delay boot warp mode automatic switch off)
+- Debugger 's' shows parsed search bytes as hexadecimal before starting search.
+- Changed A2410 VRAM size to 1M. Board has 2M of RAM but only 1M is VRAM, the rest is for program and overlay. If VRAM size was different than original configured value during reset, soft reset was changed to hard reset because emulator detected this on the fly VRAM size change.
+
 Beta 13:
 
 - Fixed random crash in Denise side drawing thread writing to invalid pointer during blanking periods.

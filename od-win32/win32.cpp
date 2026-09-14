@@ -7975,7 +7975,7 @@ void registertouch(HWND hwnd)
 #if TOUCH_SUPPORT
 	REGISTERTOUCHWINDOW pRegisterTouchWindow;
 
-	if (!os_touch)
+	if (!os_touch || rp_isactive())
 		return;
 	pRegisterTouchWindow = (REGISTERTOUCHWINDOW)GetProcAddress(userdll, "RegisterTouchWindow");
 	pGetTouchInputInfo = (GETTOUCHINPUTINFO)GetProcAddress(userdll, "GetTouchInputInfo");
