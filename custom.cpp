@@ -1803,17 +1803,21 @@ void compute_framesync(void)
 
 	update_display_vars();
 
-	write_log(_T("%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d) IDX=%d (%s) D=%d RTG=%d/%d\n"),
+	write_log(_T("%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d) IDX=%d (%s) D=%d RTG=%d/%d"),
 		isntsc ? _T("NTSC") : _T("PAL"),
 		islace ? _T(" lace") : _T(""),
 		doublescan > 0 ? _T(" dblscan") : _T(""),
 		vblank_hz,
 		hblank_hz,
-		maxhpos, maxvpos, lof_store ? 1 : 0,
+		current_linear_hpos_short, current_linear_vpos_nom, lof_store ? 1 : 0,
 		cr ? cr->index : -1,
 		cr != nullptr && cr->label[0] != '\0' ? cr->label : _T("<?>"),
 		currprefs.gfx_apmode[ad->picasso_on ? 1 : 0].gfx_display, ad->picasso_on, ad->picasso_requested_on
 	);
+	if (maxhpos_short != current_linear_hpos_short || maxvpos_nom != current_linear_vpos_nom) {
+		write_log(_T(" (%dx%d)"), maxhpos_short, maxvpos_nom);
+	}
+	write_log(_T("\n"));
 }
 
 // do not switch to H/V sync cable mode if required programmed mode registers are uninitialized
