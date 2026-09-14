@@ -233,14 +233,14 @@ static const TCHAR help[] = {
 	_T("                        x = must be same, z = must be different, s = restart.\n")
 	_T("  W <addr> <values[.x] separated by space> Write into Amiga memory.\n")
 	_T("  W <addr> 'string'     Write into Amiga memory.\n")
-	_T("  Wf <addr> <endaddr-1> <bytes or string like above>, fill memory.\n")
-	_T("  Wc <addr> <endaddr-1> <destaddr>, copy memory.\n")
+	_T("  Wf <addr> <endaddr> <bytes or string like above>, fill memory.\n")
+	_T("  Wc <addr> <endaddr> <destaddr>, copy memory.\n")
 	_T("  w <num> <address> <length> <R/W/I> <F/C/L/N> [V<value>[.x]] [<channel>] (read/write/opcode) (freeze/mustchange/logonly/nobreak).\n")
 	_T("                        Add/remove memory watchpoints.\n")
 	_T("  wd [<0-1>]            Enable illegal access logger. 1 = enable break.\n")
 	_T("  L <file> <addr> [<n>] Load a block of Amiga memory.\n")
 	_T("  S <file> <addr> <n>   Save a block of Amiga memory.\n")
-	_T("  s \"<string>\"/<values> [<addr>] [<endaddr-1>] [max results]\n")
+	_T("  s \"<string>\"/<values> [<addr>] [<endaddr>] [max results]\n")
 	_T("                        Search for string/bytes.\n")
 	_T("  T or Tt               Show exec tasks and their PCs.\n")
 	_T("  Td,Tl,Tr,Tp,Ts,TS,Ti,TO,TM,Tf Show devs, libs, resources, ports, semaphores,\n")
@@ -5309,6 +5309,10 @@ static void writeintomem (TCHAR **c)
 		if (err) {
 			return;
 		}
+		if (eaddr <= addr) {
+			console_out_f(_T("Nothing done\n"));
+			return;
+		}
 		ignore_ws(c);
 	}
 
@@ -5404,8 +5408,9 @@ static void writeintomem (TCHAR **c)
 		}
 	}
 end:
-	if (eaddr != 0xffffffff)
+	if (eaddr != 0xffffffff) {
 		console_out_f(_T("Wrote data to %08x - %08x\n"), addrc, addr - 1);
+	}
 }
 
 static uae_u8 *dump_xlate (uae_u32 addr)
@@ -6568,7 +6573,15 @@ static void searchmem (TCHAR **cc)
 			}
 		}
 	}
-	console_out_f(_T("Searching from %08X to %08X\n"), addr + 1, endaddr - 1);
+	console_out_f(_T("Search bytes: "));
+	for (int i = 0; i < sslen; i++) {
+		if (i > 0) {
+			console_out_f(_T(" "));
+		}
+		console_out_f(_T("%02x"), ss[i]);
+	}
+	console_out_f(_T("\n"));
+	console_out_f(_T("Searching from %08X to %08X\n"), addr + 1, endaddr);
 	nextaddr_init(addr);
 	bool out = false;
 	int colcnt = 0;
