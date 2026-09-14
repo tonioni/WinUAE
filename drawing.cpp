@@ -663,30 +663,41 @@ static int gclow, gcloh, gclox, gcloy, gclorealh;
 static int stored_left_start, stored_top_start, stored_width, stored_height;
 static int horizontal_compatibility_offset;
 
+void get_filter_compatibility_offset(int *dx, int *dy, bool mode)
+{
+	int x = 0, y = 0;
+	// backwards compatibility offset
+	if (mode) {
+		x -= horizontal_compatibility_offset << hresolution;
+	}
+	if (!ecs_denise) {
+		x -= 1 << hresolution;
+		if (denise_strlong_seen) {
+			int size = currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN ? 2 : 1;
+			x += size << (hresolution + 2);
+		}
+		if (ecs_agnus || agnusa1000) {
+			y += 1 << currprefs.gfx_vresolution;
+		}
+	}
+	if (interlace_seen) {
+		y--;
+	}
+	*dx = x;
+	*dy = y;
+}
+
 void get_custom_topedge(int *xp, int *yp, bool max)
 {
 	if (isnativevidbuf(0) && !max) {
 		int x = visible_left_border;
 		int y = minfirstline << currprefs.gfx_vresolution;
 
-		// backwards compatibility offset
-		x -= horizontal_compatibility_offset << hresolution;
-		if (!ecs_denise) {
-			x -= 1 << hresolution;
-			if (denise_strlong_seen) {
-				int size = currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN ? 2 : 1;
-				x += size << (hresolution + 2);
-			}
-		} else if (ecs_denise && ecs_agnus) {
-			if (denise_strlong_seen) {
-				y -= 1 << currprefs.gfx_vresolution;
-			}
-		}
-		if (interlace_seen) {
-			y--;
-		} else {
-			y += 1 << currprefs.gfx_vresolution;
-		}
+		int dx = 0, dy = 0;
+		get_filter_compatibility_offset(&dx, &dy, true);
+		x += dx;
+		y += dy;
+
 		x += (0x38 / 4) << hresolution;
 
 		*xp = x;

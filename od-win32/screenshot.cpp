@@ -143,6 +143,7 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		uae_u8 pal[256 * 3];
 		int screenshot_width = 0, screenshot_height = 0;
 		int screenshot_xoffset = -1, screenshot_yoffset = -1;
+		int dx = 0, dy = 0;
 
 		if (gfxboard_isgfxboardscreen(monid)) {
 			src = mem = gfxboard_getrtgbuffer(monid, &width, &height, &spitch, &bits, pal);
@@ -170,7 +171,7 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 			rgb_rs2 = rgb_rs;
 			rgb_as2 = rgb_as;
 		} else {
-			src = mem = getfilterbuffer(monid, &width, &height, &spitch, &bits, &locked);
+			src = mem = getfilterbuffer(monid, &width, &height, &spitch, &bits, &locked, &dx, &dy);
 			needfree = true;
 			rgb_bb2 = rgb_bb;
 			rgb_gb2 = rgb_gb;
@@ -212,6 +213,8 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 			screenshot_yoffset = currprefs.screenshot_yoffset;
 		}
 
+		int xoffset = dx, yoffset = dy;
+
 		if (!WIN32GFX_IsPicassoScreen(mon) && screenshot_clipmode == 1) {
 			int cw, ch, cx, cy, crealh = 0, hres, vres;
 			if (get_custom_limits(&cw, &ch, &cx, &cy, &crealh, &hres, &vres)) {
@@ -247,6 +250,8 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 					screenshot_yoffset += (screenshot_height - maxh) / 2;
 					screenshot_height = maxh;
 				}
+				xoffset = screenshot_xoffset < 0 ? (screenshot_width - width) / 2 : -screenshot_xoffset;
+				yoffset = screenshot_yoffset < 0 ? (screenshot_height - height) / 2 : -screenshot_yoffset;
 			}
 		}
 
@@ -263,9 +268,6 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		while (maxh_output > screenshot_height * screenshot_ymult && screenshot_ymult < 8) {
 			screenshot_ymult++;
 		}
-
-		int xoffset = screenshot_xoffset < 0 ? (screenshot_width - width) / 2 : -screenshot_xoffset;
-		int yoffset = screenshot_yoffset < 0 ? (screenshot_height - height) / 2 : -screenshot_yoffset;
 
 		ZeroMemory (bi, sizeof(bi));
 		bi->bmiHeader.biClrUsed = bits <= 8 ? (1 << bits) : 0;
@@ -303,13 +305,15 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		dst = (uae_u8*)lpvBits;
 		dst += dpitch * screenshot_height;
 		if (yoffset > 0) {
-			if (yoffset >= screenshot_height - height)
-				yoffset = screenshot_height - height;
+			if (yoffset >= screenshot_height - height) {
+				screenshot_height -= yoffset - (screenshot_height - height);
+			}
 			dst -= dpitch * yoffset;
 		} else if (yoffset < 0) {
 			yoffset = -yoffset;
-			if (yoffset >= height - screenshot_height)
-				yoffset = height - screenshot_height;
+			if (yoffset >= height - screenshot_height) {
+				screenshot_height -= yoffset - (screenshot_height - height);
+			}
 			src += spitch * yoffset;
 		}
 
@@ -317,8 +321,16 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		if (xoffset < 0) {
 			xoffset2 = -xoffset;
 			xoffset = 0;
+			if (xoffset2 >= screenshot_width - width) {
+				screenshot_width -= xoffset2 - (screenshot_width - width);
+			}
+		} else {
+			if (xoffset >= screenshot_width - width) {
+				screenshot_width -= xoffset - (screenshot_width - width);
+			}
 		}
-		int dbpx = bits / 8;
+
+		int dbpx = depth / 8;
 		int sbpx = bits / 8;
 		if (sbpx == 3)
 			sbpx = 4;

@@ -837,7 +837,7 @@ void freefilterbuffer(int monid, uae_u8 *buf, bool unlock)
 	}
 }
 
-uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *depth, bool *locked)
+uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *depth, bool *locked, int *dxp, int *dyp)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
@@ -848,6 +848,8 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	*heightp = 0;
 	*depth = 32;
 	*locked = false;
+	*dxp = 0;
+	*dyp = 0;
 	if (!vb || mon->screen_is_picasso)
 		return NULL;
 	if (!vb->locked) {
@@ -860,7 +862,7 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	h = vb->outheight;
 	if (!monid && currprefs.gfx_overscanmode <= OVERSCANMODE_BROADCAST) {
 		// if native screen: do not include vertical blank
-		h = get_vertical_visible_height(false);
+		h = get_vertical_visible_height(currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN);
 		if (h > vb->outheight) {
 			h = vb->outheight;
 		}
@@ -868,13 +870,21 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	if (pitch) {
 		*pitch = vb->rowbytes;
 	}
-	// remove short/long line reserved areas
-	int extra = 1 << gethresolution();
-	w -= 2 * extra;
+	get_filter_compatibility_offset(dxp, dyp, false);
+	if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
+		*dyp -= 1 << currprefs.gfx_vresolution;
+		if (agnusa1000) {
+			*dyp -= 1 << currprefs.gfx_vresolution;
+		}
+		if (ecs_denise && ecs_agnus) {
+			int hres = gethresolution();
+			*dxp -= 1 << hres;
+		}
+	}
 	*widthp = w;
 	*heightp = h;
 	*depth = vb->pixbytes * 8;
-	return vb->bufmem ? vb->bufmem + extra * sizeof(uae_u32) : NULL;
+	return vb->bufmem;
 }
 
 #endif
