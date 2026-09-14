@@ -56,6 +56,10 @@ jobs:
         call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
         msbuild /m /p:Platform=Win32 /p:Configuration=FullRelease ${{env.SOLUTION_FILE_PATH}}
 
+    - name: Bundle external floppy-drive sounds
+      shell: pwsh
+      run: ./tools/windows-bundle-drive-sounds.ps1 -Destination 'D:\Amiga'
+
     - uses: actions/upload-artifact@v4
       with:
         name: WinUAE 32-bit
@@ -104,6 +108,10 @@ jobs:
         call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
         msbuild /m /p:Platform=x64 /p:Configuration=FullRelease ${{env.SOLUTION_FILE_PATH}}
 
+    - name: Bundle external floppy-drive sounds
+      shell: pwsh
+      run: ./tools/windows-bundle-drive-sounds.ps1 -Destination 'D:\Amiga'
+
     - uses: actions/upload-artifact@v4
       with:
         name: WinUAE x64
@@ -151,6 +159,10 @@ jobs:
       run: |
         call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
         msbuild /m /p:Platform=ARM64 /p:Configuration=FullRelease /p:BuildProjectReferences=false ${{env.SOLUTION_FILE_PATH}}\winuae_msvc.vcxproj
+
+    - name: Bundle external floppy-drive sounds
+      shell: pwsh
+      run: ./tools/windows-bundle-drive-sounds.ps1 -Destination 'D:\Amiga'
 
     - uses: actions/upload-artifact@v4
       with:

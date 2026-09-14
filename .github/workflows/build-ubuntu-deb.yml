@@ -1,0 +1,139 @@
+name: Build Ubuntu 26.04 LTS DEB
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - back-to-the-roots
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  BUILD_DIR: ${{ github.workspace }}/build/ubuntu-26.04-deb
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  build-ubuntu-2604-deb:
+    name: Build Ubuntu 26.04 LTS DEB
+    if: github.repository == 'reinauer/WinUAE'
+    runs-on: ubuntu-24.04
+    container:
+      image: ubuntu:26.04
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            cmake \
+            curl \
+            dpkg-dev \
+            file \
+            git \
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libasound2-dev \
+            libfdt-dev \
+            libflac-dev \
+            libfreetype-dev \
+            libgl-dev \
+            libglib2.0-dev \
+            libpcap-dev \
+            libpng-dev \
+            libswresample-dev \
+            libswscale-dev \
+            libsdl3-dev \
+            meson \
+            ninja-build \
+            patch \
+            pkg-config \
+            python3 \
+            python3-venv \
+            qt6-base-dev \
+            xz-utils \
+            zlib1g-dev
+
+          if ! apt-get install -y --no-install-recommends 7zip; then
+            apt-get install -y --no-install-recommends p7zip-full
+          fi
+
+      - name: Checkout WinUAE
+        uses: actions/checkout@v4
+
+      - name: Checkout QEMU-UAE PPC plugin builder
+        uses: actions/checkout@v4
+        with:
+          repository: reinauer/uae-ppc-plugin
+          path: uae-ppc-plugin
+
+      - name: Build Debian package
+        run: |
+          set -euo pipefail
+
+          tools/debian-build-package.sh \
+            --build-dir "${BUILD_DIR}" \
+            --jobs "$(getconf _NPROCESSORS_ONLN)" \
+            -- \
+            -DWINUAE_QEMU_UAE_BUILDER_DIR="${GITHUB_WORKSPACE}/uae-ppc-plugin" \
+            -DWINUAE_LZMA_SDK_FETCH=ON
+
+      - name: Inspect Debian package
+        run: |
+          set -euo pipefail
+
+          mapfile -t debs < <(
+            find "${BUILD_DIR}" -maxdepth 1 -type f -name '*.deb' |
+              sort
+          )
+          if ((${#debs[@]} == 0)); then
+            echo "error: no .deb package found in ${BUILD_DIR}" >&2
+            exit 1
+          fi
+
+          for deb in "${debs[@]}"; do
+            echo "::group::$(basename "${deb}") fields"
+            dpkg-deb --field "${deb}" \
+              Package Version Architecture Depends Recommends
+            echo "::endgroup::"
+
+            echo "::group::$(basename "${deb}") contents"
+            contents="$(dpkg-deb --contents "${deb}")"
+            printf '%s\n' "${contents}" | sed -n '1,180p'
+            echo "::endgroup::"
+
+            grep -Eq ' \./usr/bin/winuae$' <<<"${contents}"
+            ! grep -Eq ' \./usr/bin/winuae_unix$' <<<"${contents}"
+            grep -Eq ' \./usr/lib.*/winuae/plugins/qemu-uae\.so$' \
+              <<<"${contents}"
+
+            inspect_dir="$(mktemp -d)"
+            dpkg-deb --extract "${deb}" "${inspect_dir}"
+            drive_sounds_dir="$(find "${inspect_dir}/usr" -type d \
+              -path '*/winuae/plugins/floppysounds' -print -quit)"
+            if [[ -z "${drive_sounds_dir}" ]]; then
+              echo "error: package does not contain plugins/floppysounds" >&2
+              exit 1
+            fi
+            tools/require-drive-sounds.sh "${drive_sounds_dir}"
+          done
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinUAE Ubuntu 26.04 LTS DEB
+          path: ${{ env.BUILD_DIR }}/*.deb
+          if-no-files-found: error

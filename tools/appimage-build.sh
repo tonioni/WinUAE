@@ -5,7 +5,7 @@ set -euo pipefail
 #
 # This mirrors tools/debian-build-package.sh: it configures and builds the
 # project, installs the exact same files the .deb ships (/usr/bin/winuae, the
-# .desktop file, the hicolor icon, and the qemu-uae.so PPC plugin) into a
+# .desktop file, the hicolor icon, qemu-uae.so, and FloppyBridge.so) into a
 # throwaway AppDir, and then wraps that AppDir with linuxdeploy + appimagetool.
 #
 # Because the integrated configuration UI is a Qt6 application, the Qt runtime
@@ -110,7 +110,7 @@ cmake -S "${source_dir}" -B "${build_dir}" \
     -DCMAKE_BUILD_TYPE="${build_type}" \
     "${cmake_args[@]}"
 
-echo "==> Building winuae_unix and the qemu-uae plugin"
+echo "==> Building winuae_unix and runtime plugins"
 cmake --build "${build_dir}" --parallel "${jobs}"
 
 echo "==> Installing into AppDir: ${appdir}"
