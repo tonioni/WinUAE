@@ -3285,6 +3285,8 @@ int gethresolution(void)
 
 static void sethresolution(void)
 {
+	int hres = hresolution;
+
 	hresolution = currprefs.gfx_resolution;
 	doublescan2xx = 0;
 	if (doublescan == 1) {
@@ -3295,6 +3297,10 @@ static void sethresolution(void)
 		}
 	}
 	hresolution_inv = RES_MAX - hresolution;
+
+	if (hres != hresolution) {
+		lts_request = true;
+	}
 }
 
 static void setlasthamcolor(void)
@@ -5909,6 +5915,7 @@ static void draw_denise_vsync(int erase)
 	if (denise_afterreset > 0) {
 		denise_afterreset--;
 	}
+	sethresolution();
 }
 
 static void denise_draw_update(void)
