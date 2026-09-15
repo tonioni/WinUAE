@@ -175,9 +175,12 @@ static bool testRepresentativeConfig()
     settings.insert(QStringLiteral("sound_stereo_separation"), QStringLiteral("8"));
     settings.insert(QStringLiteral("sound_stereo_mixing_delay"), QStringLiteral("2"));
     settings.insert(QStringLiteral("sound_stereo_swap_paula"), QStringLiteral("true"));
-    settings.insert(QStringLiteral("floppy0sound"), QStringLiteral("1"));
+    settings.insert(QStringLiteral("floppy0sound"), QStringLiteral("-1"));
+    settings.insert(QStringLiteral("floppy0soundext"), QStringLiteral("ExternalSet"));
     settings.insert(QStringLiteral("floppy0soundvolume_empty"), QStringLiteral("34"));
     settings.insert(QStringLiteral("floppy0soundvolume_disk"), QStringLiteral("22"));
+    settings.insert(QStringLiteral("floppy1sound"), QStringLiteral("1"));
+    settings.insert(QStringLiteral("floppy1soundext"), QStringLiteral("STALE"));
     settings.insert(QStringLiteral("df0idhw"), QStringLiteral("false"));
     settings.insert(QStringLiteral("gfxcard_size"), QStringLiteral("16"));
     settings.insert(QStringLiteral("gfxcard_type"), QStringLiteral("PicassoIV_Z3"));
@@ -231,6 +234,10 @@ static bool testRepresentativeConfig()
     }
     prefs->fpu_model = 68881;
     prefs->address_space_24 = true;
+    copyText(
+        prefs->floppyslots[1].dfxclickexternal,
+        sizeof prefs->floppyslots[1].dfxclickexternal,
+        "OLD");
 
     parsedLines.clear();
     bool ok = applyWinUaeQtConfigToPrefs(WinUaeQtConfig(settings), prefs);
@@ -260,7 +267,10 @@ static bool testRepresentativeConfig()
     ok = require(!parsedLines.contains(QStringLiteral("sound_output=normal")), "sound output was delegated") && ok;
     ok = require(!parsedLines.contains(QStringLiteral("sound_auto=true")), "sound_auto was delegated") && ok;
     ok = require(!parsedLines.contains(QStringLiteral("sound_channels=mixed")), "sound_channels was delegated") && ok;
-    ok = require(!parsedLines.contains(QStringLiteral("floppy0sound=1")), "floppy0sound was delegated") && ok;
+    ok = require(!parsedLines.contains(QStringLiteral("floppy0sound=-1")), "floppy0sound was delegated") && ok;
+    ok = require(!parsedLines.contains(QStringLiteral("floppy0soundext=ExternalSet")), "floppy0soundext was delegated") && ok;
+    ok = require(!parsedLines.contains(QStringLiteral("floppy1sound=1")), "floppy1sound was delegated") && ok;
+    ok = require(!parsedLines.contains(QStringLiteral("floppy1soundext=STALE")), "floppy1soundext was delegated") && ok;
     ok = require(!parsedLines.contains(QStringLiteral("df0idhw=false")), "df0idhw was delegated") && ok;
     ok = require(!parsedLines.contains(QStringLiteral("gfxcard_size=16")), "gfxcard_size was delegated") && ok;
     ok = require(!parsedLines.contains(QStringLiteral("gfxcard_type=PicassoIV_Z3")), "gfxcard_type was delegated") && ok;
@@ -316,7 +326,10 @@ static bool testRepresentativeConfig()
     ok = requireInt(prefs->sound_stereo_separation, 8, "sound_stereo_separation") && ok;
     ok = requireInt(prefs->sound_mixed_stereo_delay, 2, "sound_mixed_stereo_delay") && ok;
     ok = require(prefs->sound_stereo_swap_paula, "sound_stereo_swap_paula") && ok;
-    ok = requireInt(prefs->floppyslots[0].dfxclick, 1, "floppy0sound") && ok;
+    ok = requireInt(prefs->floppyslots[0].dfxclick, -1, "floppy0sound") && ok;
+    ok = requireText(prefs->floppyslots[0].dfxclickexternal, "ExternalSet", "floppy0soundext") && ok;
+    ok = requireInt(prefs->floppyslots[1].dfxclick, 1, "floppy1sound") && ok;
+    ok = requireText(prefs->floppyslots[1].dfxclickexternal, "", "floppy1soundext") && ok;
     ok = requireInt(prefs->dfxclickvolume_empty[0], 34, "floppy0soundvolume_empty") && ok;
     ok = requireInt(prefs->dfxclickvolume_disk[0], 22, "floppy0soundvolume_disk") && ok;
     ok = requireInt(prefs->win32_uaescsimode, UAESCSI_SPTI, "win32_uaescsimode") && ok;

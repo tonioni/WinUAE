@@ -1,5 +1,6 @@
 #include "launcher_bridge.h"
 
+#include "drive_sound_sets.h"
 #include "launcher.h"
 #include "prefs_adapter.h"
 
@@ -498,10 +499,21 @@ static void bridgeHostSettingsFlush(void *)
     registry_flush();
 }
 
+static QStringList bridgeDriveSoundSets()
+{
+    TCHAR directory[MAX_DPATH];
+    get_plugin_path(
+        directory,
+        sizeof directory / sizeof directory[0],
+        _T("floppysounds"));
+    return winUaeQtDiscoverDriveSoundSets(bridgeText(directory));
+}
+
 static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *prefs, bool runtimeActions)
 {
     WinUaeQtHardwareInfoProvider provider;
     provider.context = prefs;
+    provider.driveSoundSets = bridgeDriveSoundSets();
     provider.hostSettingGet = bridgeHostSettingGet;
     provider.hostSettingSet = bridgeHostSettingSet;
     provider.hostSettingsFlush = bridgeHostSettingsFlush;

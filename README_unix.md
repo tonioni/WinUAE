@@ -10,7 +10,7 @@ This is an early macOS/Linux port of the WinUAE source tree. The current Unix bu
 - SDL3 gamepads and non-gamepad joysticks are exposed through the WinUAE input-device layer for game-port use; the Qt Game Ports/Input pages have first remap/test dialogs backed by SDL3 device enumeration and WinUAE config keys.
 - Qt Widgets provides an initial Windows-style configuration UI. When Qt is available, it is integrated into `winuae_unix`.
 - Host clipboard text paste is available through the same paste input event as Windows. The `clipboard_sharing` option has native text clipboard-device support, and SDL3 builds exchange bitmap clipboard data through `image/bmp`, `image/png` when libpng is available, and macOS `image/tiff` through ImageIO, bridged through Amiga IFF ILBM conversion.
-- Floppy drive click sounds are present and audible when enabled.
+- Built-in floppy drive click sounds are present and audible when enabled. Linux builds also bundle the external sample sets from the official drive-sounds archive under the runtime plugin directory.
 - The integrated Qt Output page can toggle the core Sample ripper; ripped WAV files use the configured Rips path.
 - The integrated Qt Output page can run Pro Wizard when the default `WINUAE_UNIX_WITH_PROWIZARD` build option is enabled. Save prompts use Qt warning dialogs with the same OK/Yes/No/Cancel return contract as Windows.
 - When opened during emulation, the integrated Qt Output page can play, start/stop, and save core input re-recordings.
@@ -185,6 +185,13 @@ when found under `WINUAE_LZMA_SDK_SYSTEM_PATHS` (or an explicit
 `-DWINUAE_LZMA_SDK_DIR=`); otherwise `WINUAE_LZMA_SDK_FETCH` downloads the
 SHA-verified `lzma1604.7z` archive. Pass `-DWINUAE_LZMA_SDK_FETCH=OFF` for
 offline distribution builds.
+
+Linux builds also download the official `drive_sounds.zip`, verify its pinned
+SHA-256, and install the unpacked WAV files under
+`$libdir/winuae/plugins/floppysounds`. For an offline build, pre-seed
+`WINUAE_DRIVE_SOUNDS_DIR` with the archive's `plugins/floppysounds` tree and
+pass `-DWINUAE_DRIVE_SOUNDS_FETCH=OFF`. The samples can be omitted explicitly
+with `-DWINUAE_UNIX_BUNDLE_DRIVE_SOUNDS=OFF`.
 
 The `qemu-uae.so` PPC plugin is a mandatory part of Unix packages. CMake
 resolves it at configure time, in this order, and fails the configure with
@@ -381,7 +388,7 @@ SDL3 audio uses the WinUAE `sound_output`, `sound_frequency`, `sound_channels`, 
   -s 'unix.soundcardname=SDL:Default Audio Device'
 ```
 
-The Qt Sound page lists SDL playback devices and writes both `unix.soundcard` and `unix.soundcardname` so saved configs can recover by name if the device index changes. Floppy click sounds are off by default, matching the shared WinUAE defaults; enable them per drive with `floppy0sound=1` through `floppy3sound=1`.
+The Qt Sound page lists SDL playback devices and writes both `unix.soundcard` and `unix.soundcardname` so saved configs can recover by name if the device index changes. Floppy click sounds are off by default, matching the shared WinUAE defaults. Like the Windows UI, the per-drive sound selector scans `plugins/floppysounds` for `drive_click_*.wav` and lists every discovered external set after `Built-in A500`. External selections are stored as `floppyNsound=-1` plus `floppyNsoundext=<set>` and the runtime log reports the selected set and number of sample files loaded.
 
 ## Clipboard
 

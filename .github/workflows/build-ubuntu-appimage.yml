@@ -1,0 +1,300 @@
+name: Build Ubuntu AppImage
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - back-to-the-roots
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+# The AppImage is built on Ubuntu 24.04 LTS (glibc 2.39) so it runs on a wide
+# range of current distributions. 24.04 does not ship SDL3, and ships a Qt6
+# older than the project targets, so both are built from source with the same
+# pinned refs the macOS build uses. Everything else (glib, FFmpeg, libpng,
+# FLAC, ALSA, ...) comes from the distribution at the same glibc, exactly like
+# the .deb build.
+env:
+  SDL3_REF: release-3.4.8
+  QTBASE_REF: v6.11.1
+  BUILD_DIR: ${{ github.workspace }}/build/ubuntu-appimage
+  DEPS_PREFIX: ${{ github.workspace }}/.deps/linux
+  DEBIAN_FRONTEND: noninteractive
+  # CI runners have no FUSE; let the AppImage tooling self-extract instead.
+  APPIMAGE_EXTRACT_AND_RUN: "1"
+
+jobs:
+  build-ubuntu-appimage:
+    name: Build Ubuntu AppImage
+    if: github.repository == 'reinauer/WinUAE'
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update
+          # WinUAE + distro media/system deps (same set as the .deb build,
+          # which are all present on 24.04 at glibc 2.39), the SDL3 backend
+          # dev libraries, and the full xcb/OpenGL/font stack Qt needs to
+          # build its xcb platform plugin.
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            binutils \
+            ca-certificates \
+            cmake \
+            curl \
+            desktop-file-utils \
+            dpkg-dev \
+            file \
+            git \
+            libasound2-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libdrm-dev \
+            libdecor-0-dev \
+            libdecor-0-plugin-1-cairo \
+            libegl1-mesa-dev \
+            libfdt-dev \
+            libflac-dev \
+            libfontconfig1-dev \
+            libfreetype-dev \
+            libgbm-dev \
+            libgl1-mesa-dev \
+            libglib2.0-dev \
+            libglu1-mesa-dev \
+            libpcap-dev \
+            libpng-dev \
+            libpulse-dev \
+            libswresample-dev \
+            libswscale-dev \
+            libudev-dev \
+            libwayland-dev \
+            libx11-dev \
+            libx11-xcb-dev \
+            libxcb1-dev \
+            libxcb-cursor-dev \
+            libxcb-glx0-dev \
+            libxcb-icccm4-dev \
+            libxcb-image0-dev \
+            libxcb-keysyms1-dev \
+            libxcb-randr0-dev \
+            libxcb-render-util0-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-shm0-dev \
+            libxcb-sync-dev \
+            libxcb-util-dev \
+            libxcb-xfixes0-dev \
+            libxcb-xinerama0-dev \
+            libxcb-xkb-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxfixes-dev \
+            libxi-dev \
+            libxkbcommon-dev \
+            libxkbcommon-x11-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            libxss-dev \
+            libxtst-dev \
+            meson \
+            ninja-build \
+            patch \
+            patchelf \
+            pkg-config \
+            python3 \
+            python3-venv \
+            xz-utils \
+            zlib1g-dev \
+            zsync
+
+          if ! sudo apt-get install -y --no-install-recommends 7zip; then
+            sudo apt-get install -y --no-install-recommends p7zip-full
+          fi
+
+      - name: Checkout WinUAE
+        uses: actions/checkout@v4
+
+      - name: Checkout QEMU-UAE PPC plugin builder
+        uses: actions/checkout@v4
+        with:
+          repository: reinauer/uae-ppc-plugin
+          path: uae-ppc-plugin
+
+      - name: Fetch SDL3 and Qt6 sources
+        run: |
+          set -euo pipefail
+
+          mkdir -p deps-src
+          git clone --depth 1 --branch "${SDL3_REF}" \
+            https://github.com/libsdl-org/SDL.git deps-src/SDL
+          # qtbase keeps the bundled libraries selected by
+          # appimage-build-deps.sh as Git submodules. A plain clone leaves
+          # them empty, which makes Qt's configure step fail before building.
+          git clone --depth 1 --recurse-submodules --shallow-submodules \
+            --branch "${QTBASE_REF}" \
+            https://github.com/qt/qtbase.git deps-src/qtbase
+
+      # Qt6 is a slow build; cache the installed prefix keyed on the pinned
+      # refs so only the first run (or a ref bump) pays the full cost.
+      - name: Cache SDL3 + Qt6 prefix
+        id: deps-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DEPS_PREFIX }}
+          # Include the dependency-build script in the key. This invalidates
+          # cached SDL/Qt prefixes when required SDL features change.
+          key: linux-appimage-deps-v3-ubuntu-24.04-sdl-${{ env.SDL3_REF }}-qt-${{ env.QTBASE_REF }}-${{ hashFiles('tools/appimage-build-deps.sh') }}
+
+      - name: Build SDL3 and Qt6 from source
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+
+          export WINUAE_SDL3_SOURCE="${GITHUB_WORKSPACE}/deps-src/SDL"
+          export WINUAE_QT_SOURCE="${GITHUB_WORKSPACE}/deps-src/qtbase"
+
+          tools/appimage-build-deps.sh "${DEPS_PREFIX}"
+
+      - name: Verify SDL3 Wayland decorations
+        run: |
+          set -euo pipefail
+
+          sdl_library="$(readlink -e "${DEPS_PREFIX}/lib/libSDL3.so.0" || true)"
+          if [[ -z "${sdl_library}" ]]; then
+            echo "error: cached dependency prefix does not contain libSDL3.so.0" >&2
+            exit 1
+          fi
+          if ! grep -aFq 'libdecor-0.so.0' "${sdl_library}"; then
+            echo "error: cached SDL3 lacks libdecor Wayland-decoration support" >&2
+            exit 1
+          fi
+
+      - name: Build AppImage
+        run: |
+          set -euo pipefail
+
+          # Bundle our own SDL3/Qt6: put them on the search paths so the WinUAE
+          # link, linuxdeploy's dependency resolution, and linuxdeploy-plugin-qt
+          # all pick up the private prefix rather than any distro copy.
+          export CMAKE_PREFIX_PATH="${DEPS_PREFIX}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
+          export LD_LIBRARY_PATH="${DEPS_PREFIX}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+          export PATH="${DEPS_PREFIX}/bin:${PATH}"
+          # A from-source Qt6 installs bin/qmake (qmake6 is a Debian alias);
+          # linuxdeploy-plugin-qt reads $QMAKE to locate the Qt to bundle.
+          export QMAKE="${DEPS_PREFIX}/bin/qmake"
+
+          tools/appimage-build.sh \
+            --build-dir "${BUILD_DIR}" \
+            --output-dir "${BUILD_DIR}" \
+            --jobs "$(getconf _NPROCESSORS_ONLN)" \
+            -- \
+            -DCMAKE_PREFIX_PATH="${DEPS_PREFIX}" \
+            -DWINUAE_QEMU_UAE_BUILDER_DIR="${GITHUB_WORKSPACE}/uae-ppc-plugin" \
+            -DWINUAE_LZMA_SDK_FETCH=ON
+
+      - name: Inspect and smoke-test AppImage
+        run: |
+          set -euo pipefail
+
+          mapfile -t images < <(
+            find "${BUILD_DIR}" -maxdepth 1 -type f -name '*.AppImage' | sort
+          )
+          if ((${#images[@]} == 0)); then
+            echo "error: no .AppImage found in ${BUILD_DIR}" >&2
+            exit 1
+          fi
+
+          image="${images[0]}"
+          echo "AppImage: ${image}"
+          ls -lh "${image}"
+
+          # Confirm the binary, our Qt6 runtime + xcb plugin, and both
+          # runtime plugins were bundled.
+          rm -rf squashfs-root
+          "${image}" --appimage-extract >/dev/null
+          contents="$(find squashfs-root -type f | sort)"
+          printf '%s\n' "${contents}" | sed -n '1,200p'
+
+          grep -Eq '/usr/bin/winuae$' <<<"${contents}"
+          grep -Eq 'libSDL3\.so' <<<"${contents}"
+          grep -Eq 'libQt6Core\.so' <<<"${contents}"
+          grep -Eq 'platforms/libqxcb\.so' <<<"${contents}"
+          grep -Eq '/winuae/plugins/qemu-uae\.so$' <<<"${contents}"
+          grep -Eq '/winuae/plugins/FloppyBridge\.so$' <<<"${contents}"
+
+          drive_sounds_dir="$(find squashfs-root/usr -type d \
+            -path '*/winuae/plugins/floppysounds' -print -quit)"
+          if [[ -z "${drive_sounds_dir}" ]]; then
+            echo "error: AppImage does not contain plugins/floppysounds" >&2
+            exit 1
+          fi
+          tools/require-drive-sounds.sh "${drive_sounds_dir}"
+
+          sdl_library="$(readlink -e squashfs-root/usr/lib/libSDL3.so.0 || true)"
+          if [[ -z "${sdl_library}" ]] \
+              || ! grep -aFq 'libdecor-0.so.0' "${sdl_library}"; then
+            echo "error: AppImage SDL3 lacks libdecor Wayland-decoration support" >&2
+            exit 1
+          fi
+
+          libdecor_library="$(find squashfs-root/usr/lib -maxdepth 1 \
+            \( -type f -o -type l \) -name 'libdecor-0.so.0*' -print -quit)"
+          libdecor_plugin="$(find squashfs-root/usr/lib/libdecor/plugins-1 \
+            -type f -name 'libdecor-*.so' -print -quit 2>/dev/null)"
+          if [[ -z "${libdecor_library}" || -z "${libdecor_plugin}" ]]; then
+            echo "error: AppImage does not contain the libdecor runtime and plugin" >&2
+            exit 1
+          fi
+          if ! grep -Fq 'LIBDECOR_PLUGIN_DIR=' squashfs-root/AppRun; then
+            echo "error: AppImage AppRun does not select its bundled libdecor plugin" >&2
+            exit 1
+          fi
+
+          # Confirm portability: nothing in the payload requires a glibc newer
+          # than 2.39 (the 24.04 build host).
+          if command -v objdump >/dev/null 2>&1; then
+            newest="$(find squashfs-root -type f \( -name '*.so*' -o -perm -u+x \) \
+              -exec objdump -T {} + 2>/dev/null \
+              | grep -oE 'GLIBC_2\.[0-9]+' | sort -V | tail -n1 || true)"
+            echo "highest referenced glibc symbol version: ${newest:-none}"
+          fi
+
+          # Launch briefly under dummy SDL backends. No display/audio or
+          # kickstart ROM exists on the runner, so it exits or is killed by
+          # timeout; the point is to catch a missing bundled library or
+          # unresolved symbol at runtime.
+          export SDL_VIDEODRIVER=dummy
+          export SDL_AUDIODRIVER=dummy
+          log=/tmp/winuae-appimage-run.log
+          set +e
+          timeout 20 "${image}" --appimage-extract-and-run \
+            -s use_gui=no >"${log}" 2>&1
+          rc=$?
+          set -e
+          echo "winuae exit code: ${rc}"
+          sed -n '1,60p' "${log}"
+
+          if grep -qiE 'error while loading shared libraries|cannot open shared object|symbol lookup error|undefined symbol' "${log}"; then
+            echo "error: AppImage failed to resolve a bundled library at runtime" >&2
+            exit 1
+          fi
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinUAE Ubuntu AppImage
+          path: ${{ env.BUILD_DIR }}/*.AppImage
+          if-no-files-found: error

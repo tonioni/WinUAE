@@ -34,6 +34,7 @@
 #endif
 
 #include "config.h"
+#include "drive_sound_sets.h"
 #include "launcher.h"
 #include "mount_config.h"
 #include "path_utils.h"
@@ -123,6 +124,7 @@ static constexpr int MaxInputSubEventSlots = 8;
 static constexpr int HardwareBoardIndexRole = Qt::UserRole;
 static constexpr int InputMappingKeyRole = Qt::UserRole;
 static constexpr int InputMappingEditableRole = Qt::UserRole + 1;
+static constexpr int FloppySoundExternalRole = Qt::UserRole + 1;
 static constexpr int InputFlagAutofire = 1;
 static constexpr int InputFlagToggle = 2;
 static constexpr int InputFlagInvertToggle = 16;
@@ -5821,6 +5823,7 @@ private:
     QLabel *floppySoundDiskVolumeValue = nullptr;
     int soundVolumeAttenuation[SoundVolumeCount] = {};
     int floppySoundTypeValue[FloppySoundDriveCount] = {};
+    QString floppySoundExternalValue[FloppySoundDriveCount];
     int floppySoundEmptyAttenuation[FloppySoundDriveCount] = {};
     int floppySoundDiskAttenuation[FloppySoundDriveCount] = {};
     int currentSoundVolume = 0;
@@ -9746,7 +9749,14 @@ private:
         floppySoundDiskVolume->setRange(0, 100);
         floppySoundDiskVolumeValue = new QLabel;
         floppySoundDiskVolumeValue->setMinimumWidth(44);
-        floppySoundType = combo({ QStringLiteral("No sound"), QStringLiteral("Built-in A500") }, QStringLiteral("No sound"));
+        floppySoundType = new QComboBox;
+        floppySoundType->setObjectName(QStringLiteral("floppySoundType"));
+        floppySoundType->addItem(QStringLiteral("No sound"), 0);
+        floppySoundType->addItem(QStringLiteral("Built-in A500"), 1);
+        for (const QString &set : hardwareProvider.driveSoundSets) {
+            floppySoundType->addItem(set, -1);
+            floppySoundType->setItemData(floppySoundType->count() - 1, set, FloppySoundExternalRole);
+        }
         floppySoundDrive = combo({ QStringLiteral("DF0:"), QStringLiteral("DF1:"), QStringLiteral("DF2:"), QStringLiteral("DF3:") }, QStringLiteral("DF0:"));
         floppy->addWidget(label(QStringLiteral("Empty drive")), 0, 0);
         floppy->addWidget(floppySoundEmptyVolume, 0, 1);
@@ -9812,9 +9822,35 @@ private:
     int floppySoundTypeConfigValue(int drive) const
     {
         if (drive == currentFloppySoundDrive && floppySoundType) {
-            return floppySoundType->currentIndex();
+            return floppySoundType->currentData().toInt();
         }
         return floppySoundTypeValue[qBound(0, drive, FloppySoundDriveCount - 1)];
+    }
+
+    QString floppySoundExternalConfigValue(int drive) const
+    {
+        drive = qBound(0, drive, FloppySoundDriveCount - 1);
+        if (drive == currentFloppySoundDrive
+            && floppySoundType
+            && floppySoundType->currentData().toInt() < 0) {
+            return floppySoundType->currentData(FloppySoundExternalRole).toString();
+        }
+        return floppySoundExternalValue[drive];
+    }
+
+    QString canonicalDriveSoundSet(const QString &name) const
+    {
+        for (const QString &set : hardwareProvider.driveSoundSets) {
+            if (set == name) {
+                return set;
+            }
+        }
+        for (const QString &set : hardwareProvider.driveSoundSets) {
+            if (set.compare(name, Qt::CaseInsensitive) == 0) {
+                return set;
+            }
+        }
+        return name;
     }
 
     int floppySoundEmptyAttenuationValue(int drive) const
@@ -9924,7 +9960,10 @@ private:
             return;
         }
         const int drive = qBound(0, currentFloppySoundDrive, FloppySoundDriveCount - 1);
-        floppySoundTypeValue[drive] = floppySoundType->currentIndex();
+        floppySoundTypeValue[drive] = floppySoundType->currentData().toInt();
+        floppySoundExternalValue[drive] = floppySoundTypeValue[drive] < 0
+            ? floppySoundType->currentData(FloppySoundExternalRole).toString()
+            : QString();
         floppySoundEmptyAttenuation[drive] = 100 - floppySoundEmptyVolume->value();
         floppySoundDiskAttenuation[drive] = 100 - floppySoundDiskVolume->value();
     }
@@ -9936,7 +9975,42 @@ private:
         }
         const int drive = qBound(0, currentFloppySoundDrive, FloppySoundDriveCount - 1);
         floppySoundUpdating = true;
-        floppySoundType->setCurrentIndex(qBound(0, floppySoundTypeValue[drive], 1));
+        int typeIndex = -1;
+        if (floppySoundTypeValue[drive] < 0) {
+            const QString external = floppySoundExternalValue[drive];
+            int caseInsensitiveIndex = -1;
+            for (int i = 0; i < floppySoundType->count(); i++) {
+                const QString itemExternal = floppySoundType->itemData(
+                    i,
+                    FloppySoundExternalRole).toString();
+                if (floppySoundType->itemData(i).toInt() >= 0) {
+                    continue;
+                }
+                if (itemExternal == external) {
+                    typeIndex = i;
+                    break;
+                }
+                if (caseInsensitiveIndex < 0
+                    && itemExternal.compare(external, Qt::CaseInsensitive) == 0) {
+                    caseInsensitiveIndex = i;
+                }
+            }
+            if (typeIndex < 0) {
+                typeIndex = caseInsensitiveIndex;
+            }
+            if (typeIndex < 0 && !external.isEmpty()) {
+                floppySoundType->addItem(QStringLiteral("%1 (missing)").arg(external), -1);
+                typeIndex = floppySoundType->count() - 1;
+                floppySoundType->setItemData(typeIndex, external, FloppySoundExternalRole);
+                floppySoundType->setItemData(
+                    typeIndex,
+                    QStringLiteral("External sample set '%1' was not found in plugins/floppysounds.").arg(external),
+                    Qt::ToolTipRole);
+            }
+        } else {
+            typeIndex = floppySoundType->findData(floppySoundTypeValue[drive]);
+        }
+        floppySoundType->setCurrentIndex(typeIndex >= 0 ? typeIndex : 0);
         floppySoundEmptyVolume->setValue(100 - floppySoundEmptyAttenuation[drive]);
         floppySoundDiskVolume->setValue(100 - floppySoundDiskAttenuation[drive]);
         floppySoundUpdating = false;
@@ -13523,11 +13597,15 @@ private:
         soundFilter->setCurrentText(QStringLiteral("Emulated (A500)"));
         for (int i = 0; i < FloppySoundDriveCount; i++) {
             floppySoundTypeValue[i] = 0;
+            floppySoundExternalValue[i].clear();
             floppySoundEmptyAttenuation[i] = 33;
             floppySoundDiskAttenuation[i] = 33;
         }
         currentFloppySoundDrive = 0;
-        floppySoundDrive->setCurrentIndex(0);
+        {
+            const QSignalBlocker blocker(floppySoundDrive);
+            floppySoundDrive->setCurrentIndex(0);
+        }
         loadSelectedFloppySound();
         updateSoundControlState();
         cdSpeedTurbo->setChecked(false);
@@ -15324,7 +15402,12 @@ private:
         settings.insert(QStringLiteral("sound_stereo_swap_paula"), (swapIndex & 1) ? QStringLiteral("true") : QStringLiteral("false"));
         settings.insert(QStringLiteral("sound_stereo_swap_ahi"), (swapIndex & 2) ? QStringLiteral("true") : QStringLiteral("false"));
         for (int i = 0; i < FloppySoundDriveCount; i++) {
-            settings.insert(QStringLiteral("floppy%1sound").arg(i), QString::number(floppySoundTypeConfigValue(i)));
+            const int type = floppySoundTypeConfigValue(i);
+            settings.insert(QStringLiteral("floppy%1sound").arg(i), QString::number(type));
+            const QString external = floppySoundExternalConfigValue(i);
+            if (type < 0 && !external.isEmpty()) {
+                settings.insert(QStringLiteral("floppy%1soundext").arg(i), external);
+            }
             settings.insert(QStringLiteral("floppy%1soundvolume_empty").arg(i), QString::number(floppySoundEmptyAttenuationValue(i)));
             settings.insert(QStringLiteral("floppy%1soundvolume_disk").arg(i), QString::number(floppySoundDiskAttenuationValue(i)));
         }
@@ -15840,6 +15923,10 @@ private:
             QStringLiteral("floppy1sound"),
             QStringLiteral("floppy2sound"),
             QStringLiteral("floppy3sound"),
+            QStringLiteral("floppy0soundext"),
+            QStringLiteral("floppy1soundext"),
+            QStringLiteral("floppy2soundext"),
+            QStringLiteral("floppy3soundext"),
             QStringLiteral("floppy0soundvolume_empty"),
             QStringLiteral("floppy1soundvolume_empty"),
             QStringLiteral("floppy2soundvolume_empty"),
@@ -16939,7 +17026,12 @@ private:
             }
             loadSelectedFloppySound();
         } else if (const int drive = floppyKeyDrive(key, QStringLiteral("sound")); drive >= 0) {
-            floppySoundTypeValue[drive] = qBound(0, value.toInt(), 1);
+            floppySoundTypeValue[drive] = qBound(-1, value.toInt(), 1);
+            if (drive == currentFloppySoundDrive) {
+                loadSelectedFloppySound();
+            }
+        } else if (const int drive = floppyKeyDrive(key, QStringLiteral("soundext")); drive >= 0) {
+            floppySoundExternalValue[drive] = canonicalDriveSoundSet(value.trimmed());
             if (drive == currentFloppySoundDrive) {
                 loadSelectedFloppySound();
             }
@@ -17451,7 +17543,52 @@ static WinUaeQtLauncherResult runWinUaeQtLauncherDialog(QApplication &app, WinUa
     if (!roundtripOut.isEmpty()) {
         WinUaeQtLauncherResult roundtripResult;
         roundtripResult.status = WinUaeQtLauncherStatus::Canceled;
-        if (!dialog.exportMergedConfig(QString::fromLocal8Bit(roundtripOut))) {
+        const QString expectedDriveSoundSetsDir = QString::fromLocal8Bit(
+            qgetenv("WINUAE_QT_EXPECT_DRIVE_SOUND_SETS_DIR"));
+        if (!expectedDriveSoundSetsDir.isEmpty()) {
+            const QStringList expectedDriveSoundSets = winUaeQtDiscoverDriveSoundSets(
+                expectedDriveSoundSetsDir);
+            QComboBox *selector = dialog.findChild<QComboBox *>(QStringLiteral("floppySoundType"));
+            if (expectedDriveSoundSets.isEmpty()) {
+                roundtripResult.status = WinUaeQtLauncherStatus::Error;
+                roundtripResult.exitCode = 1;
+                roundtripResult.error = QStringLiteral(
+                    "no drive sound sets were found in test directory: %1").arg(
+                        expectedDriveSoundSetsDir);
+                std::fprintf(
+                    stderr,
+                    "%s\n",
+                    roundtripResult.error.toLocal8Bit().constData());
+            }
+            for (const QString &expected : expectedDriveSoundSets) {
+                if (roundtripResult.status == WinUaeQtLauncherStatus::Error) {
+                    break;
+                }
+                bool found = false;
+                if (selector) {
+                    for (int i = 0; i < selector->count(); i++) {
+                        if (selector->itemData(i).toInt() < 0
+                            && selector->itemText(i) == expected
+                            && selector->itemData(i, FloppySoundExternalRole).toString() == expected) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (!found) {
+                    roundtripResult.status = WinUaeQtLauncherStatus::Error;
+                    roundtripResult.exitCode = 1;
+                    roundtripResult.error = QStringLiteral("drive sound set was not discovered: %1").arg(expected);
+                    std::fprintf(
+                        stderr,
+                        "%s\n",
+                        roundtripResult.error.toLocal8Bit().constData());
+                    break;
+                }
+            }
+        }
+        if (roundtripResult.status != WinUaeQtLauncherStatus::Error
+            && !dialog.exportMergedConfig(QString::fromLocal8Bit(roundtripOut))) {
             roundtripResult.status = WinUaeQtLauncherStatus::Error;
             roundtripResult.exitCode = 1;
             roundtripResult.error = QStringLiteral("config roundtrip export failed");

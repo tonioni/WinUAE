@@ -1,0 +1,140 @@
+name: Build macOS DMG
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - back-to-the-roots
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+env:
+  MACOS_DEPLOYMENT_TARGET: "13.0"
+  SDL3_REF: release-3.4.8
+  QTBASE_REF: v6.11.1
+  LIBPNG_REF: v1.6.58
+  FLAC_REF: "1.5.0"
+  FFMPEG_REF: "n8.1.2"
+  GLIB_REF: "2.88.2"
+  LIBMPEG2_VERSION: "0.5.1"
+  LIBMPEG2_SHA256: dee22e893cb5fc2b2b6ebd60b88478ab8556cb3b93f9a0d7ce8f3b61851871d4
+  BUILD_DIR: ${{ github.workspace }}/build/macos
+  DEPS_PREFIX: ${{ github.workspace }}/.deps/macos
+
+jobs:
+  build-macos-dmg:
+    name: Build macOS DMG
+    if: github.repository == 'reinauer/WinUAE'
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout WinUAE
+        uses: actions/checkout@v4
+
+      # Use the release-oriented plugin wrapper instead of the raw QEMU fork.
+      # It downloads a pinned QEMU 11.0.1 tarball, verifies it, applies the
+      # UAE patch deck, and builds qemu-uae.so with a macOS 13 default.
+      - name: Checkout QEMU-UAE PPC plugin builder
+        uses: actions/checkout@v4
+        with:
+          repository: reinauer/uae-ppc-plugin
+          path: uae-ppc-plugin
+
+      - name: Install host build tools
+        run: |
+          brew install \
+            autoconf \
+            automake \
+            cmake \
+            gettext \
+            libtool \
+            meson \
+            ninja \
+            pkgconf
+
+      - name: Fetch dependency sources
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p deps-src
+          git clone --depth 1 --branch "${SDL3_REF}" \
+            https://github.com/libsdl-org/SDL.git deps-src/SDL
+          git clone --depth 1 --branch "${QTBASE_REF}" \
+            https://github.com/qt/qtbase.git deps-src/qtbase
+          git clone --depth 1 --branch "${LIBPNG_REF}" \
+            https://github.com/pnggroup/libpng.git deps-src/libpng
+          git clone --depth 1 --branch "${FLAC_REF}" \
+            https://github.com/xiph/flac.git deps-src/flac
+          git clone --depth 1 --branch "${FFMPEG_REF}" \
+            https://github.com/FFmpeg/FFmpeg.git deps-src/FFmpeg
+          git clone --depth 1 --branch "${GLIB_REF}" \
+            https://github.com/GNOME/glib.git deps-src/glib
+          curl -fsSL -o deps-src/libmpeg2.tar.gz \
+            "https://download.videolan.org/contrib/libmpeg2/libmpeg2-${LIBMPEG2_VERSION}.tar.gz"
+          echo "${LIBMPEG2_SHA256}  deps-src/libmpeg2.tar.gz" | shasum -a 256 -c -
+          tar -xzf deps-src/libmpeg2.tar.gz -C deps-src
+
+      - name: Build private macOS dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export WINUAE_MACOS_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}"
+          export WINUAE_SDL3_SOURCE="${GITHUB_WORKSPACE}/deps-src/SDL"
+          export WINUAE_QT_SOURCE="${GITHUB_WORKSPACE}/deps-src/qtbase"
+          export WINUAE_LIBPNG_SOURCE="${GITHUB_WORKSPACE}/deps-src/libpng"
+          export WINUAE_FLAC_SOURCE="${GITHUB_WORKSPACE}/deps-src/flac"
+          export WINUAE_LIBMPEG2_SOURCE="${GITHUB_WORKSPACE}/deps-src/libmpeg2-${LIBMPEG2_VERSION}"
+          export WINUAE_FFMPEG_SOURCE="${GITHUB_WORKSPACE}/deps-src/FFmpeg"
+          export WINUAE_REQUIRE_LIBPNG=1
+          export WINUAE_REQUIRE_FLAC=1
+          export WINUAE_REQUIRE_LIBMPEG2=1
+          export WINUAE_REQUIRE_FFMPEG=1
+
+          tools/macos-build-deps.sh "${DEPS_PREFIX}"
+
+      - name: Build private QEMU-UAE dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export WINUAE_MACOS_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}"
+          export WINUAE_GLIB_SOURCE="${GITHUB_WORKSPACE}/deps-src/glib"
+
+          tools/macos-build-qemu-deps.sh "${DEPS_PREFIX}"
+
+      - name: Configure WinUAE
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cmake -S . -B "${BUILD_DIR}" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
+            -DCMAKE_PREFIX_PATH="${DEPS_PREFIX}" \
+            -DWINUAE_UNIX_MACOS_DEPS_PREFIX="${DEPS_PREFIX}" \
+            -DWINUAE_QEMU_UAE_DEPS_PREFIX="${DEPS_PREFIX}" \
+            -DWINUAE_QEMU_UAE_BUILDER_DIR="${GITHUB_WORKSPACE}/uae-ppc-plugin" \
+            -DWINUAE_LZMA_SDK_FETCH=ON
+
+      - name: Build and verify DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cmake --build "${BUILD_DIR}" \
+            --target winuae_unix_macos_dmg \
+            --parallel "$(sysctl -n hw.ncpu)"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinUAE macOS DMG
+          path: ${{ env.BUILD_DIR }}/package/WinUAE-*.dmg
+          if-no-files-found: error
