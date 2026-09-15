@@ -20,9 +20,10 @@ conflicts=('winuae-unix')
 source=(
 	"${pkgname}::git+https://github.com/tonioni/WinUAE.git#branch=master"
 	"qemu-uae::git+https://github.com/reinauer/uae-ppc-plugin#branch=main"
+	"floppybridge::git+https://github.com/RobSmithDev/FloppyDriveBridge.git#commit=710fa15cb200303f8c4bde1c931786175f301a68"
 	"https://download.qemu.org/${_qemu_archive}"
 )
-sha256sums=('SKIP' 'SKIP' '0d235f5820278d914a3155ec27af8e4258d697ea892895570807d69c0cb8cd64')
+sha256sums=('SKIP' 'SKIP' 'SKIP' '0d235f5820278d914a3155ec27af8e4258d697ea892895570807d69c0cb8cd64')
 
 pkgver() {
     cd "${pkgname}"
@@ -31,7 +32,10 @@ pkgver() {
 
 build() {
     ${srcdir}/qemu-uae/build-qemu-uae-plugin.sh --tarball "${srcdir}/${_qemu_archive}" --work-dir "${srcdir}/qemu-uae" --output "${srcdir}"
-    cmake -B "${srcdir}/build" -S "${srcdir}/${pkgname}" -DWINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN=ON -DWINUAE_QEMU_UAE_PLUGIN_FILE="${srcdir}/qemu-uae.so"
+    cmake -B "${srcdir}/build" -S "${srcdir}/${pkgname}" \
+        -DWINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN=ON \
+        -DWINUAE_QEMU_UAE_PLUGIN_FILE="${srcdir}/qemu-uae.so" \
+        -DWINUAE_FLOPPYBRIDGE_SOURCE_DIR="${srcdir}/floppybridge"
     cmake --build "${srcdir}/build" --target winuae_unix -j
 }
 

@@ -1,0 +1,24 @@
+diff --git a/floppybridge/SerialIO.cpp b/floppybridge/SerialIO.cpp
+--- a/floppybridge/SerialIO.cpp
++++ b/floppybridge/SerialIO.cpp
+@@ -673,9 +673,19 @@ SerialIO::Response SerialIO::configurePort(const Configuration& configuration) {
+ 	term.c_ospeed = configuration.baudRate;
+ 	if (ioctl(m_portHandle, TCSETS2, &term) < 0) return Response::rUnknownError;
+ #else
++	// cfsetspeed() expects a speed_t B* constant, not a numeric baud rate.
++	// DrawBridge uses 2 Mbaud, so passing the literal 2000000 makes older
++	// glibc versions reject it before communication reaches the device.
++	if (baud == 2000000) {
++#ifdef B2000000
++		baud = B2000000;
++#else
++		return Response::rUnknownError;
++#endif
++	}
+ 	term.c_cflag &= ~CBAUD;
+ 	term.c_cflag |= CBAUDEX;
+-	if (cfsetspeed(&term, baud) < 0) return Response::rUnknownError;
++	if (cfsetspeed(&term, static_cast<speed_t>(baud)) < 0) return Response::rUnknownError;
+ #endif
+ 	}
+ #endif
