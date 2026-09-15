@@ -46,7 +46,7 @@ int disk_debug_track = -1;
 #include "driveclick.h"
 #endif
 #ifdef CAPS
-#include "caps/caps_win32.h"
+#include "od-win32/caps/caps_win32.h"
 #endif
 #ifdef SCP
 #include "scp.h"
@@ -1479,6 +1479,14 @@ static int drive_insert (drive *drv, struct uae_prefs *p, int dnum, const TCHAR 
 		}
 		drv->num_tracks = num_tracks;
 		drv->filetype = ADF_IPF;
+#endif
+#ifndef CAPS
+	} else if (strncmp ((char*)buffer, "CAPS", 4) == 0) {
+		write_log(_T("IPF/CAPS disk images require CAPS support, but "
+			"this build was compiled without CAPS.\n"));
+		zfile_fclose(drv->diskfile);
+		drv->diskfile = NULL;
+		return 0;
 #endif
 #ifdef SCP
 	} else if (strncmp ((char*)buffer, "SCP", 3) == 0) {

@@ -5,6 +5,8 @@
 
 #ifdef _WIN32
 #include <shlobj.h>
+#else
+#include <dlfcn.h>
 #endif
 
 #include "caps_win32.h"
@@ -59,6 +61,94 @@ static CAPSSETREVOLUTION pCAPSSetRevolution;
 typedef SDWORD (CAPSCALL * CAPSGETIMAGETYPEMEMORY)(PUBYTE buffer, UDWORD length);
 static CAPSGETIMAGETYPEMEMORY pCAPSGetImageTypeMemory;
 
+#ifndef _WIN32
+static UAE_DLHANDLE caps_try_dlopen(const TCHAR *path)
+{
+	return dlopen(path, RTLD_NOW);
+}
+
+static UAE_DLHANDLE caps_try_plugins(const TCHAR *const *names)
+{
+	for (int i = 0; names[i]; i++) {
+		UAE_DLHANDLE h = uae_dlopen_plugin(names[i]);
+		if (h)
+			return h;
+	}
+	return NULL;
+}
+
+static UAE_DLHANDLE caps_try_paths(const TCHAR *const *paths)
+{
+	for (int i = 0; paths[i]; i++) {
+		UAE_DLHANDLE h = caps_try_dlopen(paths[i]);
+		if (h)
+			return h;
+	}
+	return NULL;
+}
+
+static UAE_DLHANDLE caps_try_macos_user_framework(void)
+{
+#ifdef UAE_HOST_DARWIN
+	const char *home = getenv("HOME");
+	TCHAR path[MAX_DPATH];
+
+	if (!home || !home[0])
+		return NULL;
+	if (snprintf(path, sizeof path,
+		"%s/Library/Frameworks/CAPSImage.framework/CAPSImage",
+		home) >= (int)sizeof path) {
+		return NULL;
+	}
+	return caps_try_dlopen(path);
+#else
+	return NULL;
+#endif
+}
+
+static UAE_DLHANDLE caps_open_unix(void)
+{
+#ifdef UAE_HOST_DARWIN
+	static const TCHAR *plugin_names[] = {
+		_T("CAPSImage"),
+		_T("capsimage"),
+		_T("libcapsimage"),
+		NULL
+	};
+	static const TCHAR *paths[] = {
+		_T("@executable_path/../Frameworks/CAPSImage.framework/CAPSImage"),
+		_T("@executable_path/../PlugIns/CAPSImage.framework/CAPSImage"),
+		_T("./plugins/CAPSImage.framework/CAPSImage"),
+		_T("./CAPSImage.framework/CAPSImage"),
+		_T("/Library/Frameworks/CAPSImage.framework/CAPSImage"),
+		NULL
+	};
+#else
+	static const TCHAR *plugin_names[] = {
+		_T("libcapsimage"),
+		_T("capsimage"),
+		_T("CAPSImg"),
+		NULL
+	};
+	static const TCHAR *paths[] = {
+		_T("./plugins/libcapsimage.so.4.2"),
+		_T("./plugins/libcapsimage.so.4"),
+		_T("./libcapsimage.so.4.2"),
+		_T("./libcapsimage.so.4"),
+		_T("libcapsimage.so.4"),
+		_T("libcapsimage.so.4.2"),
+		NULL
+	};
+#endif
+	UAE_DLHANDLE h = caps_try_plugins(plugin_names);
+	if (!h)
+		h = caps_try_paths(paths);
+	if (!h)
+		h = caps_try_macos_user_framework();
+	return h;
+}
+#endif
+
 int caps_init (void)
 {
 	static int init, noticed;
@@ -67,6 +157,7 @@ int caps_init (void)
 	if (init)
 		return 1;
 	UAE_DLHANDLE h = uae_dlopen_plugin(_T("CAPSImg"));
+#ifdef _WIN32
 	if (!h) {
 		TCHAR tmp[MAX_DPATH];
 		if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES_COMMON, NULL, 0, tmp))) {
@@ -75,6 +166,10 @@ int caps_init (void)
 			h = uae_dlopen(tmp);
 		}
 	}
+#else
+	if (!h)
+		h = caps_open_unix();
+#endif
 	if (!h) {
 		if (noticed)
 			return 0;

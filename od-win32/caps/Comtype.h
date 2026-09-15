@@ -1,6 +1,18 @@
 #ifndef COMTYPE_H
 #define COMTYPE_H
 
+#ifndef _WIN32
+#ifndef __cdecl
+#define __cdecl
+#endif
+#ifndef __declspec
+#define __declspec(x)
+#endif
+#ifndef __assume
+#define __assume(x) ((void)0)
+#endif
+#endif
+
 typedef void *PVOID;
 typedef char *PCHAR;
 
