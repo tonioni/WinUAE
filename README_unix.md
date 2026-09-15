@@ -33,6 +33,9 @@ This is an early macOS/Linux port of the WinUAE source tree. The current Unix bu
 - pkg-config or pkgconf
 - SDL3 development headers and libraries, recommended for a usable windowed emulator
 - Qt 6 or Qt 5 Widgets, recommended for the native Unix configuration UI
+- FFmpeg/libav 5.0 or newer development headers and libraries, recommended
+  for Windows-parity genlock/video-grab file decoding and source audio
+  playback
 
 ### macOS
 
@@ -40,7 +43,7 @@ Install Xcode Command Line Tools and Homebrew dependencies:
 
 ```sh
 xcode-select --install
-brew install cmake pkg-config sdl3
+brew install cmake pkg-config sdl3 ffmpeg
 ```
 
 For the Qt frontend:
@@ -53,7 +56,7 @@ The system zlib is normally enough on macOS.
 
 The macOS build defaults to `CMAKE_OSX_DEPLOYMENT_TARGET=13.0` so the app is not accidentally tied to the build machine's current macOS release. Bundled libraries and frameworks must support the same or an older deployment target. The packaging script checks every bundled Mach-O file and fails if, for example, Homebrew SDL3 or Qt was built with a newer `minos` than the app target. Use the private dependency build below for repeatable release artifacts.
 
-For repeatable release builds, build SDL3, QtBase, libFLAC when CHD is enabled, and optional libraries such as libpng into a private prefix with the same deployment target instead of using Homebrew bottles. The helper defaults QtBase to bundled third-party libraries so Homebrew dylibs with newer deployment targets are not pulled into the release app. If SDL3's CMake or pkg-config metadata is missing from the private prefix, the WinUAE CMake build can still use a matching `include/SDL3` and `libSDL3.0.dylib` pair from `CMAKE_PREFIX_PATH`. Supplying `WINUAE_LIBPNG_SOURCE` gives the Unix screenshot backend a deployment-target-compatible PNG library; without it, CMake may skip a too-new Homebrew libpng and fall back to BMP screenshots. Supplying `WINUAE_FLAC_SOURCE` lets the dependency helper build CHD's required FLAC library with the same deployment target. Supplying `WINUAE_LIBMPEG2_SOURCE` (the libmpeg2 0.5.1 tarball from videolan.org, extracted) enables CD32 FMV video decode; without a deployment-target-compatible libmpeg2, CMake silently disables FMV playback. PPC release packages also need deployment-target-compatible QEMU-UAE dependencies such as GLib, gettext, and PCRE2; Homebrew bottles built for a newer macOS will be rejected by the bundle verifier.
+For repeatable release builds, build SDL3, QtBase, libFLAC when CHD is enabled, and optional libraries such as libpng and FFmpeg into a private prefix with the same deployment target instead of using Homebrew bottles. The helper defaults QtBase to bundled third-party libraries so Homebrew dylibs with newer deployment targets are not pulled into the release app. If SDL3's CMake or pkg-config metadata is missing from the private prefix, the WinUAE CMake build can still use a matching `include/SDL3` and `libSDL3.0.dylib` pair from `CMAKE_PREFIX_PATH`. Supplying `WINUAE_LIBPNG_SOURCE` gives the Unix screenshot backend a deployment-target-compatible PNG library; without it, CMake may skip a too-new Homebrew libpng and fall back to BMP screenshots. Supplying `WINUAE_FLAC_SOURCE` lets the dependency helper build CHD's required FLAC library with the same deployment target. Supplying `WINUAE_LIBMPEG2_SOURCE` (the libmpeg2 0.5.1 tarball from videolan.org, extracted) enables CD32 FMV video decode; without a deployment-target-compatible libmpeg2, CMake silently disables FMV playback. A deployment-target-compatible FFmpeg/libav install with pkg-config metadata enables codec-backed genlock/video-grab file input and source audio; otherwise video-grab file input falls back to raw 24-bit AVI. PPC release packages also need deployment-target-compatible QEMU-UAE dependencies such as GLib, gettext, and PCRE2; Homebrew bottles built for a newer macOS will be rejected by the bundle verifier.
 
 ```sh
 WINUAE_MACOS_DEPLOYMENT_TARGET=13.0 \
@@ -62,6 +65,7 @@ WINUAE_QT_SOURCE=/path/to/qtbase-source \
 WINUAE_LIBPNG_SOURCE=/path/to/libpng-source \
 WINUAE_FLAC_SOURCE=/path/to/flac-source \
 WINUAE_LIBMPEG2_SOURCE=/path/to/libmpeg2-0.5.1 \
+WINUAE_FFMPEG_SOURCE=/path/to/FFmpeg-source \
 tools/macos-build-deps.sh /opt/winuae-macos-13
 
 source /opt/winuae-macos-13/winuae-macos-deps-env.sh
@@ -79,6 +83,7 @@ WINUAE_QT_SOURCE=/path/to/qtbase-source \
 WINUAE_LIBPNG_SOURCE=/path/to/libpng-source \
 WINUAE_FLAC_SOURCE=/path/to/flac-source \
 WINUAE_LIBMPEG2_SOURCE=/path/to/libmpeg2-0.5.1 \
+WINUAE_FFMPEG_SOURCE=/path/to/FFmpeg-source \
 cmake --build /tmp/winuae_cmake_build --target winuae_unix_macos_deps
 ```
 
@@ -94,7 +99,9 @@ cmake -S . -B /tmp/winuae_cmake_build \
 
 ```sh
 sudo apt update
-sudo apt install build-essential cmake pkg-config zlib1g-dev libsdl3-dev
+sudo apt install build-essential cmake pkg-config zlib1g-dev libsdl3-dev \
+  libavformat-dev libavcodec-dev libavutil-dev libswscale-dev \
+  libswresample-dev
 ```
 
 For the Qt frontend:
@@ -126,6 +133,9 @@ For native ALSA MIDI support:
 ```sh
 sudo dnf install alsa-lib-devel
 ```
+
+For FFmpeg-backed video-grab file decoding, install the distribution's FFmpeg
+development package, typically `ffmpeg-devel` or equivalent.
 
 ## Build
 
@@ -619,6 +629,7 @@ export WINUAE_SMOKE_LOG=/tmp/winuae_unix_smoke.log
 `WINUAE_UNIX_WITH_PPC_QEMU` is enabled by default and builds the WinUAE side of the PPC accelerator/QEMU plugin ABI. `WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN` is enabled by default when a sibling `qemu-uae` tree is present and builds/copies `qemu-uae.so` for the executable, Linux package, or app bundle. `WINUAE_QEMU_UAE_PLUGIN_FILE` can point at a prebuilt plugin. App and CPack package targets require the plugin when PPC support is enabled.
 `WINUAE_QEMU_UAE_DEPS_PREFIX` defaults to the private macOS dependency prefix and points the plugin helper at the deployment-target-compatible GLib build.
 `WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE` is enabled by default when SDL3 and OpenGL development files are available. Runtime OpenGL context or shader setup failure falls back to the SDL renderer.
+`WINUAE_UNIX_WITH_FFMPEG` is enabled by default when compatible FFmpeg/libav 5.0 or newer development files are available. It adds codec-backed genlock/video-grab file decoding and source audio playback; without it, video-grab file input is limited to raw 24-bit AVI.
 `WINUAE_UNIX_WITH_SNDBOARD` is enabled by default and builds the shared Toccata/Prelude/UAESND sound-board backend. It also enables the shared PCI bridge layer needed to expose ES1370 and FM801 through the same expansion-board catalog as Windows, even when hardware RTG graphics boards are disabled.
 `WINUAE_UNIX_WITH_PROWIZARD` is enabled by default and builds the same Pro Wizard source set used by the Windows project.
 `WINUAE_UNIX_WITH_QT_UI` is enabled by default, but Qt UI targets are skipped when Qt Widgets is not installed.

@@ -24,10 +24,12 @@
 #include <vector>
 
 extern int pause_emulation;
+extern int p96syncrate;
 extern void picasso_trigger_vblank(void);
 extern void unix_rtg_overlay_sprite(int monid, uae_u32 *dst, int width, int height, int rowpixels);
 
 uae_u32 p96_rgbx16[65536];
+float p96vblank = 60.0f;
 bool gfx_hdr;
 int flashscreen;
 struct picasso96_state_struct picasso96_state[MAX_AMIGAMONITORS];
@@ -1087,7 +1089,28 @@ void picasso_refresh(int monid)
         show_screen(monid, 0);
     }
 }
-void init_hz_p96(int) {}
+void init_hz_p96(int monid)
+{
+    if (currprefs.win32_rtgvblankrate < 0 || isvsync_rtg()) {
+        p96vblank = target_getcurrentvblankrate(monid);
+        if (p96vblank < 0) {
+            p96vblank = vblank_hz;
+        }
+    } else if (currprefs.win32_rtgvblankrate == 0) {
+        p96vblank = vblank_hz;
+    } else {
+        p96vblank = (float)currprefs.win32_rtgvblankrate;
+    }
+    if (p96vblank <= 0) {
+        p96vblank = 60;
+    }
+    if (p96vblank >= 300) {
+        p96vblank = 300;
+    }
+    p96syncrate = (int)(maxvpos_nom * vblank_hz / p96vblank);
+    write_log(_T("RTGFREQ: %d*%.4f = %.4f / %.1f = %d\n"), maxvpos_nom,
+        vblank_hz, maxvpos_nom * vblank_hz, p96vblank, p96syncrate);
+}
 
 void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 {

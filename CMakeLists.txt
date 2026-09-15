@@ -195,6 +195,8 @@ option(WINUAE_UNIX_WITH_PPC_QEMU "Build Unix PPC accelerator support through the
 option(WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN "Build the sibling qemu-uae plugin for Unix packaging" ON)
 option(WINUAE_UNIX_WITH_DSP "Build shared DSP3210 accelerator support" ON)
 option(WINUAE_UNIX_WITH_AVIOUTPUT "Build Unix screenshot and video/audio capture output support" ON)
+option(WINUAE_UNIX_WITH_VIDEOGRAB "Build Unix genlock video/camera frame input support" ON)
+option(WINUAE_UNIX_WITH_FFMPEG "Build FFmpeg-backed video-grab file decoding with audio" ON)
 option(WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE "Build OpenGL-backed Unix shader/filter presentation support" ON)
 option(WINUAE_LZMA_SDK_FETCH "Fetch the 7-Zip/LZMA SDK into WINUAE_LZMA_SDK_DIR when missing" ON)
 
@@ -309,7 +311,18 @@ set(CMAKE_CXX_EXTENSIONS ON)
 
 add_library(winuae_core OBJECT)
 
-target_compile_definitions(winuae_core PRIVATE
+# winuae_unix_qt_frontend also includes core headers (options.h and friends)
+# and constructs/passes struct uae_prefs across the boundary. Several of
+# those headers gate struct members behind feature macros (e.g. WITH_SLIRP),
+# so winuae_core and winuae_unix_qt_frontend must see an identical set of
+# feature macros or the two translation units disagree on struct layout,
+# corrupting the heap. All feature macros are defined on this INTERFACE
+# target and both consumers link against it instead of setting them PRIVATE
+# on winuae_core alone.
+add_library(winuae_unix_core_defs INTERFACE)
+target_link_libraries(winuae_core PRIVATE winuae_unix_core_defs)
+
+target_compile_definitions(winuae_unix_core_defs INTERFACE
     UAE_TARGET_UNIX=1
     UAE_NOGUI=1
     WINUAE_UNIX_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
@@ -336,7 +349,7 @@ if(WINUAE_UNIX_WITH_ARCHIVES OR WINUAE_UNIX_WITH_CHD)
     winuae_unix_find_lzma_sdk(WINUAE_LZMA_SDK_SOURCE_DIR)
     set(WINUAE_LZMA_SDK_7Z_DIR "${WINUAE_LZMA_SDK_SOURCE_DIR}/7z")
     target_include_directories(winuae_core PRIVATE "${WINUAE_LZMA_SDK_SOURCE_DIR}")
-    target_compile_definitions(winuae_core PRIVATE
+    target_compile_definitions(winuae_unix_core_defs INTERFACE
         _7ZIP_ST=1
         UAE_7Z_SDK_1604=1
     )
@@ -378,6 +391,8 @@ set(WINUAE_UNIX_ENABLE_DRACO OFF)
 set(WINUAE_UNIX_ENABLE_PCEM OFF)
 set(WINUAE_UNIX_ENABLE_JIT OFF)
 set(WINUAE_UNIX_ENABLE_AVIOUTPUT OFF)
+set(WINUAE_UNIX_ENABLE_VIDEOGRAB OFF)
+set(WINUAE_UNIX_ENABLE_FFMPEG OFF)
 set(WINUAE_UNIX_ENABLE_SHADER_PIPELINE OFF)
 set(WINUAE_UNIX_MIDI_LIBRARIES)
 set(WINUAE_UNIX_MIDI_INCLUDE_DIRS)
@@ -500,13 +515,13 @@ if(WINUAE_UNIX_WITH_LIBPNG AND PNG_FOUND)
 endif()
 
 if(WINUAE_UNIX_USE_LIBPNG)
-    target_compile_definitions(winuae_core PRIVATE WINUAE_UNIX_WITH_LIBPNG=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_LIBPNG=1)
     target_link_libraries(winuae_core PRIVATE PNG::PNG)
     list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES PNG::PNG)
 endif()
 
 if(APPLE)
-    target_compile_definitions(winuae_core PRIVATE WINUAE_UNIX_WITH_IMAGEIO=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_IMAGEIO=1)
     list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES
         "-framework CoreFoundation"
         "-framework CoreGraphics"
@@ -515,7 +530,7 @@ if(APPLE)
 endif()
 
 if(WINUAE_UNIX_WITH_ARCHIVES)
-    target_compile_definitions(winuae_core PRIVATE
+    target_compile_definitions(winuae_unix_core_defs INTERFACE
         WINUAE_UNIX_WITH_ARCHIVES=1
         A_ZIP=1
         A_7Z=1
@@ -594,7 +609,7 @@ if(WINUAE_UNIX_WITH_ARCHIVES)
 endif()
 
 if(WINUAE_UNIX_WITH_CHD)
-    target_compile_definitions(winuae_core PRIVATE
+    target_compile_definitions(winuae_unix_core_defs INTERFACE
         WINUAE_UNIX_WITH_CHD=1
         WITH_CHD=1
     )
@@ -663,7 +678,7 @@ if(WINUAE_UNIX_WITH_CHD)
         )
     endif()
 
-    target_compile_definitions(winuae_core PRIVATE WITH_CHD_FLAC=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_CHD_FLAC=1)
     target_include_directories(winuae_core PRIVATE ${FLAC_INCLUDE_DIRS})
     target_compile_options(winuae_core PRIVATE ${FLAC_CFLAGS_OTHER})
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES archivers/chd/flac.cpp)
@@ -726,7 +741,7 @@ if(WINUAE_UNIX_WITH_LIBMPEG2 AND PkgConfig_FOUND)
 endif()
 
 if(WINUAE_UNIX_LIBMPEG2_OK)
-    target_compile_definitions(winuae_core PRIVATE WITH_LIBMPEG2=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_LIBMPEG2=1)
     target_include_directories(winuae_core PRIVATE ${LIBMPEG2_INCLUDE_DIRS})
     target_compile_options(winuae_core PRIVATE ${LIBMPEG2_CFLAGS_OTHER})
     if(APPLE)
@@ -790,13 +805,13 @@ endif()
 
 if(WINUAE_UNIX_WITH_NATIVE_HARDDRIVES)
     set(WINUAE_UNIX_ENABLE_NATIVE_HARDDRIVES ON)
-    target_compile_definitions(winuae_core PRIVATE WINUAE_UNIX_WITH_NATIVE_HARDDRIVES=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_NATIVE_HARDDRIVES=1)
 endif()
 
 if(WINUAE_UNIX_WITH_MIDI)
     if(APPLE)
         set(WINUAE_UNIX_ENABLE_MIDI ON)
-        target_compile_definitions(winuae_core PRIVATE WITH_MIDI=1 WINUAE_UNIX_WITH_COREMIDI=1)
+        target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_MIDI=1 WINUAE_UNIX_WITH_COREMIDI=1)
         list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/midi.cpp)
         list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES "-framework CoreMIDI" "-framework CoreFoundation")
         list(APPEND WINUAE_UNIX_MIDI_LIBRARIES "-framework CoreMIDI" "-framework CoreFoundation")
@@ -805,7 +820,7 @@ if(WINUAE_UNIX_WITH_MIDI)
         pkg_check_modules(ALSA QUIET alsa)
         if(ALSA_FOUND)
             set(WINUAE_UNIX_ENABLE_MIDI ON)
-            target_compile_definitions(winuae_core PRIVATE WITH_MIDI=1 WINUAE_UNIX_WITH_ALSA_MIDI=1)
+            target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_MIDI=1 WINUAE_UNIX_WITH_ALSA_MIDI=1)
             target_include_directories(winuae_core PRIVATE ${ALSA_INCLUDE_DIRS})
             target_compile_options(winuae_core PRIVATE ${ALSA_CFLAGS_OTHER})
             list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/midi.cpp)
@@ -827,7 +842,7 @@ endif()
 if(WINUAE_UNIX_WITH_MIDIEMU AND WINUAE_UNIX_ENABLE_MIDI)
     if(WINUAE_UNIX_MT32EMU_OK)
         set(WINUAE_UNIX_ENABLE_MIDIEMU ON)
-        target_compile_definitions(winuae_core PRIVATE WITH_MIDIEMU=1)
+        target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_MIDIEMU=1)
         target_include_directories(winuae_core PRIVATE ${MT32EMU_INCLUDE_DIRS})
         target_compile_options(winuae_core PRIVATE ${MT32EMU_CFLAGS_OTHER})
         list(APPEND WINUAE_UNIX_EXTRA_SOURCES midiemu.cpp)
@@ -846,13 +861,13 @@ endif()
 
 if(WINUAE_UNIX_WITH_CPUBOARD)
     set(WINUAE_UNIX_ENABLE_CPUBOARD ON)
-    target_compile_definitions(winuae_core PRIVATE WITH_CPUBOARD=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_CPUBOARD=1)
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES cpuboard.cpp)
 endif()
 
 if(WINUAE_UNIX_WITH_PPC_QEMU)
     set(WINUAE_UNIX_ENABLE_PPC ON)
-    target_compile_definitions(winuae_core PRIVATE WITH_PPC=1 WITH_QEMU_CPU=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_PPC=1 WITH_QEMU_CPU=1)
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES
         ppc/ppc.cpp
         ppc/ppcd.cpp
@@ -862,7 +877,7 @@ endif()
 
 if(WINUAE_UNIX_WITH_DSP)
     set(WINUAE_UNIX_ENABLE_DSP ON)
-    target_compile_definitions(winuae_core PRIVATE WITH_DSP=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_DSP=1)
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES
         dsp3210/DSP3210_emulation.cpp
         dsp3210/dsp_glue.cpp
@@ -871,7 +886,7 @@ endif()
 
 set(WINUAE_UNIX_ENABLE_SNDBOARD ON)
 set(WINUAE_UNIX_ENABLE_PCI ON)
-target_compile_definitions(winuae_core PRIVATE
+target_compile_definitions(winuae_unix_core_defs INTERFACE
     WITH_SNDBOARD=1
     WITH_TOCCATA=1
     WITH_PCI=1
@@ -886,7 +901,7 @@ list(APPEND WINUAE_UNIX_EXTRA_SOURCES
 )
 
 set(WINUAE_UNIX_ENABLE_GFXBOARD ON)
-target_compile_definitions(winuae_core PRIVATE GFXBOARD=1)
+target_compile_definitions(winuae_unix_core_defs INTERFACE GFXBOARD=1)
 set(WINUAE_UNIX_ENABLE_PCEM ON)
 list(APPEND WINUAE_UNIX_EXTRA_SOURCES
     gfxboard.cpp
@@ -899,7 +914,7 @@ list(APPEND WINUAE_UNIX_EXTRA_SOURCES
 
 set(WINUAE_UNIX_ENABLE_X86 ON)
 set(WINUAE_UNIX_ENABLE_PCEM ON)
-target_compile_definitions(winuae_core PRIVATE WITH_X86=1)
+target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_X86=1)
 list(APPEND WINUAE_UNIX_EXTRA_SOURCES
     atonce.cpp
     x86.cpp
@@ -909,7 +924,7 @@ list(APPEND WINUAE_UNIX_EXTRA_SOURCES
 
 set(WINUAE_UNIX_ENABLE_DRACO ON)
 set(WINUAE_UNIX_ENABLE_PCEM ON)
-target_compile_definitions(winuae_core PRIVATE WITH_DRACO=1)
+target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_DRACO=1)
 list(APPEND WINUAE_UNIX_EXTRA_SOURCES
     draco.cpp
     ${WINUAE_UNIX_PCEM_COMMON_SOURCES}
@@ -917,7 +932,7 @@ list(APPEND WINUAE_UNIX_EXTRA_SOURCES
 )
 
 if(WINUAE_UNIX_ENABLE_PCEM)
-    target_compile_definitions(winuae_core PRIVATE WINUAE_UNIX_WITH_PCEM=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_PCEM=1)
     target_compile_options(winuae_core PRIVATE
         $<$<COMPILE_LANGUAGE:CXX>:-include>
         $<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/od-unix/pcem_wincompat.h>
@@ -925,20 +940,137 @@ if(WINUAE_UNIX_ENABLE_PCEM)
 endif()
 
 if(WINUAE_UNIX_ENABLE_PPC OR WINUAE_UNIX_ENABLE_GFXBOARD OR WINUAE_UNIX_ENABLE_X86 OR WINUAE_UNIX_ENABLE_DRACO)
-    target_compile_definitions(winuae_core PRIVATE UAE=)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE UAE=)
 endif()
 
 if(WINUAE_UNIX_WITH_AVIOUTPUT)
     set(WINUAE_UNIX_ENABLE_AVIOUTPUT ON)
-    target_compile_definitions(winuae_core PRIVATE AVIOUTPUT=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE AVIOUTPUT=1)
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/avioutput.cpp)
+endif()
+
+if(WINUAE_UNIX_WITH_VIDEOGRAB)
+    set(WINUAE_UNIX_ENABLE_VIDEOGRAB ON)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE
+        VIDEOGRAB=1
+        WINUAE_UNIX_WITH_VIDEOGRAB=1
+    )
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/videograb.cpp)
+endif()
+
+set(WINUAE_UNIX_FFMPEG_OK OFF)
+set(WINUAE_UNIX_FFMPEG_FOUND OFF)
+if(WINUAE_UNIX_WITH_FFMPEG AND WINUAE_UNIX_WITH_VIDEOGRAB AND PkgConfig_FOUND)
+    pkg_check_modules(FFMPEG QUIET
+        libavformat>=59
+        libavcodec>=59
+        libavutil>=57
+        libswscale>=6
+        libswresample>=4
+    )
+    if(FFMPEG_FOUND)
+        set(WINUAE_UNIX_FFMPEG_FOUND ON)
+        set(WINUAE_UNIX_FFMPEG_OK ON)
+        if(APPLE)
+            unset(WINUAE_UNIX_FFMPEG_AVFORMAT_LIBRARY CACHE)
+            unset(WINUAE_UNIX_FFMPEG_AVCODEC_LIBRARY CACHE)
+            unset(WINUAE_UNIX_FFMPEG_AVUTIL_LIBRARY CACHE)
+            unset(WINUAE_UNIX_FFMPEG_SWSCALE_LIBRARY CACHE)
+            unset(WINUAE_UNIX_FFMPEG_SWRESAMPLE_LIBRARY CACHE)
+            find_library(WINUAE_UNIX_FFMPEG_AVFORMAT_LIBRARY
+                NAMES avformat
+                PATHS ${FFMPEG_LIBRARY_DIRS}
+                NO_DEFAULT_PATH
+            )
+            find_library(WINUAE_UNIX_FFMPEG_AVCODEC_LIBRARY
+                NAMES avcodec
+                PATHS ${FFMPEG_LIBRARY_DIRS}
+                NO_DEFAULT_PATH
+            )
+            find_library(WINUAE_UNIX_FFMPEG_AVUTIL_LIBRARY
+                NAMES avutil
+                PATHS ${FFMPEG_LIBRARY_DIRS}
+                NO_DEFAULT_PATH
+            )
+            find_library(WINUAE_UNIX_FFMPEG_SWSCALE_LIBRARY
+                NAMES swscale
+                PATHS ${FFMPEG_LIBRARY_DIRS}
+                NO_DEFAULT_PATH
+            )
+            find_library(WINUAE_UNIX_FFMPEG_SWRESAMPLE_LIBRARY
+                NAMES swresample
+                PATHS ${FFMPEG_LIBRARY_DIRS}
+                NO_DEFAULT_PATH
+            )
+            if(WINUAE_UNIX_FFMPEG_AVFORMAT_LIBRARY
+                    AND WINUAE_UNIX_FFMPEG_AVCODEC_LIBRARY
+                    AND WINUAE_UNIX_FFMPEG_AVUTIL_LIBRARY
+                    AND WINUAE_UNIX_FFMPEG_SWSCALE_LIBRARY
+                    AND WINUAE_UNIX_FFMPEG_SWRESAMPLE_LIBRARY)
+                foreach(WINUAE_UNIX_FFMPEG_CHECK_LIBRARY IN ITEMS
+                        WINUAE_UNIX_FFMPEG_AVFORMAT_LIBRARY
+                        WINUAE_UNIX_FFMPEG_AVCODEC_LIBRARY
+                        WINUAE_UNIX_FFMPEG_AVUTIL_LIBRARY
+                        WINUAE_UNIX_FFMPEG_SWSCALE_LIBRARY
+                        WINUAE_UNIX_FFMPEG_SWRESAMPLE_LIBRARY)
+                    execute_process(
+                        COMMAND
+                            "${CMAKE_CURRENT_SOURCE_DIR}/tools/macos-check-deployment-target.sh"
+                            "${${WINUAE_UNIX_FFMPEG_CHECK_LIBRARY}}"
+                            "${CMAKE_OSX_DEPLOYMENT_TARGET}"
+                        RESULT_VARIABLE WINUAE_UNIX_FFMPEG_DEPLOYMENT_RESULT
+                        OUTPUT_VARIABLE WINUAE_UNIX_FFMPEG_DEPLOYMENT_OUTPUT
+                        ERROR_VARIABLE WINUAE_UNIX_FFMPEG_DEPLOYMENT_ERROR
+                        OUTPUT_STRIP_TRAILING_WHITESPACE
+                        ERROR_STRIP_TRAILING_WHITESPACE
+                    )
+                    if(NOT WINUAE_UNIX_FFMPEG_DEPLOYMENT_RESULT EQUAL 0)
+                        message(STATUS
+                            "FFmpeg is newer than "
+                            "CMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}; "
+                            "video-grab FFmpeg decode disabled. "
+                            "${WINUAE_UNIX_FFMPEG_DEPLOYMENT_ERROR}"
+                        )
+                        set(WINUAE_UNIX_FFMPEG_OK OFF)
+                    endif()
+                endforeach()
+            else()
+                message(STATUS
+                    "FFmpeg was found by pkg-config but not as library "
+                    "paths; video-grab FFmpeg decode disabled"
+                )
+                set(WINUAE_UNIX_FFMPEG_OK OFF)
+            endif()
+        endif()
+    endif()
+endif()
+
+if(WINUAE_UNIX_FFMPEG_OK)
+    set(WINUAE_UNIX_ENABLE_FFMPEG ON)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_FFMPEG=1)
+    target_include_directories(winuae_core PRIVATE ${FFMPEG_INCLUDE_DIRS})
+    target_compile_options(winuae_core PRIVATE ${FFMPEG_CFLAGS_OTHER})
+    if(APPLE)
+        list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES
+            "${WINUAE_UNIX_FFMPEG_AVFORMAT_LIBRARY}"
+            "${WINUAE_UNIX_FFMPEG_AVCODEC_LIBRARY}"
+            "${WINUAE_UNIX_FFMPEG_AVUTIL_LIBRARY}"
+            "${WINUAE_UNIX_FFMPEG_SWSCALE_LIBRARY}"
+            "${WINUAE_UNIX_FFMPEG_SWRESAMPLE_LIBRARY}"
+        )
+    else()
+        list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${FFMPEG_LIBRARIES})
+    endif()
+    list(APPEND WINUAE_UNIX_EXTRA_LIBRARY_DIRS ${FFMPEG_LIBRARY_DIRS})
+elseif(WINUAE_UNIX_WITH_FFMPEG AND WINUAE_UNIX_WITH_VIDEOGRAB AND NOT WINUAE_UNIX_FFMPEG_FOUND)
+    message(STATUS "Compatible FFmpeg development packages not found; video-grab file decoding limited to raw AVI")
 endif()
 
 if(WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE AND WINUAE_UNIX_WITH_SDL3)
     find_package(OpenGL QUIET)
     if(OpenGL_FOUND)
         set(WINUAE_UNIX_ENABLE_SHADER_PIPELINE ON)
-        target_compile_definitions(winuae_core PRIVATE WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE=1)
+        target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE=1)
         list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES OpenGL::GL)
     else()
         message(STATUS "OpenGL development package not found; Unix shader pipeline disabled")
@@ -948,7 +1080,7 @@ endif()
 if(WINUAE_UNIX_WITH_JIT)
     if(WINUAE_UNIX_JIT_TARGET_SUPPORTED)
         set(WINUAE_UNIX_ENABLE_JIT ON)
-        target_compile_definitions(winuae_core PRIVATE
+        target_compile_definitions(winuae_unix_core_defs INTERFACE
             JIT=1
             USE_JIT_FPU=1
             NOFLAGS_SUPPORT_GENCOMP=1
@@ -966,7 +1098,7 @@ if(WINUAE_UNIX_WITH_JIT)
 endif()
 
 if(WINUAE_UNIX_WITH_SLIRP)
-    target_compile_definitions(winuae_core PRIVATE
+    target_compile_definitions(winuae_unix_core_defs INTERFACE
         A2065=1
         WITH_SLIRP=1
         WITH_BUILTIN_SLIRP=1
@@ -998,7 +1130,7 @@ endif()
 if(WINUAE_UNIX_WITH_SANA2)
     if(WINUAE_UNIX_WITH_SLIRP)
         set(WINUAE_UNIX_ENABLE_SANA2 ON)
-        target_compile_definitions(winuae_core PRIVATE SANA2=1)
+        target_compile_definitions(winuae_unix_core_defs INTERFACE SANA2=1)
         list(APPEND WINUAE_UNIX_EXTRA_SOURCES sana2.cpp)
     else()
         message(STATUS "uaenet.device requires the Unix Ethernet backend; disabling WINUAE_UNIX_WITH_SANA2")
@@ -1028,7 +1160,7 @@ if(WINUAE_UNIX_WITH_UAENET_PCAP)
     endif()
     if(WINUAE_UNIX_PCAP_FOUND)
         set(WINUAE_UNIX_ENABLE_UAENET_PCAP ON)
-        target_compile_definitions(winuae_core PRIVATE WITH_UAENET_PCAP=1)
+        target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_UAENET_PCAP=1)
         list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/uaenet_unix.cpp)
     else()
         message(STATUS "libpcap was not found; disabling native Unix packet networking")
@@ -1037,20 +1169,20 @@ endif()
 
 if(WINUAE_UNIX_WITH_BSDSOCKET)
     set(WINUAE_UNIX_ENABLE_BSDSOCKET ON)
-    target_compile_definitions(winuae_core PRIVATE BSDSOCKET=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE BSDSOCKET=1)
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/bsdsock_unix.cpp)
 endif()
 
 if(WINUAE_UNIX_WITH_UAESCSI)
     set(WINUAE_UNIX_ENABLE_UAESCSI ON)
-    target_compile_definitions(winuae_core PRIVATE SCSIEMU=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE SCSIEMU=1)
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES scsiemul.cpp)
 endif()
 
 if(WINUAE_UNIX_WITH_NATIVE_CD)
     if(APPLE OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set(WINUAE_UNIX_ENABLE_NATIVE_CD ON)
-        target_compile_definitions(winuae_core PRIVATE WITH_SCSI_IOCTL=1)
+        target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_SCSI_IOCTL=1)
         list(APPEND WINUAE_UNIX_EXTRA_SOURCES
             od-unix/blkdev_unix_ioctl.cpp
             od-unix/cda_play.cpp
@@ -1070,11 +1202,11 @@ endif()
 if(WINUAE_UNIX_WITH_NATIVE_SCSI)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set(WINUAE_UNIX_ENABLE_NATIVE_SCSI ON)
-        target_compile_definitions(winuae_core PRIVATE WITH_SCSI_SPTI=1)
+        target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_SCSI_SPTI=1)
         list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/blkdev_unix_sg.cpp)
     elseif(APPLE)
         set(WINUAE_UNIX_ENABLE_NATIVE_SCSI ON)
-        target_compile_definitions(winuae_core PRIVATE WITH_SCSI_SPTI=1)
+        target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_SCSI_SPTI=1)
         list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/blkdev_unix_scsi_macos.cpp)
         list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES
             "-framework CoreFoundation"
@@ -1087,14 +1219,14 @@ endif()
 
 if(WINUAE_UNIX_WITH_UAESERIAL)
     set(WINUAE_UNIX_ENABLE_UAESERIAL ON)
-    target_compile_definitions(winuae_core PRIVATE UAESERIAL=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE UAESERIAL=1)
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES
         uaeserial.cpp
         od-unix/uaeserial_host.cpp
     )
 endif()
 
-target_compile_definitions(winuae_core PRIVATE NCR=1 NCR9X=1)
+target_compile_definitions(winuae_unix_core_defs INTERFACE NCR=1 NCR9X=1)
 set_source_files_properties(ncr_scsi.cpp ncr9x_scsi.cpp PROPERTIES COMPILE_DEFINITIONS WITH_QEMU_CPU=1)
 list(APPEND WINUAE_UNIX_EXTRA_SOURCES
     ncr_scsi.cpp
@@ -1106,7 +1238,7 @@ list(APPEND WINUAE_UNIX_EXTRA_SOURCES
 )
 
 if(WINUAE_UNIX_WITH_PROWIZARD)
-    target_compile_definitions(winuae_core PRIVATE PROWIZARD=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE PROWIZARD=1)
     target_include_directories(winuae_core PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/prowizard/include"
     )
@@ -1317,12 +1449,12 @@ if(WINUAE_UNIX_WITH_SDL3)
 endif()
 
 if(WINUAE_UNIX_SDL3_TARGET)
-    target_compile_definitions(winuae_core PRIVATE UAE_UNIX_WITH_SDL3=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE UAE_UNIX_WITH_SDL3=1)
     target_link_libraries(winuae_core PRIVATE ${WINUAE_UNIX_SDL3_TARGET})
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/video_sdl.cpp)
     list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${WINUAE_UNIX_SDL3_TARGET})
 elseif(SDL3_FOUND)
-    target_compile_definitions(winuae_core PRIVATE UAE_UNIX_WITH_SDL3=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE UAE_UNIX_WITH_SDL3=1)
     target_include_directories(winuae_core PRIVATE ${SDL3_INCLUDE_DIRS})
     target_compile_options(winuae_core PRIVATE ${SDL3_CFLAGS_OTHER})
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/video_sdl.cpp)
@@ -1334,7 +1466,7 @@ endif()
 
 if(WINUAE_UNIX_WITH_SAMPLER AND (WINUAE_UNIX_SDL3_TARGET OR SDL3_FOUND))
     set(WINUAE_UNIX_ENABLE_SAMPLER ON)
-    target_compile_definitions(winuae_core PRIVATE WINUAE_UNIX_WITH_SAMPLER=1)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_SAMPLER=1)
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/sampler_sdl.cpp)
 endif()
 
@@ -1609,6 +1741,10 @@ if(WINUAE_UNIX_WITH_QT_UI)
             od-unix/qt/path_utils.cpp
             od-unix/qt/prefs_adapter.cpp
         )
+        # Must see the same feature macros as winuae_core (see comment by
+        # winuae_unix_core_defs) since it also builds struct uae_prefs and
+        # other core types that gate members behind these macros.
+        target_link_libraries(winuae_unix_qt_frontend PRIVATE winuae_unix_core_defs)
         target_include_directories(winuae_unix_qt_frontend PRIVATE
             "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
             "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -1636,6 +1772,8 @@ if(WINUAE_UNIX_WITH_QT_UI)
             UAE_UNIX_WITH_DRACO=$<BOOL:${WINUAE_UNIX_ENABLE_DRACO}>
             UAE_UNIX_WITH_JIT=$<BOOL:${WINUAE_UNIX_ENABLE_JIT}>
             UAE_UNIX_WITH_AVIOUTPUT=$<BOOL:${WINUAE_UNIX_ENABLE_AVIOUTPUT}>
+            UAE_UNIX_WITH_VIDEOGRAB=$<BOOL:${WINUAE_UNIX_ENABLE_VIDEOGRAB}>
+            UAE_UNIX_WITH_FFMPEG=$<BOOL:${WINUAE_UNIX_ENABLE_FFMPEG}>
             UAE_UNIX_WITH_SHADER_PIPELINE=$<BOOL:${WINUAE_UNIX_ENABLE_SHADER_PIPELINE}>
             ${WINUAE_UNIX_MIDI_QT_DEFINITIONS}
         )
@@ -1700,7 +1838,7 @@ if(WINUAE_UNIX_WITH_QT_UI)
         winuae_unix_register_test(winuae_unix_qt_path_utils_test)
 
         if(WINUAE_UNIX_WITH_INTEGRATED_QT_UI)
-            target_compile_definitions(winuae_core PRIVATE WINUAE_UNIX_WITH_INTEGRATED_QT_UI=1)
+            target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_INTEGRATED_QT_UI=1)
             if(TARGET winuae_unix)
                 target_link_libraries(winuae_unix PRIVATE winuae_unix_qt_frontend)
             endif()
@@ -1737,6 +1875,9 @@ if(APPLE)
     )
     if(WINUAE_UNIX_WITH_CHD)
         list(APPEND WINUAE_UNIX_MACOS_DEPS_ENV "WINUAE_REQUIRE_FLAC=1")
+    endif()
+    if(WINUAE_UNIX_WITH_FFMPEG AND WINUAE_UNIX_WITH_VIDEOGRAB)
+        list(APPEND WINUAE_UNIX_MACOS_DEPS_ENV "WINUAE_REQUIRE_FFMPEG=1")
     endif()
     add_custom_target(winuae_unix_macos_deps
         COMMAND "${CMAKE_COMMAND}" -E env
@@ -1907,6 +2048,7 @@ if(APPLE AND TARGET winuae_unix)
     add_custom_target(winuae_unix_macos_app
         COMMAND "${CMAKE_COMMAND}" -E env
             "WINUAE_QEMU_UAE_PLUGIN=${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            "WINUAE_BUNDLE_REQUIRE_FFMPEG=$<BOOL:${WINUAE_UNIX_ENABLE_FFMPEG}>"
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/macos-bundle.sh" "${CMAKE_BINARY_DIR}" "${CMAKE_BINARY_DIR}/package"
         DEPENDS ${WINUAE_UNIX_MACOS_APP_DEPS}
         COMMENT "Creating WinUAE.app"
@@ -1915,6 +2057,7 @@ if(APPLE AND TARGET winuae_unix)
     add_custom_target(winuae_unix_macos_dmg
         COMMAND "${CMAKE_COMMAND}" -E env
             "WINUAE_QEMU_UAE_PLUGIN=${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            "WINUAE_BUNDLE_REQUIRE_FFMPEG=$<BOOL:${WINUAE_UNIX_ENABLE_FFMPEG}>"
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/macos-dmg.sh" "${CMAKE_BINARY_DIR}" "${CMAKE_BINARY_DIR}/package"
         DEPENDS winuae_unix_macos_app
         COMMENT "Creating WinUAE drag-install DMG"
