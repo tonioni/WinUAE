@@ -27,6 +27,7 @@
 #include "uae.h"
 #include "video.h"
 #include "audio.h"
+#include "debug.h"
 #include "inputrecord.h"
 #include "savestate.h"
 #include "newcpu.h"
@@ -510,6 +511,12 @@ static void bridgePollHostWindowEvents(void *)
     unix_host_check_quit();
 }
 
+static bool bridgePollDebuggerHostWindowEvents(void *context)
+{
+    bridgePollHostWindowEvents(context);
+    return debugger_active != 0;
+}
+
 static bool bridgeHostSettingGet(void *, const char *key, char *out, int outLen)
 {
     int size = outLen;
@@ -908,4 +915,56 @@ int runWinUaeQtMessageBox(int argc, char **argv, int flags, const char *message,
         *exitCode = 0;
     }
     return result;
+}
+
+int runWinUaeQtDebuggerConsoleGetInput(int argc, char **argv, char *out, size_t outLen, int *exitCode)
+{
+    if (out && outLen > 0) {
+        out[0] = 0;
+    }
+    QString command;
+    const int result = runWinUaeQtDebuggerConsoleGetInput(
+        argc,
+        argv,
+        &command,
+        bridgePollDebuggerHostWindowEvents,
+        nullptr);
+    if (result < 0) {
+        if (exitCode) {
+            *exitCode = 0;
+        }
+        return result;
+    }
+    const QByteArray bytes = command.toLocal8Bit();
+    if (!out || outLen == 0 || size_t(bytes.size()) >= outLen) {
+        if (exitCode) {
+            *exitCode = 1;
+        }
+        return -1;
+    }
+    memcpy(out, bytes.constData(), size_t(bytes.size()) + 1);
+    if (exitCode) {
+        *exitCode = 0;
+    }
+    return bytes.size();
+}
+
+void winUaeQtDebuggerProcessEvents(int debuggerActive)
+{
+    runWinUaeQtDebuggerProcessEvents(debuggerActive != 0);
+}
+
+void runWinUaeQtDebuggerConsoleWrite(const char *text)
+{
+    runWinUaeQtDebuggerConsoleWrite(text ? QString::fromLocal8Bit(text) : QString());
+}
+
+void runWinUaeQtDebuggerUpdateInfo(const char *text)
+{
+    runWinUaeQtDebuggerUpdateInfo(text ? QString::fromLocal8Bit(text) : QString());
+}
+
+void runWinUaeQtDebuggerConsoleClose(void)
+{
+    closeWinUaeQtDebuggerConsole();
 }

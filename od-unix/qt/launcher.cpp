@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <functional>
+#include <memory>
 #if defined(__APPLE__) || defined(__linux__)
 #include <fcntl.h>
 #include <unistd.h>
@@ -17599,6 +17600,280 @@ WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const
 {
     WinUaeQtApplication app(argc, argv);
     return runWinUaeQtLauncherForConfig(app, initialConfig, displayConfigPath, hardwareProvider);
+}
+
+class WinUaeQtDebuggerConsole final : public QDialog {
+public:
+    explicit WinUaeQtDebuggerConsole(QWidget *parent = nullptr)
+        : QDialog(parent)
+    {
+        setWindowTitle(QStringLiteral("WinUAE Debugger"));
+        setAttribute(Qt::WA_DeleteOnClose, false);
+        resize(1100, 680);
+
+        state = new QPlainTextEdit(this);
+        state->setReadOnly(true);
+        state->setLineWrapMode(QPlainTextEdit::NoWrap);
+        state->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+        state->setMinimumWidth(360);
+        state->setPlaceholderText(QStringLiteral("Debugger state will appear here."));
+
+        output = new QPlainTextEdit(this);
+        output->setReadOnly(true);
+        output->setLineWrapMode(QPlainTextEdit::NoWrap);
+        output->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+
+        input = new QLineEdit(this);
+
+        runButton = new QPushButton(QStringLiteral("Run"), this);
+        continueButton = new QPushButton(QStringLiteral("Continue"), this);
+        QPushButton *closeButton = new QPushButton(QStringLiteral("Close"), this);
+
+        QHBoxLayout *inputLayout = new QHBoxLayout;
+        inputLayout->addWidget(input, 1);
+        inputLayout->addWidget(runButton);
+        inputLayout->addWidget(continueButton);
+        inputLayout->addWidget(closeButton);
+
+        QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
+        splitter->addWidget(state);
+        splitter->addWidget(output);
+        splitter->setStretchFactor(0, 0);
+        splitter->setStretchFactor(1, 1);
+
+        QVBoxLayout *layout = new QVBoxLayout(this);
+        layout->addWidget(splitter, 1);
+        layout->addLayout(inputLayout);
+        setLayout(layout);
+
+        connect(input, &QLineEdit::returnPressed, this, [this]() { submitInput(); });
+        connect(runButton, &QPushButton::clicked, this, [this]() { submitInput(); });
+        connect(continueButton, &QPushButton::clicked, this, [this]() { submitCommand(QStringLiteral("g")); });
+        connect(closeButton, &QPushButton::clicked, this, [this]() {
+            if (debuggerActive) {
+                submitCommand(QStringLiteral("x"));
+            } else {
+                close();
+            }
+        });
+    }
+
+    void appendOutput(const QString &text)
+    {
+        if (text == QStringLiteral(">")) {
+            return;
+        }
+        output->moveCursor(QTextCursor::End);
+        output->insertPlainText(text);
+        output->moveCursor(QTextCursor::End);
+    }
+
+    void updateState(const QString &text)
+    {
+        state->setPlainText(text);
+        state->moveCursor(QTextCursor::Start);
+    }
+
+    bool takeCommand(QString *command)
+    {
+        if (!hasPendingCommand) {
+            return false;
+        }
+        if (command) {
+            *command = pendingCommand;
+        }
+        pendingCommand.clear();
+        hasPendingCommand = false;
+        return true;
+    }
+
+    void focusCommandInput()
+    {
+        input->setFocus(Qt::OtherFocusReason);
+    }
+
+    void setDebuggerActive(bool active)
+    {
+        debuggerActive = active;
+        input->setEnabled(active);
+        runButton->setEnabled(active);
+        continueButton->setEnabled(active);
+    }
+
+protected:
+    void closeEvent(QCloseEvent *event) override
+    {
+        if (debuggerActive && !hasPendingCommand) {
+            pendingCommand = QStringLiteral("x");
+            hasPendingCommand = true;
+        }
+        event->accept();
+    }
+
+private:
+    void submitInput()
+    {
+        if (!debuggerActive) {
+            return;
+        }
+        const QString command = input->text().trimmed();
+        if (command.isEmpty()) {
+            return;
+        }
+        input->clear();
+        submitCommand(command);
+    }
+
+    void submitCommand(const QString &command)
+    {
+        if (!debuggerActive) {
+            return;
+        }
+        appendOutput(QStringLiteral("\n%1\n").arg(command));
+        pendingCommand = command;
+        hasPendingCommand = true;
+    }
+
+    QPlainTextEdit *output = nullptr;
+    QPlainTextEdit *state = nullptr;
+    QLineEdit *input = nullptr;
+    QPushButton *runButton = nullptr;
+    QPushButton *continueButton = nullptr;
+    QString pendingCommand;
+    bool hasPendingCommand = false;
+    bool debuggerActive = true;
+};
+
+static std::unique_ptr<WinUaeQtApplication> debuggerOwnedApp;
+static WinUaeQtDebuggerConsole *debuggerConsole;
+static QString debuggerPendingOutput;
+static QString debuggerPendingState;
+static int debuggerArgcFallback = 1;
+static char debuggerArg0Fallback[] = "winuae";
+static char *debuggerArgvFallback[] = { debuggerArg0Fallback, nullptr };
+
+static QApplication *debuggerApplication(int argc, char **argv)
+{
+    if (QApplication *app = qobject_cast<QApplication *>(QApplication::instance())) {
+        return app;
+    }
+    if (!debuggerOwnedApp) {
+        if (argc <= 0 || !argv) {
+            argv = debuggerArgvFallback;
+            argc = debuggerArgcFallback;
+        }
+        debuggerOwnedApp = std::make_unique<WinUaeQtApplication>(argc, argv);
+    }
+    return debuggerOwnedApp.get();
+}
+
+static WinUaeQtDebuggerConsole *ensureDebuggerConsole(QApplication &app)
+{
+    setupApplicationStyle(app);
+    if (!debuggerConsole) {
+        debuggerConsole = new WinUaeQtDebuggerConsole;
+        if (!debuggerPendingOutput.isEmpty()) {
+            debuggerConsole->appendOutput(debuggerPendingOutput);
+            debuggerPendingOutput.clear();
+        }
+        if (!debuggerPendingState.isEmpty()) {
+            debuggerConsole->updateState(debuggerPendingState);
+        }
+    }
+    debuggerConsole->show();
+    debuggerConsole->setDebuggerActive(true);
+    debuggerConsole->raise();
+    debuggerConsole->activateWindow();
+    debuggerConsole->focusCommandInput();
+    return debuggerConsole;
+}
+
+void runWinUaeQtDebuggerConsoleWrite(const QString &text)
+{
+    if (text == QStringLiteral(">")) {
+        return;
+    }
+    if (debuggerConsole) {
+        debuggerConsole->appendOutput(text);
+        return;
+    }
+    debuggerPendingOutput += text;
+    static constexpr int MaxPendingOutput = 256 * 1024;
+    if (debuggerPendingOutput.size() > MaxPendingOutput) {
+        debuggerPendingOutput = debuggerPendingOutput.right(MaxPendingOutput);
+    }
+}
+
+void runWinUaeQtDebuggerUpdateInfo(const QString &text)
+{
+    if (debuggerConsole) {
+        debuggerConsole->updateState(text);
+        return;
+    }
+    debuggerPendingState = text;
+}
+
+int runWinUaeQtDebuggerConsoleGetInput(
+    QApplication &app,
+    QString *command,
+    WinUaeQtDebuggerEventPump eventPump,
+    void *eventPumpContext)
+{
+    WinUaeQtDebuggerConsole *dialog = ensureDebuggerConsole(app);
+    QTimer eventPumpTimer;
+    bool keepWaiting = true;
+    if (eventPump) {
+        QObject::connect(&eventPumpTimer, &QTimer::timeout, [&keepWaiting, eventPump, eventPumpContext]() {
+            keepWaiting = eventPump(eventPumpContext);
+        });
+        eventPumpTimer.start(100);
+    }
+    while (dialog && keepWaiting && !dialog->takeCommand(command)) {
+        app.processEvents(QEventLoop::AllEvents | QEventLoop::WaitForMoreEvents);
+        dialog = debuggerConsole;
+    }
+    if (!dialog || !keepWaiting) {
+        return -1;
+    }
+    return command ? command->size() : 0;
+}
+
+void runWinUaeQtDebuggerProcessEvents(bool debuggerActive)
+{
+    if (!debuggerConsole || !debuggerConsole->isVisible()) {
+        return;
+    }
+    debuggerConsole->setDebuggerActive(debuggerActive);
+    if (QApplication *app = qobject_cast<QApplication *>(QApplication::instance())) {
+        app->processEvents(QEventLoop::AllEvents);
+    }
+}
+
+int runWinUaeQtDebuggerConsoleGetInput(
+    int argc,
+    char **argv,
+    QString *command,
+    WinUaeQtDebuggerEventPump eventPump,
+    void *eventPumpContext)
+{
+    QApplication *app = debuggerApplication(argc, argv);
+    if (!app) {
+        return -1;
+    }
+    return runWinUaeQtDebuggerConsoleGetInput(
+        *app,
+        command,
+        eventPump,
+        eventPumpContext);
+}
+
+void closeWinUaeQtDebuggerConsole()
+{
+    if (!debuggerConsole) {
+        return;
+    }
+    delete debuggerConsole;
+    debuggerConsole = nullptr;
 }
 
 static QString runtimeDialogDirectory(const QString &initialPath)
