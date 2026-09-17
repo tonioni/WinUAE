@@ -75,10 +75,6 @@ void bsdsock_fake_int_handler(void) { bsd_int_requested = 0; }
 void gfxboard_vsync_handler(bool, bool) {}
 #endif
 
-void ldp_render(const char *, int, uae_u8 *, struct vidbuffer *, int, int, int, int)
-{
-}
-
 #ifndef WITH_CPUBOARD
 bool cpuboard_autoconfig_init(struct autoconfig_info *) { return false; }
 bool cpuboard_maprom(void) { return false; }

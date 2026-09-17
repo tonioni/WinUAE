@@ -178,6 +178,9 @@ option(WINUAE_UNIX_WITH_QT_UI "Build the optional Unix Qt configuration UI" ON)
 option(WINUAE_UNIX_WITH_INTEGRATED_QT_UI "Allow winuae_unix to host the Unix Qt frontend" ON)
 option(WINUAE_UNIX_WITH_LIBPNG "Build optional PNG screenshot support when libpng is available" ON)
 option(WINUAE_UNIX_WITH_ARCHIVES "Build bundled ZIP/LHA/LZX/DMS/WRP archive support" ON)
+option(WINUAE_UNIX_WITH_UAENATIVE "Build uaenative.library host module support" ON)
+option(WINUAE_UNIX_WITH_LUA "Build Lua scripting support" ON)
+option(WINUAE_LUA_FETCH "Fetch Lua when no system package is available" ON)
 option(WINUAE_UNIX_WITH_CHD "Build CHD hardfile and CD image support" ON)
 option(WINUAE_UNIX_WITH_CHD_FLAC "Build CHD FLAC codecs; required by the bundled CHD sources" ON)
 option(WINUAE_UNIX_WITH_LIBMPEG2 "Build CD32 FMV video decode support when libmpeg2 is available" ON)
@@ -323,6 +326,7 @@ target_link_libraries(winuae_core PRIVATE winuae_unix_core_defs)
 target_compile_definitions(winuae_unix_core_defs INTERFACE
     UAE_TARGET_UNIX=1
     UAE_NOGUI=1
+    WITH_SPECIALMONITORS=1
     WINUAE_UNIX_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     WINUAE_UNIX_INSTALL_DATA_DIR="${CMAKE_INSTALL_FULL_DATADIR}/winuae"
     WINUAE_UNIX_INSTALL_DATADIR_RELATIVE="${CMAKE_INSTALL_DATADIR}/winuae"
@@ -370,6 +374,49 @@ set(WINUAE_UNIX_EXTRA_LIBRARY_DIRS)
 set(WINUAE_UNIX_ENABLE_SANA2 OFF)
 set(WINUAE_UNIX_ENABLE_UAENET_PCAP OFF)
 set(WINUAE_UNIX_ENABLE_BSDSOCKET OFF)
+
+if(WINUAE_UNIX_WITH_UAENATIVE)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_UAENATIVE=1)
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES uaenative.cpp)
+endif()
+
+if(WINUAE_UNIX_WITH_LUA)
+    find_package(Lua 5.4 QUIET)
+    if(LUA_FOUND)
+        target_include_directories(winuae_core PRIVATE ${LUA_INCLUDE_DIR})
+        list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${LUA_LIBRARIES})
+    elseif(WINUAE_LUA_FETCH)
+        include(FetchContent)
+        FetchContent_Declare(lua
+            URL https://www.lua.org/ftp/lua-5.4.8.tar.gz
+            URL_HASH SHA256=4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae
+            DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        )
+        FetchContent_MakeAvailable(lua)
+        set(WINUAE_LUA_SOURCES
+            lapi.c lauxlib.c lbaselib.c lcode.c lcorolib.c lctype.c
+            ldblib.c ldebug.c ldo.c ldump.c lfunc.c lgc.c linit.c liolib.c
+            llex.c lmathlib.c lmem.c loadlib.c lobject.c lopcodes.c loslib.c
+            lparser.c lstate.c lstring.c lstrlib.c ltable.c ltablib.c
+            ltm.c lundump.c lutf8lib.c lvm.c lzio.c
+        )
+        list(TRANSFORM WINUAE_LUA_SOURCES PREPEND "${lua_SOURCE_DIR}/src/")
+        add_library(winuae_lua STATIC ${WINUAE_LUA_SOURCES})
+        target_include_directories(winuae_lua PUBLIC "${lua_SOURCE_DIR}/src")
+        target_compile_definitions(winuae_lua PRIVATE
+            $<$<PLATFORM_ID:Darwin>:LUA_USE_MACOSX>
+            $<$<PLATFORM_ID:Linux>:LUA_USE_LINUX>
+        )
+        target_include_directories(winuae_core PRIVATE "${lua_SOURCE_DIR}/src")
+        list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES winuae_lua)
+    else()
+        message(FATAL_ERROR "Lua 5.4 was not found and WINUAE_LUA_FETCH is OFF")
+    endif()
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_LUA=1)
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES luascript.cpp)
+endif()
+
+
 set(WINUAE_UNIX_ENABLE_UAESCSI OFF)
 set(WINUAE_UNIX_ENABLE_UAESERIAL OFF)
 set(WINUAE_UNIX_ENABLE_SAMPLER OFF)
@@ -1453,6 +1500,7 @@ set(WINUAE_CORE_SOURCES
     scp.cpp
     scsi.cpp
     scsitape.cpp
+    specialmonitors.cpp
     statusline.cpp
     test_card.cpp
     tinyxml2.cpp
@@ -1478,6 +1526,7 @@ set(WINUAE_CORE_SOURCES
     od-unix/hardfile_host.cpp
     od-unix/input.cpp
     od-unix/logging.cpp
+    od-unix/ldp_render.cpp
     od-unix/mman.cpp
     od-unix/path_expand.cpp
     od-unix/parallel.cpp

@@ -9,7 +9,14 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 #ifdef WITH_LUA
+#ifndef _WIN32
+extern "C" {
+#endif
+#include <lauxlib.h>
 #include <lualib.h>
+#ifndef _WIN32
+}
+#endif
 #endif
 
 #include "options.h"
@@ -29,7 +36,7 @@ static uae_sem_t lua_sem;
 
 static int l_uae_read_u8(lua_State *L)
 {
-    int addr = luaL_checkint(L, 1);
+    int addr = (int)luaL_checkinteger(L, 1);
     int value = debug_read_memory_8(addr);
     lua_pushinteger(L, value);
     return value >= 0 ? 1 : 0;
@@ -37,22 +44,22 @@ static int l_uae_read_u8(lua_State *L)
 
 static int l_uae_write_u8(lua_State *L)
 {
-    int addr = luaL_checkint(L, 1);
-    uint8_t value = luaL_checkint(L, 2);
+    int addr = (int)luaL_checkinteger(L, 1);
+    uint8_t value = (uint8_t)luaL_checkinteger(L, 2);
     debug_write_memory_8(addr, value);
     return 0;
 }
 static int l_uae_write_u16(lua_State *L)
 {
-    int addr = luaL_checkint(L, 1);
-    uint16_t value = luaL_checkint(L, 2);
+    int addr = (int)luaL_checkinteger(L, 1);
+    uint16_t value = (uint16_t)luaL_checkinteger(L, 2);
     debug_write_memory_16(addr, value);
     return 0;
 }
 
 static int l_uae_read_u16(lua_State *L)
 {
-    int addr = luaL_checkint(L, 1);
+    int addr = (int)luaL_checkinteger(L, 1);
     int value = debug_read_memory_16(addr);
     lua_pushinteger(L, value);
 	return value >= 0 ? 1 : 0;
@@ -63,7 +70,7 @@ static int l_uae_peek_u16(lua_State *L)
 {
     int result = 0;
 	uint16_t value;
-    int addr = luaL_checkint(L, 1);
+    int addr = (int)luaL_checkinteger(L, 1);
 
 	value = debug_peek_memory_16 (addr);
 	if (value >= 0) {
