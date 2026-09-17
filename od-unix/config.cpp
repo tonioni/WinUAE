@@ -683,6 +683,27 @@ void target_multipath_modified(struct uae_prefs*)
     unix_romscan_mark_dirty();
 }
 
+/* Called from custom_reset() just before devices_reset() -> memory_reset()
+ * reloads the kickstart. Unlike the win32 port we do not persist a detected
+ * ROM cache; the romlist is rebuilt by rescanning the configured paths. Force
+ * a fresh scan on every hard reset so ROMs found via custom scan paths are
+ * always available when the kickstart is (re)loaded, regardless of how the
+ * dirty flag ended up across a reset or a full relaunch. */
+void target_reset(void)
+{
+    extern bool is_hardreset(void);
+    if (is_hardreset()) {
+        unix_romscan_refresh(&currprefs, true);
+    }
+}
+
+/* An in-process restart keeps the existing romlist, but the scan paths may
+ * have changed; mark the scan dirty so the post-restart fixup rescans. */
+void target_restart(void)
+{
+    unix_romscan_mark_dirty();
+}
+
 bool target_isrelativemode(void)
 {
     return false;

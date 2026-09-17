@@ -12,6 +12,7 @@
 #include "custom.h"
 #include "gfxboard.h"
 #include "options.h"
+#include "romscan.h"
 
 enum class ApplySettingResult {
     Fallback,
@@ -243,7 +244,11 @@ static bool parseVsyncMode(const QString &value, int *out)
 
 static void parseSettingOption(struct uae_prefs *prefs, const QString &key, const QString &value)
 {
-    if (value.isEmpty() || key.startsWith(QStringLiteral("unix.ui."))) {
+    if (value.isEmpty()) {
+        return;
+    }
+    if (key.startsWith(QStringLiteral("unix.ui.")) &&
+        key != QStringLiteral("unix.ui.recursive_roms")) {
         return;
     }
     if (key == QStringLiteral("uaescsimode") || key == QStringLiteral("unix.uaescsimode")) {
@@ -302,14 +307,19 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
     }
     if (setting.key == QStringLiteral("kickstart_rom_file")) {
         copyTextSetting(prefs->romfile, sizeof prefs->romfile / sizeof(TCHAR), setting.value);
+        // cfgfile abbreviates a scanned ROM to a bare name relative to the ROM
+        // search path; resolve it to a full path so the core can load it.
+        unix_resolve_rom_path(prefs, prefs->romfile, sizeof prefs->romfile / sizeof(TCHAR));
         return ApplySettingResult::Handled;
     }
     if (setting.key == QStringLiteral("kickstart_ext_rom_file")) {
         copyTextSetting(prefs->romextfile, sizeof prefs->romextfile / sizeof(TCHAR), setting.value);
+        unix_resolve_rom_path(prefs, prefs->romextfile, sizeof prefs->romextfile / sizeof(TCHAR));
         return ApplySettingResult::Handled;
     }
     if (setting.key == QStringLiteral("kickstart_ext_rom_file2")) {
         copyTextSetting(prefs->romextfile2, sizeof prefs->romextfile2 / sizeof(TCHAR), setting.value);
+        unix_resolve_rom_path(prefs, prefs->romextfile2, sizeof prefs->romextfile2 / sizeof(TCHAR));
         return ApplySettingResult::Handled;
     }
     if (setting.key == QStringLiteral("flash_file")) {
@@ -318,6 +328,7 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
     }
     if (setting.key == QStringLiteral("cart_file")) {
         copyTextSetting(prefs->cartfile, sizeof prefs->cartfile / sizeof(TCHAR), setting.value);
+        unix_resolve_rom_path(prefs, prefs->cartfile, sizeof prefs->cartfile / sizeof(TCHAR));
         return ApplySettingResult::Handled;
     }
     if (setting.key == QStringLiteral("rtc_file")) {
@@ -914,10 +925,23 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
     return ApplySettingResult::Fallback;
 }
 
-bool applyWinUaeQtConfigToPrefs(const WinUaeQtConfig &config, struct uae_prefs *prefs)
+bool applyWinUaeQtConfigToPrefs(const WinUaeQtConfig &config, struct uae_prefs *prefs, bool fullReset)
 {
     if (!prefs) {
         return false;
+    }
+
+    // On the Start/Reset commit path, reset prefs to defaults before applying so
+    // the merged config alone defines the machine. This applies a config *text*
+    // onto prefs (unlike win32, which copies a prefs struct), so any key the
+    // launcher omits when empty - an ejected CD/floppy, a dropped extended/cart
+    // ROM, a reassigned hardfile - would otherwise leave a stale value behind.
+    // default_prefs()'s memset clears them all at once, mirroring win32's
+    // prefs_to_gui (default_prefs + copy) and cfgfile_load's default baseline.
+    // The preview/refresh path (fullReset == false) instead applies onto the live
+    // prefs so it can enumerate boards for the current config without a full wipe.
+    if (fullReset) {
+        default_prefs(prefs, false, 0);
     }
 
     const WinUaeQtConfig::Settings &settings = config.settings();

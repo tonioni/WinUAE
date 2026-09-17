@@ -4,11 +4,13 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "options.h"
 #include "traps.h"
 #include "custom.h"
+#include "memory.h"
 #include "inputdevice.h"
 #include "gui.h"
 #include "registry.h"
@@ -356,6 +358,19 @@ void gui_display(int shortcut)
             reset_sound();
             inputdevice_copyconfig(&changed_prefs, &currprefs);
             inputdevice_config_change_test();
+            if (action == WINUAE_QT_LAUNCHER_RESET) {
+                /* Hard reset: apply the whole config to currprefs and force a
+                 * memory hardreset, mirroring win32 gui_to_prefs(). Config
+                 * changes not covered by check_prefs_changed_* (reassigned
+                 * hardfiles, RAM sizes, ...) are otherwise lost on a reset. */
+                copy_prefs(&changed_prefs, &currprefs);
+                memory_hardreset(2);
+            }
+            /* filesys hack (mirrors win32 gui_to_prefs): mount changes are not
+             * covered by check_prefs_changed_*, so always copy them to currprefs
+             * - otherwise a reset re-reads the old mounts via initialize_mountinfo(). */
+            currprefs.mountitems = changed_prefs.mountitems;
+            memcpy(currprefs.mountconfig, changed_prefs.mountconfig, sizeof currprefs.mountconfig);
             set_config_changed();
             if (action == WINUAE_QT_LAUNCHER_RESET) {
                 uae_reset(1, 1);

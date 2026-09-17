@@ -17,6 +17,16 @@
 
 static QStringList parsedLines;
 
+void default_prefs(struct uae_prefs *prefs, bool, int)
+{
+    memset(prefs, 0, sizeof(*prefs));
+}
+
+bool unix_resolve_rom_path(struct uae_prefs *, TCHAR *, int)
+{
+    return false;
+}
+
 int gfxboard_get_id_from_index(int index)
 {
     static const int ids[] = {
@@ -222,6 +232,7 @@ static bool testRepresentativeConfig()
     settings.insert(QStringLiteral("parallel_autoflush"), QStringLiteral("9"));
     settings.insert(QStringLiteral("ghostscript_parameters"), QStringLiteral("-dNOPAUSE"));
     settings.insert(QStringLiteral("unix.ui.config_path"), QStringLiteral("/configs"));
+    settings.insert(QStringLiteral("unix.ui.recursive_roms"), QStringLiteral("true"));
     settings.insert(QStringLiteral("unix.screenshot_path"), QStringLiteral("/screenshots"));
 
     struct uae_prefs *prefs = allocPrefs();
@@ -236,6 +247,7 @@ static bool testRepresentativeConfig()
     bool ok = applyWinUaeQtConfigToPrefs(WinUaeQtConfig(settings), prefs);
     ok = require(ok, "adapter rejected representative config") && ok;
     ok = require(!parsedLines.contains(QStringLiteral("unix.ui.config_path=/configs")), "UI-only path was delegated") && ok;
+    ok = require(parsedLines.contains(QStringLiteral("unix.ui.recursive_roms=true")), "recursive ROM scan setting was not delegated") && ok;
     ok = require(!parsedLines.contains(QStringLiteral("kickstart_rom_file=/roms/A1200.rom")), "kickstart_rom_file was delegated") && ok;
     ok = require(!parsedLines.contains(QStringLiteral("kickstart_ext_rom_file=/roms/ext.rom")), "kickstart_ext_rom_file was delegated") && ok;
     ok = require(!parsedLines.contains(QStringLiteral("floppy0=/disks/install.adf")), "floppy0 was delegated") && ok;
