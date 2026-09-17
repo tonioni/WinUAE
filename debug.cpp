@@ -6583,7 +6583,7 @@ static void searchmem (TCHAR **cc)
 		console_out_f(_T("%02x"), ss[i]);
 	}
 	console_out_f(_T("\n"));
-	console_out_f(_T("Searching from %08X to %08X\n"), addr + 1, endaddr);
+	console_out_f(_T("Searching from %08X to %08X\n"), addr + 1, endaddr - 1);
 	nextaddr_init(addr);
 	bool out = false;
 	int colcnt = 0;
@@ -7960,7 +7960,7 @@ static bool debug_line(TCHAR *input)
 		if (c == '"' || c == '\'') {
 			if (quoted == c) {
 				quoted = 0;
-			} else {
+			} else if (!quoted) {
 				quoted = c;
 			}
 		}

@@ -1361,6 +1361,10 @@ static void picasso_handle_hsync(void)
 #define BLT_NAME_TRANS BLIT_SWAP_TRANS_32
 #define BLT_FUNC(s,d) { uae_u16 tmp = *d ; *d = *s; *s = tmp; }
 #include "../p96_blit.cpp"
+#define BLT_NAME BLIT_SRC_32
+#define BLT_NAME_TRANS BLIT_SRC_TRANS_32
+#define BLT_FUNC(s,d) *d = *s
+#include "../p96_blit.cpp"
 #undef BLT_SIZE
 #undef BLT_MULT
 
@@ -1426,6 +1430,10 @@ static void picasso_handle_hsync(void)
 #define BLT_NAME_TRANS BLIT_SWAP_TRANS_24
 #define BLT_FUNC(s,d) { uae_u32 tmp = *d; *d = *s; *s = tmp; }
 #include "../p96_blit.cpp"
+#define BLT_NAME BLIT_SRC_24
+#define BLT_NAME_TRANS BLIT_SRC_TRANS_24
+#define BLT_FUNC(s,d) *d = *s
+#include "../p96_blit.cpp"
 #undef BLT_SIZE
 #undef BLT_MULT
 
@@ -1490,6 +1498,10 @@ static void picasso_handle_hsync(void)
 #define BLT_NAME BLIT_SWAP_16
 #define BLT_NAME_TRANS BLIT_SWAP_TRANS_16
 #define BLT_FUNC(s,d) { uae_u16 tmp = *d; *d = *s; *s = tmp; }
+#include "../p96_blit.cpp"
+#define BLT_NAME BLIT_SRC_16
+#define BLT_NAME_TRANS BLIT_SRC_TRANS_16
+#define BLT_FUNC(s,d) *d = *s
 #include "../p96_blit.cpp"
 #undef BLT_SIZE
 #undef BLT_MULT
@@ -1611,6 +1623,7 @@ static void do_blitrect_frame_buffer_transparent(struct RenderInfo *ri, struct
 	uae_u8 Bpp = GetBytesPerPixel(RGBFmt);
 	uae_u32 total_width = width * Bpp;
 	uae_u32 rgbmask = rgbfmasks[RGBFmt];
+	endianswap(&transparentcolor, Bpp);
 
 	src = ri->Memory + srcx * Bpp + srcy * ri->BytesPerRow;
 	dst = dstri->Memory + dstx * Bpp + dsty * dstri->BytesPerRow;
@@ -1631,6 +1644,7 @@ static void do_blitrect_frame_buffer_transparent(struct RenderInfo *ri, struct
 			case BLIT_AND: BLIT_AND_TRANS_8(PARMST); break;
 			case BLIT_NEOR: BLIT_NEOR_TRANS_8(PARMST); break;
 			case BLIT_NOTONLYSRC: BLIT_NOTONLYSRC_TRANS_8(PARMST); break;
+			case BLIT_SRC: BLIT_SRC_TRANS_8(PARMST); break;
 			case BLIT_NOTONLYDST: BLIT_NOTONLYDST_TRANS_8(PARMST); break;
 			case BLIT_OR: BLIT_OR_TRANS_8(PARMST); break;
 			case BLIT_TRUE: BLIT_TRUE_TRANS_8(PARMST); break;
@@ -1652,6 +1666,7 @@ static void do_blitrect_frame_buffer_transparent(struct RenderInfo *ri, struct
 			case BLIT_AND: BLIT_AND_TRANS_32(PARMST); break;
 			case BLIT_NEOR: BLIT_NEOR_TRANS_32(PARMST); break;
 			case BLIT_NOTONLYSRC: BLIT_NOTONLYSRC_TRANS_32(PARMST); break;
+			case BLIT_SRC: BLIT_SRC_TRANS_32(PARMST); break;
 			case BLIT_NOTONLYDST: BLIT_NOTONLYDST_TRANS_32(PARMST); break;
 			case BLIT_OR: BLIT_OR_TRANS_32(PARMST); break;
 			case BLIT_TRUE: BLIT_TRUE_TRANS_32(PARMST); break;
@@ -1673,6 +1688,7 @@ static void do_blitrect_frame_buffer_transparent(struct RenderInfo *ri, struct
 			case BLIT_AND: BLIT_AND_TRANS_24(PARMST); break;
 			case BLIT_NEOR: BLIT_NEOR_TRANS_24(PARMST); break;
 			case BLIT_NOTONLYSRC: BLIT_NOTONLYSRC_TRANS_24(PARMST); break;
+			case BLIT_SRC: BLIT_SRC_TRANS_24(PARMST); break;
 			case BLIT_NOTONLYDST: BLIT_NOTONLYDST_TRANS_24(PARMST); break;
 			case BLIT_OR: BLIT_OR_TRANS_24(PARMST); break;
 			case BLIT_TRUE: BLIT_TRUE_TRANS_24(PARMST); break;
@@ -1693,6 +1709,7 @@ static void do_blitrect_frame_buffer_transparent(struct RenderInfo *ri, struct
 			case BLIT_AND: BLIT_AND_TRANS_16(PARMST); break;
 			case BLIT_NEOR: BLIT_NEOR_TRANS_16(PARMST); break;
 			case BLIT_NOTONLYSRC: BLIT_NOTONLYSRC_TRANS_16(PARMST); break;
+			case BLIT_SRC: BLIT_SRC_TRANS_16(PARMST); break;
 			case BLIT_NOTONLYDST: BLIT_NOTONLYDST_TRANS_16(PARMST); break;
 			case BLIT_OR: BLIT_OR_TRANS_16(PARMST); break;
 			case BLIT_TRUE: BLIT_TRUE_TRANS_16(PARMST); break;
@@ -3681,9 +3698,7 @@ static int BlitRect(TrapContext *ctx, uaecptr ri, uaecptr dstri,
 
 static uae_u32 REGPARAM2 picasso_BlitRectTransparent(TrapContext *ctx)
 {
-	uaecptr renderinfo = trap_get_areg(ctx, 0);
-	uaecptr srcri = trap_get_areg(ctx, 1);
-	uaecptr dstri = trap_get_areg(ctx, 2);
+	uaecptr renderinfo = trap_get_areg(ctx, 1);
 	uae_u32 srcx = (uae_u16)trap_get_dreg(ctx, 0);
 	uae_u32 srcy = (uae_u16)trap_get_dreg(ctx, 1);
 	uae_u32 dstx = (uae_u16)trap_get_dreg(ctx, 2);
@@ -6378,6 +6393,7 @@ static void inituaegfxfuncs(TrapContext *ctx, uaecptr start, uaecptr ABI)
 	RTGCALL(PSSO_BoardInfo_BlitTemplate, PSSO_BoardInfo_BlitTemplateDefault, picasso_BlitTemplate);
 	RTGCALL(PSSO_BoardInfo_InvertRect, PSSO_BoardInfo_InvertRectDefault, picasso_InvertRect);
 	RTGCALL(PSSO_BoardInfo_BlitRectNoMaskComplete, PSSO_BoardInfo_BlitRectNoMaskCompleteDefault, picasso_BlitRectNoMaskComplete);
+	RTGCALL(PSSO_BoardInfo_BlitRectTransparent, PSSO_BoardInfo_BlitRectTransparentDefault, picasso_BlitRectTransparent);
 	RTGCALL(PSSO_BoardInfo_BlitPattern, PSSO_BoardInfo_BlitPatternDefault, picasso_BlitPattern);
 
 	RTGCALL2(PSSO_BoardInfo_SetSwitch, picasso_SetSwitch);
@@ -6624,7 +6640,7 @@ uae_u32 picasso_demux (uae_u32 arg, TrapContext *ctx)
 	uae_u32 num = trap_get_long(ctx, trap_get_areg(ctx, 7) + 4);
 
 	if (uaegfx_base) {
-		if (num >= 16 && num <= 39) {
+		if (num >= 16 && num <= 40) {
 			write_log (_T("uaelib: obsolete Picasso96 uaelib hook called, call ignored\n"));
 			return 0;
 		}
