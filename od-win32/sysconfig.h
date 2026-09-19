@@ -12,10 +12,12 @@
 
 #define DRIVESOUND
 #define GFXFILTER
+
 #if defined(_M_ARM64)
 #define __arm__
 #define MSVC_LONG_DOUBLE
 #else
+#define SUPPORT_LONG_DOUBLE
 #define X86_MSVC_ASSEMBLY
 //#define OPTIMIZED_FLAGS
 #define MSVC_LONG_DOUBLE
@@ -23,6 +25,7 @@
 #define __i386__
 #endif
 #endif
+
 #define WINDOWS
 #define ZEXPORT _cdecl
 #define PACKAGE_STRING "WinUAE"
