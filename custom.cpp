@@ -1332,8 +1332,6 @@ frame_time_t vsynctimebase_orig;
 
 void compute_vsynctime(void)
 {
-	float svpos = current_linear_vpos_nom + 0.0f;
-	float shpos = current_linear_hpos_short + 0.0f;
 	float syncadjust = 1.0;
 
 	fake_vblank_hz = 0;
@@ -1366,6 +1364,18 @@ void compute_vsynctime(void)
 		vsynctimebase = (frame_time_t)(syncbase / fake_vblank_hz);
 	}
 	vsynctimebase_orig = vsynctimebase;
+
+	float shpos = current_linear_hpos_short + 0.0f;
+	if (linetoggle) {
+		shpos += 0.5f;
+	}
+	float svpos;
+	if (interlace_seen) {
+		svpos = current_linear_vpos_nom + 0.5f;
+	} else {
+		svpos = current_linear_vpos + 0.0f;
+	}
+
 	cputimebase = 0;
 	if (svpos > 0 && shpos > 0) {
 		cputimebase = syncbase / ((uae_u32)(svpos * shpos));
@@ -1374,14 +1384,6 @@ void compute_vsynctime(void)
 		cputimebase = 1;
 	}
 
-	if (linetoggle) {
-		shpos += 0.5f;
-	}
-	if (interlace_seen) {
-		svpos += 0.5f;
-	} else if (lof_display) {
-		svpos += 1.0f;
-	}
 	if (currprefs.produce_sound > 1) {
 		float clk = svpos * shpos * fake_vblank_hz;
 		write_log(_T("SNDRATE %.1f*%.1f*%.6f=%.6f\n"), svpos, shpos, fake_vblank_hz, clk);
