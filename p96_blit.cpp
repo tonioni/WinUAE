@@ -67,8 +67,9 @@ static void NOINLINE BLT_NAME_TRANS(unsigned int w, unsigned int h, uae_u8 *src,
 	uae_u32 *src2_32 = (uae_u32 *)src;
 	uae_u32 *dst2_32 = (uae_u32 *)dst;
 	unsigned int y, x;
+	int span = srcpitch ? h * srcpitch : (int)(w * BLT_SIZE);
 
-	if (src2 < dst2 && src2 + h * srcpitch > dst2) {
+	if (src2 < dst2 && src2 + span > dst2) {
 		dst2 += h * dstpitch + w * BLT_SIZE;
 		src2 += h * srcpitch + w * BLT_SIZE;
 		for (y = 0; y < h; y++) {
@@ -76,16 +77,33 @@ static void NOINLINE BLT_NAME_TRANS(unsigned int w, unsigned int h, uae_u8 *src,
 			src2 -= srcpitch;
 			uae_u8 *src_8 = (uae_u8*)src2;
 			uae_u8 *dst_8 = (uae_u8*)dst2;
-			for (x = 0; x < w; x++) {
+			if (w) {
+				// src2/dst2 point one past the last pixel of the row
 				src_8 -= 3;
 				dst_8 -= 3;
-				uae_u32 src24 = ((uae_u32*)src_8)[0] & 0x00ffffff;
-				if (src24 != transparentcolor) {
-					uae_u32 dst24 = ((uae_u32*)dst_8)[0];
-					uae_u32 dst24x = dst24;
-					BLT_FUNC(&src24, &dst24);
-					((uae_u32*)dst_8)[0] = (dst24x & 0xff000000) | (dst24 & 0x00ffffff);
+			}
+			for (x = 0; x < w; x++) {
+				if (x == 0) {
+					// last pixel of the row: byte access, long access would pass the row end
+					uae_u32 src24 = src_8[0] | (src_8[1] << 8) | (src_8[2] << 16);
+					if (src24 != transparentcolor) {
+						uae_u32 dst24 = dst_8[0] | (dst_8[1] << 8) | (dst_8[2] << 16);
+						BLT_FUNC(&src24, &dst24);
+						dst_8[0] = (uae_u8)(dst24 >> 0);
+						dst_8[1] = (uae_u8)(dst24 >> 8);
+						dst_8[2] = (uae_u8)(dst24 >> 16);
+					}
+				} else {
+					uae_u32 src24 = ((uae_u32*)src_8)[0] & 0x00ffffff;
+					if (src24 != transparentcolor) {
+						uae_u32 dst24 = ((uae_u32*)dst_8)[0];
+						uae_u32 dst24x = dst24;
+						BLT_FUNC(&src24, &dst24);
+						((uae_u32*)dst_8)[0] = (dst24x & 0xff000000) | (dst24 & 0x00ffffff);
+					}
 				}
+				src_8 -= 3;
+				dst_8 -= 3;
 			}
 		}
 	} else {
@@ -93,12 +111,24 @@ static void NOINLINE BLT_NAME_TRANS(unsigned int w, unsigned int h, uae_u8 *src,
 			uae_u8 *src_8 = (uae_u8*)src2;
 			uae_u8 *dst_8 = (uae_u8*)dst2;
 			for (x = 0; x < w; x++) {
-				uae_u32 src24 = ((uae_u32*)src_8)[0] & 0x00ffffff;
-				if (src24 != transparentcolor) {
-					uae_u32 dst24 = ((uae_u32*)dst_8)[0];
-					uae_u32 dst24x = dst24;
-					BLT_FUNC(&src24, &dst24);
-					((uae_u32*)dst_8)[0] = (dst24x & 0xff000000) | (dst24 & 0x00ffffff);
+				if (x + 1 == w) {
+					// last pixel of the row: byte access, long access would pass the row end
+					uae_u32 src24 = src_8[0] | (src_8[1] << 8) | (src_8[2] << 16);
+					if (src24 != transparentcolor) {
+						uae_u32 dst24 = dst_8[0] | (dst_8[1] << 8) | (dst_8[2] << 16);
+						BLT_FUNC(&src24, &dst24);
+						dst_8[0] = (uae_u8)(dst24 >> 0);
+						dst_8[1] = (uae_u8)(dst24 >> 8);
+						dst_8[2] = (uae_u8)(dst24 >> 16);
+					}
+				} else {
+					uae_u32 src24 = ((uae_u32*)src_8)[0] & 0x00ffffff;
+					if (src24 != transparentcolor) {
+						uae_u32 dst24 = ((uae_u32*)dst_8)[0];
+						uae_u32 dst24x = dst24;
+						BLT_FUNC(&src24, &dst24);
+						((uae_u32*)dst_8)[0] = (dst24x & 0xff000000) | (dst24 & 0x00ffffff);
+					}
 				}
 				src_8 += 3;
 				dst_8 += 3;
@@ -294,8 +324,9 @@ static void NOINLINE BLT_NAME_TRANS(unsigned int w, unsigned int h, uae_u8 *src,
 	uae_u32 *src2_32 = (uae_u32 *)src;
 	uae_u32 *dst2_32 = (uae_u32 *)dst;
 	unsigned int y, x;
+	int span = srcpitch ? h * srcpitch : (int)(w * BLT_SIZE);
 
-	if (src2 < dst2 && src2 + h * srcpitch > dst2) {
+	if (src2 < dst2 && src2 + span > dst2) {
 		dst2 += h * dstpitch + w * BLT_SIZE;
 		src2 += h * srcpitch + w * BLT_SIZE;
 		for (y = 0; y < h; y++) {
@@ -307,7 +338,7 @@ static void NOINLINE BLT_NAME_TRANS(unsigned int w, unsigned int h, uae_u8 *src,
 			for (x = 0; x < w; x++) {
 				dst_16--;
 				src_16--;
-				if (*src_16 != (uae_u16)transparentcolor) {
+				if ((*src_16 & rgbmask) != ((uae_u16)transparentcolor & rgbmask)) {
 					BLT_FUNC(src_16, dst_16);
 				}
 			}
@@ -327,7 +358,7 @@ static void NOINLINE BLT_NAME_TRANS(unsigned int w, unsigned int h, uae_u8 *src,
 			for (x = 0; x < w; x++) {
 				src_32--;
 				dst_32--;
-				if (*src_32 != transparentcolor) {
+				if ((*src_32 & rgbmask) != (transparentcolor & rgbmask)) {
 					BLT_FUNC(src_32, dst_32);
 				}
 			}
@@ -339,7 +370,7 @@ static void NOINLINE BLT_NAME_TRANS(unsigned int w, unsigned int h, uae_u8 *src,
 			uae_u16 *src_16 = (uae_u16 *)src2;
 			uae_u16 *dst_16 = (uae_u16 *)dst2;
 			for (x = 0; x < w; x++) {
-				if (*src_16 != (uae_u16)transparentcolor) {
+				if ((*src_16 & rgbmask) != ((uae_u16)transparentcolor & rgbmask)) {
 					BLT_FUNC(src_16, dst_16);
 				}
 				dst_16++;
@@ -359,16 +390,16 @@ static void NOINLINE BLT_NAME_TRANS(unsigned int w, unsigned int h, uae_u8 *src,
 			uae_u32 *src_32 = (uae_u32 *)src2;
 			uae_u32 *dst_32 = (uae_u32 *)dst2;
 			for (x = 0; x < w; x++) {
-				if (*src_32 != transparentcolor) {
+				if ((*src_32 & rgbmask) != (transparentcolor & rgbmask)) {
 					BLT_FUNC(src_32, dst_32);
 				}
 				src_32++;
 				dst_32++;
 			}
 #endif
+			dst2 += dstpitch;
+			src2 += srcpitch;
 		}
-		dst2 += dstpitch;
-		src2 += srcpitch;
 	}
 }
 #endif
