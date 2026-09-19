@@ -90,6 +90,12 @@ static TCHAR *getmidiouterr(TCHAR *txt, int err)
 	return txt;
 }
 
+static void midi_lost(void)
+{
+	write_log(_T("MIDI device not connected, closing.\n"));
+	Midi_Close();
+}
+
 static void MidiSetVolume(HMIDIOUT oh)
 {
 	TCHAR err[MAX_DPATH];
@@ -429,7 +435,15 @@ static void putmidibytes(uae_u8 *data, int len)
 		return;
 	for (int i = 0; i < len; i++) {
 		BYTE b = data[i];
-		Midi_Parse(midi_output, &b);
+		MMRESULT result = Midi_Parse(midi_output, &b);
+		if (result != MMSYSERR_NOERROR) {
+			TCHAR err[MAX_DPATH];
+			write_log(_T("MIDI OUT: PARSE error %s / %d\n"), getmidiouterr(err, result), result);
+			if (result == MIDIERR_NODEVICE) {
+				midi_lost();
+				return;
+			}
+		}
 	}
 }
 
@@ -491,8 +505,8 @@ int ismidibyte(void)
 
 LONG getmidibyte(void) //return midibyte or -1 if none
 {
-	int i;
 	LONG rv;
+	MMRESULT result = 0;
 
 	EnterCriticalSection (&cs_proc);
 	if (overflow == 1) {
@@ -503,21 +517,32 @@ LONG getmidibyte(void) //return midibyte or -1 if none
 	}
 	TRACE((_T("getmidibyte(%02X)\n"), midibuf[midi_inptr]));
 	if (midibuf[midi_inptr] >= 0xf0) { // only check for free buffers if status sysex
-		for (i = 0;i < MIDI_INBUFFERS;i++) {
+		for (int i = 0;i < MIDI_INBUFFERS;i++) {
 			if (midiin[i].dwFlags == (MHDR_DONE|MHDR_PREPARED)) {
 				// add a buffer if one is free
 				LeaveCriticalSection(&cs_proc);
-				midiInAddBuffer(inHandle, &midiin[i], sizeof(MIDIHDR));
+				result = midiInAddBuffer(inHandle, &midiin[i], sizeof(MIDIHDR));
 				EnterCriticalSection(&cs_proc);
+				if (result != MMSYSERR_NOERROR) {
+					TCHAR err[MAX_DPATH];
+					write_log(_T("MIDI IN AddBuffer: error %s / %d\n"), getmidiinerr(err, result), result);
+					break;
+				}
 			}
 		}
 	}
 	rv = -1;
-	if (midi_inptr < midi_inlast)
+	if (midi_inptr < midi_inlast) {
 		rv = midibuf[midi_inptr++];
-	if (midi_inptr >= midi_inlast)
+	}
+	if (midi_inptr >= midi_inlast) {
 		midi_inptr = midi_inlast = 0;
+	}
 	LeaveCriticalSection(&cs_proc);
+	if (result == MIDIERR_NODEVICE) {
+		midi_lost();
+		rv = -1;
+	}
 	return rv;
 }
 
@@ -634,46 +659,76 @@ end:
 */
 int Midi_Open(void)
 {
-	unsigned long result = 0, i;
+	MMRESULT result = 0;
 	TCHAR err[MAX_DPATH];
 
 	if (currprefs.win32_midioutdev < -1)
 		return 0;
-	if((result = midiOutOpen(&outHandle, currprefs.win32_midioutdev, 0, 0,CALLBACK_NULL))) {
+	if((result = midiOutOpen(&outHandle, getmidioutdeviceid(currprefs.win32_midioutdev), 0, 0, CALLBACK_NULL))) {
 		write_log (_T("MIDI OUT: error %s / %d while opening port %d\n"), getmidiouterr(err, result), result, currprefs.win32_midioutdev);
 		result = 0;
 	} else {
 		InitializeCriticalSection(&cs_proc);
 		MidiSetVolume(outHandle);
 		// We don't need input for output...
-		if((currprefs.win32_midiindev >= 0) &&
-			(result = midiInOpen(&inHandle, currprefs.win32_midiindev, (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION|MIDI_IO_STATUS))) {
+		if(currprefs.win32_midiindev >= 0) {
+			result = midiInOpen(&inHandle, getmidiindeviceid(currprefs.win32_midiindev), (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION|MIDI_IO_STATUS);
+			if (result) {
 				write_log (_T("MIDI IN: error %s / %d while opening port %d\n"), getmidiinerr(err, result), result, currprefs.win32_midiindev);
+			}
+			result = midiInStart(inHandle);
+			if (result) {
+				write_log(_T("MIDI IN START: error %s / %d\n"), getmidiinerr(err, result), result);
+			} else {
+				midi_in_ready = TRUE;
+			}
 		} else {
-			midi_in_ready = TRUE;
-			result=midiInStart(inHandle);
+			write_log(_T("MIDI IN: disabled\n"));
 		}
 
 		if(MidiOut_Alloc()) {
 			if(midi_in_ready) {
-				if(!MidiIn_Alloc()) {
-					midiInClose(inHandle);
-					midi_in_ready = FALSE;
-				} else {
-					for (i = 0;i < MIDI_INBUFFERS; i++) {
+				bool midi_in_ok = false;
+				if(MidiIn_Alloc()) {
+					midi_in_ok = true;
+					for (int i = 0;i < MIDI_INBUFFERS && midi_in_ok; i++) {
 						midiin[i].lpData = (LPSTR)inbuffer[i];
 						midiin[i].dwBufferLength = midi_inbuflen - 1;
 						midiin[i].dwBytesRecorded = midi_inbuflen - 1;
 						midiin[i].dwUser = 0;
 						midiin[i].dwFlags = 0;
-						result=midiInPrepareHeader(inHandle, &midiin[i], sizeof(MIDIHDR));
-						result=midiInAddBuffer(inHandle, &midiin[i], sizeof(MIDIHDR));
+						result = midiInPrepareHeader(inHandle, &midiin[i], sizeof(MIDIHDR));
+						if (!result) {
+							result = midiInAddBuffer(inHandle, &midiin[i], sizeof(MIDIHDR));
+							if (result) {
+								write_log(_T("MIDI IN ADDBUFFER: error %s / %d\n"), getmidiinerr(err, result), result);
+								midi_in_ok = false;
+							}
+						} else {
+							write_log(_T("MIDI IN PREPAREHEADER: error %s / %d\n"), getmidiinerr(err, result), result);
+							midi_in_ok = false;
+						}
 					}
+					if (!midi_in_ok) {
+						for (int i = 0; i < MIDI_INBUFFERS; i++) {
+							if (midiin[i].lpData) {
+								midiInUnprepareHeader(inHandle, &midiin[i], sizeof(MIDIHDR));
+								midiin[i].lpData = NULL;
+							}
+						}
+						MidiIn_Free();
+					}
+				}
+				if (!midi_in_ok) {
+					midiInClose(inHandle);
+					midi_in_ready = FALSE;
+					write_log(_T("MIDI IN: failed to initialize\n"));
 				}
 			}
 			midi_ready = TRUE;
 			result = 1;
 			serdev = 1;
+			write_log(_T("MIDI: enabled\n"));
 		} else {
 			midiOutClose(outHandle);
 			if(midi_in_ready) {
@@ -681,6 +736,7 @@ int Midi_Open(void)
 				midi_in_ready = FALSE;
 			}
 			result = 0;
+			write_log(_T("MIDI: initialization failed\n"));
 			DeleteCriticalSection(&cs_proc);
 		}
 	}
@@ -704,10 +760,9 @@ int Midi_Open(void)
 */
 void Midi_Close(void)
 {
-	int i;
 	if(midi_ready) {
 		midiOutReset(outHandle);
-		for(i = 0; i < MIDI_BUFFERS; i++) {
+		for(int i = 0; i < MIDI_BUFFERS; i++) {
 			while(MIDIERR_STILLPLAYING == midiOutUnprepareHeader(outHandle, &midiout[i], sizeof(MIDIHDR))) {
 				Sleep(10);
 			}
@@ -718,8 +773,9 @@ void Midi_Close(void)
 		if(midi_in_ready) {
 			exitin = 1; //for safeness sure no callback come now
 			midiInReset(inHandle);
-			for (i = 0; i < MIDI_INBUFFERS; i++) {
+			for (int i = 0; i < MIDI_INBUFFERS; i++) {
 				midiInUnprepareHeader(inHandle, &midiin[i], sizeof(MIDIHDR));
+				midiin[i].lpData = NULL;
 			}
 			MidiIn_Free();
 			midiInClose(inHandle);

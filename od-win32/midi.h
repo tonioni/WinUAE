@@ -58,5 +58,8 @@ extern void Midi_Reopen(void);
 extern LONG getmidibyte(void);
 extern int ismidibyte(void);
 
+int getmidioutdeviceid(int index);
+int getmidiindeviceid(int index);
+
 #endif
 

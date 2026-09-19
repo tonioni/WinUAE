@@ -49,6 +49,7 @@ struct midiportinfo
 {
 	TCHAR *name;
     TCHAR *label;
+    int mid, pid;
     int devid;
 };
 extern struct midiportinfo *midiinportinfo[MAX_MIDI_PORTS];

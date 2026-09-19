@@ -1498,8 +1498,7 @@ int setbaud(int baud, int org_baud)
 		}
 #endif
 		if (!midi_ready) {
-			if (Midi_Open())
-				write_log (_T("Midi enabled\n"));
+			Midi_Open();
 		}
 		return 1;
 	} else {
@@ -1791,6 +1790,73 @@ int enumserialports (void)
 	return cnt;
 }
 
+static int getmidideviceid(int index, bool midiout)
+{
+	write_log("getmidi%sdeviceid index %d\n", midiout ? "out" : "in", index);
+
+	if (index < 0) {
+		return index;
+	}
+
+	int max = midiout ? midiOutGetNumDevs() : midiInGetNumDevs();
+	write_log("total devices %d\n", max);
+	for (int j = 0; j < 3; j++) {
+		for (int i = 0; i < max; i++) {
+			MIDIINCAPS midiInCaps;
+			MIDIOUTCAPS midiOutCaps;
+			MMRESULT res;
+			int mid, pid;
+			TCHAR *name;
+			if (midiout) {
+				res = midiOutGetDevCaps(i, &midiOutCaps, sizeof(midiOutCaps));
+				mid = midiOutCaps.wMid;
+				pid = midiOutCaps.wPid;
+				name = midiOutCaps.szPname;
+			} else {
+				res = midiInGetDevCaps(i, &midiInCaps, sizeof(midiInCaps));
+				mid = midiInCaps.wMid;
+				pid = midiInCaps.wPid;
+				name = midiInCaps.szPname;
+			}
+			if (res == MMSYSERR_NOERROR) {
+				int retid = -1;
+				struct midiportinfo *mi = midiout ? midioutportinfo[index] : midiinportinfo[index];
+				bool matchid = mi->mid == mid && mi->pid == pid;
+				write_log(_T("device %d/%d:'%s':%d:%d\n"), i, max, name, mid, pid);
+				if (j == 0) {
+					if (!_tcscmp(mi->name, name) && matchid) {
+						retid = mi->devid;
+					}
+				} else if (j == 1) {
+					if (!_tcsicmp(mi->name, name)) {
+						retid = mi->devid;
+					}
+				} else if (j == 2) {
+					if (matchid) {
+						retid = mi->devid;
+					}
+				}
+				if (retid >= 0) {
+					write_log("match %d\n", retid);
+					return retid;
+				}
+			}
+		}
+	}
+
+	write_log("match not found -> %d\n", index);
+	return index;
+}
+
+int getmidioutdeviceid(int index)
+{
+	return getmidideviceid(index, true);
+}
+int getmidiindeviceid(int index)
+{
+	return getmidideviceid(index, false);
+}
+
 int enummidiports (void)
 {
 	MIDIOUTCAPS midiOutCaps;
@@ -1798,9 +1864,10 @@ int enummidiports (void)
 	int i, j, num, total;
 	int innum, outnum;
 	
+	write_log(_T("MIDI port enumeration..\n"));
 	outnum = midiOutGetNumDevs();
 	innum = midiInGetNumDevs();
-	write_log (_T("MIDI port enumeration.. IN=%d OUT=%d\n"), innum, outnum);
+	write_log (_T("IN=%d OUT=%d\n"), innum, outnum);
 
 	num = outnum;
 	for (i = 0; i < num + 1 && i < MAX_MIDI_PORTS - 1; i++) {
@@ -1812,6 +1879,8 @@ int enummidiports (void)
 		midioutportinfo[i] = xcalloc (struct midiportinfo, 1);
 		midioutportinfo[i]->name = my_strdup (midiOutCaps.szPname);
 		midioutportinfo[i]->devid = i - 1;
+		midioutportinfo[i]->mid = midiOutCaps.wMid;
+		midioutportinfo[i]->pid = midiOutCaps.wPid;
 		write_log (_T("MIDI OUT: %d:'%s' (%d/%d)\n"), midioutportinfo[i]->devid, midioutportinfo[i]->name, midiOutCaps.wMid, midiOutCaps.wPid);
 	}
 	num++;
@@ -1828,15 +1897,23 @@ int enummidiports (void)
 	}
 #ifdef WITH_MIDIEMU
 	midioutportinfo[num] = xcalloc(struct midiportinfo, 1);
-	midioutportinfo[num]->label = midi_emu_available(_T("MT-32")) ? my_strdup(_T("Munt MT-32")) : my_strdup(_T("Munt MT-32 (Missing ROMs)"));
-	midioutportinfo[num]->name = my_strdup(_T("Munt MT-32"));
-	midioutportinfo[num]->devid = num;
-	num++;
+	if (midioutportinfo[num]) {
+		midioutportinfo[num]->label = midi_emu_available(_T("MT-32")) ? my_strdup(_T("Munt MT-32")) : my_strdup(_T("Munt MT-32 (Missing ROMs)"));
+		midioutportinfo[num]->name = my_strdup(_T("Munt MT-32"));
+		midioutportinfo[num]->mid = -1;
+		midioutportinfo[num]->pid = -1;
+		midioutportinfo[num]->devid = num;
+		num++;
+	}
 	midioutportinfo[num] = xcalloc(struct midiportinfo, 1);
-	midioutportinfo[num]->label = midi_emu_available(_T("CM-32L")) ? my_strdup(_T("Munt CM-32L")) : my_strdup(_T("Munt CM-32L (Missing ROMs)"));
-	midioutportinfo[num]->name = my_strdup(_T("Munt CM-32L"));
-	midioutportinfo[num]->devid = num;
-	num++;
+	if (midioutportinfo[num]) {
+		midioutportinfo[num]->label = midi_emu_available(_T("CM-32L")) ? my_strdup(_T("Munt CM-32L")) : my_strdup(_T("Munt CM-32L (Missing ROMs)"));
+		midioutportinfo[num]->name = my_strdup(_T("Munt CM-32L"));
+		midioutportinfo[num]->mid = -1;
+		midioutportinfo[num]->pid = -1;
+		midioutportinfo[num]->devid = num;
+		num++;
+	}
 #endif
 	num = innum;
 	for (i = 0; i < num && i < MAX_MIDI_PORTS - 1; i++) {
@@ -1847,6 +1924,8 @@ int enummidiports (void)
 		midiinportinfo[i] = xcalloc (struct midiportinfo, 1);
 		midiinportinfo[i]->name = my_strdup (midiInCaps.szPname);
 		midiinportinfo[i]->devid = i;
+		midiinportinfo[i]->mid = midiInCaps.wMid;
+		midiinportinfo[i]->pid = midiInCaps.wPid;
 		write_log (_T("MIDI IN: %d:'%s' (%d/%d)\n"), midiinportinfo[i]->devid, midiinportinfo[i]->name, midiInCaps.wMid, midiInCaps.wPid);
 	}
 	total += num;

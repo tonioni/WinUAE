@@ -5037,8 +5037,9 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 
 	if (cfgfile_string_escape(option, value, _T("midiout_device_name"), tmpbuf, sizeof(tmpbuf) / sizeof(TCHAR))) {
 		p->win32_midioutdev = -2;
-		if (!_tcsicmp (tmpbuf, _T("default")) || (midioutportinfo[0] && !_tcsicmp (tmpbuf, midioutportinfo[0]->name)))
+		if (!_tcsicmp (tmpbuf, _T("default"))) {
 			p->win32_midioutdev = -1;
+		}
 		for (int i = 0; i < MAX_MIDI_PORTS && midioutportinfo[i]; i++) {
 			if (!_tcsicmp (midioutportinfo[i]->name, tmpbuf)) {
 				p->win32_midioutdev = midioutportinfo[i]->devid;
