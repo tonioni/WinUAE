@@ -9826,10 +9826,10 @@ static void handle_dmal(void)
 		for (int nr = 0; nr < 4; nr++) {
 			if (dmal_shifter & (DMAL_AUD0 << nr)) {
 				uae_u32 dmalbits = (dmal >> ((3 + nr) * 2)) & 3;
-				if (dmalbits) {
-					uaecptr *pt = audio_getpt(nr); //, (dmalbits & 1) != 0);
+				if (dmalbits & 2) {
+					uaecptr *pt = audio_getpt(nr);
 					struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_AUDIO, 0xaa + nr * 16, pt);
-					rga->auddat =  dmalbits | (((3 + nr) * 2) << 8);
+					rga->auddat = dmalbits | (((3 + nr) * 2) << 8);
 				}
 			}
 		}
