@@ -3258,6 +3258,11 @@ void INTREQ_INT(int num, int delay)
 		event_doint_delay_do_ext(1 << num);
 	}
 }
+void INTREQ_INT_clear(int num, int delay)
+{
+	// no need for delay handling, so far only used by serial port in fast cpu modes
+	INTREQ_f(1 << num);
+}
 
 static void event_doint_delay_do_intreq(uae_u32 v)
 {
