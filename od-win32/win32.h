@@ -17,7 +17,7 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("14")
+#define WINUAEBETA _T("15")
 #else
 #define WINUAEBETA _T("")
 #endif

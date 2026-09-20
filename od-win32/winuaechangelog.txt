@@ -1,4 +1,15 @@
 
+Beta 15:
+
+- Fixed borderblank shres pixel delay in AGA modes showing shres pixel sized border color stripe instead of black. Was only visible if shres resolution was selected in display panel.
+- MIDI fixes, even if MIDI IN was not configured, some MIDI IN win32 calls were still done (was probably harmless), if MIDI IN initialization failed (for example buffer allocations), MIDI IN was still considered allocated. Also more error logging added.
+- When opening MIDI IN/OUT device, try to match device name/id first. Device index may have changed, for example if USB device was removed and reinserted.
+- If MIDI win32 API reports MIDIERR_NODEVICE (for example USB device was unplugged), close MIDI port immediately.
+- Fixed serial port emulation stuck receive interrupt with some third party serial device versions. (b6)
+- Fixed JIT + 80-bit host FPU. (b6)
+- Added config file only "joyportdefaultx" (x=port 0 to 3) option, overrides default fallback to keyboard joystick layouts when previous device is unplugged. none, kbd1, kbd2 and kbd3 (Layouts A, B and C) are available options. Previously hardwired default was always layout A.
+- Fixed bitplane and sprite DMA memwatch breakpoints.
+
 Beta 14:
 
 - RTG mode: refresh rate was calculated incorrectly, causing side-effects like bad sound. (b10 and b13)
