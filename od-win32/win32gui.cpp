@@ -17342,11 +17342,18 @@ static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen, int type
 	return out[0] ? 1 : 0;
 }
 
-bool gui_ask_disk(int drv, TCHAR *name)
+bool gui_ask_disk(int drv, TCHAR *name, int name_len)
 {
+	if (!name || name_len <= 0) {
+		return false;
+	}
 	struct AmigaMonitor *mon = &AMonitors[0];
 	_tcscpy(changed_prefs.floppyslots[drv].df, name);
 	DiskSelection(mon->hAmigaWnd, IDC_DF0 + drv, 22, &changed_prefs, NULL, NULL);
+	if (_tcslen(changed_prefs.floppyslots[drv].df) >= size_t(name_len)) {
+		write_log(_T("Replacement disk path is too long.\n"));
+		return false;
+	}
 	_tcscpy(name, changed_prefs.floppyslots[drv].df);
 	return true;
 }

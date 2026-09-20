@@ -309,8 +309,6 @@ a_inode *custom_fsdb_lookup_aino_aname(a_inode *, const TCHAR *) { return NULL; 
 a_inode *custom_fsdb_lookup_aino_nname(a_inode *, const TCHAR *) { return NULL; }
 int custom_fsdb_used_as_nname(a_inode *, const TCHAR *) { return 0; }
 
-bool gui_ask_disk(int, TCHAR *) { return false; }
-
 void filesys_addexternals(void) {}
 int target_get_volume_name(struct uaedev_mount_info *, struct uaedev_config_info *, bool, bool, int) { return 0; }
 uae_u8 *target_load_keyfile(struct uae_prefs *, const TCHAR *, int *size, TCHAR *)
