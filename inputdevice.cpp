@@ -644,8 +644,10 @@ static void inputdevice_set_newest_used_device(int portnum, struct jport *jps)
 static void inputdevice_store_used_device(struct jport *jps, int portnum, int subdev, bool defaultports)
 {
 	struct jport_dev *jpsd = &jps->jd[subdev];
-	if (jpsd->id == JPORT_NONE)
+
+	if (jpsd->id == JPORT_NONE) {
 		return;
+	}
 
 	// already added? if custom or kbr layout: delete all old
 	for (int i = 0; i < MAX_STORED_JPORTS; i++) {
@@ -10089,9 +10091,10 @@ static void inputdevice_get_previous_joy(struct uae_prefs *p, int portnum, int s
 			break;
 		if (jp->jd[sub].idc.configname[0]) {
 			found = inputdevice_joyport_config(p, jp->jd[sub].idc.name, jp->jd[sub].idc.configname, portnum, jp->jd[sub].mode, jp->jd[sub].submode, 1, 0, true) != 0;
-			if (!found && jp->jd[sub].id == JPORT_UNPLUGGED)
+			if (!found && jp->jd[sub].id == JPORT_UNPLUGGED) {
 				found = inputdevice_joyport_config(p, jp->jd[sub].idc.name, NULL, portnum, jp->jd[sub].mode, jp->jd[sub].submode, 1, 0, true) != 0;
-		} else if (jp->jd[sub].id < JSEM_JOYS && jp->jd[sub].id >= 0) {
+			}
+		} else if (jp->jd[sub].id < JSEM_JOYS && jp->jd[sub].id >= 0 && p->jports_default[portnum] == 0) {
 			jpx->jd[sub].id = jp->jd[sub].id;
 			found = true;
 		}
@@ -10178,9 +10181,24 @@ void inputdevice_validate_jports (struct uae_prefs *p, int changedport, bool fix
 	}
 }
 
+void inputdevice_joyport_keyboard_default(struct uae_prefs *p, const TCHAR *value, int portnum)
+{
+	if (_tcsncmp(value, _T("kbd"), 3) == 0) {
+		p->jports_default[portnum] = (JSEM_KBDLAYOUT + _tstol(value + 3) - 1) + 1;
+	} else if (_tcscmp(value, _T("none")) == 0) {
+		p->jports_default[portnum] = -1;
+	} else {
+		p->jports_default[portnum] = 0;
+	}
+	default_keyboard_layout[portnum] = p->jports_default[portnum];
+}
+
 void inputdevice_joyport_config_store(struct uae_prefs *p, const TCHAR *value, int portnum, int mode, int submode, int type, int subdev)
 {
 	struct jport *jp = &p->jports[portnum];
+	if (value == NULL) {
+		return;
+	}
 	if (type == 2) {
 		_tcscpy(jp->jd[subdev].idc.name, value);
 	} else if (type == 1) {
@@ -10334,7 +10352,10 @@ int inputdevice_joyport_config(struct uae_prefs *p, const TCHAR *value1, const T
 						p->jports[portnum].jd[subdev].submode = submode;
 					}
 					if (start < JSEM_JOYS && subdev == 0) {
-						default_keyboard_layout[portnum] = start + 1;
+						// only mark as default if not configured
+						if (p->jports_default[portnum] == 0) {
+							default_keyboard_layout[portnum] = start + 1;
+						}
 					}
 					if (got == 2 && candefault) {
 						inputdevice_store_used_device(&p->jports[portnum], portnum, subdev, false);
