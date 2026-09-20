@@ -212,6 +212,10 @@ void driveclick_init (void)
 				_stprintf (tmp, _T("%sdrive_snatch_%s"),
 					path2, fs->dfxclickexternal);
 				v += loadsample (tmp, &drvs[i][DS_SNATCH]);
+				if (v > 0) {
+					write_log (_T("driveclick: DF%d using external sound set '%s' (%d sample files) from '%s'\n"),
+						i, fs->dfxclickexternal, v, path2);
+				}
 			}
 			if (v == 0) {
 				for (int j = 0; j < DS_END; j++)
