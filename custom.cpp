@@ -11808,7 +11808,7 @@ static void handle_rga_out(void)
 				record_dma_read(r->reg, *r->p, DMARECORD_SPRITE, num);
 			}
 			if (memwatch_enabled) {
-				debug_getpeekdma_chipram(*r->p, MW_MASK_SPR_0 + num, r->reg);
+				debug_getpeekdma_chipram(*r->p, MW_MASK_SPR_0 << num, r->reg);
 			}
 #endif
 			if (!aga_mode) {
@@ -11880,7 +11880,7 @@ static void handle_rga_out(void)
 				}
 			}
 			if (memwatch_enabled) {
-				debug_getpeekdma_chipram(pt, MW_MASK_BPL_0 + num, r->reg);
+				debug_getpeekdma_chipram(pt, MW_MASK_BPL_0 << num, r->reg);
 			}
 #endif
 			if (!aga_mode) {
