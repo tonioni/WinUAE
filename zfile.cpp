@@ -288,7 +288,14 @@ static bool checkwrite (struct zfile *zf, int *retcode)
 
 
 static uae_u8 exeheader[]={ 0x00,0x00,0x03,0xf3,0x00,0x00,0x00,0x00 };
-static const TCHAR *diskimages[] = { _T("adf"), _T("adz"), _T("ipf"), _T("scp"), _T("fdi"), _T("dms"), _T("wrp"), _T("dsq"), _T("pkd"), _T("ima"), 0 };
+static const TCHAR *diskimages[] = {
+	_T("adf"), _T("adz"),
+#ifdef CAPS
+	_T("ipf"),
+#endif
+	_T("scp"), _T("fdi"), _T("dms"), _T("wrp"), _T("dsq"),
+	_T("pkd"), _T("ima"), 0
+};
 
 int zfile_gettype (struct zfile *z)
 {
@@ -337,8 +344,10 @@ int zfile_gettype (struct zfile *z)
 	zfile_fseek (z, -8, SEEK_CUR);
 	if (!memcmp (buf, exeheader, sizeof (buf)))
 		return ZFILE_EXECUTABLE;
+#ifdef CAPS
 	if (!memcmp (buf, "CAPS", 4))
 		return ZFILE_DISKIMAGE;
+#endif
 	if (!memcmp (buf, "SCP", 3))
 		return ZFILE_DISKIMAGE;
 	if (!memcmp (buf, "UAE--ADF", 8))
@@ -916,7 +925,7 @@ end:
 }
 
 #ifdef CAPS
-#include "caps/caps_win32.h"
+#include "od-win32/caps/caps_win32.h"
 static struct zfile *ipf (struct zfile *z, int index, int *retcode)
 {
 	int i, j, r;
@@ -1321,7 +1330,14 @@ end:
 const TCHAR *uae_ignoreextensions[] =
 { _T(".gif"), _T(".jpg"), _T(".png"), _T(".xml"), _T(".pdf"), _T(".txt"), 0 };
 const TCHAR *uae_diskimageextensions[] =
-{ _T(".adf"), _T(".adz"), _T(".ipf"), _T(".scp"), _T(".fdi"), _T(".exe"), _T(".dms"), _T(".wrp"), _T(".dsq"), 0 };
+{
+	_T(".adf"), _T(".adz"),
+#ifdef CAPS
+	_T(".ipf"),
+#endif
+	_T(".scp"), _T(".fdi"), _T(".exe"), _T(".dms"), _T(".wrp"),
+	_T(".dsq"), 0
+};
 
 int zfile_is_ignore_ext (const TCHAR *name)
 {
@@ -1360,7 +1376,11 @@ int zfile_is_diskimage (const TCHAR *name)
 
 static const TCHAR *archive_extensions[] = {
 	_T("7z"), _T("rar"), _T("zip"), _T("lha"), _T("lzh"), _T("lzx"),
-	_T("adf"), _T("adz"), _T("dsq"), _T("dms"), _T("ipf"), _T("fdi"), _T("wrp"), _T("ima"),
+	_T("adf"), _T("adz"), _T("dsq"), _T("dms"),
+#ifdef CAPS
+	_T("ipf"),
+#endif
+	_T("fdi"), _T("wrp"), _T("ima"),
 	_T("hdf"), _T("tar"),
 	NULL
 };
