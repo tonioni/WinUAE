@@ -4,6 +4,9 @@
 #include "options.h"
 #include "parallel.h"
 #include "cia.h"
+#ifdef WINUAE_UNIX_WITH_PRINTER_EMULATION
+#include "epsonprinter.h"
+#endif
 
 #if defined(__linux__)
 #include <fcntl.h>
@@ -13,8 +16,11 @@
 #include <unistd.h>
 #endif
 
+#include <string>
+
 static FILE *printer_output;
 static bool printer_is_pipe;
+static bool matrix_printer_open;
 
 #if defined(__linux__)
 static int parallel_fd = -1;
@@ -25,6 +31,19 @@ static uae_u8 parallel_control;
 static bool starts_with(const char *s, const char *prefix)
 {
 	return strncmp(s, prefix, strlen(prefix)) == 0;
+}
+
+static std::string shell_quote(const char *value)
+{
+	std::string quoted("'");
+	for (const char *p = value; *p; p++) {
+		if (*p == '\'')
+			quoted += "'\\''";
+		else
+			quoted += *p;
+	}
+	quoted += '\'';
+	return quoted;
 }
 
 static bool openprinter(void)
@@ -39,6 +58,39 @@ static bool openprinter(void)
 	const char *spec = currprefs.prtname;
 	if (!_tcsicmp(currprefs.prtname, _T("default"))) {
 		spec = DEFPRTNAME;
+	}
+
+	if (currprefs.parallel_postscript_emulation) {
+		const bool pipe_target = spec[0] == '|' || !strcmp(spec, "lpr")
+			|| starts_with(spec, "lpr ") || !strcmp(spec, "lp")
+			|| starts_with(spec, "lp ");
+		const char *target = spec[0] == '|' ? spec + 1 : spec;
+		while (*target && isspace((unsigned char)*target))
+			target++;
+		std::string command = "gs -q -dSAFER -dNOPAUSE -dBATCH "
+			"-sDEVICE=pdfwrite ";
+		if (currprefs.ghostscript_parameters[0]) {
+			command += currprefs.ghostscript_parameters;
+			command += ' ';
+		}
+		if (pipe_target) {
+			command += "-sOutputFile=- - | ";
+			command += target;
+		} else {
+			command += "-sOutputFile=";
+			command += shell_quote(target);
+			command += " -";
+		}
+		printer_output = popen(command.c_str(), "w");
+		printer_is_pipe = true;
+		if (printer_output) {
+			write_log(_T("PARALLEL: Ghostscript output opened: %s\n"),
+				currprefs.prtname);
+			return true;
+		}
+		write_log(_T("PARALLEL: failed to start Ghostscript: %s\n"),
+			strerror(errno));
+		return false;
 	}
 
 	if (spec[0] == '|') {
@@ -156,6 +208,17 @@ int isprinter(void)
 
 void doprinter(uae_u8 val)
 {
+#ifdef WINUAE_UNIX_WITH_PRINTER_EMULATION
+	if (currprefs.parallel_matrix_emulation > PARALLEL_MATRIX_TEXT) {
+		if (!matrix_printer_open) {
+			matrix_printer_open = epson_init(NULL,
+				currprefs.parallel_matrix_emulation) != 0;
+		}
+		if (matrix_printer_open)
+			epson_printchar(val);
+		return;
+	}
+#endif
 	if (!openprinter()) {
 		return;
 	}
@@ -174,6 +237,12 @@ void flushprinter(void)
 
 void closeprinter(void)
 {
+#ifdef WINUAE_UNIX_WITH_PRINTER_EMULATION
+	if (matrix_printer_open) {
+		epson_close();
+		matrix_printer_open = false;
+	}
+#endif
 	if (!printer_output) {
 		return;
 	}
