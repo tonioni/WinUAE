@@ -26,6 +26,8 @@ Environment:
                                   WINUAE_REQUIRE_FLAC=1.
   WINUAE_LIBMPEG2_SOURCE          libmpeg2 source tree. Optional unless
                                   WINUAE_REQUIRE_LIBMPEG2=1.
+  WINUAE_FFMPEG_SOURCE            FFmpeg source tree. Optional unless
+                                  WINUAE_REQUIRE_FFMPEG=1.
   WINUAE_MT32EMU_SOURCE           Munt source tree or mt32emu source tree.
                                   Optional unless WINUAE_REQUIRE_MT32EMU=1.
   WINUAE_SKIP_SDL3=1              Do not build SDL3.
@@ -33,10 +35,12 @@ Environment:
   WINUAE_SKIP_LIBPNG=1            Do not build libpng.
   WINUAE_SKIP_FLAC=1              Do not build libFLAC.
   WINUAE_SKIP_LIBMPEG2=1          Do not build libmpeg2.
+  WINUAE_SKIP_FFMPEG=1            Do not build FFmpeg/libav.
   WINUAE_SKIP_MT32EMU=1           Do not build libmt32emu.
   WINUAE_REQUIRE_LIBPNG=1         Fail if WINUAE_LIBPNG_SOURCE is missing.
   WINUAE_REQUIRE_FLAC=1           Fail if WINUAE_FLAC_SOURCE is missing.
   WINUAE_REQUIRE_LIBMPEG2=1       Fail if WINUAE_LIBMPEG2_SOURCE is missing.
+  WINUAE_REQUIRE_FFMPEG=1         Fail if WINUAE_FFMPEG_SOURCE is missing.
   WINUAE_REQUIRE_MT32EMU=1        Fail if WINUAE_MT32EMU_SOURCE is missing.
   WINUAE_SDL3_CMAKE_ARGS          Extra arguments passed to SDL3 CMake.
   WINUAE_QT_CONFIGURE_ARGS        Extra arguments passed to Qt configure,
@@ -45,6 +49,7 @@ Environment:
   WINUAE_LIBPNG_CMAKE_ARGS        Extra arguments passed to libpng CMake.
   WINUAE_FLAC_CMAKE_ARGS          Extra arguments passed to FLAC CMake.
   WINUAE_LIBMPEG2_CONFIGURE_ARGS  Extra arguments passed to libmpeg2 configure.
+  WINUAE_FFMPEG_CONFIGURE_ARGS    Extra arguments passed to FFmpeg configure.
   WINUAE_MT32EMU_CMAKE_ARGS       Extra arguments passed to mt32emu CMake.
 
 Extra argument variables are whitespace-separated argv fragments.
@@ -66,6 +71,7 @@ qt_source="${WINUAE_QT_SOURCE:-}"
 libpng_source="${WINUAE_LIBPNG_SOURCE:-}"
 flac_source="${WINUAE_FLAC_SOURCE:-}"
 libmpeg2_source="${WINUAE_LIBMPEG2_SOURCE:-}"
+ffmpeg_source="${WINUAE_FFMPEG_SOURCE:-}"
 mt32emu_source="${WINUAE_MT32EMU_SOURCE:-}"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
@@ -132,6 +138,49 @@ run_autotools_build() {
     )
 }
 
+run_ffmpeg_build() {
+    local src="$1"
+    local bld="$2"
+    shift 2
+    if [[ -z "${bld}" || "${bld}" == "/" ]]; then
+        echo "error: refusing unsafe FFmpeg build directory: ${bld}" >&2
+        exit 1
+    fi
+    rm -rf "${bld}"
+    mkdir -p "${bld}/src"
+    cp -R "${src}/." "${bld}/src/"
+    (
+        cd "${bld}/src"
+        if [[ -f Makefile ]]; then
+            make distclean >/dev/null 2>&1 || true
+        fi
+        env \
+            CFLAGS="${CFLAGS:-} -mmacosx-version-min=${target}" \
+            CXXFLAGS="${CXXFLAGS:-} -mmacosx-version-min=${target}" \
+            LDFLAGS="${LDFLAGS:-} -mmacosx-version-min=${target}" \
+            ./configure \
+                --prefix="${prefix}" \
+                --cc=clang \
+                --cxx=clang++ \
+                --pkg-config=pkg-config \
+                --enable-shared \
+                --disable-static \
+                --disable-programs \
+                --disable-doc \
+                --disable-avdevice \
+                --disable-network \
+                --disable-autodetect \
+                --disable-debug \
+                --enable-pic \
+                --install-name-dir="${prefix}/lib" \
+                --extra-cflags="-mmacosx-version-min=${target}" \
+                --extra-ldflags="-mmacosx-version-min=${target}" \
+                "$@"
+        make -j "${jobs}"
+        make install
+    )
+}
+
 patch_qtbase_source() {
     local header="${qt_source}/src/corelib/thread/qyieldcpu.h"
     if [[ -f "${header}" ]] && grep -q "__yield();" "${header}" && ! grep -q "arm_acle.h" "${header}"; then
@@ -164,6 +213,23 @@ have_compatible_dylib() {
 have_compatible_flac() {
     [[ -f "${prefix}/include/FLAC/all.h" ]] &&
         have_compatible_dylib "${prefix}/lib/libFLAC.dylib"
+}
+
+have_compatible_ffmpeg() {
+    [[ -f "${prefix}/include/libavformat/avformat.h" ]] &&
+        [[ -f "${prefix}/include/libavcodec/avcodec.h" ]] &&
+        [[ -f "${prefix}/include/libswscale/swscale.h" ]] &&
+        [[ -f "${prefix}/include/libswresample/swresample.h" ]] &&
+        [[ -f "${prefix}/lib/pkgconfig/libavformat.pc" ]] &&
+        [[ -f "${prefix}/lib/pkgconfig/libavcodec.pc" ]] &&
+        [[ -f "${prefix}/lib/pkgconfig/libavutil.pc" ]] &&
+        [[ -f "${prefix}/lib/pkgconfig/libswscale.pc" ]] &&
+        [[ -f "${prefix}/lib/pkgconfig/libswresample.pc" ]] &&
+        have_compatible_dylib "${prefix}/lib/libavformat.dylib" &&
+        have_compatible_dylib "${prefix}/lib/libavcodec.dylib" &&
+        have_compatible_dylib "${prefix}/lib/libavutil.dylib" &&
+        have_compatible_dylib "${prefix}/lib/libswscale.dylib" &&
+        have_compatible_dylib "${prefix}/lib/libswresample.dylib"
 }
 
 mkdir -p "${prefix}" "${build_dir}"
@@ -261,6 +327,23 @@ if [[ "${WINUAE_SKIP_LIBMPEG2:-0}" != "1" ]]; then
         exit 1
     else
         echo "note: WINUAE_LIBMPEG2_SOURCE not set; skipping private libmpeg2 build" >&2
+    fi
+fi
+
+if [[ "${WINUAE_SKIP_FFMPEG:-0}" != "1" ]]; then
+    if [[ -n "${ffmpeg_source}" ]]; then
+        require_source "FFmpeg" "${ffmpeg_source}"
+        split_extra_args "${WINUAE_FFMPEG_CONFIGURE_ARGS:-}"
+        run_ffmpeg_build "${ffmpeg_source}" "${build_dir}/ffmpeg" \
+            ${extra_args[@]+"${extra_args[@]}"}
+    elif have_compatible_ffmpeg; then
+        echo "note: compatible private FFmpeg already exists in ${prefix}" >&2
+    elif [[ "${WINUAE_REQUIRE_FFMPEG:-0}" == "1" ]]; then
+        echo "error: FFmpeg source path is required when WINUAE_REQUIRE_FFMPEG=1" >&2
+        usage >&2
+        exit 1
+    else
+        echo "note: WINUAE_FFMPEG_SOURCE not set; skipping private FFmpeg build" >&2
     fi
 fi
 

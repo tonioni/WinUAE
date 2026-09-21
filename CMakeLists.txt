@@ -332,6 +332,8 @@ option(WINUAE_UNIX_WITH_PPC_QEMU "Build Unix PPC accelerator support through the
 option(WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN "Build the sibling qemu-uae plugin for Unix packaging" ON)
 option(WINUAE_UNIX_WITH_DSP "Build shared DSP3210 accelerator support" ON)
 option(WINUAE_UNIX_WITH_AVIOUTPUT "Build Unix screenshot and video/audio capture output support" ON)
+option(WINUAE_UNIX_WITH_VIDEOGRAB "Build Unix genlock video/camera frame input support" ON)
+option(WINUAE_UNIX_WITH_FFMPEG "Build FFmpeg-backed video-grab file decoding with audio" ON)
 option(WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE "Build OpenGL-backed Unix shader/filter presentation support" ON)
 option(WINUAE_LZMA_SDK_FETCH "Fetch the 7-Zip/LZMA SDK into WINUAE_LZMA_SDK_DIR when missing" ON)
 option(WINUAE_UNIX_BUNDLE_DRIVE_SOUNDS "Bundle the external floppy-drive sound sample sets" ON)
@@ -629,6 +631,8 @@ set(WINUAE_UNIX_ENABLE_DRACO OFF)
 set(WINUAE_UNIX_ENABLE_PCEM OFF)
 set(WINUAE_UNIX_ENABLE_JIT OFF)
 set(WINUAE_UNIX_ENABLE_AVIOUTPUT OFF)
+set(WINUAE_UNIX_ENABLE_VIDEOGRAB OFF)
+set(WINUAE_UNIX_ENABLE_FFMPEG OFF)
 set(WINUAE_UNIX_ENABLE_SHADER_PIPELINE OFF)
 set(WINUAE_UNIX_MIDI_LIBRARIES)
 set(WINUAE_UNIX_MIDI_INCLUDE_DIRS)
@@ -1201,6 +1205,123 @@ if(WINUAE_UNIX_WITH_AVIOUTPUT)
     set(WINUAE_UNIX_ENABLE_AVIOUTPUT ON)
     target_compile_definitions(winuae_unix_core_defs INTERFACE AVIOUTPUT=1)
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/avioutput.cpp)
+endif()
+
+if(WINUAE_UNIX_WITH_VIDEOGRAB)
+    set(WINUAE_UNIX_ENABLE_VIDEOGRAB ON)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE
+        VIDEOGRAB=1
+        WINUAE_UNIX_WITH_VIDEOGRAB=1
+    )
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/videograb.cpp)
+endif()
+
+set(WINUAE_UNIX_FFMPEG_OK OFF)
+set(WINUAE_UNIX_FFMPEG_FOUND OFF)
+if(WINUAE_UNIX_WITH_FFMPEG AND WINUAE_UNIX_WITH_VIDEOGRAB AND PkgConfig_FOUND)
+    pkg_check_modules(FFMPEG QUIET
+        libavformat>=59
+        libavcodec>=59
+        libavutil>=57
+        libswscale>=6
+        libswresample>=4
+    )
+    if(FFMPEG_FOUND)
+        set(WINUAE_UNIX_FFMPEG_FOUND ON)
+        set(WINUAE_UNIX_FFMPEG_OK ON)
+        if(APPLE)
+            unset(WINUAE_UNIX_FFMPEG_AVFORMAT_LIBRARY CACHE)
+            unset(WINUAE_UNIX_FFMPEG_AVCODEC_LIBRARY CACHE)
+            unset(WINUAE_UNIX_FFMPEG_AVUTIL_LIBRARY CACHE)
+            unset(WINUAE_UNIX_FFMPEG_SWSCALE_LIBRARY CACHE)
+            unset(WINUAE_UNIX_FFMPEG_SWRESAMPLE_LIBRARY CACHE)
+            find_library(WINUAE_UNIX_FFMPEG_AVFORMAT_LIBRARY
+                NAMES avformat
+                PATHS ${FFMPEG_LIBRARY_DIRS}
+                NO_DEFAULT_PATH
+            )
+            find_library(WINUAE_UNIX_FFMPEG_AVCODEC_LIBRARY
+                NAMES avcodec
+                PATHS ${FFMPEG_LIBRARY_DIRS}
+                NO_DEFAULT_PATH
+            )
+            find_library(WINUAE_UNIX_FFMPEG_AVUTIL_LIBRARY
+                NAMES avutil
+                PATHS ${FFMPEG_LIBRARY_DIRS}
+                NO_DEFAULT_PATH
+            )
+            find_library(WINUAE_UNIX_FFMPEG_SWSCALE_LIBRARY
+                NAMES swscale
+                PATHS ${FFMPEG_LIBRARY_DIRS}
+                NO_DEFAULT_PATH
+            )
+            find_library(WINUAE_UNIX_FFMPEG_SWRESAMPLE_LIBRARY
+                NAMES swresample
+                PATHS ${FFMPEG_LIBRARY_DIRS}
+                NO_DEFAULT_PATH
+            )
+            if(WINUAE_UNIX_FFMPEG_AVFORMAT_LIBRARY
+                    AND WINUAE_UNIX_FFMPEG_AVCODEC_LIBRARY
+                    AND WINUAE_UNIX_FFMPEG_AVUTIL_LIBRARY
+                    AND WINUAE_UNIX_FFMPEG_SWSCALE_LIBRARY
+                    AND WINUAE_UNIX_FFMPEG_SWRESAMPLE_LIBRARY)
+                foreach(WINUAE_UNIX_FFMPEG_CHECK_LIBRARY IN ITEMS
+                        WINUAE_UNIX_FFMPEG_AVFORMAT_LIBRARY
+                        WINUAE_UNIX_FFMPEG_AVCODEC_LIBRARY
+                        WINUAE_UNIX_FFMPEG_AVUTIL_LIBRARY
+                        WINUAE_UNIX_FFMPEG_SWSCALE_LIBRARY
+                        WINUAE_UNIX_FFMPEG_SWRESAMPLE_LIBRARY)
+                    execute_process(
+                        COMMAND
+                            "${CMAKE_CURRENT_SOURCE_DIR}/tools/macos-check-deployment-target.sh"
+                            "${${WINUAE_UNIX_FFMPEG_CHECK_LIBRARY}}"
+                            "${CMAKE_OSX_DEPLOYMENT_TARGET}"
+                        RESULT_VARIABLE WINUAE_UNIX_FFMPEG_DEPLOYMENT_RESULT
+                        OUTPUT_VARIABLE WINUAE_UNIX_FFMPEG_DEPLOYMENT_OUTPUT
+                        ERROR_VARIABLE WINUAE_UNIX_FFMPEG_DEPLOYMENT_ERROR
+                        OUTPUT_STRIP_TRAILING_WHITESPACE
+                        ERROR_STRIP_TRAILING_WHITESPACE
+                    )
+                    if(NOT WINUAE_UNIX_FFMPEG_DEPLOYMENT_RESULT EQUAL 0)
+                        message(STATUS
+                            "FFmpeg is newer than "
+                            "CMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}; "
+                            "video-grab FFmpeg decode disabled. "
+                            "${WINUAE_UNIX_FFMPEG_DEPLOYMENT_ERROR}"
+                        )
+                        set(WINUAE_UNIX_FFMPEG_OK OFF)
+                    endif()
+                endforeach()
+            else()
+                message(STATUS
+                    "FFmpeg was found by pkg-config but not as library "
+                    "paths; video-grab FFmpeg decode disabled"
+                )
+                set(WINUAE_UNIX_FFMPEG_OK OFF)
+            endif()
+        endif()
+    endif()
+endif()
+
+if(WINUAE_UNIX_FFMPEG_OK)
+    set(WINUAE_UNIX_ENABLE_FFMPEG ON)
+    target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_FFMPEG=1)
+    target_include_directories(winuae_core PRIVATE ${FFMPEG_INCLUDE_DIRS})
+    target_compile_options(winuae_core PRIVATE ${FFMPEG_CFLAGS_OTHER})
+    if(APPLE)
+        list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES
+            "${WINUAE_UNIX_FFMPEG_AVFORMAT_LIBRARY}"
+            "${WINUAE_UNIX_FFMPEG_AVCODEC_LIBRARY}"
+            "${WINUAE_UNIX_FFMPEG_AVUTIL_LIBRARY}"
+            "${WINUAE_UNIX_FFMPEG_SWSCALE_LIBRARY}"
+            "${WINUAE_UNIX_FFMPEG_SWRESAMPLE_LIBRARY}"
+        )
+    else()
+        list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${FFMPEG_LIBRARIES})
+    endif()
+    list(APPEND WINUAE_UNIX_EXTRA_LIBRARY_DIRS ${FFMPEG_LIBRARY_DIRS})
+elseif(WINUAE_UNIX_WITH_FFMPEG AND WINUAE_UNIX_WITH_VIDEOGRAB AND NOT WINUAE_UNIX_FFMPEG_FOUND)
+    message(STATUS "Compatible FFmpeg development packages not found; video-grab file decoding limited to raw AVI")
 endif()
 
 if(WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE AND WINUAE_UNIX_WITH_SDL3)
@@ -1934,6 +2055,8 @@ if(WINUAE_UNIX_WITH_QT_UI)
             UAE_UNIX_WITH_DRACO=$<BOOL:${WINUAE_UNIX_ENABLE_DRACO}>
             UAE_UNIX_WITH_JIT=$<BOOL:${WINUAE_UNIX_ENABLE_JIT}>
             UAE_UNIX_WITH_AVIOUTPUT=$<BOOL:${WINUAE_UNIX_ENABLE_AVIOUTPUT}>
+            UAE_UNIX_WITH_VIDEOGRAB=$<BOOL:${WINUAE_UNIX_ENABLE_VIDEOGRAB}>
+            UAE_UNIX_WITH_FFMPEG=$<BOOL:${WINUAE_UNIX_ENABLE_FFMPEG}>
             UAE_UNIX_WITH_SHADER_PIPELINE=$<BOOL:${WINUAE_UNIX_ENABLE_SHADER_PIPELINE}>
             ${WINUAE_UNIX_MIDI_QT_DEFINITIONS}
         )
@@ -2042,6 +2165,9 @@ if(APPLE)
     )
     if(WINUAE_UNIX_WITH_CHD)
         list(APPEND WINUAE_UNIX_MACOS_DEPS_ENV "WINUAE_REQUIRE_FLAC=1")
+    endif()
+    if(WINUAE_UNIX_WITH_FFMPEG AND WINUAE_UNIX_WITH_VIDEOGRAB)
+        list(APPEND WINUAE_UNIX_MACOS_DEPS_ENV "WINUAE_REQUIRE_FFMPEG=1")
     endif()
     add_custom_target(winuae_unix_macos_deps
         COMMAND "${CMAKE_COMMAND}" -E env
@@ -2292,6 +2418,7 @@ if(APPLE AND TARGET winuae_unix)
     endif()
     add_custom_target(winuae_unix_macos_app
         COMMAND "${CMAKE_COMMAND}" -E env
+            "WINUAE_BUNDLE_REQUIRE_FFMPEG=$<BOOL:${WINUAE_UNIX_ENABLE_FFMPEG}>"
             "WINUAE_QEMU_UAE_PLUGIN=${WINUAE_QEMU_UAE_PLUGIN_PATH}"
             "WINUAE_FLOPPYBRIDGE_PLUGIN=${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}"
             "WINUAE_BUNDLE_REQUIRE_FLOPPYBRIDGE=$<BOOL:${WINUAE_UNIX_WITH_FLOPPYBRIDGE}>"
@@ -2302,6 +2429,7 @@ if(APPLE AND TARGET winuae_unix)
     )
     add_custom_target(winuae_unix_macos_dmg
         COMMAND "${CMAKE_COMMAND}" -E env
+            "WINUAE_BUNDLE_REQUIRE_FFMPEG=$<BOOL:${WINUAE_UNIX_ENABLE_FFMPEG}>"
             "WINUAE_QEMU_UAE_PLUGIN=${WINUAE_QEMU_UAE_PLUGIN_PATH}"
             "WINUAE_FLOPPYBRIDGE_PLUGIN=${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}"
             "WINUAE_BUNDLE_REQUIRE_FLOPPYBRIDGE=$<BOOL:${WINUAE_UNIX_WITH_FLOPPYBRIDGE}>"
