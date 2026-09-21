@@ -103,6 +103,7 @@ echo
 echo "Built Debian package:"
 ppc_qemu_enabled=false
 drive_sounds_enabled=false
+floppybridge_enabled=false
 if grep -Eq '^WINUAE_UNIX_WITH_PPC_QEMU:BOOL=(ON|TRUE|1)$' \
     "${build_dir}/CMakeCache.txt"; then
     ppc_qemu_enabled=true
@@ -110,6 +111,10 @@ fi
 if grep -Eq '^WINUAE_UNIX_BUNDLE_DRIVE_SOUNDS:BOOL=(ON|TRUE|1)$' \
     "${build_dir}/CMakeCache.txt"; then
     drive_sounds_enabled=true
+fi
+if grep -Eq '^WINUAE_UNIX_WITH_FLOPPYBRIDGE:BOOL=(ON|TRUE|1)$' \
+    "${build_dir}/CMakeCache.txt"; then
+    floppybridge_enabled=true
 fi
 for deb in "${debs[@]}"; do
     echo "  ${deb}"
@@ -144,5 +149,11 @@ for deb in "${debs[@]}"; do
                 exit 1
             fi
         done
+    fi
+    if [[ "${floppybridge_enabled}" == true ]]; then
+        if ! grep -Eq ' \./usr/lib.*/winuae/plugins/FloppyBridge\.so$' <<<"${contents}"; then
+            echo "error: package does not contain FloppyBridge.so" >&2
+            exit 1
+        fi
     fi
 done

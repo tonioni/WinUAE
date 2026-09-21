@@ -14,11 +14,17 @@
 *
 */
 
+#ifndef _WIN32
+#include "uae/dlopen.h"
+#include "target_dlopen.h"
+#endif
 #include "floppybridge_lib.h"
 #include <string>
 #include <codecvt>
 #include <locale>
 #include <algorithm>
+#include <cstdlib>
+#include <cstring>
 
 
 // Used by BRIDGE_About
@@ -58,11 +64,14 @@ HMODULE WIN32_LoadLibrary(const TCHAR*);
 #define CALLING_CONVENSION _cdecl
 #define GETFUNC GetProcAddress
 #else
+#include <dlfcn.h>
 #define CALLING_CONVENSION
 #define GETFUNC dlsym
 #endif
 
-#ifdef _WIN64
+#if defined(__APPLE__)
+#define MODULENAME "FloppyBridge.so"
+#elif defined(_WIN64)
 #define MODULENAME _T("FloppyBridge_x64.dll")
 #else
 #ifdef _WIN32
@@ -117,6 +126,8 @@ typedef bool 			 (CALLING_CONVENSION* _BRIDGE_DriverGetAutoDetectComPort)(Bridge
 typedef bool 			 (CALLING_CONVENSION* _BRIDGE_DriverSetAutoDetectComPort)(BridgeDriverHandle bridgeDriverHandle, bool autoDetectComPort);
 typedef bool 			 (CALLING_CONVENSION* _BRIDGE_DriverGetCable)(BridgeDriverHandle bridgeDriverHandle, bool* isOnB);
 typedef bool 			 (CALLING_CONVENSION* _BRIDGE_DriverSetCable)(BridgeDriverHandle bridgeDriverHandle, bool isOnB);
+typedef bool 			 (CALLING_CONVENSION* _BRIDGE_DriverGetCable2)(BridgeDriverHandle bridgeDriverHandle, FloppyBridgeAPI::DriveSelection* selection);
+typedef bool 			 (CALLING_CONVENSION* _BRIDGE_DriverSetCable2)(BridgeDriverHandle bridgeDriverHandle, FloppyBridgeAPI::DriveSelection selection);
 typedef bool 			 (CALLING_CONVENSION* _BRIDGE_DriverGetSmartSpeedEnabled)(BridgeDriverHandle bridgeDriverHandle, bool* enabled);
 typedef bool 			 (CALLING_CONVENSION* _BRIDGE_DriverSetSmartSpeedEnabled)(BridgeDriverHandle bridgeDriverHandle, bool enabled);
 typedef unsigned char 	 (CALLING_CONVENSION* _DRIVER_getBitSpeed)(BridgeDriverHandle bridgeDriverHandle);
@@ -166,7 +177,9 @@ _BRIDGE_SetProfileConfigFromString BRIDGE_SetProfileConfigFromString = nullptr;
 _BRIDGE_SetProfileName BRIDGE_SetProfileName = nullptr;
 _BRIDGE_CreateNewProfile BRIDGE_CreateNewProfile = nullptr;
 _BRIDGE_DeleteProfile BRIDGE_DeleteProfile = nullptr;
+#ifdef _WIN32
 _BRIDGE_ShowConfigDialog BRIDGE_ShowConfigDialog = nullptr;
+#endif
 _BRIDGE_GetDriverIndex BRIDGE_GetDriverIndex = nullptr;
 _BRIDGE_FreeDriver	BRIDGE_FreeDriver = nullptr;
 _BRIDGE_DriverGetMode	BRIDGE_DriverGetMode = nullptr;
@@ -179,6 +192,8 @@ _BRIDGE_DriverGetAutoDetectComPort	BRIDGE_DriverGetAutoDetectComPort = nullptr;
 _BRIDGE_DriverSetAutoDetectComPort	BRIDGE_DriverSetAutoDetectComPort = nullptr;
 _BRIDGE_DriverGetCable	BRIDGE_DriverGetCable = nullptr;
 _BRIDGE_DriverSetCable	BRIDGE_DriverSetCable = nullptr;
+_BRIDGE_DriverGetCable2 BRIDGE_DriverGetCable2 = nullptr;
+_BRIDGE_DriverSetCable2 BRIDGE_DriverSetCable2 = nullptr;
 _BRIDGE_DriverGetAutoCache BRIDGE_DriverGetAutoCache = nullptr;
 _BRIDGE_DriverSetAutoCache BRIDGE_DriverSetAutoCache = nullptr;
 _BRIDGE_DriverGetSmartSpeedEnabled BRIDGE_DriverGetSmartSpeedEnabled = nullptr;
@@ -230,7 +245,15 @@ void prepareBridge() {
 #endif
 #endif
 #else
-	hBridgeDLLHandle = dlopen(MODULENAME, RTLD_NOW);
+	const char* configuredModule = std::getenv("WINUAE_FLOPPYBRIDGE_LIBRARY");
+	if (configuredModule && configuredModule[0]) {
+		hBridgeDLLHandle = dlopen(configuredModule, RTLD_NOW);
+	}
+	if (!hBridgeDLLHandle) {
+		TCHAR loadedPath[1024] = { 0 };
+		target_dlopen_plugin(_T("FloppyBridge"), loadedPath,
+			1024, &hBridgeDLLHandle);
+	}
 #endif
 
 	// Did it open?
@@ -242,7 +265,9 @@ void prepareBridge() {
 	BRIDGE_GetDriverInfo = (_BRIDGE_GetDriverInfo)GETFUNC(hBridgeDLLHandle, "BRIDGE_GetDriverInfo");
 	BRIDGE_CreateDriver = (_BRIDGE_CreateDriver)GETFUNC(hBridgeDLLHandle, "BRIDGE_CreateDriver");
 	BRIDGE_GetDriverIndex = (_BRIDGE_GetDriverIndex)GETFUNC(hBridgeDLLHandle, "BRIDGE_GetDriverIndex");	
+#ifdef _WIN32
 	BRIDGE_ShowConfigDialog = (_BRIDGE_ShowConfigDialog)GETFUNC(hBridgeDLLHandle, "BRIDGE_ShowConfigDialog");
+#endif
 	BRIDGE_Close = (_BRIDGE_Close)GETFUNC(hBridgeDLLHandle, "BRIDGE_Close");
 	BRIDGE_Open = (_BRIDGE_Open)GETFUNC(hBridgeDLLHandle, "BRIDGE_Open");
 	BRIDGE_CreateDriverFromProfileID = (_BRIDGE_CreateDriverFromProfileID)GETFUNC(hBridgeDLLHandle, "BRIDGE_CreateDriverFromProfileID");
@@ -272,6 +297,8 @@ void prepareBridge() {
 	BRIDGE_DriverSetSmartSpeedEnabled = (_BRIDGE_DriverSetSmartSpeedEnabled)GETFUNC(hBridgeDLLHandle, "BRIDGE_DriverSetSmartSpeedEnabled");
 	BRIDGE_DriverGetCable = (_BRIDGE_DriverGetCable)GETFUNC(hBridgeDLLHandle, "BRIDGE_DriverGetCable");
 	BRIDGE_DriverSetCable = (_BRIDGE_DriverSetCable)GETFUNC(hBridgeDLLHandle, "BRIDGE_DriverSetCable");
+	BRIDGE_DriverGetCable2 = (_BRIDGE_DriverGetCable2)GETFUNC(hBridgeDLLHandle, "BRIDGE_DriverGetCable2");
+	BRIDGE_DriverSetCable2 = (_BRIDGE_DriverSetCable2)GETFUNC(hBridgeDLLHandle, "BRIDGE_DriverSetCable2");
 	DRIVER_getBitSpeed = (_DRIVER_getBitSpeed)GETFUNC(hBridgeDLLHandle, "DRIVER_getBitSpeed");
 	DRIVER_getCurrentSide = (_DRIVER_getCurrentSide)GETFUNC(hBridgeDLLHandle, "DRIVER_getCurrentSide");
 	DRIVER_getDriveTypeID = (_DRIVER_getDriveTypeID)GETFUNC(hBridgeDLLHandle, "DRIVER_getDriveTypeID");
@@ -327,19 +354,23 @@ void _quicka2w(const std::string& str, std::wstring& wstr) {
 
 // Copy or convert a char* to a TCHAR
 void _char2TChar(const char* input, TCHAR* output, unsigned maxLength) {
+	if (!input || !output || !maxLength)
+		return;
 #ifdef _UNICODE
 	std::wstring outputw;
 	_quicka2w(input, outputw);
 #ifdef _WIN32
 	wcscpy_s(output, maxLength, outputw.c_str());
 #else
-	wcscpy(output, outputw.c_str());
+	wcsncpy(output, outputw.c_str(), maxLength - 1);
+	output[maxLength - 1] = 0;
 #endif
 #else
 #ifdef _WIN32
 	strcpy_s(output, maxLength, input);
 #else
-	strcpy_s(output, input);
+	strncpy(output, input, maxLength - 1);
+	output[maxLength - 1] = 0;
 #endif
 #endif
 }
@@ -696,6 +727,25 @@ bool FloppyBridgeAPI::setDriveCableSelection(bool connectToDriveB) {
 	return BRIDGE_DriverSetCable(m_handle, connectToDriveB);
 }
 
+bool FloppyBridgeAPI::getDriveSelection(DriveSelection* selection) {
+	if (BRIDGE_DriverGetCable2)
+		return BRIDGE_DriverGetCable2(m_handle, selection);
+	bool driveB = false;
+	if (!BRIDGE_DriverGetCable || !BRIDGE_DriverGetCable(m_handle, &driveB))
+		return false;
+	*selection = driveB ? DriveSelection::dsDriveB : DriveSelection::dsDriveA;
+	return true;
+}
+
+bool FloppyBridgeAPI::setDriveSelection(DriveSelection selection) {
+	if (BRIDGE_DriverSetCable2)
+		return BRIDGE_DriverSetCable2(m_handle, selection);
+	if (selection != DriveSelection::dsDriveA && selection != DriveSelection::dsDriveB)
+		return false;
+	return BRIDGE_DriverSetCable && BRIDGE_DriverSetCable(m_handle,
+		selection == DriveSelection::dsDriveB);
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // These require ConfigOption_SmartSpeed bit set in DriverInformation::configOptions
 // Returns if the driver currently has Smart Speed enabled which can dynamically switch between normal and turbo disk speed without breaking copy protection
@@ -749,7 +799,7 @@ const char* FloppyBridgeAPI::getLastErrorMessage() {
 	_quickw2a(m_error, m_lastErrorAnsi);
 	return m_lastErrorAnsi.c_str();
 #else
-	return m_lastError;
+	return m_error;
 #endif
 }
 const FloppyDiskBridge::BridgeDriver* FloppyBridgeAPI::getDriverInfo() {

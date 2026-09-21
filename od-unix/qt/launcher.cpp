@@ -36,6 +36,7 @@
 
 #include "config.h"
 #include "drive_sound_sets.h"
+#include "floppybridge_ui.h"
 #include "launcher.h"
 #include "mount_config.h"
 #include "path_utils.h"
@@ -88,6 +89,10 @@
 
 #ifndef UAE_UNIX_WITH_CAPS
 #define UAE_UNIX_WITH_CAPS 0
+#endif
+
+#ifndef UAE_UNIX_WITH_FLOPPYBRIDGE
+#define UAE_UNIX_WITH_FLOPPYBRIDGE 0
 #endif
 
 #ifndef UAE_UNIX_WITH_MIDI
@@ -3473,17 +3478,23 @@ static QStringList floppyTypeItems(int drive, bool quickstart)
         QStringLiteral("3.5 HD"),
         QStringLiteral("Disabled")
     };
-    if (quickstart) {
-        return items;
+    if (!quickstart) {
+        items.insert(2, QStringLiteral("5.25 SD"));
+        items.insert(3, QStringLiteral("5.25 (80)"));
+        items.insert(4, QStringLiteral("3.5 DD (Escom)"));
+        if (drive >= 2) {
+            items.insert(5, QStringLiteral("Bridgeboard 5.25 40"));
+            items.insert(6, QStringLiteral("Bridgeboard 5.25 80"));
+            items.insert(7, QStringLiteral("Bridgeboard 3.5 80"));
+        }
     }
-    items.insert(2, QStringLiteral("5.25 SD"));
-    items.insert(3, QStringLiteral("5.25 (80)"));
-    items.insert(4, QStringLiteral("3.5 DD (Escom)"));
-    if (drive >= 2) {
-        items.insert(5, QStringLiteral("Bridgeboard 5.25 40"));
-        items.insert(6, QStringLiteral("Bridgeboard 5.25 80"));
-        items.insert(7, QStringLiteral("Bridgeboard 3.5 80"));
+#if UAE_UNIX_WITH_FLOPPYBRIDGE
+    if (winuaeQtFloppyBridgeAvailable()) {
+        items.append(QStringLiteral("Configure FloppyBridge..."));
+        for (const auto &profile : winuaeQtFloppyBridgeProfiles())
+            items.append(QStringLiteral("FB: %1").arg(profile.name));
     }
+#endif
     return items;
 }
 
@@ -3512,6 +3523,10 @@ static int floppyTypeConfigValue(const QString &text)
     }
     if (text == QStringLiteral("5.25 (80)")) {
         return 7;
+    }
+    if (text == QStringLiteral("FloppyBridge")
+        || text.startsWith(QStringLiteral("FB: "))) {
+        return 8;
     }
     return 0;
 }
@@ -3542,7 +3557,38 @@ static QString floppyTypeText(int value)
     if (value == 7) {
         return QStringLiteral("5.25 (80)");
     }
+    if (value == 8) {
+        return QStringLiteral("FloppyBridge");
+    }
     return QStringLiteral("3.5 DD");
+}
+
+static bool floppyBridgeSelection(const QString &text, unsigned int *id,
+    QString *name, int *subtype = nullptr)
+{
+#if UAE_UNIX_WITH_FLOPPYBRIDGE
+    if (!text.startsWith(QStringLiteral("FB: ")))
+        return false;
+    const QString selectedName = text.mid(4);
+    const auto profiles = winuaeQtFloppyBridgeProfiles();
+    for (int i = 0; i < profiles.size(); i++) {
+        if (profiles[i].name == selectedName) {
+            if (id)
+                *id = profiles[i].id;
+            if (name)
+                *name = profiles[i].name;
+            if (subtype)
+                *subtype = i + 1;
+            return true;
+        }
+    }
+#else
+    Q_UNUSED(text)
+    Q_UNUSED(id)
+    Q_UNUSED(name)
+    Q_UNUSED(subtype)
+#endif
+    return false;
 }
 
 static int floppySpeedConfigValue(int sliderPosition)
@@ -5707,6 +5753,9 @@ private:
     QComboBox *dfType[4] = {};
     QComboBox *dfPath[4] = {};
     QCheckBox *dfWriteProtect[4] = {};
+    int dfBridgeSubtype[4] = {};
+    QString dfBridgeSubtypeId[4];
+    QString dfBridgeProfile[4];
     QSlider *floppySpeed = nullptr;
     QLineEdit *floppySpeedLabel = nullptr;
     QTableWidget *diskSwapperList = nullptr;
@@ -7176,6 +7225,98 @@ private:
         return page;
     }
 
+    void refreshFloppyBridgeTypes()
+    {
+        for (int drive = 0; drive < 4; drive++) {
+            if (!dfType[drive])
+                continue;
+            const QString selected = dfType[drive]->currentText();
+            QSignalBlocker blocker(dfType[drive]);
+            dfType[drive]->clear();
+            dfType[drive]->addItems(floppyTypeItems(drive, false));
+            if (dfType[drive]->findText(selected) >= 0)
+                dfType[drive]->setCurrentText(selected);
+            else if (selected.startsWith(QStringLiteral("FB: ")))
+                dfType[drive]->setCurrentText(QStringLiteral("3.5 DD"));
+        }
+        for (int drive = 0; drive < 2; drive++) {
+            if (!quickDfType[drive])
+                continue;
+            const QString selected = quickDfType[drive]->currentText();
+            QSignalBlocker blocker(quickDfType[drive]);
+            quickDfType[drive]->clear();
+            quickDfType[drive]->addItems(floppyTypeItems(drive, true));
+            if (quickDfType[drive]->findText(selected) >= 0)
+                quickDfType[drive]->setCurrentText(selected);
+        }
+    }
+
+    void updateFloppyBridgeDriveState(int drive)
+    {
+        if (drive < 0 || drive >= 4 || !dfType[drive])
+            return;
+        const bool bridge = floppyTypeConfigValue(dfType[drive]->currentText()) == 8;
+        if (dfPath[drive])
+            dfPath[drive]->setEnabled(!bridge);
+        if (dfWriteProtect[drive])
+            dfWriteProtect[drive]->setEnabled(!bridge);
+    }
+
+    void selectLoadedFloppyBridgeProfile(int drive)
+    {
+        if (drive < 0 || drive >= 4 || !dfType[drive]
+            || floppyTypeConfigValue(dfType[drive]->currentText()) != 8)
+            return;
+        const auto profiles = winuaeQtFloppyBridgeProfiles();
+        QString wantedName;
+        const int separator = dfBridgeSubtypeId[drive].indexOf(QLatin1Char(':'));
+        if (separator >= 0)
+            wantedName = dfBridgeSubtypeId[drive].mid(separator + 1);
+        for (int i = 0; i < profiles.size(); i++) {
+            if ((!wantedName.isEmpty() && profiles[i].name == wantedName)
+                || (dfBridgeSubtype[drive] == i + 1 && wantedName.isEmpty())) {
+                const QString text = QStringLiteral("FB: %1").arg(profiles[i].name);
+                if (dfType[drive]->findText(text) >= 0)
+                    dfType[drive]->setCurrentText(text);
+                break;
+            }
+        }
+        updateFloppyBridgeDriveState(drive);
+    }
+
+    void floppyTypeChanged(int drive)
+    {
+        if (drive < 0 || drive >= 4 || !dfType[drive])
+            return;
+        if (dfType[drive]->currentText()
+            == QStringLiteral("Configure FloppyBridge...")) {
+            winuaeQtManageFloppyBridgeProfiles(this);
+            refreshFloppyBridgeTypes();
+            const auto profiles = winuaeQtFloppyBridgeProfiles();
+            dfType[drive]->setCurrentText(profiles.isEmpty()
+                ? QStringLiteral("3.5 DD")
+                : QStringLiteral("FB: %1").arg(profiles.first().name));
+        }
+        unsigned int selectedId = 0;
+        if (floppyBridgeSelection(dfType[drive]->currentText(), &selectedId,
+                nullptr)) {
+            for (int other = 0; other < 4; other++) {
+                unsigned int otherId = 0;
+                if (other != drive && dfType[other]
+                    && floppyBridgeSelection(dfType[other]->currentText(),
+                        &otherId, nullptr) && otherId == selectedId) {
+                    QMessageBox::warning(this, QStringLiteral("FloppyBridge"),
+                        QStringLiteral("A FloppyBridge profile can only be "
+                            "assigned to one emulated drive."));
+                    dfType[drive]->setCurrentText(QStringLiteral("3.5 DD"));
+                    break;
+                }
+            }
+        }
+        updateFloppyBridgeDriveState(drive);
+        syncFloppyDriveToQuick(drive);
+    }
+
     QWidget *makeFloppyPage()
     {
         QWidget *page = makePage();
@@ -7186,6 +7327,22 @@ private:
         for (int i = 0; i < 4; i++) {
             addFloppyRow(drives, i);
         }
+        QPushButton *manageBridge = new QPushButton(
+            QStringLiteral("Configure FloppyBridge profiles..."));
+#if UAE_UNIX_WITH_FLOPPYBRIDGE
+        manageBridge->setEnabled(winuaeQtFloppyBridgeAvailable());
+        manageBridge->setToolTip(winuaeQtFloppyBridgeAvailable()
+            ? winuaeQtFloppyBridgeInformation()
+            : QStringLiteral("FloppyBridge.so could not be loaded."));
+        connect(manageBridge, &QPushButton::clicked, this, [this]() {
+            winuaeQtManageFloppyBridgeProfiles(this);
+            refreshFloppyBridgeTypes();
+        });
+#else
+        disableUnavailable(manageBridge,
+            QStringLiteral("This build does not include FloppyBridge support."));
+#endif
+        drives->addWidget(manageBridge, 0, Qt::AlignLeft);
         drives->addStretch();
         root->addWidget(groupBox(QStringLiteral("Floppy Drives"), drives), 1);
         floppySpeed = new QSlider(Qt::Horizontal);
@@ -7236,6 +7393,8 @@ private:
         driveLayout->addWidget(dfPath[drive]);
         layout->addWidget(driveWidget);
         dfEnable[drive]->setChecked(drive == 0);
+        connect(dfType[drive], QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this, drive]() { floppyTypeChanged(drive); });
         connect(info, &QPushButton::clicked, this, [this, drive]() {
             showFloppyInfo(dfPath[drive] ? dfPath[drive]->currentText() : QString(), drive);
         });
@@ -13604,6 +13763,11 @@ private:
         for (int i = 0; i < MaxDiskSwapperSlots; i++) {
             setDiskSwapperPath(i, QString());
         }
+        for (int i = 0; i < 4; i++) {
+            dfBridgeSubtype[i] = 0;
+            dfBridgeSubtypeId[i].clear();
+            dfBridgeProfile[i].clear();
+        }
         if (diskSwapperPath) {
             diskSwapperPath->clearEditText();
         }
@@ -15320,6 +15484,21 @@ private:
         for (int i = 0; i < 4; i++) {
             const int driveType = dfEnable[i]->isChecked() ? floppyTypeConfigValue(dfType[i]->currentText()) : -1;
             settings.insert(QStringLiteral("floppy%1type").arg(i), QString::number(driveType));
+            unsigned int profileId = 0;
+            QString profileName;
+            int profileSubtype = 0;
+            if (driveType == 8 && floppyBridgeSelection(dfType[i]->currentText(),
+                    &profileId, &profileName, &profileSubtype)) {
+                settings.insert(QStringLiteral("floppy%1subtype").arg(i),
+                    QString::number(profileSubtype));
+                settings.insert(QStringLiteral("floppy%1subtypeid").arg(i),
+                    QStringLiteral("%1:%2").arg(profileId).arg(profileName));
+                settings.insert(QStringLiteral("floppy%1profile").arg(i), QString());
+            } else {
+                settings.insert(QStringLiteral("floppy%1subtype").arg(i), QStringLiteral("0"));
+                settings.insert(QStringLiteral("floppy%1subtypeid").arg(i), QString());
+                settings.insert(QStringLiteral("floppy%1profile").arg(i), QString());
+            }
             settings.insert(QStringLiteral("floppy%1wp").arg(i), dfWriteProtect[i]->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
             /* Always write the path, empty included, so ejecting a disk in
              * the runtime GUI reaches the core's disk-change detection. */
@@ -15878,6 +16057,18 @@ private:
             QStringLiteral("floppy1type"),
             QStringLiteral("floppy2type"),
             QStringLiteral("floppy3type"),
+            QStringLiteral("floppy0subtype"),
+            QStringLiteral("floppy1subtype"),
+            QStringLiteral("floppy2subtype"),
+            QStringLiteral("floppy3subtype"),
+            QStringLiteral("floppy0subtypeid"),
+            QStringLiteral("floppy1subtypeid"),
+            QStringLiteral("floppy2subtypeid"),
+            QStringLiteral("floppy3subtypeid"),
+            QStringLiteral("floppy0profile"),
+            QStringLiteral("floppy1profile"),
+            QStringLiteral("floppy2profile"),
+            QStringLiteral("floppy3profile"),
             QStringLiteral("floppy0wp"),
             QStringLiteral("floppy1wp"),
             QStringLiteral("floppy2wp"),
@@ -16518,6 +16709,8 @@ private:
         for (const WinUaeQtConfig::Setting &setting : loaded.orderedSettings()) {
             applySetting(setting.key, setting.value);
         }
+        for (int i = 0; i < 4; i++)
+            selectLoadedFloppyBridgeProfile(i);
         selectPreferredCdSlotAfterLoad();
         updateOutputControlState();
         updateMountButtons();
@@ -16707,8 +16900,23 @@ private:
         } else if (const int drive = floppyKeyDrive(key, QStringLiteral("type")); drive >= 0) {
             const int driveType = value.toInt();
             dfEnable[drive]->setChecked(driveType >= 0);
-            dfType[drive]->setCurrentText(floppyTypeText(driveType));
+            if (driveType == 8) {
+                const auto profiles = winuaeQtFloppyBridgeProfiles();
+                dfType[drive]->setCurrentText(profiles.isEmpty()
+                    ? QStringLiteral("3.5 DD")
+                    : QStringLiteral("FB: %1").arg(profiles.first().name));
+            } else {
+                dfType[drive]->setCurrentText(floppyTypeText(driveType));
+            }
             syncFloppyDriveToQuick(drive);
+        } else if (const int drive = floppyKeyDrive(key, QStringLiteral("subtypeid")); drive >= 0) {
+            dfBridgeSubtypeId[drive] = value;
+            selectLoadedFloppyBridgeProfile(drive);
+        } else if (const int drive = floppyKeyDrive(key, QStringLiteral("subtype")); drive >= 0) {
+            dfBridgeSubtype[drive] = value.toInt();
+            selectLoadedFloppyBridgeProfile(drive);
+        } else if (const int drive = floppyKeyDrive(key, QStringLiteral("profile")); drive >= 0) {
+            dfBridgeProfile[drive] = value;
         } else if (const int drive = floppyKeyDrive(key, QStringLiteral("wp")); drive >= 0) {
             dfWriteProtect[drive]->setChecked(configBoolValue(value));
             syncFloppyDriveToQuick(drive);
