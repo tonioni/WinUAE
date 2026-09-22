@@ -4,7 +4,7 @@ _qemu_archive="qemu-${_qemu_version}.tar.xz"
 _qemu_url_default="https://download.qemu.org/${_qemu_archive}"
 
 pkgname=winuae-unix-git
-pkgver=r5336.94bc5822
+pkgver=r5583.61a3d6a3
 pkgrel=1
 pkgdesc="WinUAE Amiga emulator for Unix"
 arch=('x86_64')
@@ -33,6 +33,7 @@ pkgver() {
 
 build() {
     ${srcdir}/qemu-uae/build-qemu-uae-plugin.sh --tarball "${srcdir}/${_qemu_archive}" --work-dir "${srcdir}/qemu-uae" --output "${srcdir}"
+    WINUAE_FLOPPYBRIDGE_SOURCE_DIR=${srcdir}/floppybridge WINUAE_FLOPPYBRIDGE_OUTPUT=${srcdir}/build/FloppyBridge.so ${srcdir}/${pkgname}/tools/build-floppybridge.sh
     cmake -B "${srcdir}/build" -S "${srcdir}/${pkgname}" \
         -DWINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN=ON \
         -DWINUAE_QEMU_UAE_PLUGIN_FILE="${srcdir}/qemu-uae.so" \
