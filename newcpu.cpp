@@ -9380,13 +9380,22 @@ uae_u32 get_word_030_prefetch (int o)
 {
 	uae_u32 pc = m68k_getpc () + o;
 	uae_u32 v;
+	bool v_valid;
 
 	v = regs.prefetch020[0];
+	v_valid = regs.prefetch020_valid[0];
 	regs.prefetch020[0] = regs.prefetch020[1];
 	regs.prefetch020[1] = regs.prefetch020[2];
 	regs.prefetch020_valid[0] = regs.prefetch020_valid[1];
 	regs.prefetch020_valid[1] = regs.prefetch020_valid[2];
 	regs.prefetch020_valid[2] = false;
+	if (!v_valid) {
+		// The word being consumed never arrived (its prefetch faulted and
+		// was deferred because a branch was in the pipeline). The
+		// instruction needs it after all - a Bcc.L/BSR.L displacement,
+		// for example - so the deferred fault is taken now.
+		do_access_or_bus_error(0xffffffff, pc);
+	}
 	if (!regs.prefetch020_valid[1]) {
 		if (regs.pipeline_stop) {
 			regs.db = regs.prefetch020[0];
