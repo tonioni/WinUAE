@@ -14,6 +14,10 @@
 #define HAVE_STRUCT_UCONTEXT_UC_MCONTEXT_GREGS 1
 #endif
 
+#if defined(__x86_64__) || defined(__amd64__) || defined(_M_X64)
+#define SUPPORT_LONG_DOUBLE 1
+#endif
+
 #if !defined(ARM64) && !defined(_M_ARM64) && !defined(__aarch64__) && \
     (defined(__x86_64__) || defined(__amd64__) || defined(_M_X64) || \
      defined(_M_IX86) || defined(i386) || defined(__i386) || \

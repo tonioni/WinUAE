@@ -37,6 +37,9 @@
 #ifdef AVIOUTPUT
 #include "avioutput.h"
 #endif
+#if defined(VIDEOGRAB) && defined(UAE_TARGET_UNIX)
+#include "videograb.h"
+#endif
 #ifdef AHI
 #include "ahidsound.h"
 #ifdef AHI_v2
@@ -2234,6 +2237,10 @@ void set_audio (void)
 	} else {
 		sound_volume (0);
 	}
+
+#if defined(VIDEOGRAB) && defined(UAE_TARGET_UNIX)
+	setsoundoutputvideograb(currprefs.produce_sound >= 2);
+#endif
 
 	sep = (currprefs.sound_stereo_separation = changed_prefs.sound_stereo_separation) * 3 / 2;
 	if (sep >= 15)

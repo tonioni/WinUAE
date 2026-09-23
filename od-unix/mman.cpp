@@ -14,6 +14,7 @@ size_t max_physmem = 512 * 1024 * 1024;
 static struct uae_shmid_ds shmids[MAX_SHMID];
 static size_t shm_allocsizes[MAX_SHMID];
 static void *shm_heapallocs[MAX_SHMID];
+static addrbank *shm_heapowners[MAX_SHMID];
 
 static void clear_shmids(void)
 {
@@ -22,6 +23,7 @@ static void clear_shmids(void)
         shmids[i].key = -1;
         shm_allocsizes[i] = 0;
         shm_heapallocs[i] = NULL;
+        shm_heapowners[i] = NULL;
     }
 }
 
@@ -72,15 +74,12 @@ static size_t shmid_protect_size(int shmid)
 static void *alloc_page_aligned(size_t size, void **rawmem)
 {
     const size_t page_size = uae_vm_page_size();
-    uae_u8 *raw = xcalloc(uae_u8, size);
+    void *raw = NULL;
 
-    if (!raw) {
+    if (posix_memalign(&raw, page_size, size) != 0) {
         return NULL;
     }
-    if ((uintptr_t)raw & (page_size - 1)) {
-        xfree(raw);
-        return NULL;
-    }
+    memset(raw, 0, size);
 
     *rawmem = raw;
     return raw;
@@ -92,6 +91,12 @@ static void release_shmid(int shmid)
         return;
     }
     if (shmids[shmid].attached) {
+        addrbank *owner = shm_heapowners[shmid];
+        if (owner && owner->baseaddr == shmids[shmid].attached) {
+            owner->baseaddr = NULL;
+            owner->flags &= ~(ABFLAG_DIRECTMAP | ABFLAG_MAPPED);
+            owner->allocated_size = 0;
+        }
         if (shm_heapallocs[shmid]) {
             if (shmids[shmid].mode == UAE_VM_READ && shmids[shmid].rosize) {
                 uae_vm_protect(shmids[shmid].attached, shmid_protect_size(shmid),
@@ -106,6 +111,14 @@ static void release_shmid(int shmid)
     shmids[shmid].key = -1;
     shm_allocsizes[shmid] = 0;
     shm_heapallocs[shmid] = NULL;
+    shm_heapowners[shmid] = NULL;
+}
+
+static void release_all_shmids(void)
+{
+    for (int i = 0; i < MAX_SHMID; i++) {
+        release_shmid(i);
+    }
 }
 
 static bool fill_rom_mman_info(addrbank *ab, struct uae_mman_data *md)
@@ -176,15 +189,14 @@ bool init_shm(void)
     natmem_reserved = NULL;
     natmem_offset = NULL;
     natmem_reserved_size = 0;
+    release_all_shmids();
     clear_shmids();
     return true;
 }
 
 void free_shm(void)
 {
-    for (int i = 0; i < MAX_SHMID; i++) {
-        release_shmid(i);
-    }
+    release_all_shmids();
 }
 
 bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
@@ -252,6 +264,7 @@ bool uae_mman_alloc_nodirect(addrbank *ab, uae_u32 size)
     shmids[shmid].natmembase = NULL;
     shm_allocsizes[shmid] = allocsize;
     shm_heapallocs[shmid] = rawmem;
+    shm_heapowners[shmid] = ab;
     ab->baseaddr = (uae_u8 *)result;
     write_log(_T("MMAN: allocated %s %p-%p %zu (%zuk)%s\n"),
         ab && ab->label ? ab->label : _T("?"),

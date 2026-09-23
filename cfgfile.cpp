@@ -2302,15 +2302,15 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 				_stprintf (tmp1, _T("joyport%dkeyboardoverride"), i);
 				cfgfile_write_bool (f, tmp1, !jp->nokeyboardoverride);
 			}
+		}
 
-			if (p->jports_default[i]) {
-				_stprintf(tmp1, _T("joyportdefault%d"), i);
-				if (p->jports_default[i] > 0) {
-					_stprintf(tmp2, _T("kbd%d"), p->jports_default[i]);
-					cfgfile_write(f, tmp1, tmp2);
-				} else if (p->jports_default[i] < 0) {
-					cfgfile_write(f, tmp1, _T("none"));
-				}
+		if (p->jports_default[i]) {
+			_stprintf(tmp1, _T("joyportdefault%d"), i);
+			if (p->jports_default[i] > 0) {
+				_stprintf(tmp2, _T("kbd%d"), p->jports_default[i]);
+				cfgfile_write(f, tmp1, tmp2);
+			} else if (p->jports_default[i] < 0) {
+				cfgfile_write(f, tmp1, _T("none"));
 			}
 		}
 	}
