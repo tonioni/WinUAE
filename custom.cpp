@@ -6305,16 +6305,13 @@ static void hsync_handler_post(bool onvsync)
 {
 	cia_hsync_do();
 
-
-#if 0
-	if (!custom_disabled) {
-		if (!currprefs.blitter_cycle_exact && blt_info.blit_main && dmaen (DMA_BITPLANE) && vdiwstate == diw_states::DIW_waiting_stop) {
-			blitter_slowdown(thisline_decision.plfleft, thisline_decision.plfright - (16 << fetchmode),
-				cycle_diagram_total_cycles[fetchmode][GET_RES_AGNUS (bplcon0)][GET_PLANES_LIMIT (bplcon0)],
-				cycle_diagram_free_cycles[fetchmode][GET_RES_AGNUS (bplcon0)][GET_PLANES_LIMIT (bplcon0)]);
+	if (!custom_disabled && !currprefs.blitter_cycle_exact) {
+		if (blt_info.blit_main && dmaen(DMA_BITPLANE) && vdiwstate == diw_states::DIW_waiting_stop) {
+			blitter_slowdown(ddfstrt, ddfstop - (16 << fetchmode),
+				cycle_diagram_total_cycles[fetchmode][GET_RES_AGNUS(bplcon0)][GET_PLANES_LIMIT(bplcon0)],
+				cycle_diagram_free_cycles[fetchmode][GET_RES_AGNUS(bplcon0)][GET_PLANES_LIMIT(bplcon0)]);
 		}
 	}
-#endif
 
 #if 0
 	// AF testing stuff
