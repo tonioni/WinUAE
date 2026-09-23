@@ -2574,7 +2574,7 @@ static void HHPOS(uae_u16 v)
 static void SPRHSTRT(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed_h = true;
+		programmed_register_accessed_v = true;
 		sprhstrt = v;
 		sprhstrt_v = v & (MAXVPOS_LINES_ECS - 1);
 	}
@@ -2582,7 +2582,7 @@ static void SPRHSTRT(uae_u16 v)
 static void SPRHSTOP(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed_h = true;
+		programmed_register_accessed_v = true;
 		sprhstop = v;
 		sprhstop_v = v & (MAXVPOS_LINES_ECS - 1);
 	}
@@ -2590,7 +2590,7 @@ static void SPRHSTOP(uae_u16 v)
 static void BPLHSTRT(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed_h = true;
+		programmed_register_accessed_v = true;
 		bplhstrt = v;
 		bplhstrt_v = v & (MAXVPOS_LINES_ECS - 1);
 	}
@@ -2598,7 +2598,7 @@ static void BPLHSTRT(uae_u16 v)
 static void BPLHSTOP(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed_h = true;
+		programmed_register_accessed_v = true;
 		bplhstop = v;
 		bplhstop_v = v & (MAXVPOS_LINES_ECS - 1);
 	}
@@ -2606,39 +2606,39 @@ static void BPLHSTOP(uae_u16 v)
 static void SPRHPTH(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed_h = true;
-		hhbpl &= 0x0000ffff;
-		hhbpl |= v;
+		programmed_register_accessed_v = true;
+		hhspr &= 0x0000ffff;
+		hhspr |= v << 16;
 	}
 }
 static void SPRHPTL(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed_h = true;
-		hhbpl &= 0xffff0000;
-		hhbpl |= v << 16;
+		programmed_register_accessed_v = true;
+		hhspr &= 0xffff0000;
+		hhspr |= v << 0;
 	}
 }
 static void BPLHPTH(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed_h = true;
-		hhspr &= 0x0000ffff;
-		hhspr |= v;
+		programmed_register_accessed_v = true;
+		hhbpl &= 0x0000ffff;
+		hhbpl |= v << 16;
 	}
 }
 static void BPLHPTL(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed_h = true;
-		hhspr &= 0xffff0000;
-		hhspr |= v << 16;
+		programmed_register_accessed_v = true;
+		hhbpl &= 0xffff0000;
+		hhbpl |= v << 0;
 	}
 }
 static void BPLHMOD(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed_h = true;
+		programmed_register_accessed_v = true;
 		bplhmod = v;
 	}
 }
@@ -6766,10 +6766,10 @@ void custom_reset(bool hardreset, bool keyboardreset)
 			vsstrt = 0xffff;
 			vsstop = 0xffff;
 			hcenter = 0xffff;
-			bplhstop = 0xffff;
-			bplhstrt = 0xffff;
-			sprhstop = 0xffff;
-			sprhstrt = 0xffff;
+			bplhstop = bplhstop_v = 0x7fff;
+			bplhstrt = bplhstrt_v = 0x7fff;
+			sprhstop = sprhstop_v = 0x7fff;
+			sprhstrt = sprhstrt_v = 0x7fff;
 
 			for (int i = 0; i < 32; i++) {
 				uae_u16 c = 0;
@@ -9379,15 +9379,11 @@ static void generate_uhres(void)
 			uhres_state = 1;
 		}
 		if (uhres_spr && (uhres_state == 4 || uhres_state == 6)) {
-			struct rgabuf *r = write_rga(RGA_SLOT_IN, CYCLE_UHRESSPR, 0x078, NULL);
-			r->p = &hhspr;
-			r->pv = *r->p;
+			struct rgabuf *r = write_rga(RGA_SLOT_IN, CYCLE_UHRESSPR, 0x078, &hhspr);
 		}
 		if (uhres_bpl && (uhres_state == 5)) {
-			struct rgabuf *r = write_rga(RGA_SLOT_IN, CYCLE_UHRESBPL, 0x07a, NULL);
+			struct rgabuf *r = write_rga(RGA_SLOT_IN, CYCLE_UHRESBPL, 0x07a, &hhbpl);
 			r->bplmod = bplhmod;
-			r->p = &hhbpl;
-			r->pv = *r->p;
 		}
 	}
 }
@@ -10157,16 +10153,16 @@ static void check_vsyncs(void)
 			agnus_pvb_end_line = false;
 			update_agnus_vb();
 		}
-		if (vpos == bplhstop) {
+		if (vpos == bplhstop_v) {
 			uhres_bpl = false;
 		}
-		if (vpos == bplhstrt) {
+		if (vpos == bplhstrt_v) {
 			uhres_bpl = true;
 		}
-		if (vpos == sprhstop) {
+		if (vpos == sprhstop_v) {
 			uhres_spr = false;
 		}
-		if (vpos == sprhstrt) {
+		if (vpos == sprhstrt_v) {
 			uhres_spr = true;
 		}
 	}
@@ -11963,11 +11959,49 @@ static void handle_rga_out(void)
 		// UHRES BPL
 		if (r->reg == 0x7a) {
 			uaecptr pt = r->pv;
-#ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_read(r->reg, pt, DMARECORD_UHRESBPL, 0);
+			bool write;
+			// if UHRES is in write mode, previous chipset bus value gets written!
+			if (aga_mode) {
+				write = (bplhstop & 0x8000) != 0;
+			} else {
+				write = (bplcon0 & 0x0020) != 0;
 			}
+			if (write) {
+				uae_u16 v = regs.chipset_latch_rw;
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_write(r->reg, v, pt, DMARECORD_UHRESBPL, 0);
+					if (r->bplmod) {
+						record_dma_event(DMA_EVENT_MODADD);
+					}
+				}
+				if (memwatch_enabled) {
+					debug_putpeekdma_chipram(pt, v, MW_MASK_BPL_0 << 0, r->reg);
+				}
 #endif
+				chipmem_wput_indirect(pt, v);
+			} else {
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_read(r->reg, pt, DMARECORD_UHRESBPL, 0);
+					if (r->bplmod) {
+						record_dma_event(DMA_EVENT_MODADD);
+					}
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_chipram(pt, MW_MASK_BPL_0 << 0, r->reg);
+				}
+#endif
+				uae_u16 v = chipmem_wget_indirect(pt);
+#ifdef DEBUGGER
+				if (memwatch_enabled) {
+					debug_getpeekdma_value(v);
+				}
+				if (debug_dma) {
+					record_dma_read_value(v);
+				}
+#endif
+			}
 			pt += 2 + r->bplmod;
 			*r->p = pt;
 			hhbpl = pt;
@@ -11976,11 +12010,43 @@ static void handle_rga_out(void)
 		// UHRES SPR
 		if (r->reg == 0x78) {
 			uaecptr pt = r->pv;
-#ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_read(r->reg, pt, DMARECORD_UHRESSPR, 0);
+			bool write;
+			// if UHRES is in write mode, previous chipset bus value gets written!
+			if (aga_mode) {
+				write = (sprhstop & 0x8000) != 0;
+			} else {
+				write = (bplcon0 & 0x0010) != 0;
 			}
+			if (write) {
+				uae_u16 v = regs.chipset_latch_rw;
+				chipmem_wput_indirect(pt, v);
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_write(r->reg, v, pt, DMARECORD_UHRESSPR, 0);
+				}
+				if (memwatch_enabled) {
+					debug_putpeekdma_chipram(pt, v, MW_MASK_SPR_0 << 0, r->reg);
+				}
 #endif
+			} else {
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_read(r->reg, pt, DMARECORD_UHRESSPR, 0);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_chipram(pt, MW_MASK_SPR_0 << 0, r->reg);
+				}
+#endif
+				uae_u16 v = chipmem_wget_indirect(pt);
+#ifdef DEBUGGER
+				if (memwatch_enabled) {
+					debug_getpeekdma_value(v);
+				}
+				if (debug_dma) {
+					record_dma_read_value(v);
+				}
+#endif
+			}
 			pt += 2;
 			*r->p = pt;
 			hhspr = pt;
