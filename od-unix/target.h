@@ -8,7 +8,7 @@
  * empty when upstream is not in a beta cycle). CMake fails the configure
  * when these drift from win32.h after an upstream rebase. */
 #define WINUAEPUBLICBETA 1
-#define WINUAEBETA "9"
+#define WINUAEBETA "15"
 
 #define TARGET_ROM_PATH _T("~/")
 #define TARGET_FLOPPY_PATH _T("~/")
