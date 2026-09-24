@@ -12,6 +12,9 @@
 #include "sounddep/sound.h"
 #include "gensound.h"
 #include "sound_unix.h"
+#ifdef VIDEOGRAB
+#include "videograb.h"
+#endif
 #ifdef DRIVESOUND
 #include "driveclick.h"
 #endif
@@ -181,6 +184,9 @@ static void update_softvolume(void)
             sound_softvolume = -1;
         }
     }
+#ifdef VIDEOGRAB
+    setmastervolumevideograb(volume, sound_muted != 0);
+#endif
 }
 
 int setup_sound(void)

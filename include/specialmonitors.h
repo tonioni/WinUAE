@@ -5,6 +5,7 @@
 
 bool emulate_specialmonitors(struct vidbuffer *src, struct vidbuffer *dst);
 void specialmonitor_reset(void);
+void specialmonitor_update_genlock(void);
 bool specialmonitor_need_genlock(void);
 bool specialmonitor_uses_control_lines(void);
 bool specialmonitor_autoconfig_init(struct autoconfig_info*);

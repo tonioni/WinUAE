@@ -550,6 +550,7 @@ static void copyjport (const struct uae_prefs *src, struct uae_prefs *dst, int n
 		dst->jports[num].jd[i].autofire = src->jports[num].jd[i].autofire;
 	}
 	dst->jports[num].nokeyboardoverride = src->jports[num].nokeyboardoverride;
+	dst->jports_default[num] = src->jports_default[num];
 }
 
 #define MAX_STORED_JPORTS 8
@@ -8132,6 +8133,9 @@ void inputdevice_updateconfig_internal (struct uae_prefs *srcprefs, struct uae_p
 	keyboard_default = keyboard_default_table[currprefs.input_keyboard_type];
 
 	inputdevice_copyjports(srcprefs, dstprefs);
+	for (int i = 0; i < MAX_JPORTS; i++) {
+		default_keyboard_layout[i] = dstprefs->jports_default[i];
+	}
 	resetinput ();
 
 	joysticks = dstprefs->joystick_settings[dstprefs->input_selected_setting];
@@ -10184,7 +10188,13 @@ void inputdevice_validate_jports (struct uae_prefs *p, int changedport, bool fix
 void inputdevice_joyport_keyboard_default(struct uae_prefs *p, const TCHAR *value, int portnum)
 {
 	if (_tcsncmp(value, _T("kbd"), 3) == 0) {
-		p->jports_default[portnum] = (JSEM_KBDLAYOUT + _tstol(value + 3) - 1) + 1;
+		TCHAR *endptr;
+		const long layout = _tcstol(value + 3, &endptr, 10);
+		if (layout > 0 && layout <= JSEM_LASTKBD && *endptr == 0) {
+			p->jports_default[portnum] = JSEM_KBDLAYOUT + (int)layout;
+		} else {
+			p->jports_default[portnum] = 0;
+		}
 	} else if (_tcscmp(value, _T("none")) == 0) {
 		p->jports_default[portnum] = -1;
 	} else {
