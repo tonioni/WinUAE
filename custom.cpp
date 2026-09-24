@@ -99,8 +99,14 @@ static uae_u32 displayresetcnt;
 static int displayreset_delayed;
 uae_u8 agnus_hpos;
 int agnus_hpos_prev, agnus_hpos_next, agnus_vpos_next;
+static bool agnus_even_prev;
 static int agnus_pos_change;
-static uae_u32 dmal_shifter;
+static uae_u32 agnus_dmal_shifter, paula_dmal_shifter, paula_dmal_shifter_fast;
+static int agnus_dmal_sprite_enable;
+static int agnus_dmal_sprite_enable2;
+#ifdef DEBUGGER
+static int paula_dmal_shifter_cnt;
+#endif
 static struct rgabuf rga_pipe[RGA_SLOT_TOTAL + 1];
 struct denise_rga rga_denise[DENISE_RGA_SLOT_TOTAL];
 static struct linestate *current_line_state;
@@ -769,8 +775,6 @@ static int bprun_cycle;
 static bool harddis_v, harddis_h;
 
 struct custom_store custom_storage[256];
-
-static uae_u16 dmal;
 
 static int REGPARAM3 custom_wput_1(uaecptr, uae_u32, int) REGPARAM;
 
@@ -2315,7 +2319,10 @@ static void setsyncstoppos(void)
 	agnus_hpos = 0;
 	hhpos = 0;
 	linear_hpos = 0;
-	dmal_shifter = 0; // fast CPU fix
+	// fast CPU fix
+	agnus_dmal_shifter = 0;
+	paula_dmal_shifter = 0;
+	paula_dmal_shifter_fast = 0;
 }
 
 static void setsyncstopped(void)
@@ -5346,14 +5353,26 @@ static void vsync_handler_post(void)
 	check_lineoptimizations();
 }
 
-static void dmal_emu_disk(struct rgabuf *rga, int slot, bool w)
+static void dmal_emu_disk(struct rgabuf *rga, int slot, bool w, bool fast)
 {
 	uae_u16 dat = 0;
+
+	if (currprefs.m68k_speed < 0) {
+		fast = true;
+	}
+
 	// disk_fifostatus() needed in >100% disk speed modes
 	if (w) {
-		// write to disk
-		if (disk_fifostatus() <= 0) {
-			uaecptr pt = rga->pv;
+		uaecptr pt = rga->pv;
+		if (fast) {
+			if (disk_fifostatus() <= 0) {
+				dat = chipmem_wget_indirect(pt);
+				regs.chipset_latch_rw = last_custom_value = dat;
+				if (disk_fifostatus() <= 0) {
+					DSKDAT(dat);
+				}
+			}
+		} else {
 #ifdef DEBUGGER
 			if (debug_dma) {
 				record_dma_read(rga->reg, pt, DMARECORD_DISK, slot);
@@ -5372,13 +5391,23 @@ static void dmal_emu_disk(struct rgabuf *rga, int slot, bool w)
 			}
 #endif
 			regs.chipset_latch_rw = last_custom_value = dat;
-			DSKDAT(dat);
+			if (disk_fifostatus() <= 0) {
+				DSKDAT(dat);
+			}
 		}
 	} else {
 		// read from disk
-		if (disk_fifostatus() >= 0) {
-			uaecptr pt = rga->pv;
-			dat = DSKDATR(slot);
+		uaecptr pt = rga->pv;
+		if (fast) {
+			if (disk_fifostatus() >= 0) {
+				dat = DSKDATR(slot);
+				chipmem_wput_indirect(pt, dat);
+				regs.chipset_latch_rw = last_custom_value = dat;
+			}
+		} else {
+			if (disk_fifostatus() >= 0) {
+				dat = DSKDATR(slot);
+			}
 #ifdef DEBUGGER
 			if (debug_dma) {
 				record_dma_write(rga->reg, dat, pt, DMARECORD_DISK, slot);
@@ -6328,6 +6357,7 @@ static void hsync_handler_post(bool onvsync)
 		port_get_custom (1, out);
 	}
 #endif
+
 	bool input_read_done = false;
 
 	if (currprefs.cpu_thread) {
@@ -6701,8 +6731,12 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	uhres_bpl = false;
 	uhres_spr = false;
 
-	dmal_shifter = 0;
-	dmal = 0;
+	agnus_dmal_shifter = 0;
+	paula_dmal_shifter = 0;
+	paula_dmal_shifter_fast = 0;
+	agnus_even_prev = false;
+	agnus_dmal_sprite_enable = -1;
+	agnus_dmal_sprite_enable2 = 0;
 
 	nosignal_cnt = 0;
 	nosignal_status = 0;
@@ -9672,73 +9706,71 @@ static void generate_sprites(int num, int slot)
 {
 	int hp = agnus_hpos;
 
-	if (slot == 0 || slot == 2) {
-		struct sprite *s = &spr[num];
-		if (slot == 0) {
-			if (!s->dmacycle && s->dmastate) {
-				s->dmacycle = 1;
+	struct sprite *s = &spr[num];
+	if (slot == 0) {
+		if (!s->dmacycle && s->dmastate) {
+			s->dmacycle = 1;
+		}
+		if (vpos == s->vstart) {
+			s->dmastate = 1;
+			s->dmacycle = 1;
+			if (num == 0 && slot == 0) {
+				cursorsprite(s);
 			}
-			if (vpos == s->vstart) {
-				s->dmastate = 1;
-				s->dmacycle = 1;
-				if (num == 0 && slot == 0) {
-					cursorsprite(s);
-				}
 #if 0
-				if (num == 0)
-					write_log("START %04x %04x %08x\n", s->vstart, s->vstop, s->pt);
+			if (num == 0)
+				write_log("START %04x %04x %08x\n", s->vstart, s->vstop, s->pt);
 #endif
-			}
-			if (vpos == s->vstop || agnus_vb_active_end_line) {
-				s->dmastate = 0;
-				s->dmacycle = 1;
+		}
+		if (vpos == s->vstop || agnus_vb_active_end_line) {
+			s->dmastate = 0;
+			s->dmacycle = 1;
 #if 0
-				if (num == 0)
-					write_log("STOP %04x %04x %08x\n", s->vstart, s->vstop, s->pt);
+			if (num == 0)
+				write_log("STOP %04x %04x %08x\n", s->vstart, s->vstop, s->pt);
 #endif
+		}
+	}
+	if (dmaen(DMA_SPRITE) && s->dmacycle) {
+		bool dodma = false;
+
+		// if bitplane DMA ends and last BPL1DAT slot is also sprite slot and sprite DMA is active: sprite DMA conflicts with bitplane DMA
+		bool bplconflict = false;
+		if (bprun && ddf_stopping == 2) {
+			bool last = islastbplseq();
+			if (last) {
+				bplconflict = true;
 			}
 		}
-		if (dmaen(DMA_SPRITE) && s->dmacycle) {
-			bool dodma = false;
 
-			// if bitplane DMA ends and last BPL1DAT slot is also sprite slot and sprite DMA is active: sprite DMA conflicts with bitplane DMA
-			bool bplconflict = false;
-			if (bprun && ddf_stopping == 2) {
-				bool last = islastbplseq();
-				if (last) {
-					bplconflict = true;
-				}
-			}
-
-			if (bprun != 1 || bplconflict) {
-				dodma = true;
+		if (bprun != 1 || bplconflict) {
+			dodma = true;
 #ifdef AGA
-				if (dodma && s->dblscan && (fmode & 0x8000) && (vpos & 1) != (s->vstart & 1) && s->dmastate) {
-					dodma = false;
-				}
+			if (dodma && s->dblscan && (fmode & 0x8000) && (vpos & 1) != (s->vstart & 1) && s->dmastate) {
+				dodma = false;
+			}
 #endif
-				if (dodma) {
-					uae_u32 dat = CYCLE_PIPE_SPRITE | (s->dmastate ? 0x10 : 0x00) | (s->dmacycle == 1 ? 0 : 8) | num;
-					int reg = 0x140 + slot + num * 8 + (s->dmastate ? 4 : 0);
-					struct rgabuf *rga = write_rga(RGA_SLOT_BPL, CYCLE_SPRITE, reg, NULL);
-					evt_t c = get_cycles();
-					if (c == sprite_dma_change_cycle_on) {
-						// If sprite DMA is switched on just when sprite DMA is decided, channel is still decided but it is not allocated!
-						// Blitter can use this cycle, causing a conflict.
-						rga->alloc = 0;
-						rga->conflict = &s->pt;
-					}
-					rga->sprdat = dat;
+			if (dodma) {
+				uae_u32 dat = CYCLE_PIPE_SPRITE | (s->dmastate ? 0x10 : 0x00) | (s->dmacycle == 1 ? 0 : 8) | num;
+				int reg = 0x140 + slot * 2 + num * 8 + (s->dmastate ? 4 : 0);
+				struct rgabuf *rga = write_rga(RGA_SLOT_BPL, CYCLE_SPRITE, reg, NULL);
+				evt_t c = get_cycles();
+				if (c == sprite_dma_change_cycle_on) {
+					// If sprite DMA is switched on just when sprite DMA is decided, channel is still decided but it is not allocated!
+					// Blitter can use this cycle, causing a conflict.
+					rga->alloc = 0;
+					rga->conflict = &s->pt;
 				}
+				rga->sprdat = dat;
 			}
 		}
-		if (s->dmacycle) {
-			s->dmacycle++;
-			if (s->dmacycle > 2) {
-				s->dmacycle = 0;
-				if (s->dmastate) {
-					s->dmacycle = 1;
-				}
+	}
+	if (s->dmacycle) {
+		s->dmacycle++;
+		if (s->dmacycle > 2) {
+			s->dmacycle = 0;
+			if (s->dmastate) {
+				s->dmacycle = 1;
 			}
 		}
 	}
@@ -9758,59 +9790,64 @@ static void generate_sprites(int num, int slot)
 #define DMAL_AUD2 (1 << 10)
 #define DMAL_AUD3 (1 << 11)
 // sprites have earlier DMA decisions
-#define DMAL_SPR0A (1 << 11)
-#define DMAL_SPR0B (1 << 12)
-#define DMAL_SPR1A (1 << 13)
-#define DMAL_SPR1B (1 << 14)
-#define DMAL_SPR2A (1 << 15)
-#define DMAL_SPR2B (1 << 16)
-#define DMAL_SPR3A (1 << 17)
-#define DMAL_SPR3B (1 << 18)
-#define DMAL_SPR4A (1 << 19)
-#define DMAL_SPR4B (1 << 20)
-#define DMAL_SPR5A (1 << 21)
-#define DMAL_SPR5B (1 << 22)
-#define DMAL_SPR6A (1 << 23)
-#define DMAL_SPR6B (1 << 24)
-#define DMAL_SPR7A (1 << 25)
-#define DMAL_SPR7B (1 << 26)
+#define DMAL_SPR (1 << 11)
+#define DMAL_END_MASK ((1 << 12) - 1)
+
+#define PAULA_DMAL_OFFSET 5
 
 static void process_dmal(uae_u32 v)
 {
-	uae_u16 dmalt = audio_dmal();
-	dmalt <<= (3 * 2);
+	uae_u32 dmalt;
+	dmalt = audio_dmal();
+	dmalt <<= 3 * 2;
 	dmalt |= disk_dmal();
-	dmal = dmalt;
+	paula_dmal_shifter_fast = dmalt;
+#ifdef DEBUGGER
+	paula_dmal_shifter_cnt = -PAULA_DMAL_OFFSET + 1;
+#endif
+	dmalt <<= PAULA_DMAL_OFFSET;
+	paula_dmal_shifter = dmalt;
 	inputdevice_hsync_strobe();
 }
 
 static void start_dmal(void)
 {
-	dmal_shifter |= 2;
-}
-
-static void shift_dmal(void)
-{
-	dmal_shifter <<= 1;
+	agnus_dmal_shifter |= 2;
 }
 
 static void handle_dmal(void)
 {
-	if (!dmal_shifter) {
+#ifdef DEBUGGER
+	if (paula_dmal_shifter & 2) {
+		record_dma_event_data2(DMA_EVENT_DMAL, paula_dmal_shifter_cnt);
+	}
+#endif
+
+	if (!agnus_dmal_shifter && agnus_dmal_sprite_enable < 0) {
 		return;
 	}
 
-	if (agnus_hpos & 1) {
-		if (!custom_disabled && !agnus_vb_active && (dmal_shifter & (DMAL_SPR0A | DMAL_SPR1A | DMAL_SPR2A | DMAL_SPR3A | DMAL_SPR4A | DMAL_SPR5A | DMAL_SPR6A | DMAL_SPR7A |
-			DMAL_SPR0B | DMAL_SPR1B | DMAL_SPR2B | DMAL_SPR3B | DMAL_SPR4B | DMAL_SPR5B | DMAL_SPR6B | DMAL_SPR7B))) {
-			for (int nr = 0; nr < 8; nr++) {
-				if (dmal_shifter & (DMAL_SPR0A << (nr * 2))) {
-					generate_sprites(nr, 0);
-				}
-				if (dmal_shifter & (DMAL_SPR0A << (nr * 2 + 1))) {
-					generate_sprites(nr, 2);
-				}
+	// sprites
+	if ((agnus_hpos & 3) == 2) {
+		// only cycle when sprite block loads DMAL shifter token.
+		if (agnus_dmal_shifter & DMAL_SPR) {
+			// don't clear DMAL_SPR because it is also token for AUD3
+			agnus_dmal_shifter &= DMAL_END_MASK;
+			if (!custom_disabled && !agnus_vb_active) {
+				agnus_dmal_sprite_enable = 0;
 			}
+		} else if (agnus_dmal_sprite_enable >= 0) {		
+			agnus_dmal_sprite_enable++;
+			if (agnus_dmal_sprite_enable >= 8) {
+				agnus_dmal_sprite_enable = -1;
+			}
+		}
+		agnus_dmal_sprite_enable2 = 0;
+	}
+	if ((agnus_hpos & 1) && agnus_dmal_sprite_enable >= 0 && agnus_dmal_sprite_enable2 < 2) {
+		if (!custom_disabled && !agnus_vb_active) {
+			generate_sprites(agnus_dmal_sprite_enable, agnus_dmal_sprite_enable2);
+			agnus_dmal_sprite_enable2++;
 		}
 	}
 
@@ -9818,52 +9855,55 @@ static void handle_dmal(void)
 		return;
 	}
 
-	if (dmaen(DMA_AUD0 | DMA_AUD1 | DMA_AUD2 | DMA_AUD3) && ((dmal >> (2 * 3)) & 255) && (dmal_shifter & (DMAL_AUD0 | DMAL_AUD1 | DMAL_AUD2 | DMAL_AUD3))) {
-		for (int nr = 0; nr < 4; nr++) {
-			if (dmal_shifter & (DMAL_AUD0 << nr)) {
-				uae_u32 dmalbits = (dmal >> ((3 + nr) * 2)) & 3;
-				if (dmalbits & 2) {
+	bool paula_dmal_bit = (paula_dmal_shifter & 2) != 0;
+	if (paula_dmal_bit) {
+		bool paula_dmal_2nd_bit = (paula_dmal_shifter & 1) != 0;
+
+		// audio
+		if (agnus_dmal_shifter & (DMAL_AUD0 | DMAL_AUD1 | DMAL_AUD2 | DMAL_AUD3)) {
+			for (int nr = 0; nr < 4; nr++) {
+				if (agnus_dmal_shifter & (DMAL_AUD0 << nr)) {
 					uaecptr *pt = audio_getpt(nr);
 					struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_AUDIO, 0xaa + nr * 16, pt);
-					rga->auddat = dmalbits | (((3 + nr) * 2) << 8);
+					// second bit is pointer reload
+					rga->auddat = (paula_dmal_2nd_bit ? 0x100 : 0) | nr;
 				}
 			}
 		}
-	}
 
-	if (dmaen(DMA_DISK) && (((dmal >> 0) & 63) && (dmal_shifter & (DMAL_DSK0 | DMAL_DSK1 | DMAL_DSK2)))) {
-		for (int nr = 0; nr < 3; nr++) {
-			if (dmal_shifter & (DMAL_DSK0 << nr)) {
-				uae_u32 dmalbits = (dmal >> (0 + nr * 2)) & 3;
-				int w = (dmalbits & 3) == 3;
-				if (dmalbits) {
+		// disk
+		if (agnus_dmal_shifter & (DMAL_DSK0 | DMAL_DSK1 | DMAL_DSK2)) {
+			for (int nr = 0; nr < 3; nr++) {
+				if (agnus_dmal_shifter & (DMAL_DSK0 << nr)) {
 					uaecptr *pt = disk_getpt();
-					struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_DISK, w ? 0x26 : 0x08, pt);
+					// second bit is read/write
+					struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_DISK, paula_dmal_2nd_bit ? 0x26 : 0x08, pt);
 					rga->dskdat = nr;
 				}
 			}
 		}
 	}
 
-	if (dmal_shifter & (DMAL_REFRESH0 | DMAL_REFRESH1 | DMAL_REFRESH2 | DMAL_REFRESH3)) {
-		if (dmal_shifter & DMAL_REFRESH0) {
+	// refresh
+	if (agnus_dmal_shifter & (DMAL_REFRESH0 | DMAL_REFRESH1 | DMAL_REFRESH2 | DMAL_REFRESH3)) {
+		if (agnus_dmal_shifter & DMAL_REFRESH0) {
 			uae_u16 reg = get_strobe_reg(0);
 			refptr &= refmask;
 			struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_STROBE, reg, &refptr);
 			rga->refdat = 0;
 		}
-		if (dmal_shifter & DMAL_REFRESH1) {
+		if (agnus_dmal_shifter & DMAL_REFRESH1) {
 			uae_u16 reg = get_strobe_reg(1);
 			refptr &= refmask;
 			struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_REFRESH, reg, &refptr);
 			rga->refdat = 1;
 		}
-		if (dmal_shifter & DMAL_REFRESH2) {
+		if (agnus_dmal_shifter & DMAL_REFRESH2) {
 			refptr &= refmask;
 			struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_REFRESH, 0x1fe, &refptr);
 			rga->refdat = 2;
 		}
-		if (dmal_shifter & DMAL_REFRESH3) {
+		if (agnus_dmal_shifter & DMAL_REFRESH3) {
 			refptr &= refmask;
 			struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_REFRESH, 0x1fe, &refptr);
 			rga->refdat = 3;
@@ -10649,37 +10689,6 @@ static void draw_line(int ldvpos, bool finalseg, bool borderline)
 	rga_denise_cycle_count_start = rga_denise_cycle_count_end;
 }
 
-static void dmal_fast(void)
-{
-	process_dmal(0);
-	for (int nr = 0; nr < 4; nr++) {
-		uae_u32 dmalbits = (dmal >> ((3 + nr) * 2)) & 3;
-		if (dmalbits) {
-			struct rgabuf r = { 0 };
-			r.p = audio_getpt(nr);
-			r.pv = *r.p;
-			dmal_emu_audio(&r, nr);
-			r.pv += 2;
-			if (dmalbits & 1) {
-				r.pv = audio_getloadpt(nr);
-			}
-			*r.p = r.pv;
-		}
-	}
-	for (int nr = 0; nr < 3; nr++) {
-		uae_u32 dmalbits = (dmal >> (0 + nr * 2)) & 3;
-		int w = (dmalbits & 3) == 3;
-		if (dmalbits) {
-			struct rgabuf r = { 0 };
-			r.p = disk_getpt();
-			r.pv = *r.p;
-			dmal_emu_disk(&r, nr, w);
-			r.pv += 2;
-			*r.p = r.pv;
-		}
-	}
-}
-
 static void do_draw_line(void)
 {
 	start_draw_denise();
@@ -10887,13 +10896,13 @@ static int can_fast_custom(void)
 static void do_imm_dmal(void)
 {
 	process_dmal(0);
-	uae_u32 dmal_d = dmal;
+	uae_u32 dmal_d = paula_dmal_shifter_fast;
 
 	// "immediate" audio DMA
 	if (dmaen(DMA_AUD0 | DMA_AUD1 | DMA_AUD2 | DMA_AUD3) && ((dmal_d >> (3 * 2)) & 255)) {
 		for (int nr = 0; nr < 4; nr++) {
-			uae_u32 dmalbits = (dmal_d >> ((3 + nr) * 2)) & 3;
-			if (dmalbits) {
+			int dmalbits = (dmal_d >> ((3 + nr) * 2)) & 3;
+			if (dmalbits & 2) {
 				struct rgabuf r = { 0 };
 				uaecptr *pt = audio_getpt(nr);
 				r.pv = *pt;
@@ -10909,20 +10918,21 @@ static void do_imm_dmal(void)
 	// "immediate" disk DMA
 	if (dmaen(DMA_DISK) && (((dmal_d >> 0) & 63))) {
 		for (int nr = 0; nr < 3; nr++) {
-			uae_u32 dmalbits = (dmal_d >> (0 + nr * 2)) & 3;
-			if (dmalbits) {
-				int w = (dmalbits & 3) == 3;
+			int dmalbits = (dmal_d >> ((0 + nr) * 2)) & 3;
+			if (dmalbits & 2) {
+				int w = (dmalbits & 1) != 0;
 				struct rgabuf r = { 0 };
 				uaecptr *pt = disk_getpt();
 				r.pv = *pt;
-				dmal_emu_disk(&r, nr, w);
+				dmal_emu_disk(&r, nr, w, true);
 				*pt += 2;
 			}
 		}
 	}
 
-	dmal = 0;
-	dmal_shifter = 0;
+	agnus_dmal_shifter = 0;
+	paula_dmal_shifter = 0;
+	paula_dmal_shifter_fast = 0;
 }
 
 static void sync_equalline_handler(void);
@@ -11740,9 +11750,9 @@ static void handle_rga_out(void)
 			disinc = true;
 #ifdef DEBUGGER
 			if (debug_dma) {
-				record_dma_read(r->reg, *r->p, DMARECORD_REFRESH, (hp - 3) / 2);
-				record_dma_read_value(0xffff);
 				int num = r->refdat;
+				record_dma_read(r->reg, *r->p, DMARECORD_REFRESH, num);
+				record_dma_read_value(0xffff);
 				if (num == 1 && lof_store) {
 					record_dma_event(DMA_EVENT_LOF);
 				}
@@ -11933,7 +11943,7 @@ static void handle_rga_out(void)
 			if (!disinc) {
 				pt += 2;
 			}
-			if (r->auddat & 1) {
+			if (r->auddat & 0x100) {
 				pt = audio_getloadpt(num);
 			}
 			*r->p = pt;
@@ -11944,7 +11954,7 @@ static void handle_rga_out(void)
 		// DISK
 		if (r->reg == 0x08 || r->reg == 0x26) {
 			uaecptr pt = r->pv;
-			dmal_emu_disk(r, r->dskdat, r->reg == 0x26);
+			dmal_emu_disk(r, r->dskdat, r->reg == 0x26, false);
 			if (!disinc) {
 				pt += 2;
 				*r->p = pt;
@@ -12078,14 +12088,24 @@ static void handle_rga_out(void)
 	}
 }
 
+static void shift_dmal(void)
+{
+	bool prev = (agnus_hpos & 1) == 0;
+	if (agnus_even_prev && !prev) {
+		agnus_dmal_shifter <<= 1;
+	}
+	agnus_even_prev = prev;
+
+	paula_dmal_shifter >>= 1;
+#ifdef DEBUGGER
+	paula_dmal_shifter_cnt++;
+#endif
+}
+
 static void generate_dmal(void)
 {
 	handle_dmal();
-
-	// even cycles only
-	if (!(agnus_hpos_prev & 1) && (agnus_hpos & 1)) {
-		shift_dmal();
-	}
+	shift_dmal();
 }
 
 static void generate_dma_requests(void)
@@ -12159,7 +12179,6 @@ static void do_cck(bool docycles)
 	if (custom_fastmode <= 0) {
 		generate_dmal();
 	}
-
 }
 
 static uae_u16 quick_strobe(void)
