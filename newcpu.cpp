@@ -6070,9 +6070,18 @@ insretry:
 		} CATCH (prb) {
 
 			if (mmu030_opcode == -1) {
-				// full prefetch fill access fault
-				mmufixup[0].reg = -1;
-				mmufixup[1].reg = -1;
+				// Prefetch access fault. Usually raised while filling
+				// the pipe before the instruction starts, but also from
+				// inside an instruction (do_access_or_bus_error() when
+				// the next opcode's fetch lands in an unmapped page) after
+				// it has already adjusted an address register - the
+				// -(sp) of a MOVE that prefetches before its write. The
+				// instruction is restarted from scratch after the RTE,
+				// so undo those adjustments; a completed instruction has
+				// cleared its fixups and this is a no-op for it. The
+				// flags are left alone: a completed RTE/RTR whose target
+				// prefetch faults must keep the CCR it just loaded.
+				cpu_restore_fixup();
 			} else if (mmu030_state[1] & MMU030_STATEFLAG1_LASTWRITE) {
 				mmufixup[0].reg = -1;
 				mmufixup[1].reg = -1;
