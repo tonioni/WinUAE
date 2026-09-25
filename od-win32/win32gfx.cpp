@@ -2321,12 +2321,15 @@ int check_prefs_changed_gfx(void)
 				}
 			}
 			if (c & 1024) {
+				reset_drawing();
 				target_graphics_buffer_update(mon->monitor_id, true);
 			}
 			if (c & 512) {
+				reset_drawing();
 				reopen_gfx(mon);
 			}
 			if ((c & 16) || ((c & 8) && keepfsmode)) {
+				reset_drawing();
 				if (reopen(mon, c & 2, unacquired == false)) {
 					c |= 2;
 				} else {
@@ -2338,6 +2341,7 @@ int check_prefs_changed_gfx(void)
 					inputdevice_unacquire();
 					unacquired = true;
 				}
+				reset_drawing();
 				close_windows(mon);
 				if (currprefs.gfx_api != changed_prefs.gfx_api || currprefs.gfx_api_options != changed_prefs.gfx_api_options) {
 					currprefs.gfx_api = changed_prefs.gfx_api;
