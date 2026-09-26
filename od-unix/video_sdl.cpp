@@ -102,6 +102,7 @@ struct unix_pending_video_frame {
     int filter_index;
     int monitor_id;
     int backbuffers;
+    bool vsync;
     bool valid;
 };
 
@@ -265,6 +266,7 @@ static void queue_video_frame_for_event_thread(const struct unix_video_frame *fr
     s_pending_frame.filter_index = frame->filter_index;
     s_pending_frame.monitor_id = frame->monitor_id;
     s_pending_frame.backbuffers = frame->backbuffers;
+    s_pending_frame.vsync = frame->vsync;
     s_pending_frame.valid = true;
 }
 
@@ -1177,6 +1179,7 @@ static bool unix_gl_ensure_context(int width, int height)
         return false;
     }
 
+    s_vsync_applied = -1;
     s_gl_context = SDL_GL_CreateContext(s_window);
     if (!s_gl_context) {
         write_log(_T("OpenGL shader pipeline: context creation failed: %s\n"), SDL_GetError());
@@ -1719,6 +1722,7 @@ bool unix_video_init(int width, int height, int pixbytes)
 #endif
 
     if (!s_renderer) {
+        s_vsync_applied = -1;
         s_renderer = SDL_CreateRenderer(s_window, NULL);
         if (!s_renderer) {
             s_renderer = SDL_CreateRenderer(s_window, "software");
@@ -1740,6 +1744,7 @@ bool unix_video_init(int width, int height, int pixbytes)
 
 void unix_video_shutdown(void)
 {
+    s_vsync_applied = -1;
     unix_input_release_keys();
     unix_video_set_mouse_grab(false);
 
@@ -1818,6 +1823,7 @@ static int unix_video_poll_internal(bool *quit_requested, bool input_events)
         frame.filter_index = pending.filter_index;
         frame.monitor_id = pending.monitor_id;
         frame.backbuffers = pending.backbuffers;
+        frame.vsync = pending.vsync;
         unix_video_present_on_event_thread(&frame);
         got = 1;
     }
@@ -1966,21 +1972,22 @@ int unix_video_poll_window_events(bool *quit_requested)
 // defeats warp mode (and ignores gfx_vsync=false). Keep the swap interval in
 // sync with the user's vsync preference, but always disable it while turbo
 // mode is active so warp mode isn't refresh-rate limited.
-static void unix_video_sync_vsync_state(void)
+static void unix_video_sync_vsync_state(const struct unix_video_frame *frame)
 {
-    const bool want_vsync = currprefs.gfx_apmode[APMODE_NATIVE].gfx_vsync > 0 && !currprefs.turbo_emulation;
-    const int wanted = want_vsync ? 1 : 0;
+    const int wanted = frame->vsync ? 1 : 0;
     if (s_vsync_applied == wanted) {
         return;
     }
-    s_vsync_applied = wanted;
 #ifdef WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE
     if (s_gl_active) {
-        SDL_GL_SetSwapInterval(wanted);
+        if (SDL_GL_SetSwapInterval(wanted)) {
+            s_vsync_applied = wanted;
+        }
+        return;
     }
 #endif
-    if (s_renderer) {
-        SDL_SetRenderVSync(s_renderer, wanted);
+    if (s_renderer && SDL_SetRenderVSync(s_renderer, wanted)) {
+        s_vsync_applied = wanted;
     }
 }
 
@@ -1992,7 +1999,7 @@ static void unix_video_present_on_event_thread(const struct unix_video_frame *fr
     if (!unix_video_init(frame->width, frame->height, frame->pixbytes)) {
         return;
     }
-    unix_video_sync_vsync_state();
+    unix_video_sync_vsync_state(frame);
     const struct gfx_filterdata *filter = filterdata_for_frame(frame);
     auto_resize_window_for_rtg(frame, filter);
 #ifdef WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE
