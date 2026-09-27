@@ -10360,6 +10360,9 @@ static void decide_line_end(void)
 	linear_hpos_prev[1] = linear_hpos_prev[0];
 	linear_hpos_prev[0] = custom_fastmode ? maxhpos : hsync_ccks;
 	linear_hpos = 0;
+	if (abs(linear_hpos_prev[1] - linear_hpos_prev[0]) >= 2) {
+		nosignal_trigger = true;
+	}
 	hautoscale_check();
 	display_hstart_cyclewait_cnt = display_hstart_cyclewait_start;
 	if (currprefs.display_calibration) {
