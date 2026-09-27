@@ -9851,6 +9851,8 @@ static void handle_dmal(void)
 		return;
 	}
 
+	struct rgabuf *rga = NULL;
+
 	// sprites
 	if ((agnus_hpos & 3) == 2) {
 		// only cycle when sprite block loads DMAL shifter token.
@@ -9895,7 +9897,7 @@ static void handle_dmal(void)
 			for (int nr = 0; nr < 4; nr++) {
 				if (agnus_dmal_shifter & (DMAL_AUD0 << nr)) {
 					uaecptr *pt = audio_getpt(nr);
-					struct rgabuf *rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_AUDIO, 0xaa + nr * 16, pt, agnus_dmal_alloc);
+					rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_AUDIO, 0xaa + nr * 16, pt, agnus_dmal_alloc);
 					// second bit is pointer reload
 					rga->auddat = (paula_dmal_2nd_bit ? 0x100 : 0) | nr;
 				}
@@ -9908,7 +9910,7 @@ static void handle_dmal(void)
 				if (agnus_dmal_shifter & (DMAL_DSK0 << nr)) {
 					uaecptr *pt = disk_getpt();
 					// second bit is read/write
-					struct rgabuf *rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_DISK, paula_dmal_2nd_bit ? 0x26 : 0x08, pt, agnus_dmal_alloc);
+					rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_DISK, paula_dmal_2nd_bit ? 0x26 : 0x08, pt, agnus_dmal_alloc);
 					rga->dskdat = (paula_dmal_2nd_bit ? 0x100 : 0) | nr;
 				}
 			}
@@ -9920,26 +9922,39 @@ static void handle_dmal(void)
 		if (agnus_dmal_shifter & DMAL_REFRESH0) {
 			uae_u16 reg = get_strobe_reg(0);
 			refptr &= refmask;
-			struct rgabuf *rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_STROBE, reg, &refptr, agnus_dmal_alloc);
+			rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_STROBE, reg, &refptr, agnus_dmal_alloc);
 			rga->refdat = 0;
 		}
 		if (agnus_dmal_shifter & DMAL_REFRESH1) {
 			uae_u16 reg = get_strobe_reg(1);
 			refptr &= refmask;
-			struct rgabuf *rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_REFRESH, reg, &refptr, agnus_dmal_alloc);
+			rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_REFRESH, reg, &refptr, agnus_dmal_alloc);
 			rga->refdat = 1;
 		}
 		if (agnus_dmal_shifter & DMAL_REFRESH2) {
 			refptr &= refmask;
-			struct rgabuf *rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_REFRESH, 0x1fe, &refptr, agnus_dmal_alloc);
+			rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_REFRESH, 0x1fe, &refptr, agnus_dmal_alloc);
 			rga->refdat = 2;
 		}
 		if (agnus_dmal_shifter & DMAL_REFRESH3) {
 			refptr &= refmask;
-			struct rgabuf *rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_REFRESH, 0x1fe, &refptr, agnus_dmal_alloc);
+			rga = write_rga_alloc(RGA_SLOT_IN, CYCLE_REFRESH, 0x1fe, &refptr, agnus_dmal_alloc);
 			rga->refdat = 3;
 		}
 	}
+
+#if 0
+	// Not yet confirmed if this is needed.
+	//
+	// allocation without DMA request?
+	// mark cycle as allocated
+	if (agnus_dmal_alloc && !rga) {
+		rga = read_rga(RGA_SLOT_IN);
+		if (rga->alloc == 0) {
+			rga->alloc = 1;
+		}
+	}
+#endif
 }
 
 static void check_vidsyncs(void)
