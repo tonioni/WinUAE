@@ -3071,22 +3071,14 @@ static void DMACON(int hpos, uae_u16 v)
 	if (newcop && !oldcop) {
 		if (safecpu()) {
 			copper_dma_change_cycle_pending = true;
-			if (copper_access) {
-				copper_dma_change_cycle = get_cycles();
-			} else {
 				copper_dma_change_cycle = get_cycles() + CYCLE_UNIT;
 			}
-		}
 		copper_enabled_thisline = 1;
 	} else if (!newcop && oldcop) {
 		if (safecpu()) {
 			copper_dma_change_cycle_pending = true;
-			if (copper_access) {
-				copper_dma_change_cycle = get_cycles();
-			} else {
 				copper_dma_change_cycle = get_cycles() + CYCLE_UNIT;
 			}
-		}
 		copper_enabled_thisline = 1;
 	}
 
