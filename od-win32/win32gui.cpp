@@ -2353,6 +2353,9 @@ static void m(int monid)
 
 static void flipgui(int opengui)
 {
+	if (isfullscreen() > 0) {
+		reset_drawing();
+	}
 	end_draw_denise();
 	D3D_guimode(0, opengui);
 	if (full_property_sheet)
