@@ -1,4 +1,24 @@
 
+Beta 16:
+
+- Non-CE non-immediate mode blitter speed was almost as fast as immediate (b13)
+- Restored non-CE mode approximate blitter slowdown due to bitplane cycles. Was temporarily disabled and forgotten when 6.x started.
+- (Useless) UHRES emulation works again and implemented previously unknown feature: UHRES can WRITE to Chip RAM! (ECS Agnus: BPLCON0 bits 5 and 4, AGA BPLHSTOP and SPRHSTOP bit 15 changes UHRES BPL/SPR dummy DMA reads to writes) Unfortunately written data can't be directly controlled, it is whatever was last written to chip bus.
+- If program wrote to VPOS causing vpos to never match vsync lines or set impossible programmed vertical sync values, it was possible for UAE to appear like it was partially hung (keeps running, Windows won't report it as hung but for example F12 didn't work).
+- On the fly screen mode changes didn't always unlock target graphics buffer/texture.
+- Fixed D3D11 fullscreen -> F12 -> change to windowed or full-window: black screen.
+- uaenet.device multicast fixes (unitzeroone)
+- 68030 MMU fixes (slaapliedje)
+
+Not-planned-but-ross-experimental-screenmode-test-accidentally-triggered-something-unexpected-so-of-course-it-had-to-be-examined-emulated:
+
+- Paula DMAL serial line and Agnus internal shift register used to select Paula DMA channels are now more accurately emulated: VHPOSW modification side-effects (almost?) fully emulated. Side-effects are internal shift register getting out of sync with Paula DMAL line, causing wrong DMA channels to be selected (disk DMA slot may become audio slot or vice versa or same slot can get duplicated) or not selecting any DMA channel or causing conflicts. (Not all conditions have been tested yet)
+- Paula DMAL disk RW bits directly follow DSKLEN WRITE bit state (R=0, W=1). Continuously, even when no disk DMA is active. Only makes a difference when doing above VHPOSW changes.
+- Paula DMAL bits are included in DMA debugger (Pdx/PDx for disk RW and DMA request bits, Pax/PAx for audio pointer reload and audio DMA request bits)
+- DMAL cycle allocation is now emulated cycle-accurately. Allocation signal is generated 1 CCK before DMA request is generated (and DMA transfer is finally done in following cycle), same as other DMA channels. VHPOSW modifications can cause DMA conflicts. Only emulated in 68000 CE mode.
+- Discovered (accidentally as usual) new Copper feature/bug: previously discovered undocumented back to back even cycle dummy load from address zero has a hidden bonus undocumented feature: if Copper DMA is switched off exactly during second even cycle, copper will allocate next copper cycle but no DMA request is generated (Cycle allocation happens 1 CCK before DMA request generation). Result is dummy load from address zero followed by unused allocated cycle.
+- If next scanline is 2 CCKs or more longer or shorter than previous line, activate lost sync state.
+
 Beta 15:
 
 - Fixed borderblank shres pixel delay in AGA modes showing shres pixel sized border color stripe instead of black. Was only visible if shres resolution was selected in display panel.
