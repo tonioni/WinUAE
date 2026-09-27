@@ -9190,8 +9190,9 @@ static struct rgabuf *alloc_copper_cycle(void)
 	return rga;
 }
 // Address zero broken dma copper request
-static struct rgabuf *alloc_copper_cycle_dummy(void)
+static void alloc_copper_cycle_dummy(void)
 {
+	if (check_rga_free_slot_in()) {
 	cop_state.dummyip = 0;
 	struct rgabuf *rga = write_rga(RGA_SLOT_IN, CYCLE_COPPER, 0x8c, &cop_state.dummyip);
 	if (!cop_state.cycle_alloc) {
@@ -9199,7 +9200,7 @@ static struct rgabuf *alloc_copper_cycle_dummy(void)
 	} else {
 		rga->alloc = 2;
 	}
-	return rga;
+}
 }
 
 static void generate_copper(void)
@@ -9207,6 +9208,7 @@ static void generate_copper(void)
 	bool dma = is_copper_dma(true);
 	bool odd_cycle = (agnus_hpos & 1) == COPPER_CYCLE_POLARITY;
 	bool ena_odd = odd_cycle && dma && check_rga_free_slot_in();
+	bool dis_odd = odd_cycle && !dma;
 	bool act_even = !odd_cycle && dma;
 	bool idle = !cop_state.irload1 && !cop_state.irload2 && !cop_state.start;
 	struct rgabuf *rga = NULL;
@@ -9295,6 +9297,14 @@ static void generate_copper(void)
 #endif
 		}
 
+	// Another very rare Copper special case: if DMA was switched off
+	// after cycle allocation but before DMA request generation,
+	// cycle will be allocated but it is left unused.
+	if (cop_state.cycle_alloc && dis_odd) {
+		if (!rga) {
+			alloc_copper_cycle_dummy();
+		}
+		cop_state.cycle_alloc = false;
 	}
 
 	// Copper bug: even to even line horizontal position condition (PAL 226 to 0, VHPOSW tricks)
@@ -9303,12 +9313,13 @@ static void generate_copper(void)
 	// causing it to do DMA from address 0.
 	// I assume it happens because there is very short even->odd transition in
 	// horizontal counter bit 0 before new even value is loaded.
-	if (!odd_cycle && !(agnus_hpos_prev & 1) && dma && check_rga_free_slot_in()) {
+	if (!odd_cycle && !(agnus_hpos_prev & 1) && dma) {
+		if (cop_state.irload1 == 1 || cop_state.start == 1 || cop_state.cycle_alloc ||
+			(cop_state.irload2 == 1 && cop_state.validmove && !cop_state.irload1)) {
 		if (!rga) {
-			if (cop_state.irload1 == 1 || cop_state.start == 1 ||
-				(cop_state.irload2 == 1 && cop_state.validmove && !cop_state.irload1)) {
 				alloc_copper_cycle_dummy();
 			}
+			cop_state.cycle_alloc = false;
 		}
 	}
 
