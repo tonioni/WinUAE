@@ -5055,21 +5055,27 @@ static bool D3D11_resize_do(struct d3d11struct *d3d, int monid)
 static bool recheck(struct d3d11struct *d3d, int monid)
 {
 	bool r = false;
-	if (xD3D11_quit(d3d))
+	if (xD3D11_quit(d3d)) {
 		return r;
+	}
 	r = D3D11_resize_do(d3d, monid);
 	if (d3d->resizeretry) {
 		resizemode(d3d, monid);
 		return r;
 	}
-	if (!d3d->delayedfs)
+	if (!d3d->delayedfs) {
 		return r;
-	xD3D11_free(d3d->num, true);
+	}
 	d3d->delayedfs = 0;
+	xD3D11_free(d3d->num, true);
 	ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
+	if (isfullscreen() <= 0) {
+		return r;
+	}
 	int freq = 0;
-	if (!xxD3D11_init2(d3d->ahwnd, d3d->num, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, &freq, d3d->dmultxh, d3d->dmultxv))
+	if (!xxD3D11_init2(d3d->ahwnd, d3d->num, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, &freq, d3d->dmultxh, d3d->dmultxv)) {
 		d3d->invalidmode = true;
+	}
 	return false;
 }
 
