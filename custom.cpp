@@ -1214,13 +1214,13 @@ static void update_mirrors(void)
 	ecs_agnus = (currprefs.chipset_mask & CSMASK_ECS_AGNUS) != 0;
 	ecs_denise = (currprefs.chipset_mask & CSMASK_ECS_DENISE) != 0;
 	ecs_denise_only = ecs_denise && !aga_mode;
-	agnusa1000 = (currprefs.chipset_mask & CSMASK_A1000) != 0 || currprefs.cs_agnusmodel == AGNUSMODEL_A1000 || currprefs.cs_agnusmodel == AGNUSMODEL_VELVET;
+	agnusa1000 = (currprefs.chipset_mask & (CSMASK_A1000 | CSMASK_A1000_NOEHB)) != 0 || currprefs.cs_agnusmodel == AGNUSMODEL_A1000 || currprefs.cs_agnusmodel == AGNUSMODEL_VELVET;
 	if (agnusa1000) {
 		ecs_agnus = false;
 		aga_mode = false;
 	}
 	denisea1000_noehb = (currprefs.chipset_mask & CSMASK_A1000_NOEHB) != 0 || currprefs.cs_denisemodel == DENISEMODEL_VELVET || currprefs.cs_denisemodel == DENISEMODEL_A1000NOEHB;
-	denisea1000 = (currprefs.chipset_mask & CSMASK_A1000) != 0 || currprefs.cs_denisemodel == DENISEMODEL_VELVET || currprefs.cs_denisemodel == DENISEMODEL_A1000NOEHB || currprefs.cs_denisemodel == DENISEMODEL_A1000;
+	denisea1000 = (currprefs.chipset_mask & (CSMASK_A1000_NOEHB | CSMASK_A1000)) != 0 || currprefs.cs_denisemodel == DENISEMODEL_VELVET || currprefs.cs_denisemodel == DENISEMODEL_A1000NOEHB || currprefs.cs_denisemodel == DENISEMODEL_A1000;
 	direct_rgb = aga_mode;
 	if (aga_mode) {
 		sprite_sprctlmask = 0x01 | 0x08 | 0x10;
