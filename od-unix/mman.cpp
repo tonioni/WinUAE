@@ -181,12 +181,19 @@ static bool fill_rom_mman_info(addrbank *ab, struct uae_mman_data *md)
 
 bool preinit_shm(void)
 {
-    clear_shmids();
+    static bool initialized;
+    if (!initialized) {
+        clear_shmids();
+        initialized = true;
+    }
     return true;
 }
 
 bool init_shm(void)
 {
+    // Unix reaches init_shm() without a separate preinit_shm() call.
+    // Initialize unused keys once, without discarding live reset survivors.
+    preinit_shm();
     jit_direct_compatible_memory = false;
     canbang = false;
     natmem_reserved = NULL;
