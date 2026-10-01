@@ -114,12 +114,9 @@ static void release_shmid(int shmid)
     shm_heapowners[shmid] = NULL;
 }
 
-static void release_all_shmids(const addrbank *keep)
+static void release_all_shmids(void)
 {
     for (int i = 0; i < MAX_SHMID; i++) {
-        if (keep && shm_heapowners[i] == keep && shmids[i].attached) {
-            continue;
-        }
         release_shmid(i);
     }
 }
@@ -199,17 +196,15 @@ bool init_shm(void)
     natmem_reserved = NULL;
     natmem_offset = NULL;
     natmem_reserved_size = 0;
-    // Every reset comes here, but the UAE Boot ROM (rtarea) is allocated
-    // once, by virtualdevice_init(): keep it, or expamem_reset() writes
-    // through a NULL rtarea_bank.baseaddr. release_shmid() clears what it
-    // frees.
-    release_all_shmids(&rtarea_bank);
+    // Resets reuse loaded ROMs unless the core explicitly reloads them.
+    // Keep their storage and protection records until mapped_free() or
+    // final shutdown releases them.
     return true;
 }
 
 void free_shm(void)
 {
-    release_all_shmids(NULL);
+    release_all_shmids();
 }
 
 bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
