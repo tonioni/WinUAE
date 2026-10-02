@@ -14,9 +14,7 @@
 
 #include "traps.h"
 
-#define UAEMAJOR 6
-#define UAEMINOR 1
-#define UAESUBREV 0
+#include "winuae_version.h"
 
 #define MAX_AMIGADISPLAYS 4
 
