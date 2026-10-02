@@ -19,7 +19,7 @@ static int unix_avi_audio_codec = AVIAUDIO_AVI;
 #include "savestate.h"
 #include "sound_unix.h"
 #include "uaeserial_unix.h"
-#include "winuae_builddate.h"
+#include "winuae_version.h"
 #ifdef WITH_MIDI
 #include "midi.h"
 #endif

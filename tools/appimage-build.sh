@@ -98,7 +98,7 @@ fi
 read_version_field() {
     local macro="$1"
     sed -n "s/^#define ${macro}[[:space:]]\\+\\([0-9]\\+\\).*/\\1/p" \
-        "${source_dir}/include/options.h" | head -n1
+        "${source_dir}/include/winuae_version.h" | head -n1
 }
 version_major="$(read_version_field UAEMAJOR)"
 version_minor="$(read_version_field UAEMINOR)"
