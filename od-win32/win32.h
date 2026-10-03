@@ -10,27 +10,10 @@
 #ifndef __WIN32_H__
 #define __WIN32_H__
 
-#include "winuae_builddate.h"
+#include "winuae_version.h"
 
-#define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 #define LANG_DLL_FULL_VERSION_MATCH 1
-
-#if WINUAEPUBLICBETA
-#define WINUAEBETA _T("16")
-#else
-#define WINUAEBETA _T("")
-#endif
-
-//#define WINUAEEXTRA _T("AmiKit Preview")
-//#define WINUAEEXTRA _T("Amiga Forever Edition")
-
-#ifndef WINUAEEXTRA
-#define WINUAEEXTRA _T("")
-#endif
-#ifndef WINUAEREV
-#define WINUAEREV _T("")
-#endif
 
 #define IHF_WINDOWHIDDEN 6
 #define WINUAEAPPNAME _T("Arabuusimiehet.WinUAE")
