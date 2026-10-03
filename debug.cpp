@@ -495,6 +495,7 @@ int debug_safe_addr (uaecptr addr, int size)
 			else
 				addr = mmu030_translate (addr, regs.s != 0, (debug_mmu_mode & 1), false);
 		} CATCH(p) {
+			regs.s = olds;
 			STOPTRY;
 			return 0;
 		} ENDTRY
