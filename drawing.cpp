@@ -39,7 +39,7 @@
 #include "devices.h"
 #include "gfxboard.h"
 
-#define ENABLE_MULTITHREADED_DENISE 1
+#define ENABLE_MULTITHREADED_DENISE 0
 
 extern int multithread_enabled;
 #define MULTITHREADED_DENISE (ENABLE_MULTITHREADED_DENISE && multithread_enabled != 0)
@@ -1120,9 +1120,9 @@ int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hr
 	if (w <= 0 || h <= 0 || dx < 0 || dy < 0)
 		return ret;
 	if (doublescan <= 0 && programmedmode != 1) {
-		if (dx > vidinfo->inbuffer->inwidth / 2)
+		if (dx >= vidinfo->inbuffer->inwidth)
 			return ret;
-		if (dy > vidinfo->inbuffer->inheight / 2)
+		if (dy >= vidinfo->inbuffer->inheight)
 			return ret;
 	}
 
