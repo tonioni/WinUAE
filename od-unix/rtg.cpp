@@ -799,31 +799,30 @@ static uae_u8 unix_picasso_blit_op(uae_u8 src, uae_u8 dst, BLIT_OPCODE op)
     }
 }
 
+/* Masks are expressed in guest pixel byte order, matching load_pen and
+ * store_pen. The Windows table instead describes native little-endian loads. */
 static uae_u32 unix_picasso_rgb_full_mask(uae_u32 rgbfmt)
 {
-    static const uae_u32 masks[] = {
-        0x00000000,
-        0xffffffff,
-        0x00ffffff,
-        0x00ffffff,
-        0xffffffff,
-        0x7fff7fff,
-        0xffffff00,
-        0xffffff00,
-        0x00ffffff,
-        0x00ffffff,
-        0xffffffff,
-        0xff7fff7f,
-        0xffffffff,
-        0x7fff7fff,
-        0xffffffff,
-        0xffffffff
-    };
-
-    if (rgbfmt < sizeof masks / sizeof masks[0]) {
-        return masks[rgbfmt];
+    switch (rgbfmt) {
+    case RGBFB_R5G5B5PC:
+    case RGBFB_B5G5R5PC:
+        return 0xff7f;
+    case RGBFB_R5G5B5:
+        return 0x7fff;
+    case RGBFB_A8R8G8B8:
+    case RGBFB_A8B8G8R8:
+        return 0x00ffffff;
+    case RGBFB_R8G8B8A8:
+    case RGBFB_B8G8R8A8:
+        return 0xffffff00;
+    case RGBFB_R8G8B8:
+    case RGBFB_B8G8R8:
+        return 0x00ffffff;
+    case RGBFB_NONE:
+        return 0;
+    default:
+        return 0xffffffff;
     }
-    return 0xffffffff;
 }
 
 static void unix_picasso_xor_pixel(uae_u8 *dst, int bytes_per_pixel, uae_u32 rgbfmt, uae_u8 mask)
@@ -891,6 +890,8 @@ static uae_u32 unix_picasso_blit_op_long(uae_u32 src, uae_u32 src_inv, uae_u32 d
         return dst;
     case BLIT_NOTONLYSRC:
         return src_inv | dst;
+    case BLIT_SRC:
+        return src;
     case BLIT_NOTONLYDST:
         return dst_inv | src;
     case BLIT_OR:
@@ -1893,7 +1894,7 @@ static uae_u32 REGPARAM2 unix_picasso_blit_planar2direct(TrapContext *ctx)
         for (uae_u32 col = 0; col < width; col++, dstrow += bytes_per_pixel) {
             uae_u8 value = unix_picasso_planar_pixel(ctx, &bitmap, srcx + col, srcy + row) & depthmask;
             uae_u8 inverted_value = (value ^ mask) & depthmask;
-            uae_u32 src = unix_picasso_cim_color(ctx, cim, value);
+            uae_u32 src = unix_picasso_cim_color(ctx, cim, value & mask);
             uae_u32 src_inv = unix_picasso_cim_color(ctx, cim, inverted_value);
             uae_u32 olddst = unix_picasso_load_pen(dstrow, bytes_per_pixel);
             uae_u32 out;
