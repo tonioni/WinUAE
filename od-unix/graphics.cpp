@@ -501,6 +501,7 @@ void InitPicasso96(int monid)
     memset(&picasso96_state[monid], 0, sizeof picasso96_state[monid]);
     memset(&picasso_vidinfo[monid], 0, sizeof picasso_vidinfo[monid]);
     unix_rtg_render_has_output[monid] = false;
+    picasso_vidinfo[monid].splitypos = -1;
     picasso_vidinfo[monid].rgbformat = RGBFB_B8G8R8A8;
     picasso_vidinfo[monid].selected_rgbformat = RGBFB_B8G8R8A8;
     picasso_vidinfo[monid].host_mode = RGBFB_B8G8R8A8;
@@ -1037,6 +1038,26 @@ static bool unix_rtg_submit_render_job(int monid, const uae_u8 *srcbase, int wid
     return true;
 }
 
+// The lower screen starts at VRAM base, independently of upper-screen panning.
+static bool unix_picasso_scanout_offset(uae_u32 pan, int split, int y,
+    int pitch, int rowbytes, uae_u32 size, uae_u32 *offset)
+{
+    if (y < 0 || pitch <= 0 || rowbytes <= 0) {
+        return false;
+    }
+    uae_u64 start = pan;
+    if (split >= 0 && y >= split) {
+        start = 0;
+        y -= split;
+    }
+    start += (uae_u64)y * pitch;
+    if (start + rowbytes > size) {
+        return false;
+    }
+    *offset = (uae_u32)start;
+    return true;
+}
+
 static void unix_picasso_render(int monid)
 {
     if (monid < 0 || monid >= MAX_AMIGAMONITORS || !unix_picasso_ensure_buffer(monid)) {
@@ -1058,12 +1079,46 @@ static void unix_picasso_render(int monid)
     }
 
     uae_u32 offset = (uae_u32)state->XYOffset - bank->start;
-    uae_u32 needed = offset + (state->Height - 1) * state->BytesPerRow + state->Width * srcpixbytes;
-    if (needed > bank->allocated_size) {
+    uae_u64 needed = (uae_u64)offset + (state->Height - 1) *
+        (uae_u64)state->BytesPerRow + state->Width * srcpixbytes;
+    if (pvidinfo->splitypos < 0 && needed > bank->allocated_size) {
         return;
     }
 
     alloc_colors_picasso(8, 8, 8, 16, 8, 0, (RGBFTYPE)state->RGBFormat, p96_rgbx16);
+    if (pvidinfo->splitypos >= 0) {
+        // Drain old unsplit frames before drawing a live, split VRAM view.
+        if (unix_rtg_render_thread.joinable()) {
+            unix_rtg_stop_render_thread();
+        }
+        RGBFTYPE format = (RGBFTYPE)state->RGBFormat;
+        for (int y = 0; y < state->Height; y++) {
+            bool lower = y >= pvidinfo->splitypos;
+            RGBFTYPE rowformat = (RGBFTYPE)pvidinfo->dacrgbformat[lower ? 1 : 0];
+            if (!state->advDragging || !unix_picasso_bytes_per_pixel(rowformat)) {
+                rowformat = (RGBFTYPE)state->RGBFormat;
+            }
+            if (format != rowformat) {
+                format = rowformat;
+                alloc_colors_picasso(8, 8, 8, 16, 8, 0, format, p96_rgbx16);
+            }
+            int bpp = unix_picasso_bytes_per_pixel(format);
+            int pitch = state->BytesPerRow * bpp / srcpixbytes;
+            uae_u8 *dst = vb->bufmem + y * vb->rowbytes;
+            uae_u32 rowoffset;
+            if (unix_picasso_scanout_offset(offset, pvidinfo->splitypos, y,
+                    pitch, state->Width * bpp, bank->allocated_size, &rowoffset)) {
+                unix_picasso_render_pixels(bank->baseaddr + rowoffset, state->Width,
+                    1, pitch, bpp, format, pvidinfo->clut, dst, vb->rowbytes);
+            } else {
+                memset(dst, 0, state->Width * sizeof(uae_u32));
+            }
+        }
+        unix_rtg_overlay_sprite(monid, (uae_u32 *)vb->bufmem, state->Width,
+            state->Height, vb->rowbytes / sizeof(uae_u32));
+        unix_rtg_render_has_output[monid] = true;
+        return;
+    }
     const uae_u8 *srcbase = bank->baseaddr + offset;
     if (currprefs.rtg_multithread) {
         bool collected = unix_rtg_collect_render_result(monid, vb);

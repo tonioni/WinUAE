@@ -11,7 +11,7 @@ import sys
 root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[1]
 source = (root / 'od-unix/rtg.cpp').read_text()
 
-def function(name):
+def function(name, source=source):
     start = source.rfind('\n', 0, source.index(name + '(')) + 1
     end = source.index('{', start)
     depth = 1
@@ -32,6 +32,7 @@ program = '''
 using uae_u8 = uint8_t;
 using uae_u16 = uint16_t;
 using uae_u32 = uint32_t;
+using uae_u64 = uint64_t;
 #include "rtgmodes.h"
 static uint32_t do_get_mem_long(const uint32_t *p) { const uint8_t *b=(const uint8_t*)p;return uint32_t(b[0])<<24|uint32_t(b[1])<<16|uint32_t(b[2])<<8|b[3]; }
 static uint16_t do_get_mem_word(const uint16_t *p) { const uint8_t *b=(const uint8_t*)p;return b[0]<<8|b[1]; }
@@ -39,8 +40,17 @@ static void do_put_mem_long(uint32_t *p,uint32_t v) { uint8_t *b=(uint8_t*)p;for
 static void do_put_mem_word(uint16_t *p,uint16_t v) { uint8_t *b=(uint8_t*)p;b[0]=v>>8;b[1]=v; }
 ''' + enum + '\n' + ''.join(function(n) for n in (
     'unix_picasso_blit_op', 'unix_picasso_blit_op_long', 'unix_picasso_rgb_full_mask',
-    'unix_picasso_load_pen', 'unix_picasso_store_pen', 'unix_picasso_blit_pixels')) + r'''
+    'unix_picasso_load_pen', 'unix_picasso_store_pen', 'unix_picasso_blit_pixels')) + function(
+    'unix_picasso_scanout_offset', (root / 'od-unix/graphics.cpp').read_text()) + r'''
 int main() {
+    uint32_t offset;
+    assert(unix_picasso_scanout_offset(100, 2, 1, 20, 16, 200, &offset) && offset==120);
+    assert(unix_picasso_scanout_offset(100, 2, 2, 20, 16, 200, &offset) && offset==0);
+    assert(unix_picasso_scanout_offset(100, 0, 1, 20, 16, 200, &offset) && offset==20);
+    assert(unix_picasso_scanout_offset(100, -1, 2, 20, 16, 200, &offset) && offset==140);
+    assert(!unix_picasso_scanout_offset(190, -1, 0, 20, 16, 200, &offset));
+    assert(!unix_picasso_scanout_offset(0xfffffff0, -1, 1, 32, 16, 200, &offset));
+    assert(unix_picasso_scanout_offset(190, 1, 1, 20, 16, 200, &offset) && offset==0);
     for (unsigned op=0;op<16;op++) for (unsigned s=0;s<256;s++) for (unsigned d=0;d<256;d++) {
         unsigned expected=0;
         for (unsigned bit=0;bit<8;bit++) {

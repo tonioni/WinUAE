@@ -399,6 +399,7 @@ enum {
 #define UNIX_BIF_GRANTDIRECTACCESS (1 << UNIX_BIB_GRANTDIRECTACCESS)
 #define UNIX_BIB_VBLANKINTERRUPT 4
 #define UNIX_BIF_VBLANKINTERRUPT (1 << UNIX_BIB_VBLANKINTERRUPT)
+#define UNIX_BIF_VGASCREENSPLIT (1 << 6)
 #define UNIX_BIB_DACSWITCH 28
 #define UNIX_BIF_DACSWITCH (1 << UNIX_BIB_DACSWITCH)
 
@@ -466,6 +467,22 @@ enum {
 #define UNIX_PSSO_BoardInfo_SetSpritePosition (UNIX_PSSO_BoardInfo_SetSprite + 4)
 #define UNIX_PSSO_BoardInfo_SetSpriteImage (UNIX_PSSO_BoardInfo_SetSpritePosition + 4)
 #define UNIX_PSSO_BoardInfo_SetSpriteColor (UNIX_PSSO_BoardInfo_SetSpriteImage + 4)
+
+#define PSSO_BoardInfo_ChipData			    PSSO_BoardInfo_MouseSaveBuffer + 4
+#define PSSO_BoardInfo_CardData			    PSSO_BoardInfo_ChipData + 16 * 4
+#define PSSO_BoardInfo_MemorySpaceBase		PSSO_BoardInfo_CardData + 16 * 4
+#define PSSO_BoardInfo_MemorySpaceSize		PSSO_BoardInfo_MemorySpaceBase + 4
+#define PSSO_BoardInfo_DoubleBufferList		PSSO_BoardInfo_MemorySpaceSize + 4
+#define PSSO_BoardInfo_SyncTime			    PSSO_BoardInfo_DoubleBufferList + 4
+#define PSSO_BoardInfo_SyncPeriod		    PSSO_BoardInfo_SyncTime + 8
+#define PSSO_BoardInfo_SoftVBlankPort		PSSO_BoardInfo_SyncPeriod + 4
+#define PSSO_BoardInfo_WaitQ                PSSO_BoardInfo_SoftVBlankPort + 34
+#define PSSO_BoardInfo_EssentialFormats     PSSO_BoardInfo_WaitQ + 3 * 4
+#define PSSO_BoardInfo_MouseImageBuffer     PSSO_BoardInfo_EssentialFormats + 4
+#define PSSO_BoardInfo_BackViewPort         PSSO_BoardInfo_MouseImageBuffer + 4
+#define PSSO_BoardInfo_BackBitMap           PSSO_BoardInfo_BackViewPort + 4
+#define PSSO_BoardInfo_BackBitMapExtra      PSSO_BoardInfo_BackBitMap + 4
+#define PSSO_BoardInfo_YSplit               PSSO_BoardInfo_BackBitMapExtra + 4
 
 #define UNIX_RTG_CURSOR_MAXWIDTH 256
 #define UNIX_RTG_CURSOR_MAXHEIGHT 256
@@ -1214,6 +1231,16 @@ static uae_u32 REGPARAM2 unix_picasso_set_color_array(TrapContext *ctx)
             state->CLUT[start + i].Blue;
     }
     vidinfo->full_refresh = 1;
+    return 1;
+}
+
+static uae_u32 REGPARAM2 unix_picasso_set_split_position(TrapContext *ctx)
+{
+    int monid = currprefs.rtgboards[0].monitor_id;
+    int pos = (uae_s16)trap_get_dreg(ctx, 0);
+    trap_put_word(ctx, trap_get_areg(ctx, 0) + PSSO_BoardInfo_YSplit, pos);
+    picasso_vidinfo[monid].splitypos = pos - 1;
+    picasso_vidinfo[monid].full_refresh = 1;
     return 1;
 }
 
@@ -2249,6 +2276,9 @@ static void unix_picasso_init_board(TrapContext *ctx, uaecptr board_info)
 
     flags &= 0xffff0000;
     flags |= BIF_BLITTER | BIF_NOMEMORYMODEMIX | BIF_INDISPLAYCHAIN | UNIX_BIF_GRANTDIRECTACCESS;
+    if (currprefs.rtg_vgascreensplit && !unix_uaegfx_old) {
+        flags |= UNIX_BIF_VGASCREENSPLIT;
+    }
     if (currprefs.rtg_dacswitch) {
         flags |= UNIX_BIF_DACSWITCH;
     }
@@ -2391,6 +2421,9 @@ static void unix_init_uaegfx_funcs(TrapContext *ctx, uaecptr start, uaecptr ABI)
     UNIX_RTGCALLDEFAULT(UNIX_PSSO_BoardInfo_UpdatePlanar, UNIX_PSSO_BoardInfo_UpdatePlanarDefault);
     UNIX_RTGCALLDEFAULT(UNIX_PSSO_BoardInfo_DrawLine, UNIX_PSSO_BoardInfo_DrawLineDefault);
 
+    if (currprefs.rtg_vgascreensplit) {
+        UNIX_RTGCALL2(UNIX_PSSO_SetSplitPosition, unix_picasso_set_split_position);
+    }
     if (currprefs.rtg_dacswitch) {
         UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_GetCompatibleDACFormats, unix_picasso_get_compatible_dac_formats);
         UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_CoerceMode, unix_picasso_coerce_mode);
@@ -2415,6 +2448,10 @@ void restore_p96_finish(void)
 
     if (unix_uaegfx_rom && unix_picasso_boardinfo) {
         unix_init_uaegfx_funcs(NULL, unix_uaegfx_rom, unix_picasso_boardinfo);
+        if (currprefs.rtg_vgascreensplit) {
+            vidinfo->splitypos = (uae_s16)trap_get_word(NULL,
+                unix_picasso_boardinfo + PSSO_BoardInfo_YSplit) - 1;
+        }
         ad->picasso_requested_on = (unix_p96_restored_flags & 1) != 0;
         vidinfo->picasso_active = ad->picasso_requested_on;
         atomic_or(&vidinfo->picasso_state_change, UNIX_PICASSO_STATE_SETGC |
