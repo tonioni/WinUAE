@@ -39,7 +39,7 @@
 #include "devices.h"
 #include "gfxboard.h"
 
-#define ENABLE_MULTITHREADED_DENISE 0
+#define ENABLE_MULTITHREADED_DENISE 1
 
 extern int multithread_enabled;
 #define MULTITHREADED_DENISE (ENABLE_MULTITHREADED_DENISE && multithread_enabled != 0)
