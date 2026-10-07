@@ -55,7 +55,8 @@ typedef enum {
     BLIT_NOTONLYDST,
     BLIT_OR,
     BLIT_TRUE,
-    BLIT_LAST
+    BLIT_LAST,
+    BLIT_SWAP = 30
 } BLIT_OPCODE;
 
 /************************************************************************/

@@ -330,6 +330,7 @@ option(WINUAE_UNIX_WITH_MIDIEMU "Build Munt MT-32/CM-32L MIDI emulation when mt3
 option(WINUAE_UNIX_WITH_CPUBOARD "Build shared non-PPC CPU accelerator board support" ON)
 option(WINUAE_UNIX_WITH_PPC_QEMU "Build Unix PPC accelerator support through the qemu-uae plugin ABI" ON)
 option(WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN "Build the sibling qemu-uae plugin for Unix packaging" ON)
+option(WINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN "Use a separately installed QEMU-UAE plugin without building or bundling it" OFF)
 option(WINUAE_UNIX_WITH_DSP "Build shared DSP3210 accelerator support" ON)
 option(WINUAE_UNIX_WITH_AVIOUTPUT "Build Unix screenshot and video/audio capture output support" ON)
 option(WINUAE_UNIX_WITH_VIDEOGRAB "Build Unix genlock video/camera frame input support" ON)
@@ -2174,6 +2175,7 @@ if(UNIX AND NOT APPLE)
 endif()
 if(UNIX
     AND WINUAE_UNIX_WITH_PPC_QEMU
+    AND NOT WINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN
     AND WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN
     AND NOT WINUAE_QEMU_UAE_PLUGIN_FILE)
     if(EXISTS "${WINUAE_QEMU_UAE_SOURCE_DIR}/configure-qemu-uae")
@@ -2224,7 +2226,10 @@ if(UNIX
     endif()
 endif()
 
-if(UNIX AND WINUAE_UNIX_WITH_PPC_QEMU)
+if(UNIX AND WINUAE_UNIX_WITH_PPC_QEMU AND WINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN)
+    message(STATUS "QEMU-UAE plugin: supplied at runtime by an external package")
+endif()
+if(UNIX AND WINUAE_UNIX_WITH_PPC_QEMU AND NOT WINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN)
     if(WINUAE_QEMU_UAE_PLUGIN_FILE)
         if(NOT EXISTS "${WINUAE_QEMU_UAE_PLUGIN_PATH}")
             message(FATAL_ERROR
@@ -2241,7 +2246,9 @@ if(UNIX AND WINUAE_UNIX_WITH_PPC_QEMU)
             "  -DWINUAE_QEMU_UAE_BUILDER_DIR=/path/to/uae-ppc-plugin (builder checkout; "
             "offline builds also want -DWINUAE_QEMU_UAE_QEMU_TARBALL=/path/to/qemu-11.0.1.tar.xz)\n"
             "  -DWINUAE_QEMU_UAE_BUILDER_FETCH=ON to clone ${WINUAE_QEMU_UAE_BUILDER_URL} at build time\n"
-            "  a qemu-uae source tree at ${WINUAE_QEMU_UAE_SOURCE_DIR}")
+            "  a qemu-uae source tree at ${WINUAE_QEMU_UAE_SOURCE_DIR}\n"
+            "Or use -DWINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN=ON when a separate "
+            "package supplies the plugin at runtime.")
     endif()
     set(WINUAE_UNIX_QEMU_UAE_PACKAGE_CHECK_DEPS)
     if(TARGET winuae_unix_qemu_uae_plugin)
@@ -2338,7 +2345,7 @@ if(TARGET winuae_unix AND NOT APPLE)
     install(DIRECTORY od-unix/share/filter-presets/
         DESTINATION "${CMAKE_INSTALL_DATADIR}/winuae/od-unix/share/filter-presets"
     )
-    if(WINUAE_UNIX_WITH_PPC_QEMU)
+    if(WINUAE_UNIX_WITH_PPC_QEMU AND NOT WINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN)
         install(FILES "${WINUAE_QEMU_UAE_PLUGIN_PATH}"
             DESTINATION "${WINUAE_UNIX_INSTALL_PLUGINDIR_RELATIVE}"
         )
@@ -2390,6 +2397,7 @@ if(APPLE AND TARGET winuae_unix)
         COMMAND "${CMAKE_COMMAND}" -E env
             "WINUAE_BUNDLE_REQUIRE_FFMPEG=$<BOOL:${WINUAE_UNIX_ENABLE_FFMPEG}>"
             "WINUAE_QEMU_UAE_PLUGIN=${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            "WINUAE_BUNDLE_QEMU_UAE_PLUGIN=$<NOT:$<BOOL:${WINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN}>>"
             "WINUAE_FLOPPYBRIDGE_PLUGIN=${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}"
             "WINUAE_BUNDLE_REQUIRE_FLOPPYBRIDGE=$<BOOL:${WINUAE_UNIX_WITH_FLOPPYBRIDGE}>"
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/macos-bundle.sh" "${CMAKE_BINARY_DIR}" "${CMAKE_BINARY_DIR}/package"
@@ -2401,6 +2409,7 @@ if(APPLE AND TARGET winuae_unix)
         COMMAND "${CMAKE_COMMAND}" -E env
             "WINUAE_BUNDLE_REQUIRE_FFMPEG=$<BOOL:${WINUAE_UNIX_ENABLE_FFMPEG}>"
             "WINUAE_QEMU_UAE_PLUGIN=${WINUAE_QEMU_UAE_PLUGIN_PATH}"
+            "WINUAE_BUNDLE_QEMU_UAE_PLUGIN=$<NOT:$<BOOL:${WINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN}>>"
             "WINUAE_FLOPPYBRIDGE_PLUGIN=${WINUAE_FLOPPYBRIDGE_PLUGIN_PATH}"
             "WINUAE_BUNDLE_REQUIRE_FLOPPYBRIDGE=$<BOOL:${WINUAE_UNIX_WITH_FLOPPYBRIDGE}>"
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/macos-dmg.sh" "${CMAKE_BINARY_DIR}" "${CMAKE_BINARY_DIR}/package"

@@ -24,6 +24,9 @@ Environment:
   WINUAE_CODESIGN_ENTITLEMENTS
                               Optional entitlements plist passed to codesign.
   WINUAE_QEMU_UAE_PLUGIN      Optional qemu-uae.so path to copy into
+                              Contents/PlugIns.
+  WINUAE_BUNDLE_QEMU_UAE_PLUGIN
+                              Set to 0 when a separate package supplies it.
   WINUAE_FLOPPYBRIDGE_PLUGIN  Optional FloppyBridge.so path to copy into
   WINUAE_BUNDLE_REQUIRE_FLOPPYBRIDGE
                                 Set to 0 when FloppyBridge support is disabled
@@ -334,6 +337,9 @@ do
 done
 
 copy_qemu_uae_plugin() {
+    if [[ "${WINUAE_BUNDLE_QEMU_UAE_PLUGIN:-1}" != "1" ]]; then
+        return
+    fi
     if [[ -n "${qemu_uae_plugin}" ]]; then
         mkdir -p "${contents_dir}/PlugIns"
         cp "${qemu_uae_plugin}" "${contents_dir}/PlugIns/qemu-uae.so"

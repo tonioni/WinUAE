@@ -101,12 +101,14 @@ fi
 
 echo
 echo "Built Debian package:"
-ppc_qemu_enabled=false
+ppc_qemu_bundled=false
 drive_sounds_enabled=false
 floppybridge_enabled=false
 if grep -Eq '^WINUAE_UNIX_WITH_PPC_QEMU:BOOL=(ON|TRUE|1)$' \
-    "${build_dir}/CMakeCache.txt"; then
-    ppc_qemu_enabled=true
+    "${build_dir}/CMakeCache.txt" &&
+    ! grep -Eq '^WINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN:BOOL=(ON|TRUE|1)$' \
+        "${build_dir}/CMakeCache.txt"; then
+    ppc_qemu_bundled=true
 fi
 if grep -Eq '^WINUAE_UNIX_BUNDLE_DRIVE_SOUNDS:BOOL=(ON|TRUE|1)$' \
     "${build_dir}/CMakeCache.txt"; then
@@ -129,7 +131,7 @@ for deb in "${debs[@]}"; do
         echo "error: package should not install /usr/bin/winuae_unix" >&2
         exit 1
     fi
-    if [[ "${ppc_qemu_enabled}" == true ]]; then
+    if [[ "${ppc_qemu_bundled}" == true ]]; then
         if ! grep -Eq ' \./usr/lib.*/winuae/plugins/qemu-uae\.so$' <<<"${contents}"; then
             echo "error: package does not contain qemu-uae.so" >&2
             exit 1

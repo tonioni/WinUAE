@@ -10,6 +10,7 @@
 #include "options.h"
 #include "memory.h"
 #include "picasso96.h"
+#include "rtg_overlay.h"
 #include "uae.h"
 #include "video.h"
 #include "host.h"
@@ -501,6 +502,7 @@ void InitPicasso96(int monid)
     memset(&picasso96_state[monid], 0, sizeof picasso96_state[monid]);
     memset(&picasso_vidinfo[monid], 0, sizeof picasso_vidinfo[monid]);
     unix_rtg_render_has_output[monid] = false;
+    picasso_vidinfo[monid].splitypos = -1;
     picasso_vidinfo[monid].rgbformat = RGBFB_B8G8R8A8;
     picasso_vidinfo[monid].selected_rgbformat = RGBFB_B8G8R8A8;
     picasso_vidinfo[monid].host_mode = RGBFB_B8G8R8A8;
@@ -735,7 +737,10 @@ static uae_u32 unix_picasso_convert_scaled_pixel(const uae_u8 *src, int x, int s
             ((uae_u32)src[x] << 16));
     case RGBFB_Y4U2V2_32:
     {
-        uae_u32 val = do_get_mem_long((uae_u32 *)(src + x * 4));
+        // P96 memory windows use the Windows driver's packed word order.
+        const uae_u8 *packet = src + x * 4;
+        uae_u32 val = packet[0] | ((uae_u32)packet[1] << 8) |
+            ((uae_u32)packet[2] << 16) | ((uae_u32)packet[3] << 24);
         if (yuv_swap) {
             val = ((val & 0xff00ff00) >> 8) | ((val & 0x00ff00ff) << 8);
         }
@@ -747,17 +752,17 @@ static uae_u32 unix_picasso_convert_scaled_pixel(const uae_u8 *src, int x, int s
     }
     case RGBFB_Y4U1V1_32:
     {
-        uae_u32 val = do_get_mem_long((uae_u32 *)(src + x * 4));
-        if (yuv_swap) {
-            val = ((val & 0xff00ff00) >> 8) | ((val & 0x00ff00ff) << 8);
-        }
-        uae_u8 y[4] = {
-            (uae_u8)(val >> 24), (uae_u8)(val >> 18),
-            (uae_u8)(val >> 12), (uae_u8)(val >> 6)
-        };
-        uae_u8 u = (uae_u8)((val >> 3) & 7);
-        uae_u8 v = (uae_u8)(val & 7);
-        uae_u16 rgb = unix_yuv_to_rgb16(y[(sxfrac >> 6) & 3], u << 5, v << 5);
+        // P96 memory windows use the Windows driver's packed word order.
+        const uae_u8 *packet = src + x * 4;
+        uae_u32 val = packet[0] | ((uae_u32)packet[1] << 8) |
+            ((uae_u32)packet[2] << 16) | ((uae_u32)packet[3] << 24);
+        // ACCUPAK: four 5-bit luma samples and two 6-bit chroma samples.
+        // Unlike YUV422, the packed word is not byte-swapped.
+        int sample = (sxfrac >> 6) & 3;
+        uae_u8 y = ((val >> (12 + sample * 5)) & 31) * 8;
+        uae_u8 u = (val & 63) * 4;
+        uae_u8 v = ((val >> 6) & 63) * 4;
+        uae_u16 rgb = unix_yuv_to_rgb16(y, u, v);
         return rgbx16 ? rgbx16[rgb] : 0xff000000;
     }
     default:
@@ -1037,6 +1042,84 @@ static bool unix_rtg_submit_render_job(int monid, const uae_u8 *srcbase, int wid
     return true;
 }
 
+// Convert one scaled overlay row. Compare the key in guest byte order so
+// alpha bytes and duplicate CLUT entries retain their original key semantics.
+static void unix_picasso_overlay_pixels(const uae_u8 *src, uae_u32 *dst,
+    const uae_u8 *screen, int screenwidth, int screenbpp, int left, int width,
+    int sourcewidth, int convert, const uae_u32 *rgbx16, const uae_u32 *clut,
+    bool occlusion, uae_u32 color)
+{
+    if (width <= 0 || sourcewidth <= 0) {
+        return;
+    }
+    int first = left > 0 ? left : 0;
+    uae_s64 right = (uae_s64)left + width;
+    int end = right < screenwidth ? (int)right : screenwidth;
+    for (int x = first; x < end; x++) {
+        if (occlusion) {
+            uae_u32 pixel = 0;
+            for (int b = 0; b < screenbpp; b++) {
+                pixel = (pixel << 8) | screen[x * screenbpp + b];
+            }
+            uae_u32 mask = screenbpp == 4 ? 0xffffffff : (1u << (screenbpp * 8)) - 1;
+            if (pixel != (color & mask)) {
+                continue;
+            }
+        }
+        int sx = (int)(((uae_s64)x - left) * sourcewidth / width);
+        int fraction = 0;
+        if (convert == RGBFB_Y4U2V2_32) {
+            fraction = (sx & 1) * 128;
+            sx /= 2;
+        } else if (convert == RGBFB_Y4U1V1_32) {
+            fraction = (sx & 3) * 64;
+            sx /= 4;
+        }
+        dst[x] = unix_picasso_convert_scaled_pixel(src, sx, fraction,
+            convert, rgbx16, clut, true);
+    }
+}
+
+static const uae_u8 *unix_picasso_overlay_source(const unix_rtg_overlay_state *o,
+    const addrbank *bank)
+{
+    if (!o || !bank || !bank->baseaddr || o->vram < bank->start ||
+        o->source_width <= 0 || o->source_width > 4096 ||
+        o->source_height <= 0 || o->source_height > o->rows ||
+        o->source_height > 4096 || o->pitch <= 0) {
+        return NULL;
+    }
+    int bpp = unix_picasso_bytes_per_pixel((RGBFTYPE)o->format);
+    int group = o->format == RGBFB_Y4U2V2 ? 2 : o->format == RGBFB_Y4U1V1 ? 4 : 1;
+    int rowbytes = (o->source_width + group - 1) / group * group * bpp;
+    uae_u64 end = (uae_u64)(o->vram - bank->start) +
+        (uae_u64)(o->source_height - 1) * o->pitch + rowbytes;
+    if (!bpp || rowbytes > o->pitch || end > bank->allocated_size) {
+        return NULL;
+    }
+    return bank->baseaddr + (o->vram - bank->start);
+}
+
+// The lower screen starts at VRAM base, independently of upper-screen panning.
+static bool unix_picasso_scanout_offset(uae_u32 pan, int split, int y,
+    int pitch, int rowbytes, uae_u32 size, uae_u32 *offset)
+{
+    if (y < 0 || pitch <= 0 || rowbytes <= 0) {
+        return false;
+    }
+    uae_u64 start = pan;
+    if (split >= 0 && y >= split) {
+        start = 0;
+        y -= split;
+    }
+    start += (uae_u64)y * pitch;
+    if (start + rowbytes > size) {
+        return false;
+    }
+    *offset = (uae_u32)start;
+    return true;
+}
+
 static void unix_picasso_render(int monid)
 {
     if (monid < 0 || monid >= MAX_AMIGAMONITORS || !unix_picasso_ensure_buffer(monid)) {
@@ -1058,12 +1141,74 @@ static void unix_picasso_render(int monid)
     }
 
     uae_u32 offset = (uae_u32)state->XYOffset - bank->start;
-    uae_u32 needed = offset + (state->Height - 1) * state->BytesPerRow + state->Width * srcpixbytes;
-    if (needed > bank->allocated_size) {
+    uae_u64 needed = (uae_u64)offset + (state->Height - 1) *
+        (uae_u64)state->BytesPerRow + state->Width * srcpixbytes;
+    if (pvidinfo->splitypos < 0 && needed > bank->allocated_size) {
         return;
     }
 
     alloc_colors_picasso(8, 8, 8, 16, 8, 0, (RGBFTYPE)state->RGBFormat, p96_rgbx16);
+    const unix_rtg_overlay_state *overlay = unix_rtg_get_overlay(monid);
+    const uae_u8 *overlay_src = unix_picasso_overlay_source(overlay, bank);
+    if (pvidinfo->splitypos >= 0 || overlay_src) {
+        // Drain old frames before composing split screens or live overlay memory.
+        if (unix_rtg_render_thread.joinable()) {
+            unix_rtg_stop_render_thread();
+        }
+        static uae_u32 overlay_rgbx16[65536];
+        static int overlay_table_format = -1;
+        int overlay_convert = 0;
+        if (overlay_src) {
+            overlay_convert = getconvert(overlay->format);
+            int table_format = overlay->format;
+            if (table_format == RGBFB_Y4U2V2 || table_format == RGBFB_Y4U1V1) {
+                table_format = RGBFB_R5G5B5PC;
+            }
+            if (overlay_table_format != table_format) {
+                alloc_colors_picasso(8, 8, 8, 16, 8, 0, table_format, overlay_rgbx16);
+                overlay_table_format = table_format;
+            }
+        }
+        RGBFTYPE format = (RGBFTYPE)state->RGBFormat;
+        for (int y = 0; y < state->Height; y++) {
+            bool lower = pvidinfo->splitypos >= 0 && y >= pvidinfo->splitypos;
+            RGBFTYPE rowformat = (RGBFTYPE)pvidinfo->dacrgbformat[lower ? 1 : 0];
+            if (!state->advDragging || !unix_picasso_bytes_per_pixel(rowformat)) {
+                rowformat = (RGBFTYPE)state->RGBFormat;
+            }
+            if (format != rowformat) {
+                format = rowformat;
+                alloc_colors_picasso(8, 8, 8, 16, 8, 0, format, p96_rgbx16);
+            }
+            int bpp = unix_picasso_bytes_per_pixel(format);
+            int pitch = state->BytesPerRow * bpp / srcpixbytes;
+            uae_u8 *dst = vb->bufmem + y * vb->rowbytes;
+            uae_u32 rowoffset;
+            if (unix_picasso_scanout_offset(offset, pvidinfo->splitypos, y,
+                    pitch, state->Width * bpp, bank->allocated_size, &rowoffset)) {
+                unix_picasso_render_pixels(bank->baseaddr + rowoffset, state->Width,
+                    1, pitch, bpp, format, pvidinfo->clut, dst, vb->rowbytes);
+                if (overlay_src && overlay->height > 0) {
+                    int split = pvidinfo->splitypos >= 0 ? pvidinfo->splitypos : 0;
+                    uae_s64 oy = (uae_s64)y - overlay->y - split;
+                    if (oy >= 0 && oy < overlay->height) {
+                        int sy = (int)(oy * overlay->source_height / overlay->height);
+                        unix_picasso_overlay_pixels(overlay_src + sy * overlay->pitch,
+                            (uae_u32 *)dst, bank->baseaddr + rowoffset,
+                            state->Width, bpp, overlay->x, overlay->width,
+                            overlay->source_width, overlay_convert, overlay_rgbx16,
+                            overlay->clut, overlay->occlusion, overlay->color);
+                    }
+                }
+            } else {
+                memset(dst, 0, state->Width * sizeof(uae_u32));
+            }
+        }
+        unix_rtg_overlay_sprite(monid, (uae_u32 *)vb->bufmem, state->Width,
+            state->Height, vb->rowbytes / sizeof(uae_u32));
+        unix_rtg_render_has_output[monid] = true;
+        return;
+    }
     const uae_u8 *srcbase = bank->baseaddr + offset;
     if (currprefs.rtg_multithread) {
         bool collected = unix_rtg_collect_render_result(monid, vb);
