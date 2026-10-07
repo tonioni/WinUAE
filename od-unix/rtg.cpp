@@ -2721,7 +2721,7 @@ uae_u32 picasso_demux(uae_u32, TrapContext *ctx)
 {
     uae_u32 num = trap_get_long(ctx, trap_get_areg(ctx, 7) + 4);
 
-    if (unix_uaegfx_base && num >= 16 && num <= 39) {
+    if (unix_uaegfx_base && num >= 16 && num <= 40) {
         write_log(_T("Unix RTG: obsolete Picasso96 uaelib hook ignored\n"));
         return 0;
     }
@@ -2752,6 +2752,32 @@ uae_u32 picasso_demux(uae_u32, TrapContext *ctx)
         return unix_picasso_init_card(ctx);
     case 35:
         return gfxmem_bank.allocated_size ? 1 : 0;
+    case 17:
+        return unix_picasso_fill_rect(ctx);
+    case 24:
+        return unix_picasso_blit_planar2chunky(ctx);
+    case 25:
+        return unix_picasso_blit_rect(ctx);
+    case 27:
+        return unix_picasso_blit_template(ctx);
+    case 28:
+        return unix_picasso_blit_rect_no_mask_complete(ctx);
+    case 30:
+        return unix_picasso_blit_pattern(ctx);
+    case 31:
+        return unix_picasso_invert_rect(ctx);
+    case 32:
+        return unix_picasso_blit_planar2direct(ctx);
+    case 36:
+        return unix_picasso_set_sprite(ctx);
+    case 37:
+        return unix_picasso_set_sprite_position(ctx);
+    case 38:
+        return unix_picasso_set_sprite_image(ctx);
+    case 39:
+        return unix_picasso_set_sprite_color(ctx);
+    case 40:
+        return unix_picasso_blit_rect_transparent(ctx);
     default:
         return 0;
     }
