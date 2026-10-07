@@ -63,9 +63,9 @@ if [[ ! -x "${executable}" ]]; then
     exit 1
 fi
 
-major="$(awk '/^#define UAEMAJOR / { print $3; exit }' "${source_dir}/include/options.h")"
-minor="$(awk '/^#define UAEMINOR / { print $3; exit }' "${source_dir}/include/options.h")"
-revision="$(awk '/^#define UAESUBREV / { print $3; exit }' "${source_dir}/include/options.h")"
+major="$(awk '/^#define UAEMAJOR / { print $3; exit }' "${source_dir}/include/winuae_version.h")"
+minor="$(awk '/^#define UAEMINOR / { print $3; exit }' "${source_dir}/include/winuae_version.h")"
+revision="$(awk '/^#define UAESUBREV / { print $3; exit }' "${source_dir}/include/winuae_version.h")"
 version="${major:-0}.${minor:-0}.${revision:-0}"
 deployment_target="${WINUAE_MACOS_DEPLOYMENT_TARGET:-}"
 if [[ -z "${deployment_target}" && -f "${build_dir}/CMakeCache.txt" ]]; then

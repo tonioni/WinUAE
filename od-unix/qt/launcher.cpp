@@ -40,8 +40,9 @@
 #include "launcher.h"
 #include "mount_config.h"
 #include "path_utils.h"
+#include "tchar.h"
 #include "target.h"
-#include "winuae_builddate.h"
+#include "winuae_version.h"
 
 #ifndef WINUAE_UNIX_SOURCE_DIR
 #define WINUAE_UNIX_SOURCE_DIR "."

@@ -91,6 +91,7 @@ static uae_u32 s_status_bc[256];
 static bool s_status_colors_ready;
 static Uint8 s_status_click_button;
 static SDL_MouseButtonFlags s_suppressed_mouse_buttons;
+static int s_vsync_applied = -1;
 
 struct unix_pending_video_frame {
     std::vector<uae_u8> pixels;
@@ -101,6 +102,7 @@ struct unix_pending_video_frame {
     int filter_index;
     int monitor_id;
     int backbuffers;
+    bool vsync;
     bool valid;
 };
 
@@ -264,6 +266,7 @@ static void queue_video_frame_for_event_thread(const struct unix_video_frame *fr
     s_pending_frame.filter_index = frame->filter_index;
     s_pending_frame.monitor_id = frame->monitor_id;
     s_pending_frame.backbuffers = frame->backbuffers;
+    s_pending_frame.vsync = frame->vsync;
     s_pending_frame.valid = true;
 }
 
@@ -1176,6 +1179,7 @@ static bool unix_gl_ensure_context(int width, int height)
         return false;
     }
 
+    s_vsync_applied = -1;
     s_gl_context = SDL_GL_CreateContext(s_window);
     if (!s_gl_context) {
         write_log(_T("OpenGL shader pipeline: context creation failed: %s\n"), SDL_GetError());
@@ -1183,7 +1187,6 @@ static bool unix_gl_ensure_context(int width, int height)
         return false;
     }
     SDL_GL_MakeCurrent(s_window, s_gl_context);
-    SDL_GL_SetSwapInterval(1);
     if (!unix_gl_build_program()) {
         SDL_GL_DestroyContext(s_gl_context);
         s_gl_context = NULL;
@@ -1719,6 +1722,7 @@ bool unix_video_init(int width, int height, int pixbytes)
 #endif
 
     if (!s_renderer) {
+        s_vsync_applied = -1;
         s_renderer = SDL_CreateRenderer(s_window, NULL);
         if (!s_renderer) {
             s_renderer = SDL_CreateRenderer(s_window, "software");
@@ -1728,7 +1732,6 @@ bool unix_video_init(int width, int height, int pixbytes)
             s_available = false;
             return false;
         }
-        SDL_SetRenderVSync(s_renderer, 1);
         SDL_SetRenderDrawColor(s_renderer, 0, 0, 0, 255);
         SDL_RenderClear(s_renderer);
         SDL_RenderPresent(s_renderer);
@@ -1741,6 +1744,7 @@ bool unix_video_init(int width, int height, int pixbytes)
 
 void unix_video_shutdown(void)
 {
+    s_vsync_applied = -1;
     unix_input_release_keys();
     unix_video_set_mouse_grab(false);
 
@@ -1819,6 +1823,7 @@ static int unix_video_poll_internal(bool *quit_requested, bool input_events)
         frame.filter_index = pending.filter_index;
         frame.monitor_id = pending.monitor_id;
         frame.backbuffers = pending.backbuffers;
+        frame.vsync = pending.vsync;
         unix_video_present_on_event_thread(&frame);
         got = 1;
     }
@@ -1962,6 +1967,30 @@ int unix_video_poll_window_events(bool *quit_requested)
     return unix_video_poll_internal(quit_requested, false);
 }
 
+// Presenting with vsync forced on unconditionally caps emulation throughput
+// at the host refresh rate no matter how fast frames are produced, which
+// defeats warp mode (and ignores gfx_vsync=false). Keep the swap interval in
+// sync with the user's vsync preference, but always disable it while turbo
+// mode is active so warp mode isn't refresh-rate limited.
+static void unix_video_sync_vsync_state(const struct unix_video_frame *frame)
+{
+    const int wanted = frame->vsync ? 1 : 0;
+    if (s_vsync_applied == wanted) {
+        return;
+    }
+#ifdef WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE
+    if (s_gl_active) {
+        if (SDL_GL_SetSwapInterval(wanted)) {
+            s_vsync_applied = wanted;
+        }
+        return;
+    }
+#endif
+    if (s_renderer && SDL_SetRenderVSync(s_renderer, wanted)) {
+        s_vsync_applied = wanted;
+    }
+}
+
 static void unix_video_present_on_event_thread(const struct unix_video_frame *frame)
 {
     if (!frame || !frame->pixels || frame->width <= 0 || frame->height <= 0 || frame->rowbytes <= 0) {
@@ -1970,6 +1999,7 @@ static void unix_video_present_on_event_thread(const struct unix_video_frame *fr
     if (!unix_video_init(frame->width, frame->height, frame->pixbytes)) {
         return;
     }
+    unix_video_sync_vsync_state(frame);
     const struct gfx_filterdata *filter = filterdata_for_frame(frame);
     auto_resize_window_for_rtg(frame, filter);
 #ifdef WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE

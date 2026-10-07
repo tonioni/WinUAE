@@ -13,6 +13,7 @@ struct unix_video_frame
     int filter_index;
     int monitor_id;
     int backbuffers;
+    bool vsync;
 };
 
 struct unix_video_display_mode

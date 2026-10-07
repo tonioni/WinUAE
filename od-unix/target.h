@@ -4,11 +4,7 @@
 #define TARGET_NAME _T("unix")
 #define OPTIONSFILENAME _T("default.uae")
 
-/* Effective beta versioning mirrored from od-win32/win32.h (WINUAEBETA is
- * empty when upstream is not in a beta cycle). CMake fails the configure
- * when these drift from win32.h after an upstream rebase. */
-#define WINUAEPUBLICBETA 1
-#define WINUAEBETA "16"
+#include "winuae_version.h"
 
 #define TARGET_ROM_PATH _T("~/")
 #define TARGET_FLOPPY_PATH _T("~/")

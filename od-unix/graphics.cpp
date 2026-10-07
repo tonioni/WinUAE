@@ -431,7 +431,9 @@ void show_screen(int monid, int)
     frame.pixbytes = vb->pixbytes;
     frame.filter_index = adisplays[monid].gf_index;
     frame.monitor_id = monid;
-    frame.backbuffers = currprefs.gfx_apmode[unix_apmode_index(monid)].gfx_backbuffers;
+    const int apmode = unix_apmode_index(monid);
+    frame.backbuffers = currprefs.gfx_apmode[apmode].gfx_backbuffers;
+    frame.vsync = currprefs.gfx_apmode[apmode].gfx_vsync > 0 && !currprefs.turbo_emulation;
     unix_log_video_frame(vb);
     unix_video_present(&frame);
 }
