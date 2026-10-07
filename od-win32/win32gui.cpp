@@ -14559,7 +14559,7 @@ static void values_from_sounddlg (HWND hDlg)
 {
 	TCHAR txt[10];
 	int idx;
-	int soundcard, i;
+	int soundcard;
 
 	idx = xSendDlgItemMessage (hDlg, IDC_SOUNDFREQ, CB_GETCURSEL, 0, 0);
 	if (idx >= 0) {
@@ -14652,13 +14652,23 @@ static void values_from_sounddlg (HWND hDlg)
 		update_soundgui (hDlg);
 	}
 
-	for (i = 0; sounddrivers[i]; i++) {
+	for (int i = 0; sounddrivers[i]; i++) {
 		int old = sounddrivermask;
 		sounddrivermask &= ~(1 << i);
-		if (ischecked (hDlg, sounddrivers[i]))
+		if (ischecked (hDlg, sounddrivers[i])) {
 			sounddrivermask |= 1 << i;
-		if (old != sounddrivermask)
+		}
+		if (!sounddrivermask) {
+			sounddrivermask = SOUNDDRIVER_WASAPI;
+			for (int j = 0; sounddrivers[j]; j++) {
+				if ((1 << j) == SOUNDDRIVER_WASAPI) {
+					setchecked(hDlg, sounddrivers[j], true);
+				}
+			}
+		}
+		if (old != sounddrivermask) {
 			regsetint (NULL, _T("SoundDriverMask"), sounddrivermask);
+		}
 	}
 
 	idx = xSendDlgItemMessage (hDlg, IDC_SOUNDDRIVE, CB_GETCURSEL, 0, 0);

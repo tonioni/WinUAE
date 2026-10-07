@@ -3253,7 +3253,7 @@ int enumerate_sound_devices (void)
 {
 	if (!num_sound_devices) {
 		HMODULE l = NULL;
-		if (sounddrivermask & SOUNDDRIVER_WASAPI) {
+		if ((sounddrivermask & SOUNDDRIVER_WASAPI) || !sounddrivermask) {
 			wasapi_enum(sound_devices);
 		}
 		if ((1 || force_directsound) && (sounddrivermask & SOUNDDRIVER_DS)) {

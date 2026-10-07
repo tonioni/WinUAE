@@ -5936,8 +5936,11 @@ static void WIN32_HandleRegistryStuff (void)
 
 	if (regexists (NULL, _T("SoundDriverMask"))) {
 		regqueryint (NULL, _T("SoundDriverMask"), &sounddrivermask);
+		if (!sounddrivermask) {
+			sounddrivermask = SOUNDDRIVER_WASAPI;
+		}
 	} else {
-		sounddrivermask = 2;
+		sounddrivermask = SOUNDDRIVER_WASAPI;
 		regsetint (NULL, _T("SoundDriverMask"), sounddrivermask);
 	}
 
