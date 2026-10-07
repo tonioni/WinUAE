@@ -452,9 +452,9 @@ enum {
 #define UNIX_PSSO_BoardInfo_GetCompatibleDACFormats (UNIX_PSSO_ReInitMemory + 4)
 #define UNIX_PSSO_BoardInfo_CoerceMode (UNIX_PSSO_BoardInfo_GetCompatibleDACFormats + 4)
 #define UNIX_PSSO_BoardInfo_Reserved3Default (UNIX_PSSO_BoardInfo_CoerceMode + 4)
-#define UNIX_PSSO_BoardInfo_Reserved4 (UNIX_PSSO_BoardInfo_Reserved3Default + 4)
-#define UNIX_PSSO_BoardInfo_Reserved4Default (UNIX_PSSO_BoardInfo_Reserved4 + 4)
-#define UNIX_PSSO_BoardInfo_Reserved5 (UNIX_PSSO_BoardInfo_Reserved4Default + 4)
+#define UNIX_PSSO_BoardInfo_BlitRectTransparent (UNIX_PSSO_BoardInfo_Reserved3Default + 4)
+#define UNIX_PSSO_BoardInfo_BlitRectTransparentDefault (UNIX_PSSO_BoardInfo_BlitRectTransparent + 4)
+#define UNIX_PSSO_BoardInfo_Reserved5 (UNIX_PSSO_BoardInfo_BlitRectTransparentDefault + 4)
 #define UNIX_PSSO_BoardInfo_Reserved5Default (UNIX_PSSO_BoardInfo_Reserved5 + 4)
 #define UNIX_PSSO_BoardInfo_SetDPMSLevel (UNIX_PSSO_BoardInfo_Reserved5Default + 4)
 #define UNIX_PSSO_BoardInfo_ResetChip (UNIX_PSSO_BoardInfo_SetDPMSLevel + 4)
@@ -1422,9 +1422,59 @@ static uae_u32 REGPARAM2 unix_picasso_invert_rect(TrapContext *ctx)
     return 1;
 }
 
+/* All pixels are loaded in guest byte order. Overlapping rectangles must
+ * consume the source before writing it, including masked and logical blits. */
+static bool unix_picasso_blit_pixels(uae_u8 *src, uae_u8 *dst, unsigned width,
+    unsigned height, unsigned srcpitch, unsigned dstpitch, int bpp,
+    uae_u32 rgbmask, uae_u8 mask, BLIT_OPCODE op, bool transparent, uae_u32 key)
+{
+    const unsigned rowbytes = width * bpp;
+    const uintptr_t sa = (uintptr_t)src, da = (uintptr_t)dst;
+    const bool overlap = sa < da + (size_t)(height - 1) * dstpitch + rowbytes &&
+        da < sa + (size_t)(height - 1) * srcpitch + rowbytes;
+    uae_u8 *snapshot = NULL;
+    if (overlap && srcpitch != dstpitch) {
+        /* A single traversal direction cannot protect differently pitched
+         * aliases. A swap also writes its source, so decline that layout. */
+        if (op == BLIT_SWAP) return false;
+        snapshot = (uae_u8 *)malloc((size_t)rowbytes * height);
+        if (!snapshot) return false;
+        for (unsigned y = 0; y < height; y++)
+            memcpy(snapshot + (size_t)y * rowbytes, src + (size_t)y * srcpitch, rowbytes);
+        src = snapshot;
+        srcpitch = rowbytes;
+    }
+    const bool backwards = overlap && !snapshot && da > sa;
+    for (unsigned iy = 0; iy < height; iy++) {
+        const unsigned y = backwards ? height - 1 - iy : iy;
+        uae_u8 *s = src + (size_t)y * srcpitch;
+        uae_u8 *d = dst + (size_t)y * dstpitch;
+        if (op == BLIT_SRC && mask == 255 && !transparent) {
+            memmove(d, s, rowbytes);
+            continue;
+        }
+        for (unsigned ix = 0; ix < width; ix++) {
+            const unsigned x = backwards ? width - 1 - ix : ix;
+            uae_u8 *sp = s + x * bpp, *dp = d + x * bpp;
+            uae_u32 sv = unix_picasso_load_pen(sp, bpp);
+            if (transparent && sv == key) continue;
+            uae_u32 dv = unix_picasso_load_pen(dp, bpp);
+            uae_u32 value = op == BLIT_SWAP ? sv :
+                unix_picasso_blit_op_long(sv, ~sv, dv, (~dv) & rgbmask, op);
+            if (bpp == 1) value = (value & mask) | (dv & ~mask);
+            unix_picasso_store_pen(dp, value, bpp);
+            if (op == BLIT_SWAP)
+                unix_picasso_store_pen(sp, bpp == 1 ? (dv & mask) | (sv & ~mask) : dv, bpp);
+        }
+    }
+    free(snapshot);
+    return true;
+}
+
 static uae_u32 unix_picasso_blit_rect_common(TrapContext *ctx, uaecptr srcinfo, uaecptr dstinfo,
     uae_u32 srcx, uae_u32 srcy, uae_u32 dstx, uae_u32 dsty, uae_u32 width, uae_u32 height,
-    uae_u8 mask, uae_u32 rgbfmt, BLIT_OPCODE opcode)
+    uae_u8 mask, uae_u32 rgbfmt, BLIT_OPCODE opcode,
+    bool transparent = false, uae_u32 key = 0)
 {
     RenderInfo src_ri;
     RenderInfo dst_ri;
@@ -1440,9 +1490,7 @@ static uae_u32 unix_picasso_blit_rect_common(TrapContext *ctx, uaecptr srcinfo, 
         }
         dst = &dst_ri;
     }
-    if (bytes_per_pixel > 1 && mask != 0xff) {
-        return 0;
-    }
+    if (bytes_per_pixel > 1) mask = 0xff;
     if (!unix_picasso_validate_rect(&src_ri, rgbfmt, &srcx, &srcy, &width, &height) ||
         !unix_picasso_validate_rect(dst, rgbfmt, &dstx, &dsty, &width, &height)) {
         write_log(_T("Unix RTG BlitRect invalid region: %08X->%08X fmt=%d (%dx%d)\n"),
@@ -1453,37 +1501,16 @@ static uae_u32 unix_picasso_blit_rect_common(TrapContext *ctx, uaecptr srcinfo, 
         return 1;
     }
 
-    uae_u32 width_in_bytes = width * bytes_per_pixel;
+    if ((opcode < BLIT_FALSE || opcode >= BLIT_LAST) && opcode != BLIT_SWAP) return 0;
     uae_u8 *srcbase = src_ri.Memory + srcy * src_ri.BytesPerRow + srcx * bytes_per_pixel;
     uae_u8 *dstbase = dst->Memory + dsty * dst->BytesPerRow + dstx * bytes_per_pixel;
-
-    if (opcode == BLIT_SRC && mask == 0xff) {
-        if (dstbase > srcbase && dstbase < srcbase + height * src_ri.BytesPerRow) {
-            for (uae_s32 row = height - 1; row >= 0; row--) {
-                memmove(dstbase + row * dst->BytesPerRow, srcbase + row * src_ri.BytesPerRow, width_in_bytes);
-            }
-        } else {
-            for (uae_u32 row = 0; row < height; row++) {
-                memmove(dstbase + row * dst->BytesPerRow, srcbase + row * src_ri.BytesPerRow, width_in_bytes);
-            }
-        }
-        unix_picasso_mark_renderinfo_rect(dst, dstx, dsty, width, height, bytes_per_pixel);
-        return 1;
-    }
-
-    if (opcode < BLIT_FALSE || opcode >= BLIT_LAST) {
-        return 0;
-    }
-    for (uae_u32 row = 0; row < height; row++) {
-        uae_u8 *srcrow = srcbase + row * src_ri.BytesPerRow;
-        uae_u8 *dstrow = dstbase + row * dst->BytesPerRow;
-        for (uae_u32 col = 0; col < width_in_bytes; col++) {
-            uae_u8 olddst = dstrow[col];
-            uae_u8 value = unix_picasso_blit_op(srcrow[col], olddst, opcode);
-            dstrow[col] = (uae_u8)((value & mask) | (olddst & ~mask));
-        }
-    }
+    if (bytes_per_pixel < 4) key &= (1u << (bytes_per_pixel * 8)) - 1;
+    if (!unix_picasso_blit_pixels(srcbase, dstbase, width, height,
+        src_ri.BytesPerRow, dst->BytesPerRow, bytes_per_pixel,
+        unix_picasso_rgb_full_mask(rgbfmt), mask, opcode, transparent, key)) return 0;
     unix_picasso_mark_renderinfo_rect(dst, dstx, dsty, width, height, bytes_per_pixel);
+    if (opcode == BLIT_SWAP)
+        unix_picasso_mark_renderinfo_rect(&src_ri, srcx, srcy, width, height, bytes_per_pixel);
     return 1;
 }
 
@@ -1518,6 +1545,15 @@ static uae_u32 REGPARAM2 unix_picasso_blit_rect_no_mask_complete(TrapContext *ct
         0xff,
         trap_get_dreg(ctx, 7),
         (BLIT_OPCODE)(trap_get_dreg(ctx, 6) & 0xff));
+}
+
+static uae_u32 REGPARAM2 unix_picasso_blit_rect_transparent(TrapContext *ctx)
+{
+    return unix_picasso_blit_rect_common(ctx, trap_get_areg(ctx, 1), 0,
+        (uae_u16)trap_get_dreg(ctx, 0), (uae_u16)trap_get_dreg(ctx, 1),
+        (uae_u16)trap_get_dreg(ctx, 2), (uae_u16)trap_get_dreg(ctx, 3),
+        (uae_u16)trap_get_dreg(ctx, 4), (uae_u16)trap_get_dreg(ctx, 5),
+        255, trap_get_dreg(ctx, 7), BLIT_SRC, true, trap_get_dreg(ctx, 6));
 }
 
 struct unix_picasso_pattern_info {
@@ -2334,6 +2370,7 @@ static void unix_init_uaegfx_funcs(TrapContext *ctx, uaecptr start, uaecptr ABI)
     UNIX_RTGCALL(UNIX_PSSO_BoardInfo_BlitTemplate, UNIX_PSSO_BoardInfo_BlitTemplateDefault, unix_picasso_blit_template);
     UNIX_RTGCALL(UNIX_PSSO_BoardInfo_InvertRect, UNIX_PSSO_BoardInfo_InvertRectDefault, unix_picasso_invert_rect);
     UNIX_RTGCALL(UNIX_PSSO_BoardInfo_BlitRectNoMaskComplete, UNIX_PSSO_BoardInfo_BlitRectNoMaskCompleteDefault, unix_picasso_blit_rect_no_mask_complete);
+    UNIX_RTGCALL(UNIX_PSSO_BoardInfo_BlitRectTransparent, UNIX_PSSO_BoardInfo_BlitRectTransparentDefault, unix_picasso_blit_rect_transparent);
     UNIX_RTGCALL(UNIX_PSSO_BoardInfo_BlitPattern, UNIX_PSSO_BoardInfo_BlitPatternDefault, unix_picasso_blit_pattern);
 
     UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetSwitch, unix_picasso_set_switch);
