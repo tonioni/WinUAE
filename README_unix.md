@@ -181,8 +181,9 @@ tools/debian-build-package.sh --build-dir /tmp/winuae_deb_build
 ```
 
 The helper checks the Linux desktop/MIME/icon packaging metadata, requires a
-`qemu-uae.so` plugin when PPC support is enabled, builds the CPack `DEB`
-package, and prints the generated `.deb` path and package fields. Extra CMake
+`qemu-uae.so` plugin when PPC support is enabled and the plugin is bundled,
+builds the CPack `DEB` package, and prints the generated `.deb` path and
+package fields. Extra CMake
 options can be passed after `--`, for example:
 
 ```sh
@@ -203,9 +204,9 @@ SHA-256, and install the unpacked WAV files under
 pass `-DWINUAE_DRIVE_SOUNDS_FETCH=OFF`. The samples can be omitted explicitly
 with `-DWINUAE_UNIX_BUNDLE_DRIVE_SOUNDS=OFF`.
 
-The `qemu-uae.so` PPC plugin is a mandatory part of Unix packages. CMake
-resolves it at configure time, in this order, and fails the configure with
-instructions when none applies:
+The `qemu-uae.so` PPC plugin is bundled by default when PPC support is enabled.
+CMake resolves it at configure time, in this order, and fails the configure
+with instructions when none applies:
 
 1. `-DWINUAE_QEMU_UAE_PLUGIN_FILE=/path/to/qemu-uae.so` — a prebuilt plugin.
 2. A patched `qemu-uae` source tree at `WINUAE_QEMU_UAE_SOURCE_DIR`
@@ -220,12 +221,47 @@ instructions when none applies:
    `ON` (the default), the builder is cloned at build time from
    `WINUAE_QEMU_UAE_BUILDER_URL`.
 
-On Linux the plugin target is part of the default build, so plain
+On Linux the bundled plugin target is part of the default build, so plain
 `cmake --build` + `cmake --install` flows always produce and install the
 plugin. A distribution package build needs `meson`, `ninja`, GLib and libfdt
 development headers for the embedded QEMU build, plus the builder checkout
 and QEMU tarball as additional sources when the build host has no network
 access.
+
+For a distribution that packages the plugin separately, keep PPC support
+enabled and select the external-plugin mode:
+
+```sh
+cmake -S . -B build \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib64 \
+    -DWINUAE_UNIX_WITH_PPC_QEMU=ON \
+    -DWINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN=ON
+cmake --build build --parallel
+DESTDIR=/path/to/package-root cmake --install build
+```
+
+Use the distribution's library directory (`lib`, `lib64`, or a multiarch
+path) in place of `lib64`. The separate package must install an
+ABI-compatible `qemu-uae.so` under `${libdir}/winuae/plugins`; it is the
+patched [QEMU-UAE plugin](https://github.com/reinauer/uae-ppc-plugin), not a
+stock QEMU executable or shared library. Declare the plugin package as a
+runtime dependency in the RPM spec or other package metadata. It is loaded
+with `dlopen`, so automatic linked-library dependency scanning cannot add
+that dependency. No plugin is needed on the WinUAE build host.
+
+External mode takes precedence over the plugin build, fetch, source and
+prebuilt-file options: it never builds, downloads, checks or copies the
+plugin, including into macOS app bundles. It does not disable PPC emulation.
+If the plugin is absent at runtime, PPC configurations cannot run; ordinary
+68k configurations do not need it. Leave external mode off for standalone
+packages and app bundles that should include their own plugin.
+
+This option only controls the QEMU-UAE dependency. For a fully offline
+distribution build, also supply or disable the other external dependencies
+described above and below. To bundle an already built plugin instead, leave
+external mode off and set `WINUAE_QEMU_UAE_PLUGIN_FILE`. To omit PPC support
+entirely, use `WINUAE_UNIX_WITH_PPC_QEMU=OFF`.
 
 The Linux install/package metadata can be checked on any Unix host:
 
@@ -326,7 +362,8 @@ configure cannot find Ninja itself. On macOS, the app bundler copies
 On Linux, install/package rules copy it into
 `$libdir/winuae/plugins/qemu-uae.so`, and the runtime loader searches that path
 relative to the installed `winuae` binary. App and CPack package targets fail
-if PPC support is enabled but the plugin is missing.
+if PPC support is enabled but the plugin is missing, unless
+`WINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN=ON` delegates it to a separate package.
 
 Local app bundles are ad-hoc signed by default. For Developer ID release signing and notarization, pass signing/notary settings through the packaging environment:
 
@@ -633,7 +670,7 @@ export WINUAE_SMOKE_LOG=/tmp/winuae_unix_smoke.log
 `WINUAE_UNIX_WITH_CHD` is enabled by default and builds CHD hardfile/CD image support. `WINUAE_UNIX_WITH_CHD_FLAC` is also enabled by default, but macOS builds skip FLAC codecs if the available libFLAC was built for a newer deployment target.
 `WINUAE_LZMA_SDK_FETCH` is enabled by default. When archive or CHD support needs the 7-Zip/LZMA SDK, CMake uses `WINUAE_LZMA_SDK_DIR`, defaulting to a build-tree `_deps/lzma-sdk/16.04` cache. If that cache is missing, CMake downloads `WINUAE_LZMA_SDK_URL` and verifies it against `WINUAE_LZMA_SDK_SHA256` before extraction.
 `WINUAE_UNIX_WITH_JIT` is enabled by default where the Unix host backend is wired, including ARM64 and x86_64.
-`WINUAE_UNIX_WITH_PPC_QEMU` is enabled by default and builds the WinUAE side of the PPC accelerator/QEMU plugin ABI. `WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN` is enabled by default when a sibling `qemu-uae` tree is present and builds/copies `qemu-uae.so` for the executable, Linux package, or app bundle. `WINUAE_QEMU_UAE_PLUGIN_FILE` can point at a prebuilt plugin. App and CPack package targets require the plugin when PPC support is enabled.
+`WINUAE_UNIX_WITH_PPC_QEMU` is enabled by default and builds the WinUAE side of the PPC accelerator/QEMU plugin ABI. `WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN` is enabled by default and builds/copies `qemu-uae.so` for the executable, Linux package, or app bundle. `WINUAE_QEMU_UAE_PLUGIN_FILE` can point at a prebuilt plugin. App and CPack package targets require the plugin when PPC support is enabled, unless `WINUAE_UNIX_EXTERNAL_QEMU_UAE_PLUGIN=ON` leaves it to a separate runtime package.
 `WINUAE_QEMU_UAE_DEPS_PREFIX` defaults to the private macOS dependency prefix and points the plugin helper at the deployment-target-compatible GLib build.
 `WINUAE_UNIX_WITH_OPENGL_SHADER_PIPELINE` is enabled by default when SDL3 and OpenGL development files are available. Runtime OpenGL context or shader setup failure falls back to the SDL renderer.
 `WINUAE_UNIX_WITH_FFMPEG` is enabled by default when compatible FFmpeg/libav 5.0 or newer development files are available. It adds codec-backed genlock/video-grab file decoding and source audio playback; without it, video-grab file input is limited to raw 24-bit AVI.
