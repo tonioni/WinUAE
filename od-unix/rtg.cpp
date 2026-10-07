@@ -12,6 +12,9 @@
 #include "video.h"
 #include "xwin.h"
 #include "devices.h"
+#include "threaddep/thread.h"
+#include "native2amiga.h"
+#include "rtg_overlay.h"
 
 static uae_u32 REGPARAM3 gfxmem_lget(uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 gfxmem_wget(uaecptr) REGPARAM;
@@ -467,6 +470,10 @@ enum {
 #define UNIX_PSSO_BoardInfo_SetSpritePosition (UNIX_PSSO_BoardInfo_SetSprite + 4)
 #define UNIX_PSSO_BoardInfo_SetSpriteImage (UNIX_PSSO_BoardInfo_SetSpritePosition + 4)
 #define UNIX_PSSO_BoardInfo_SetSpriteColor (UNIX_PSSO_BoardInfo_SetSpriteImage + 4)
+
+#define UNIX_PSSO_BoardInfo_CreateFeature (UNIX_PSSO_BoardInfo_SetSpriteColor + 4)
+#define UNIX_PSSO_BoardInfo_SetFeatureAttrs (UNIX_PSSO_BoardInfo_CreateFeature + 4)
+#define UNIX_PSSO_BoardInfo_DeleteFeature (UNIX_PSSO_BoardInfo_SetFeatureAttrs + 4)
 
 #define PSSO_BoardInfo_ChipData			    PSSO_BoardInfo_MouseSaveBuffer + 4
 #define PSSO_BoardInfo_CardData			    PSSO_BoardInfo_ChipData + 16 * 4
@@ -2253,6 +2260,301 @@ static uae_u32 REGPARAM2 unix_picasso_default_unsupported(TrapContext *)
     return 0;
 }
 
+// Feature tags use the P96 ABI shared with the Windows implementation.
+#define FA_Active (0x80000000u + 2)
+#define FA_Left (0x80000000u + 3)
+#define FA_Top (0x80000000u + 4)
+#define FA_Width (0x80000000u + 5)
+#define FA_Height (0x80000000u + 6)
+#define FA_Format (0x80000000u + 7)
+#define FA_Color (0x80000000u + 8)
+#define FA_Occlusion (0x80000000u + 9)
+#define FA_SourceWidth (0x80000000u + 10)
+#define FA_SourceHeight (0x80000000u + 11)
+#define FA_MinWidth (0x80000000u + 12)
+#define FA_MinHeight (0x80000000u + 13)
+#define FA_MaxWidth (0x80000000u + 14)
+#define FA_MaxHeight (0x80000000u + 15)
+#define FA_BitMap (0x80000000u + 18)
+#define FA_Brightness (0x80000000u + 19)
+#define FA_ModeInfo (0x80000000u + 20)
+#define FA_ModeFormat (0x80000000u + 21)
+#define FA_Colors (0x80000000u + 22)
+#define FA_Colors32 (0x80000000u + 23)
+#define FA_ClipLeft (0x80000000u + 33)
+#define FA_ClipTop (0x80000000u + 34)
+#define FA_ClipWidth (0x80000000u + 35)
+#define FA_ClipHeight (0x80000000u + 36)
+#define ABMA_RGBFormat (0x80000000u + 2)
+#define ABMA_Clear (0x80000000u + 3)
+#define ABMA_Displayable (0x80000000u + 4)
+#define ABMA_Visible (0x80000000u + 5)
+
+#define UNIX_OVERLAY_COOKIE 0x12345678
+#define UNIX_SFT_MEMORYWINDOW 4
+
+static unix_rtg_overlay_state unix_rtg_overlay;
+
+const unix_rtg_overlay_state *unix_rtg_get_overlay(int monid)
+{
+    return monid == unix_rtg_monitor_id() && currprefs.rtg_overlay &&
+        unix_rtg_overlay.bitmap && unix_rtg_overlay.active ? &unix_rtg_overlay : NULL;
+}
+
+// Bound the entire traversal, including TAG_MORE chains and ignored entries.
+static bool unix_overlay_next_tag(TrapContext *ctx, uaecptr *ptr, int *budget,
+    uae_u32 *tag, uae_u32 *value)
+{
+    while (*ptr && (*budget)-- > 0) {
+        if (*ptr > 0xfffffff7 || !trap_valid_address(ctx, *ptr, 8)) {
+            return false;
+        }
+        *tag = trap_get_long(ctx, *ptr);
+        *value = trap_get_long(ctx, *ptr + 4);
+        *ptr += 8;
+        switch (*tag) {
+        case 0: *ptr = 0; return false; // TAG_DONE
+        case 1: continue;              // TAG_IGNORE
+        case 2: *ptr = *value; continue; // TAG_MORE
+        case 3:                       // TAG_SKIP
+            if (*value > (0xffffffff - *ptr) / 8) {
+                return false;
+            }
+            *ptr += *value * 8;
+            continue;
+        default: return true;
+        }
+    }
+    return false;
+}
+
+static void unix_overlay_colors(TrapContext *ctx, unix_rtg_overlay_state *o,
+    uaecptr ptr, bool colors32)
+{
+    for (int entries = 0; ptr && entries < 256; ) {
+        if (colors32) {
+            if (!trap_valid_address(ctx, ptr, 4)) {
+                break;
+            }
+            uae_u32 header = trap_get_long(ctx, ptr);
+            unsigned count = header >> 16, first = header & 0xffff;
+            if (!count || count > 256 || first + count > 256 ||
+                ptr > 0xffffffff - 4 - count * 12 ||
+                !trap_valid_address(ctx, ptr + 4, count * 12)) {
+                break;
+            }
+            ptr += 4;
+            for (unsigned i = 0; i < count; i++, ptr += 12) {
+                o->clut[first + i] = 0xff000000 |
+                    (trap_get_long(ctx, ptr) & 0xff000000) >> 8 |
+                    (trap_get_long(ctx, ptr + 4) & 0xff000000) >> 16 |
+                    trap_get_long(ctx, ptr + 8) >> 24;
+            }
+            entries += count;
+        } else {
+            if (ptr > 0xfffffff7 || !trap_valid_address(ctx, ptr, 8)) {
+                break;
+            }
+            unsigned index = trap_get_word(ctx, ptr);
+            if (index >= 256) {
+                break;
+            }
+            unsigned r = trap_get_word(ctx, ptr + 2) & 15;
+            unsigned g = trap_get_word(ctx, ptr + 4) & 15;
+            unsigned b = trap_get_word(ctx, ptr + 6) & 15;
+            o->clut[index] = 0xff000000 | (r * 17 << 16) | (g * 17 << 8) | b * 17;
+            ptr += 8;
+            entries++;
+        }
+    }
+}
+
+static void unix_overlay_set_tags(TrapContext *ctx, unix_rtg_overlay_state *o, uaecptr ptr)
+{
+    int budget = 4096;
+    uae_u32 tag, value;
+    while (unix_overlay_next_tag(ctx, &ptr, &budget, &tag, &value)) {
+        switch (tag) {
+        case FA_Active: o->active = value != 0; break;
+        case FA_Occlusion: o->occlusion = value != 0; break;
+        case FA_Left: o->x = (uae_s32)value; break;
+        case FA_Top: o->y = (uae_s32)value; break;
+        case FA_Width: o->width = (uae_s32)value; break;
+        case FA_Height: o->height = (uae_s32)value; break;
+        case FA_SourceWidth: o->source_width = (uae_s32)value; break;
+        case FA_SourceHeight: o->source_height = (uae_s32)value; break;
+        case FA_Format: o->format = (uae_s32)value; break;
+        case FA_ModeFormat: o->modeformat = (uae_s32)value; break;
+        case FA_Brightness: o->brightness = (uae_s32)value; break;
+        case FA_ModeInfo: o->modeinfo = (uae_s32)value; break;
+        case FA_Color: o->color = (uae_s32)value; break;
+        case FA_ClipLeft: o->clipleft = (uae_s32)value; break;
+        case FA_ClipTop: o->cliptop = (uae_s32)value; break;
+        case FA_ClipWidth: o->clipwidth = (uae_s32)value; break;
+        case FA_ClipHeight: o->clipheight = (uae_s32)value; break;
+        case FA_Colors: unix_overlay_colors(ctx, o, value, false); break;
+        case FA_Colors32: unix_overlay_colors(ctx, o, value, true); break;
+        }
+    }
+}
+
+static bool unix_overlay_dimensions(const unix_rtg_overlay_state *o)
+{
+    return o->source_width >= 16 && o->source_width <= 4096 &&
+        o->source_height >= 16 && o->source_height <= 4096 &&
+        o->format >= RGBFB_CLUT && o->format < RGBFB_MaxFormats &&
+        unix_picasso_bytes_per_pixel(o->format) != 0;
+}
+
+static bool unix_overlay_valid_feature(TrapContext *ctx)
+{
+    return trap_get_dreg(ctx, 0) == UNIX_SFT_MEMORYWINDOW &&
+        trap_get_areg(ctx, 0) == unix_picasso_boardinfo &&
+        trap_get_areg(ctx, 1) == UNIX_OVERLAY_COOKIE && unix_rtg_overlay.bitmap;
+}
+
+static uae_u32 REGPARAM2 unix_picasso_set_feature_attrs(TrapContext *ctx)
+{
+    if (!unix_overlay_valid_feature(ctx)) {
+        return 0;
+    }
+    unix_rtg_overlay_state next = unix_rtg_overlay;
+    unix_overlay_set_tags(ctx, &next, trap_get_areg(ctx, 2));
+    if (unix_overlay_dimensions(&next) && next.format == unix_rtg_overlay.format &&
+        next.source_width * unix_picasso_bytes_per_pixel(next.format) <= next.pitch &&
+        next.source_height <= next.rows) {
+        unix_rtg_overlay = next;
+        picasso_vidinfo[unix_rtg_monitor_id()].full_refresh = 1;
+    }
+    return 0;
+}
+
+static uae_u32 REGPARAM2 unix_picasso_get_feature_attrs(TrapContext *ctx)
+{
+    if (trap_get_dreg(ctx, 0) != UNIX_SFT_MEMORYWINDOW) {
+        return 0;
+    }
+    const unix_rtg_overlay_state *o = &unix_rtg_overlay;
+    uaecptr ptr = trap_get_areg(ctx, 2);
+    int budget = 4096;
+    uae_u32 tag, value;
+    while (unix_overlay_next_tag(ctx, &ptr, &budget, &tag, &value)) {
+        uae_u32 result;
+        switch (tag) {
+        case FA_Active: result = o->active; break;
+        case FA_Occlusion: result = o->occlusion; break;
+        case FA_Left: result = o->x; break;
+        case FA_Top: result = o->y; break;
+        case FA_Width: result = o->width; break;
+        case FA_Height: result = o->height; break;
+        case FA_SourceWidth: result = o->source_width; break;
+        case FA_SourceHeight: result = o->source_height; break;
+        case FA_Format: result = o->format; break;
+        case FA_ModeFormat: result = o->modeformat; break;
+        case FA_Brightness: result = o->brightness; break;
+        case FA_ModeInfo: result = o->modeinfo; break;
+        case FA_Color: result = o->color; break;
+        case FA_ClipLeft: result = o->clipleft; break;
+        case FA_ClipTop: result = o->cliptop; break;
+        case FA_ClipWidth: result = o->clipwidth; break;
+        case FA_ClipHeight: result = o->clipheight; break;
+        case FA_BitMap: result = o->bitmap; break;
+        case FA_MinWidth: case FA_MinHeight: result = 16; break;
+        case FA_MaxWidth: case FA_MaxHeight: result = 4096; break;
+        default: continue;
+        }
+        if (value && value <= 0xfffffffb && trap_valid_address(ctx, value, 4)) {
+            trap_put_long(ctx, value, result);
+        }
+    }
+    return 0;
+}
+
+static void unix_overlay_free_bitmap(TrapContext *ctx, uaecptr bi, uaecptr bitmap)
+{
+    uaecptr func = trap_get_long(ctx, bi + UNIX_PSSO_BoardInfo_FreeBitMap);
+    trap_call_add_areg(ctx, 0, bi);
+    trap_call_add_areg(ctx, 1, bitmap);
+    trap_call_add_areg(ctx, 2, 0);
+    trap_call_func(ctx, func);
+}
+
+static uae_u32 REGPARAM2 unix_picasso_create_feature(TrapContext *ctx)
+{
+    uaecptr bi = trap_get_areg(ctx, 0);
+    if (trap_get_dreg(ctx, 0) != UNIX_SFT_MEMORYWINDOW ||
+        bi != unix_picasso_boardinfo || unix_rtg_overlay.bitmap) {
+        return 0;
+    }
+    unix_rtg_overlay_state next = {};
+    memcpy(next.clut, picasso_vidinfo[unix_rtg_monitor_id()].clut, sizeof next.clut);
+    unix_overlay_set_tags(ctx, &next, trap_get_areg(ctx, 1));
+    if (!unix_overlay_dimensions(&next)) {
+        return 0;
+    }
+    uaecptr alloc = trap_get_long(ctx, bi + UNIX_PSSO_BoardInfo_AllocBitMap);
+    uaecptr release = trap_get_long(ctx, bi + UNIX_PSSO_BoardInfo_FreeBitMap);
+    if (!alloc || !release || !trap_valid_address(ctx, alloc, 2) ||
+        !trap_valid_address(ctx, release, 2)) {
+        return 0;
+    }
+    const uae_u32 tags[] = { ABMA_RGBFormat, next.format, ABMA_Clear, 1,
+        ABMA_Displayable, 1, ABMA_Visible, 1, 0, 0 };
+    uaecptr exec = trap_get_long(ctx, 4);
+    uaecptr tagmem = uae_AllocMem(ctx, sizeof tags, 0x10001, exec);
+    if (!tagmem) {
+        return 0;
+    }
+    for (unsigned i = 0; i < sizeof tags / sizeof tags[0]; i++) {
+        trap_put_long(ctx, tagmem + i * 4, tags[i]);
+    }
+    trap_call_add_areg(ctx, 0, bi);
+    trap_call_add_dreg(ctx, 0, next.source_width);
+    trap_call_add_dreg(ctx, 1, next.source_height);
+    trap_call_add_areg(ctx, 1, tagmem);
+    next.bitmap = trap_call_func(ctx, alloc);
+    uae_FreeMem(ctx, tagmem, sizeof tags, exec);
+    if (!next.bitmap) {
+        return 0;
+    }
+    if (trap_valid_address(ctx, next.bitmap, 12)) {
+        next.pitch = trap_get_word(ctx, next.bitmap);
+        next.rows = trap_get_word(ctx, next.bitmap + 2);
+        next.vram = trap_get_long(ctx, next.bitmap + 8);
+    }
+    addrbank *bank = gfxmem_banks[0];
+    int bpp = unix_picasso_bytes_per_pixel(next.format);
+    // Packed YUV groups must fit even if the caller requests an odd width.
+    int group = next.format == RGBFB_Y4U2V2 ? 2 : next.format == RGBFB_Y4U1V1 ? 4 : 1;
+    int rowbytes = (next.source_width + group - 1) / group * group * bpp;
+    if (!bank || next.pitch < rowbytes || next.rows < next.source_height ||
+        next.vram < bank->start || (uae_u64)(next.vram - bank->start) +
+            (uae_u64)next.pitch * next.rows > bank->allocated_size) {
+        unix_overlay_free_bitmap(ctx, bi, next.bitmap);
+        return 0;
+    }
+    unix_rtg_overlay = next;
+    picasso_vidinfo[unix_rtg_monitor_id()].full_refresh = 1;
+    return UNIX_OVERLAY_COOKIE;
+}
+
+static uae_u32 REGPARAM2 unix_picasso_delete_feature(TrapContext *ctx)
+{
+    if (!unix_overlay_valid_feature(ctx)) {
+        return 0;
+    }
+    uaecptr bi = trap_get_areg(ctx, 0);
+    uaecptr release = trap_get_long(ctx, bi + UNIX_PSSO_BoardInfo_FreeBitMap);
+    if (!release || !trap_valid_address(ctx, release, 2)) {
+        return 0;
+    }
+    uaecptr bitmap = unix_rtg_overlay.bitmap;
+    unix_rtg_overlay = unix_rtg_overlay_state();
+    unix_overlay_free_bitmap(ctx, bi, bitmap);
+    picasso_vidinfo[unix_rtg_monitor_id()].full_refresh = 1;
+    return 1;
+}
+
 static void unix_picasso_init_board(TrapContext *ctx, uaecptr board_info)
 {
     int monid = currprefs.rtgboards[0].monitor_id;
@@ -2276,6 +2578,9 @@ static void unix_picasso_init_board(TrapContext *ctx, uaecptr board_info)
 
     flags &= 0xffff0000;
     flags |= BIF_BLITTER | BIF_NOMEMORYMODEMIX | BIF_INDISPLAYCHAIN | UNIX_BIF_GRANTDIRECTACCESS;
+    if (currprefs.rtg_overlay && !unix_uaegfx_old) {
+        flags |= BIF_VIDEOWINDOW;
+    }
     if (currprefs.rtg_vgascreensplit && !unix_uaegfx_old) {
         flags |= UNIX_BIF_VGASCREENSPLIT;
     }
@@ -2333,6 +2638,13 @@ static void unix_picasso_init_board(TrapContext *ctx, uaecptr board_info)
     do { \
         UNIX_PUTABI(func); \
         calltrap(deftrap(call)); \
+        dw(RTS); \
+    } while (0)
+
+#define UNIX_RTGCALL2X(func, call) \
+    do { \
+        UNIX_PUTABI(func); \
+        calltrap(deftrap2(call, TRAPFLAG_EXTRA_STACK, NULL)); \
         dw(RTS); \
     } while (0)
 
@@ -2421,6 +2733,12 @@ static void unix_init_uaegfx_funcs(TrapContext *ctx, uaecptr start, uaecptr ABI)
     UNIX_RTGCALLDEFAULT(UNIX_PSSO_BoardInfo_UpdatePlanar, UNIX_PSSO_BoardInfo_UpdatePlanarDefault);
     UNIX_RTGCALLDEFAULT(UNIX_PSSO_BoardInfo_DrawLine, UNIX_PSSO_BoardInfo_DrawLineDefault);
 
+    if (currprefs.rtg_overlay) {
+        UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_GetFeatureAttrs, unix_picasso_get_feature_attrs);
+        UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetFeatureAttrs, unix_picasso_set_feature_attrs);
+        UNIX_RTGCALL2X(UNIX_PSSO_BoardInfo_CreateFeature, unix_picasso_create_feature);
+        UNIX_RTGCALL2X(UNIX_PSSO_BoardInfo_DeleteFeature, unix_picasso_delete_feature);
+    }
     if (currprefs.rtg_vgascreensplit) {
         UNIX_RTGCALL2(UNIX_PSSO_SetSplitPosition, unix_picasso_set_split_position);
     }
@@ -2448,6 +2766,11 @@ void restore_p96_finish(void)
 
     if (unix_uaegfx_rom && unix_picasso_boardinfo) {
         unix_init_uaegfx_funcs(NULL, unix_uaegfx_rom, unix_picasso_boardinfo);
+        if (unix_rtg_overlay.bitmap && trap_valid_address(NULL, unix_rtg_overlay.bitmap, 12)) {
+            unix_rtg_overlay.pitch = trap_get_word(NULL, unix_rtg_overlay.bitmap);
+            unix_rtg_overlay.rows = trap_get_word(NULL, unix_rtg_overlay.bitmap + 2);
+            unix_rtg_overlay.vram = trap_get_long(NULL, unix_rtg_overlay.bitmap + 8);
+        }
         if (currprefs.rtg_vgascreensplit) {
             vidinfo->splitypos = (uae_s16)trap_get_word(NULL,
                 unix_picasso_boardinfo + PSSO_BoardInfo_YSplit) - 1;
@@ -2507,19 +2830,34 @@ uae_u8 *restore_p96(uae_u8 *src)
                 state->CLUT[i].Blue;
         }
     }
+    unix_rtg_overlay = unix_rtg_overlay_state();
     if (unix_p96_restored_flags & 128) {
-        for (int i = 0; i < 6; i++) {
-            restore_u32();
-        }
-        restore_u8();
-        restore_u8();
-        for (int i = 0; i < 13; i++) {
-            restore_u16();
-        }
+        unix_rtg_overlay_state *o = &unix_rtg_overlay;
+        o->bitmap = restore_u32();
+        o->vram = restore_u32();
+        o->format = restore_u32();
+        o->modeformat = restore_u32();
+        o->modeinfo = restore_u32();
+        o->color = restore_u32();
+        o->active = restore_u8() != 0;
+        o->occlusion = restore_u8() != 0;
+        o->x = (uae_s16)restore_u16();
+        o->y = (uae_s16)restore_u16();
+        o->width = restore_u16();
+        o->height = restore_u16();
+        o->source_width = restore_u16();
+        o->source_height = restore_u16();
+        o->pitch = restore_u16();
+        o->rows = restore_u16();
+        o->clipleft = (uae_s16)restore_u16();
+        o->cliptop = (uae_s16)restore_u16();
+        o->clipwidth = restore_u16();
+        o->clipheight = restore_u16();
+        o->brightness = (uae_s16)restore_u16();
+        o->pitch *= unix_picasso_bytes_per_pixel(o->format);
         for (int i = 0; i < 256; i++) {
-            restore_u8();
-            restore_u8();
-            restore_u8();
+            uae_u32 r = restore_u8(), g = restore_u8(), b = restore_u8();
+            o->clut[i] = 0xff000000 | (r << 16) | (g << 8) | b;
         }
     }
 
@@ -2561,7 +2899,7 @@ uae_u8 *save_p96(size_t *len, uae_u8 *dstptr)
     uae_u32 flags = (ad->picasso_on ? 1 : 0) |
         ((state->Width && state->Height) ? 2 : 0) |
         (vidinfo->set_panning_called ? 4 : 0) |
-        64;
+        64 | 128;
 
     save_u32(2);
     save_u32(flags);
@@ -2588,6 +2926,35 @@ uae_u8 *save_p96(size_t *len, uae_u8 *dstptr)
         save_u8(state->CLUT[i].Red);
         save_u8(state->CLUT[i].Green);
         save_u8(state->CLUT[i].Blue);
+    }
+
+    const unix_rtg_overlay_state *o = &unix_rtg_overlay;
+    save_u32(o->bitmap);
+    save_u32(o->vram);
+    save_u32(o->format);
+    save_u32(o->modeformat);
+    save_u32(o->modeinfo);
+    save_u32(o->color);
+    save_u8(o->active);
+    save_u8(o->occlusion);
+    save_u16(o->x);
+    save_u16(o->y);
+    save_u16(o->width);
+    save_u16(o->height);
+    save_u16(o->source_width);
+    save_u16(o->source_height);
+    int bpp = unix_picasso_bytes_per_pixel(o->format);
+    save_u16(bpp ? o->pitch / bpp : 0);
+    save_u16(o->rows);
+    save_u16(o->clipleft);
+    save_u16(o->cliptop);
+    save_u16(o->clipwidth);
+    save_u16(o->clipheight);
+    save_u16(o->brightness);
+    for (int i = 0; i < 256; i++) {
+        save_u8(o->clut[i] >> 16);
+        save_u8(o->clut[i] >> 8);
+        save_u8(o->clut[i]);
     }
 
     if (len) {
@@ -2827,6 +3194,7 @@ uae_u32 picasso_demux(uae_u32, TrapContext *ctx)
 static void unix_picasso_reset(int hardreset)
 {
     if (savestate_state != STATE_RESTORE) {
+        unix_rtg_overlay = unix_rtg_overlay_state();
         unix_uaegfx_base = 0;
         unix_uaegfx_old = 0;
         unix_uaegfx_active = 0;
