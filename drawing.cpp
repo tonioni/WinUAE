@@ -2736,7 +2736,7 @@ static void spr_arms(struct denise_spr *s, int state)
 		if (s->armeds) {
 			denise_spr_nr_armeds--;
 			s->armeds = 0;
-			if (denise_spr_nr_armeds == 0 && sprite_lts_selected) {
+			if (denise_spr_nr_armeds == 0 && sprite_lts_selected && !denise_spr_nr_armed) {
 				select_lts();
 			}
 		}
