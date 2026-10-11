@@ -544,6 +544,23 @@ unreadable lists fail without partial results. The limit is 256 segments.
 Clients can use these addresses to relocate host symbols by hunk index;
 allocation sizes are bounds, not exact source/code lengths.
 
+`monitor tasks` reads current/ready/waiting Exec tasks with a 128-node
+bound and cycle detection. It reports saved SP and stack bounds, without
+guessing inactive register contexts. `monitor history on|off` opts remote
+execution into the existing debugger history ring; `history read COUNT`
+returns at most 128 chronological entries with D/A registers and beam
+positions. Adjacent identical PCs may be coalesced. Recording slows
+execution and is disabled on detach.
+
+`monitor condition add REG OP VALUE MASK SIGNED` allocates a remotely
+owned condition in the existing breakpoint table. Registers use debugger
+indices (D0-D7=0-7, A0-A7=8-f, USP/MSP/ISP/VBR/SR=11-15), operations are
+eq/ne/le/ge/lt/gt=0-5. PC conditions use standard address breakpoints.
+`condition list` and `condition remove ID` only manage remote conditions.
+`monitor step-over` uses the console debugger's next-sequential-PC trace
+mode and resumes asynchronously, reporting a later stop. It can be
+interrupted if control flow never reaches that PC.
+
 ## Smoke Test
 
 The repository includes a headless A1200 smoke test. It uses SDL dummy video/audio by default and checks that ROM loading, audio initialization, and hard reset reached the expected log points:
