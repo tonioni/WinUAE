@@ -1935,7 +1935,8 @@ void host_setsockopt(SB, uae_u32 sd, uae_u32 level, uae_u32 optname, uae_u32 opt
 	}
 
 	if (optval) {
-		buf = malloc(len);
+		/* the option mapping reads and writes a whole int */
+		buf = calloc(1, len < sizeof(int) ? sizeof(int) : len);
 		if (buf == NULL) {
 			sb->resultval = -1;
 			bsdsocklib_seterrno(ctx, sb, 12); // ENOMEM
@@ -2003,7 +2004,8 @@ uae_u32 host_getsockopt(TrapContext* ctx, SB, uae_u32 sd, uae_u32 level, uae_u32
 
 	if (optlen) {
 		len = get_long(optlen);
-		buf = malloc(len);
+		/* the option mapping reads and writes a whole int */
+		buf = calloc(1, len < sizeof(int) ? sizeof(int) : len);
 		if (buf == NULL) {
 			return -1;
 		}
