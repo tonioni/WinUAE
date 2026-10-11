@@ -496,11 +496,37 @@ and stops when PC leaves [START,END). Empty ranges single-step. Existing
 breakpoints and interrupts still stop execution. Range state clears on any
 stop and disconnect, without adding a new CPU execution loop.
 
-The server is unauthenticated and grants local clients control of the guest.
+The server is unauthenticated and grants local clients control of the guest
+and of host paths used by monitor commands.
 
 The packet parser test is included in `winuae_unix_tests`. It also builds
 independently with a C++17 compiler (`gdb_protocol.cpp` plus
 `gdb_protocol_test.cpp`).
+
+### WinUAE monitor commands
+
+WinUAE-specific operations use GDB `monitor` (qRcmd) commands. Replies are
+hex-encoded text, usually JSON; numeric arguments are hexadecimal unless
+stated otherwise. Monitor commands run only while the CPU is stopped,
+except `capabilities` and `execution-status`.
+
+`monitor capabilities` reports protocol version 1, current CPU/MMU models,
+physical address semantics, monitor commands and execution controls.
+Commands unavailable in the current build/configuration are omitted.
+`monitor execution-status` reports debugger and host pause state, frame
+counter, beam position and cycle count without stopping the guest.
+
+`monitor disasm <hex-address> <decimal-count>` disassembles 1–100
+instructions with the existing debugger. `monitor screenshot
+<native-host-path>` writes a PNG (requires libpng on Unix); paths may
+contain spaces.
+
+`monitor memory-map` adapts the existing debugger map to bounded JSON,
+including RAM/ROM/I/O and chip-RAM classification and a truncation flag.
+`monitor memory-check ADDRESS LENGTH` certifies a physical RAM write range
+and its chip/fast kind without performing a read or write. Mixed, indirect,
+I/O, ROM and unmapped ranges are rejected. This does not allocate RAM or
+establish guest ownership of it.
 
 ## Smoke Test
 
