@@ -186,12 +186,34 @@ bool GdbTarget::breakpoint(bool insert, unsigned type, uint32_t address, uint32_
 
 void GdbTarget::interrupt()
 {
+	range_active = false;
 	debug_remote_interrupt();
 }
 
 void GdbTarget::resume(bool step)
 {
-	debug_remote_resume(step);
+	range_active = false;
+	debug_remote_resume(step, false);
+}
+
+bool GdbTarget::resume_range(uint32_t start, uint32_t end)
+{
+	// Existing trace checks stop as soon as execution leaves the range.
+	debug_remote_resume(false, true);
+	range_start = start;
+	range_end = end;
+	range_active = true;
+	return true;
+}
+
+bool GdbTarget::check_stop(uaecptr pc, char*, size_t)
+{
+	return range_active && (pc < range_start || pc >= range_end);
+}
+
+void GdbTarget::stopped(char*, size_t)
+{
+	range_active = false;
 }
 
 void GdbTarget::detach()
@@ -228,5 +250,15 @@ GdbTarget& gdb_target()
 {
 	static GdbTarget target;
 	return target;
+}
+
+bool gdb_target_check_stop(uaecptr pc, char* reason, size_t size)
+{
+	return gdb_target().check_stop(pc, reason, size);
+}
+
+void gdb_target_stopped(char* reason, size_t size)
+{
+	gdb_target().stopped(reason, size);
 }
 #endif

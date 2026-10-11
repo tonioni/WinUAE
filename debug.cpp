@@ -8087,10 +8087,10 @@ void debug_remote_interrupt(void)
 	set_special(SPCFLAG_BRK);
 }
 
-void debug_remote_resume(bool step)
+void debug_remote_resume(bool step, bool check)
 {
 	inside_debugger = debugger_active = 0;
-	trace_mode = processptr || processname ? TRACE_CHECKONLY : 0;
+	trace_mode = check || processptr || processname ? TRACE_CHECKONLY : 0;
 	for (int i = 0; i < BREAKPOINT_TOTAL; i++) {
 		if (bpnodes[i].enabled > 0)
 			trace_mode = TRACE_CHECKONLY;
@@ -8373,6 +8373,8 @@ void debug (void)
 					bp = -2;
 				}
 			}
+			if (gdb_server_connected() && gdb_target_check_stop(pc, remote_reason, sizeof(remote_reason)))
+				bp = -1;
 			if (!bp && bpnum < 0) {
 				debug_continue();
 				return;
@@ -8397,6 +8399,7 @@ void debug (void)
 	if (gdb_server_connected()) {
 		inside_debugger = 1;
 		trace_mode = 0;
+		gdb_target_stopped(remote_reason, sizeof(remote_reason));
 		gdb_server_stop(remote_reason);
 		return;
 	}

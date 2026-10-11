@@ -29,6 +29,9 @@ struct FakeTarget : Target {
 	bool breakpoint(bool, unsigned, uint32_t, uint32_t) override { ++breaks; return true; }
 	void interrupt() override { ++interrupts; }
 	void resume(bool s) override { ++runs; stepped = s; }
+	bool resume_range(uint32_t start, uint32_t end) override {
+		++runs; values[0] = start; values[1] = end; return true;
+	}
 	void detach() override {}
 };
 static std::string send(Session& session, const std::string& command)
@@ -82,6 +85,16 @@ int main()
 	require(send(s, "M1000,2:abcd") == frame("OK"), "memory write");
 	require(send(s, "Z0,1000,2") == frame("OK") && target.breaks == 1, "breakpoint set");
 	require(send(s, "Z4,ffffffff,2") == frame("E01") && target.breaks == 1, "watchpoint wrap accepted");
+	require(send(s, "vCont?") == frame("vCont;c;s;r"), "range stepping not advertised");
+	for (const char* bad : {"vCont;r", "vCont;r1,", "vCont;r2,1", "vCont;r0,100000000",
+		"vCont;r0,2:2", "vCont;r0,2;c", "vCont;r0,2:1;s"})
+		require(send(s, bad) == frame("E01"), "malformed range accepted");
+	require(send(s, "vCont;r1000,1004:1").empty() && target.values[0] == 0x1000 &&
+		target.values[1] == 0x1004, "range step arguments");
+	require(send(s, "vCont;r1000,1004") == frame("E16"), "range accepted while running");
+	s.stop(); s.take_output();
+	require(send(s, "vCont;r1000,1000").empty(), "empty range must single step");
+	s.stop(); s.take_output();
 	require(send(s, "vCont;s").empty() && target.stepped, "step must wait for stop");
 	s.stop(); require(s.take_output() == frame("S05"), "step stop reply");
 	require(send(s, "vCont;c").empty() && !target.stepped, "continue");

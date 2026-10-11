@@ -107,7 +107,7 @@ void Session::command(const std::string& s)
 	if (s == "Hc-1" || s == "Hc0" || s == "Hc1" || s == "Hg0" || s == "Hg1" || s == "T1") {
 		reply("OK"); return;
 	}
-	if (s == "vCont?") { reply("vCont;c;s"); return; }
+	if (s == "vCont?") { reply("vCont;c;s;r"); return; }
 	if (s == "?") {
 		if (halted) reply(stop_reason);
 		else { await_stop = true; target.interrupt(); }
@@ -115,6 +115,17 @@ void Session::command(const std::string& s)
 	}
 	if (s == "D") {
 		reply("OK"); closing = true; return;
+	}
+	if (s.compare(0, 7, "vCont;r") == 0) {
+		if (!halted) { reply("E16"); return; }
+		auto comma = s.find(',', 7), colon = s.find(':', 7);
+		auto end = colon == std::string::npos ? s.size() : colon;
+		uint32_t start, limit;
+		if (comma == std::string::npos || !number(s, 7, comma, start) ||
+			!number(s, comma + 1, end, limit) || start > limit ||
+			(colon != std::string::npos && s.substr(colon) != ":1" && s.substr(colon) != ":-1") ||
+			!target.resume_range(start, limit)) { reply("E01"); return; }
+		halted = false; await_stop = true; return;
 	}
 	bool step = s == "s" || s == "vCont;s" || s == "vCont;s:1";
 	bool run = step || s == "c" || s == "vCont;c" || s == "vCont;c:1" || s == "vCont;c:-1";

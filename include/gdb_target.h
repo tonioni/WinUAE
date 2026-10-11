@@ -14,12 +14,18 @@ public:
 	bool breakpoint(bool insert, unsigned type, uint32_t address, uint32_t length) override;
 	void interrupt() override;
 	void resume(bool step) override;
+	bool resume_range(uint32_t start, uint32_t end) override;
 	void detach() override;
+	// CPU debugger hooks.
+	bool check_stop(uaecptr pc, char* reason, size_t size);
+	void stopped(char* reason, size_t size);
 protected:
 	enum WatchOwner : uae_u8 { watch_none, watch_gdb };
 	bool breakpoints[BREAKPOINT_TOTAL] {};
 	WatchOwner watch_owner[MEMWATCH_TOTAL] {};
 	bool initialized_watchpoints = false;
+	bool range_active = false;
+	uaecptr range_start = 0, range_end = 0;
 	bool start_memwatch();
 	int free_watch_slot();
 };

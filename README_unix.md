@@ -487,6 +487,11 @@ guest MMU translations. Watchpoints use the existing debugger's supported
 range below `$7FFF0000`, with a maximum length of 64 KiB; they are unavailable
 while its MMU debugger mode is enabled.
 
+Standard `vCont;rSTART,END` range stepping executes at least one instruction
+and stops when PC leaves [START,END). Empty ranges single-step. Existing
+breakpoints and interrupts still stop execution. Range state clears on any
+stop and disconnect, without adding a new CPU execution loop.
+
 The server is unauthenticated and grants local clients control of the guest.
 
 The packet parser test is included in `winuae_unix_tests`. It also builds

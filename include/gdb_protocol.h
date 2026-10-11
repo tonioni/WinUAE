@@ -22,6 +22,7 @@ public:
 	virtual bool breakpoint(bool insert, unsigned type, uint32_t, uint32_t) = 0;
 	virtual void interrupt() = 0;
 	virtual void resume(bool step) = 0;
+	virtual bool resume_range(uint32_t, uint32_t) { return false; }
 	virtual void detach() = 0;
 };
 

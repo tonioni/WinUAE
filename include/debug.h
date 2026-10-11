@@ -362,7 +362,7 @@ extern int get_dma_debug_color(struct dma_rec *dr, int line, uae_u32 *cp);
 #define TRACE_CHECKONLY 10
 
 extern void debug_remote_interrupt(void);
-extern void debug_remote_resume(bool step);
+extern void debug_remote_resume(bool step, bool check);
 
 #else
 
