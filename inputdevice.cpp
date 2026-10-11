@@ -27,6 +27,7 @@
 #include "options.h"
 #include "keyboard.h"
 #include "inputdevice.h"
+#include "gdb_server.h"
 #include "inputrecord.h"
 #include "keybuf.h"
 #include "custom.h"
@@ -5889,6 +5890,7 @@ void inputdevice_vsync (void)
 	}
 
 	input_frame++;
+	gdb_server_input_frame();
 	mouseupdate (0, true);
 	inputread = -1;
 
