@@ -460,6 +460,39 @@ The Unix serial backend follows the same target-prefixed config style as Windows
 
 `TCP:host:port`, `TCP://host:port`, and `TCP:port` are accepted. Add `/wait` to delay startup until a client connects, for example `TCP://0.0.0.0:1234/wait`. Connect locally with `telnet 127.0.0.1 1234` or `nc 127.0.0.1 1234`.
 
+## GDB debugging
+
+The optional GDB remote server uses the existing debugger and is disabled
+by default. Enable it in a `.uae` configuration or with `-s` overrides:
+
+```ini
+debugging_features=gdbserver
+gdb_port=2345
+```
+
+The same settings apply to Windows builds. The server listens only on
+`127.0.0.1`, accepts one client, and stops at a CPU debugger boundary on
+attach. It supports the 18 m68k integer registers, physical RAM/ROM reads,
+RAM writes, stepping, PC breakpoints, and CPU data watchpoints. Disconnect
+resumes execution and removes only the remote client's breakpoints and
+watchpoints. Commands execute on the emulation thread; no networking thread
+accesses guest state. An enabled but unattached server does not trace the CPU.
+Release a host UI pause before attaching; the CPU must reach a debugger
+boundary to stop.
+
+Custom register reads at `$DFF000` use WinUAE's saved register snapshot;
+aligned word writes use its existing debugger hardware-write path. Other
+I/O banks and ROM writes return errors. Memory addresses are physical, not
+guest MMU translations. Watchpoints use the existing debugger's supported
+range below `$7FFF0000`, with a maximum length of 64 KiB; they are unavailable
+while its MMU debugger mode is enabled.
+
+The server is unauthenticated and grants local clients control of the guest.
+
+The packet parser test is included in `winuae_unix_tests`. It also builds
+independently with a C++17 compiler (`gdb_protocol.cpp` plus
+`gdb_protocol_test.cpp`).
+
 ## Smoke Test
 
 The repository includes a headless A1200 smoke test. It uses SDL dummy video/audio by default and checks that ROM loading, audio initialization, and hard reset reached the expected log points:

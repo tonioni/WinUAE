@@ -1256,6 +1256,9 @@
     <ClCompile Include="..\..\fsdb.cpp" />
     <ClCompile Include="..\..\fsusage.cpp" />
     <ClCompile Include="..\..\gayle.cpp" />
+    <ClCompile Include="..\..\gdb_protocol.cpp" />
+    <ClCompile Include="..\..\gdb_server.cpp" />
+    <ClCompile Include="..\..\gdb_target.cpp" />
     <ClCompile Include="..\..\gfxutil.cpp" />
     <ClCompile Include="..\..\hardfile.cpp" />
     <ClCompile Include="..\..\identify.cpp" />

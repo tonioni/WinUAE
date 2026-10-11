@@ -1,5 +1,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
+#include "gdb_server.h"
 
 #include "custom.h"
 #ifdef AVIOUTPUT
@@ -252,6 +253,7 @@ void graphics_reset(bool) {}
 
 bool handle_events(void)
 {
+    gdb_server_poll();
     handle_msgpump(false);
     if (pause_emulation) {
         // Drain queued AKS_* actions (e.g. a second press of the pause

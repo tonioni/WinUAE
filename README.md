@@ -1,6 +1,9 @@
 
 # WinUAE
 
+Optional GDB debugging is described in
+[the shared debugging guide](README_unix.md#gdb-debugging).
+
 1) Requirements: Windows 7 32-bit/64-bit or newer.
 
 2) Visual Studio 2017 Community with the following feature:
