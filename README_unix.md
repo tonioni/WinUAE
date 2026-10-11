@@ -528,6 +528,22 @@ and its chip/fast kind without performing a read or write. Mixed, indirect,
 I/O, ROM and unmapped ranges are rejected. This does not allocate RAM or
 establish guest ownership of it.
 
+`monitor process-break name <name>` arms a one-shot breakpoint at the
+first segment's entry instruction of the matching AmigaDOS process. Names
+are case-insensitive ASCII and may be command basenames or complete names.
+`monitor process-break address <hex-task-address>` selects a Process by
+address. Use `process-break status` to inspect the selection, `process-break
+clear` to cancel it, and continue execution after arming. The selection is
+cleared on disconnect. This does not launch a program; launch it in the guest.
+
+`monitor segments [process-address-in-hex]` reports the current or selected
+AmigaDOS Process and its loaded segments as JSON. Each segment includes its
+zero-based load order, first payload address and allocated payload size.
+CLI and Workbench process segment lists are supported; corrupt, cyclic or
+unreadable lists fail without partial results. The limit is 256 segments.
+Clients can use these addresses to relocate host symbols by hunk index;
+allocation sizes are bounds, not exact source/code lengths.
+
 ## Smoke Test
 
 The repository includes a headless A1200 smoke test. It uses SDL dummy video/audio by default and checks that ROM loading, audio initialization, and hard reset reached the expected log points:
