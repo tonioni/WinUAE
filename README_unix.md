@@ -561,6 +561,24 @@ eq/ne/le/ge/lt/gt=0-5. PC conditions use standard address breakpoints.
 mode and resumes asynchronously, reporting a later stop. It can be
 interrupted if control flow never reaches that PC.
 
+`monitor exception-mask <hex-mask>` selects CPU exception vectors 2-63
+(bit N selects vector N); zero disables remote exception stops. The mask
+is independent of console exception settings and clears on disconnect.
+`monitor exception` reports that mask and the last selected exception as
+JSON, including its vector, instruction PC and pre-frame register snapshot
+(D0-D7, A0-A7, SR, PC). Stops occur at the normal CPU debugger boundary after
+exception-frame construction; current registers describe the handler entry.
+The stop packet carries the vector and fault instruction PC, with SIGBUS,
+SIGILL, SIGFPE or SIGTRAP as appropriate. The snapshot's PC may already have
+advanced; use instruction_pc to locate the instruction. Unselected
+exceptions retain normal WinUAE behavior.
+
+Exception snapshots also include CPU/MMU models, VBR and the pre-frame
+USP/ISP/MSP values. Bus/address faults include the fault address, access
+direction, access size and function code. MMU bus faults retain the raw
+68030/68040 SSW or 68060 FSLW; unknown transfer sizes are null. These are
+captured at the existing exception hook, without changing frame creation.
+
 ## Smoke Test
 
 The repository includes a headless A1200 smoke test. It uses SDL dummy video/audio by default and checks that ROM loading, audio initialization, and hard reset reached the expected log points:
