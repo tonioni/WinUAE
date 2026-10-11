@@ -9102,10 +9102,8 @@ static void process_copper(struct rgabuf *r)
 	if (cop_state.strobe & 3) {
 		reg = 0x1fe;
 	}
-	if (debug_dma) {
-		if (memwatch_enabled) {
-			debug_getpeekdma_chipram(ip, MW_MASK_COPPER, reg);
-		}
+	if (memwatch_enabled) {
+		debug_getpeekdma_chipram(ip, MW_MASK_COPPER, reg);
 	}
 #endif
 
