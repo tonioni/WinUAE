@@ -12818,17 +12818,23 @@ static void values_from_kickstartdlg2(HWND hDlg)
 	int v = xSendDlgItemMessage(hDlg, IDC_CUSTOMROMSELECT, CB_GETCURSEL, 0, 0);
 	if (v >= 0 && v < MAX_ROM_BOARDS) {
 		struct romboard *rb = &workprefs.romboards[v];
-		TCHAR tmp[100];
+		TCHAR tmp1[100], tmp2[100];
 		TCHAR *endptr;
-		GetDlgItemText(hDlg, IDC_ROM_ADDRESS, tmp, sizeof tmp / sizeof(TCHAR));
-		rb->start_address =_tcstoul(tmp, &endptr, 16);
-		rb->start_address &= ~65535;
-		GetDlgItemText(hDlg, IDC_ROM_ADDRESS2, tmp, sizeof tmp / sizeof(TCHAR));
-		rb->end_address = _tcstoul(tmp, &endptr, 16);
-		rb->end_address = ((rb->end_address - 1) & ~65535) | 0xffff;
-		rb->size = 0;
-		if (rb->end_address > rb->start_address) {
-			rb->size = (rb->end_address - rb->start_address + 65535) & ~65535;
+		GetDlgItemText(hDlg, IDC_ROM_ADDRESS, tmp1, sizeof tmp1 / sizeof(TCHAR));
+		GetDlgItemText(hDlg, IDC_ROM_ADDRESS2, tmp2, sizeof tmp2 / sizeof(TCHAR));
+		if (tmp1[0] && tmp2[0]) {
+			rb->start_address =_tcstoul(tmp1, &endptr, 16);
+			rb->start_address &= ~65535;
+			rb->end_address = _tcstoul(tmp2, &endptr, 16);
+			rb->end_address = ((rb->end_address - 1) & ~65535) | 0xffff;
+			rb->size = 0;
+			if (rb->end_address > rb->start_address) {
+				rb->size = (rb->end_address - rb->start_address + 65535) & ~65535;
+			}
+		} else {
+			rb->start_address = 0;
+			rb->end_address = 0;
+			rb->size = 0;
 		}
 	}
 }
