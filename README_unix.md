@@ -601,6 +601,15 @@ and `watch clear-events` read or clear a 64-entry ring of access evidence
 from all remote watchpoints, with access values, previous RAM values,
 sources and an eviction count.
 
+`monitor guest-output on|off|read|clear` captures the guest's existing uaelib
+function 86 debug messages. Capture is opt-in and retains at most 64 records
+and 4096 payload bytes, with each message capped at 1024 bytes. JSON output
+includes record IDs, truncation flags and an eviction count. Reads preserve
+the records; clear empties them while keeping the capture setting. Turning
+capture off retains records for inspection; disconnect/reset clears them.
+This is a guest debug-message channel, not AmigaDOS console or serial output.
+Host logging keeps its original behavior.
+
 ## Smoke Test
 
 The repository includes a headless A1200 smoke test. It uses SDL dummy video/audio by default and checks that ROM loading, audio initialization, and hard reset reached the expected log points:
