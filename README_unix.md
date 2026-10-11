@@ -485,7 +485,9 @@ aligned word writes use its existing debugger hardware-write path. Other
 I/O banks and ROM writes return errors. Memory addresses are physical, not
 guest MMU translations. Watchpoints use the existing debugger's supported
 range below `$7FFF0000`, with a maximum length of 64 KiB; they are unavailable
-while its MMU debugger mode is enabled.
+while its MMU debugger mode is enabled. Standard GDB `qXfer:memory-map:read`
+provides RAM/ROM XML from the existing debugger memory map when that map is
+complete. Unlisted regions are not certified as safe to access.
 
 Standard `vCont;rSTART,END` range stepping executes at least one instruction
 and stops when PC leaves [START,END). Empty ranges single-step. Existing

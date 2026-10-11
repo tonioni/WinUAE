@@ -184,6 +184,27 @@ bool GdbTarget::breakpoint(bool insert, unsigned type, uint32_t address, uint32_
 	return true;
 }
 
+std::string GdbTarget::memory_map()
+{
+	UaeMemoryMap map;
+	uae_memory_map(&map);
+	if (map.num_regions == UAE_MEMORY_REGIONS_MAX)
+		return {};
+	std::string xml = "<?xml version=\"1.0\"?><memory-map>";
+	for (int i = 0; i < map.num_regions; i++) {
+		const auto& r = map.regions[i];
+		uaecptr address = r.start;
+		addrbank* bank = &get_mem_bank(address);
+		if (bank->sub_banks)
+			bank = get_sub_bank(&address);
+		const char* type = bank->flags & ABFLAG_ROM ? "rom" : bank->flags & ABFLAG_RAM ? "ram" : NULL;
+		if (type && r.size)
+			xml += "<memory type=\"" + std::string(type) + "\" start=\"" +
+				std::to_string(r.start) + "\" length=\"" + std::to_string(r.size) + "\"/>";
+	}
+	return xml + "</memory-map>";
+}
+
 void GdbTarget::interrupt()
 {
 	range_active = false;

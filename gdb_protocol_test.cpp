@@ -18,6 +18,7 @@ struct FakeTarget : Target {
 	Registers values{};
 	unsigned writes = 0, interrupts = 0, runs = 0, breaks = 0;
 	bool stepped = false;
+	std::string memory_map() override { return "<memory-map/>"; }
 	Registers registers() override { return values; }
 	bool write_registers(const Registers& v, uint32_t mask) override {
 		++writes;
@@ -45,6 +46,10 @@ int main()
 {
 	FakeTarget target;
 	Session s(target);
+	require(send(s, "qXfer:memory-map:read::0,8") == "+" + frame("m<memory-"), "memory map first chunk");
+	require(send(s, "qXfer:memory-map:read::8,20") == "+" + frame("lmap/>"), "memory map last chunk");
+	require(send(s, "qXfer:memory-map:read::100,8") == "+" + frame("l"), "memory map end");
+	require(send(s, "qXfer:memory-map:read::0,0") == "+" + frame("E01"), "memory map zero request");
 	// Every split, including either checksum digit, must preserve the frame.
 	const auto packet = frame("qSupported");
 	for (size_t split = 1; split < packet.size(); ++split) {

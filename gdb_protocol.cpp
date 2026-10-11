@@ -97,8 +97,23 @@ void Session::command(const std::string& s)
 {
 	if (s.empty()) { reply(""); return; }
 	if (s == "qSupported" || s.compare(0, 11, "qSupported:") == 0) {
-		reply("PacketSize=10000;QStartNoAckMode+;vContSupported+"); return;
+		reply("PacketSize=10000;QStartNoAckMode+;vContSupported+" + std::string(target.memory_map().empty() ? "" : ";qXfer:memory-map:read+")); return;
 	}
+	if (s.compare(0, 23, "qXfer:memory-map:read::") == 0) {
+		auto comma = s.find(',', 23);
+		uint32_t offset, length;
+		if (comma == std::string::npos || !number(s, 23, comma, offset) ||
+			!number(s, comma + 1, s.size(), length) || !length || length > packet_size - 1) {
+			reply("E01"); return;
+		}
+		auto map = target.memory_map();
+		if (map.empty()) { reply(""); return; }
+		if (offset >= map.size()) { reply("l"); return; }
+		auto part = map.substr(offset, length);
+		reply(std::string(offset + part.size() < map.size() ? "m" : "l") + part);
+		return;
+	}
+
 	if (s == "QStartNoAckMode") { reply("OK"); no_ack = true; return; }
 	if (s == "qAttached") { reply("1"); return; }
 	if (s == "qC") { reply("QC1"); return; }

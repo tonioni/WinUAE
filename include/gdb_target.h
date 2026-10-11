@@ -12,6 +12,7 @@ public:
 	bool read_memory(uint32_t address, size_t length, std::vector<uint8_t>& bytes) override;
 	bool write_memory(uint32_t address, const std::vector<uint8_t>& bytes) override;
 	bool breakpoint(bool insert, unsigned type, uint32_t address, uint32_t length) override;
+	std::string memory_map() override;
 	void interrupt() override;
 	void resume(bool step) override;
 	bool resume_range(uint32_t start, uint32_t end) override;
