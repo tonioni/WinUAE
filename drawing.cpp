@@ -6,7 +6,7 @@
 *
 * Copyright 1995-2000 Bernd Schmidt
 * Copyright 1995 Alessandro Bissacco
-* Copyright 2000-2025 Toni Wilen
+* Copyright 2000-2026 Toni Wilen
 * 
 * Complete rewrite 2024-2025
 */
@@ -97,10 +97,10 @@ struct denise_rga_queue
 	int dtotal;
 	int calib_start;
 	int calib_len;
-	bool lol, lof;
+	bool lol;
 	int hdelay;
 	bool blanked;
-	bool borderline;
+	uae_s8 borderline;
 	uae_u16 strobe;
 	int strobe_pos;
 	int erase;
@@ -121,7 +121,7 @@ static void denise_handle_quick_strobe(uae_u16 strobe, int offset, int vpos);
 static void draw_denise_vsync(int);
 static void denise_update_reg(uae_u16 reg, uae_u16 v, uae_u32 linecnt);
 static void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip_start, int skip_end, int dtotal,
-	int calib_start, int calib_len, bool lol, int hdelay, bool blanked, bool borderline, bool finalseg, struct linestate *ls);
+	int calib_start, int calib_len, bool lol, int hdelay, bool blanked, uae_s8 borderline, bool finalseg, struct linestate *ls);
 
 static void matchsprites2(int cnt);
 static void matchsprites2_aga(int cnt);
@@ -5450,10 +5450,12 @@ static void matchsprites_aga(int cnt)
 }
 
 static uae_u16 s_bplcon0, s_bplcon1, s_bplcon2, s_bplcon3, s_bplcon4, s_fmode;
-static int denise_hcounter_s;
+static int denise_hcounter_s, denise_hcounter_cmp_s, denise_hcounter_next_s;
 void denise_store_registers(void)
 {
 	denise_hcounter_s = denise_hcounter; 
+	denise_hcounter_cmp_s = denise_hcounter_cmp;
+	denise_hcounter_next_s = denise_hcounter_next;
 	s_bplcon0 = bplcon0_denise;
 	s_bplcon1 = bplcon1_denise;
 	s_bplcon2 = bplcon2_denise;
@@ -5464,6 +5466,8 @@ void denise_store_registers(void)
 void denise_restore_registers(void)
 {
 	denise_hcounter = denise_hcounter_s;
+	denise_hcounter_cmp = denise_hcounter_cmp_s;
+	denise_hcounter_next = denise_hcounter_next_s;
 	expand_bplcon0(s_bplcon0);
 	expand_bplcon1(s_bplcon1);
 	expand_bplcon2(s_bplcon2);
@@ -6087,7 +6091,7 @@ static void blankline(void)
 }
 
 static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip_start, int skip_end, int dtotal,
-	int calib_start, int calib_len, bool lol, int hdelay, bool blanked, bool borderline, bool finalseg, struct linestate *ls)
+	int calib_start, int calib_len, bool lol, int hdelay, bool blanked, uae_s8 borderline, bool finalseg, struct linestate *ls)
 {
 	bool fullline = false;
 
@@ -6138,9 +6142,9 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 	bool line_is_blanked = false;
 	bool hidden = this_line->linear_vpos >= denise_vblank_extra_bottom[0] || this_line->linear_vpos < denise_vblank_extra_top[0];
 	bool hiddenblank = this_line->linear_vpos >= denise_vblank_extra_bottom[1] || this_line->linear_vpos < denise_vblank_extra_top[1];
-	diw_disable = borderline;
+	diw_disable = borderline > 0;
 
-	if ((denise_pixtotal_max == -0x7fffffff && denise_vsync_bpl_detect) || blanked) {
+	if ((denise_pixtotal_max == -0x7fffffff && denise_vsync_bpl_detect) || blanked || borderline < 0) {
 
 		// don't draw vertical blanking if not ultra extreme overscan
 		internal_pixel_cnt = -30000;
@@ -7903,8 +7907,7 @@ static void updatelinedata(void)
 {
 	this_line = &temp_line;
 	this_line->vpos = vpos;
-	this_line->lof = lof_store;
-	this_line->linear_vpos = linear_display_vpos;
+	this_line->linear_vpos = linear_vpos_start;
 	this_line->linear_vpos_vb_start = linear_vpos_vb_start;
 	this_line->linear_vpos_vb_end = linear_vpos_vb_end;
 }
@@ -7955,7 +7958,7 @@ void draw_denise_border_line_fast_queue(int gfx_ypos, bool blank, enum nln_how h
 		q->ls = ls;
 		q->type = 2;
 		q->vpos = vpos;
-		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos = linear_vpos_start;
 		q->linear_vpos_vb_start = linear_vpos_vb_start;
 		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
@@ -7983,7 +7986,7 @@ void draw_denise_bitplane_line_fast_queue(int gfx_ypos, enum nln_how how, struct
 		q->ls = ls;
 		q->type = 1;
 		q->vpos = vpos;
-		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos = linear_vpos_start;
 		q->linear_vpos_vb_start = linear_vpos_vb_start;
 		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
@@ -8011,7 +8014,7 @@ void quick_denise_rga_queue(uae_u32 linecnt, int startpos, int endpos)
 		q->endpos = endpos;
 		q->type = 3;
 		q->vpos = vpos;
-		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos = linear_vpos_start;
 		q->linear_vpos_vb_start = linear_vpos_vb_start;
 		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
@@ -8039,7 +8042,7 @@ void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos
 		q->endpos = endpos;
 		q->type = 4;
 		q->vpos = vpos;
-		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos = linear_vpos_start;
 		q->linear_vpos_vb_start = linear_vpos_vb_start;
 		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
@@ -8055,7 +8058,7 @@ void denise_handle_quick_strobe_queue(uae_u16 strobe, int strobe_pos, int endpos
 }
 
 void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int endpos, int startcycle, int endcycle, int skip_start, int skip_end, int dtotal,
-	int calib_start, int calib_len, bool lof, bool lol, int hdelay, bool blanked, bool borderline, bool finalseg, struct linestate *ls)
+	int calib_start, int calib_len, bool lol, int hdelay, bool blanked, uae_s8 borderline, bool finalseg, struct linestate *ls)
 {
 	if (multithread_denise_active()) {
 
@@ -8077,7 +8080,6 @@ void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int star
 		q->dtotal = dtotal;
 		q->calib_start = calib_start;
 		q->calib_len = calib_len;
-		q->lof = lof;
 		q->lol = lol;
 		q->ls = ls;
 		q->vpos = vpos;
@@ -8085,7 +8087,7 @@ void draw_denise_line_queue(int gfx_ypos, nln_how how, uae_u32 linecnt, int star
 		q->blanked = blanked;
 		q->borderline = borderline;
 		q->finalseg = finalseg;
-		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos = linear_vpos_start;
 		q->linear_vpos_vb_start = linear_vpos_vb_start;
 		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
@@ -8113,7 +8115,7 @@ void draw_denise_vsync_queue(int erase)
 		q->type = 5;
 		q->erase = erase;
 		q->vpos = vpos;
-		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos = linear_vpos_start;
 		q->linear_vpos_vb_start = linear_vpos_vb_start;
 		q->linear_vpos_vb_end = linear_vpos_vb_end;
 
@@ -8137,7 +8139,7 @@ void denise_update_reg_queue(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
 		struct denise_rga_queue *q = &rga_queue[rga_queue_write & DENISE_RGA_SLOT_CHUNKS_MASK];
 		q->type = 6;
 		q->vpos = vpos;
-		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos = linear_vpos_start;
 		q->linear_vpos_vb_start = linear_vpos_vb_start;
 		q->linear_vpos_vb_end = linear_vpos_vb_end;
 		q->reg = reg;
@@ -8164,7 +8166,7 @@ void denise_store_restore_registers_queue(bool store, uae_u32 linecnt)
 		struct denise_rga_queue *q = &rga_queue[rga_queue_write & DENISE_RGA_SLOT_CHUNKS_MASK];
 		q->type = 7;
 		q->vpos = vpos;
-		q->linear_vpos = linear_display_vpos;
+		q->linear_vpos = linear_vpos_start;
 		q->linear_vpos_vb_start = linear_vpos_vb_start;
 		q->linear_vpos_vb_end = linear_vpos_vb_end;
 		q->val = store ? 1 : 0;
