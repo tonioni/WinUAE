@@ -271,6 +271,7 @@ static int vpos_lpen, hpos_lpen, hhpos_lpen, lightpen_triggered;
 static uae_u32 vhposr_prev;
 int lightpen_x[2], lightpen_y[2];
 int lightpen_cx[2], lightpen_cy[2], lightpen_active, lightpen_enabled, lightpen_enabled2;
+static bool ciahsyncs, ciavsyncs;
 
 /*
 * Hardware registers of all sorts.
@@ -2334,6 +2335,12 @@ STATIC_INLINE int issyncstopped(uae_u16 con0)
 	return (con0 & 2) && (!currprefs.genlock || currprefs.genlock_effects);
 }
 
+static void set_cia_syncs(void)
+{
+	ciahsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && (!currprefs.ntscmode || genlockhtoggle));
+	ciavsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && genlockvtoggle);
+}
+
 static void setsyncstoppos(void)
 {
 	agnus_hpos = 0;
@@ -3597,6 +3604,7 @@ static void BPLCON0_delayed(uae_u32 va)
 	bplcon0 = va;
 
 	check_harddis();
+	set_cia_syncs();
 
 	setup_fmodes(bplcon0);
 
@@ -6286,23 +6294,8 @@ static void cia_hsync_do(void)
 	// vertical: interlaced = toggles every other field, non-interlaced = both fields (normal)
 	// horizontal: PAL = every line, NTSC = every other line
 	genlockhtoggle = !genlockhtoggle;
-	bool ciahsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && (!currprefs.ntscmode || genlockhtoggle));
-	bool ciavsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && genlockvtoggle);
 
 	CIA_hsync_posthandler(false, false);
-	if (currprefs.cs_cd32cd) {
-		CIA_hsync_posthandler(true, true);
-		CIAB_tod_handler(35);
-	} else if (ciahsyncs) {
-		CIA_hsync_posthandler(true, ciahsyncs);
-		if (beamcon0 & BEAMCON0_VARHSYEN) {
-			if (hsstop < (maxhpos & ~1) && hsstrt < maxhpos) {
-				CIAB_tod_handler(hsstop);
-			}
-		} else {
-			CIAB_tod_handler(35); // hsync end
-		}
-	}
 
 	if (currprefs.cs_cd32cd) {
 
@@ -6314,19 +6307,6 @@ static void cia_hsync_do(void)
 		}
 
 	} else if (currprefs.cs_ciaatod > 0) {
-#if 0
-		static uae_s32 oldtick;
-		uae_s32 tick = read_system_time(); // milliseconds
-		int ms = 1000 / (currprefs.cs_ciaatod == 2 ? 60 : 50);
-		if (tick - oldtick > 2000 || tick - oldtick < -2000) {
-			oldtick = tick - ms;
-			write_log(_T("RESET\n"));
-		}
-		if (tick - oldtick >= ms) {
-			CIA_vsync_posthandler(1);
-			oldtick += ms;
-		}
-#else
 		if (cia_hsync < maxhpos) {
 			int newcount;
 			CIAA_tod_handler(cia_hsync);
@@ -6335,21 +6315,8 @@ static void cia_hsync_do(void)
 		} else {
 			cia_hsync -= maxhpos;
 		}
-#endif
-	} else if (currprefs.cs_ciaatod == 0 && ciavsyncs) {
-		// CIA-A TOD counter increases when vsync pulse ends
-		if (beamcon0 & BEAMCON0_VARVSYEN) {
-			if (vsstop == vpos) {
-				// Always uses HCENTER and HSSTRT registers. Even if VARHSYEN=0.
-				CIAA_tod_handler(lof_store ? hcenter : hsstrt);
-			}
-		} else {
-			if (vpos == (currprefs.ntscmode ? VSYNC_ENDLINE_NTSC : VSYNC_ENDLINE_PAL)) {
-				CIAA_tod_handler(lof_store ? 132 : 18);
-			}
 		}
 	}
-}
 
 // this prepares for new line
 static void hsync_handler_post(bool onvsync)
@@ -8930,6 +8897,7 @@ void check_prefs_changed_custom(void)
 	}
 
 	cia_set_eclockphase();
+	set_cia_syncs();
 	if (syncchange) {
 		varsync_changed = 2;
 	}
@@ -10092,6 +10060,36 @@ static void vsync_mark(void)
 	}
 }
 
+static void ciab_tod_maybe_inc(int delay)
+{
+	if (ciahsyncs) {
+		if (delay > 0) {
+			// current hpos=START (1)
+			delay--;
+		}
+		// CIA-B TOD counter increases when hsync pulse ends
+		if (currprefs.cs_cd32cd) {
+			CIA_hsync_posthandler(true, true);
+			CIAB_tod_handler(delay);
+		} else if (ciahsyncs) {
+			CIA_hsync_posthandler(true, ciahsyncs);
+			CIAB_tod_handler(delay);
+		}
+	}
+}
+
+static void ciaa_tod_maybe_inc(int delay)
+{
+	if (ciavsyncs) {
+		if (delay > 0) {
+			// current hpos=START (1)
+			delay--;
+		}
+		// CIA-A TOD counter increases when vsync pulse ends
+		CIAA_tod_handler(delay);
+	}
+}
+
 static void agnus_vsync_on(void)
 {
 	if (!agnus_vsync) {
@@ -10155,6 +10153,9 @@ static void check_vsyncs_fast(void)
 			update_lof_detect();
 		}
 		if (vpos == 5) {
+			if (agnus_vsync && !beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
+				ciaa_tod_maybe_inc(132);
+			}
 			agnus_vsync = false;
 		}
 	} else {
@@ -10176,6 +10177,9 @@ static void check_vsyncs_fast(void)
 			update_lof_detect();
 		}
 		if (vpos == 6) {
+			if (agnus_vsync && !beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
+				ciaa_tod_maybe_inc(18);
+			}
 			agnus_vsync = false;
 		}
 	}
@@ -10190,9 +10194,15 @@ static void check_vsyncs_fast(void)
 			lof_pdetect = 0;
 		}
 		if (!lof_store && vpos == vsstop) {
+			if (agnus_pvsync && beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
+				ciaa_tod_maybe_inc(hsstrt);
+			}
 			agnus_pvsync = false;
 		}
 		if (lof_store && vpos == vsstop) {
+			if (agnus_pvsync && beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
+				ciaa_tod_maybe_inc(hcenter);
+			}
 			agnus_pvsync = false;
 		}
 		if (vpos == vbstrt) {
@@ -10234,6 +10244,9 @@ static void check_vsyncs_fast(void)
 				lof_pdetect = 1;
 			}
 			if (lof_store && vpos == vsstop) {
+				if (agnus_pvsync && beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
+					ciaa_tod_maybe_inc(hcenter);
+				}
 				agnus_pvsync = false;
 			}
 		}
@@ -10361,6 +10374,13 @@ static void check_vsyncs(void)
 			update_agnus_vb();
 		}
 	}
+
+	if (!beamcon0_has_hsync) {
+		ciab_tod_maybe_inc(35);
+	} else {
+		ciab_tod_maybe_inc(hsstop);
+}
+
 }
 
 static uae_u64 olddat[DENISE_RGA_SLOT_TOTAL / DENISE_RGA_SLOT_CHUNKS];
@@ -11477,6 +11497,9 @@ static void check_hsyncs_hardwired(void)
 #endif
 	}
 	if (is_hsstop) { // HSSTOP
+		if (agnus_hsync && !beamcon0_has_hsync) {
+			ciab_tod_maybe_inc(0);
+		}
 		agnus_hsync = false;
 		agnus_hsstop_cck = get_cck_cycles();
 		if (!beamcon0_has_hsync) {
@@ -11508,6 +11531,9 @@ static void check_hsyncs_hardwired(void)
 #endif
 			}
 			if (vpos == 5 && !lof_store) {
+				if (agnus_vsync && !beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
+					ciaa_tod_maybe_inc(0);
+				}
 				agnus_vsync = false;
 #ifdef DEBUGGER
 				if (debug_dma) {
@@ -11532,6 +11558,9 @@ static void check_hsyncs_hardwired(void)
 #endif
 			}
 			if (vpos == 5 && lof_store) {
+				if (agnus_vsync && !beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
+					ciaa_tod_maybe_inc(0);
+				}
 				agnus_vsync = false;
 #ifdef DEBUGGER
 				if (debug_dma) {
@@ -11560,6 +11589,9 @@ static void check_hsyncs_hardwired(void)
 #endif
 			}
 			if (vpos == 6 && lof_store) {
+				if (agnus_vsync && !beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
+					ciaa_tod_maybe_inc(0);
+				}
 				agnus_vsync = false;
 #ifdef DEBUGGER
 				if (debug_dma) {
@@ -11584,6 +11616,9 @@ static void check_hsyncs_hardwired(void)
 #endif
 			}
 			if (vpos == 6 && !lof_store) {
+				if (agnus_vsync && !beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
+					ciaa_tod_maybe_inc(0);
+				}
 				agnus_vsync = false;
 #ifdef DEBUGGER
 				if (debug_dma) {
@@ -11684,6 +11719,9 @@ static void check_hsyncs_programmed(void)
 #endif
 		}
 		if (!lof_store && vpos == vsstop) {
+			if (agnus_pvsync && beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
+				ciaa_tod_maybe_inc(0);
+			}
 			agnus_pvsync = false;
 #ifdef DEBUGGER
 			if (debug_dma) {
@@ -11716,6 +11754,9 @@ static void check_hsyncs_programmed(void)
 #endif
 	}
 	if (hhp == hsstop) {
+		if (agnus_phsync && beamcon0_has_hsync) {
+			ciab_tod_maybe_inc(0);
+		}
 		agnus_phsync = false;
 		agnus_phsstop_cck = get_cck_cycles();
 		if (beamcon0_has_hsync) {
@@ -11787,6 +11828,9 @@ static void check_hsyncs_programmed(void)
 #endif
 		}
 		if (lof_store && vpos == vsstop) {
+			if (agnus_pvsync && beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
+				ciaa_tod_maybe_inc(0);
+			}
 			agnus_pvsync = false;
 #ifdef DEBUGGER
 			if (debug_dma) {
