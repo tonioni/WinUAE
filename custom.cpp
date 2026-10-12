@@ -4446,7 +4446,8 @@ static void cursorsprite(struct sprite *s)
 	if (sprres == 0) {
 		sprite_0_doubled = 1;
 	}
-	if (spr[0].dblscan) {
+	// SPRxPOS bit 7 is only scan doubling when FMODE SSCAN2 is set, otherwise it is SH8.
+	if (spr[0].dblscan && (fmode & 0x8000)) {
 		sprite_0_height /= 2;
 	}
 	if (aga_mode) {
