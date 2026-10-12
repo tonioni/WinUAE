@@ -6147,7 +6147,9 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 	if ((denise_pixtotal_max == -0x7fffffff && denise_vsync_bpl_detect) || blanked || borderline < 0) {
 
 		// don't draw vertical blanking if not ultra extreme overscan
-		internal_pixel_cnt = -30000;
+		if (denise_pixtotal_max == -0x7fffffff && denise_vsync_bpl_detect) {
+			internal_pixel_cnt = -30000;
+		}
 		line_is_blanked = true;
 		while (denise_cck < denise_endcycle) {
 			// start drawing normally if BPLDAT1 gets written to, even if line is blanked

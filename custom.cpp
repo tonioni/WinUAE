@@ -225,6 +225,7 @@ static int linear_vb_offset;
 static int linear_vpos_vsync;
 #endif
 int linear_vpos_start;
+static int linear_vpos_start_prev;
 int current_linear_vpos, current_linear_hpos;
 static int current_linear_hblen, current_linear_hblen_temp;
 int current_linear_vpos_nom, current_linear_hpos_short;
@@ -10763,7 +10764,7 @@ static bool getbplptx(uaecptr bplptx[8], int planes, int lvpos, int lof, bool ty
 static bool checkprevfieldlinestateequal(void)
 {
 	int lvpos = linear_vpos_start + 1;
-	if (lvpos >= MAX_SCANDOUBLED_LINES + 1 || linear_vpos_start + 1 >= MAX_SCANDOUBLED_LINES) {
+	if (lvpos >= MAX_SCANDOUBLED_LINES - 2 || linear_vpos_start >= MAX_SCANDOUBLED_LINES - 2) {
 		return false;
 	}
 	bool ret = false;
@@ -10775,11 +10776,6 @@ static bool checkprevfieldlinestateequal(void)
 		if (type == LINETYPE_BLANK) {
 			if (always > 0) {
 				draw_blank_fast(lvpos);
-				if (doflickerfix_active()) {
-					lof_display ^= 1;
-					draw_blank_fast(lvpos);
-					lof_display ^= 1;
-				}
 			}
 			ret = true;
 		} else if (type == LINETYPE_BORDER) {
@@ -10801,9 +10797,15 @@ static bool checkprevfieldlinestateequal(void)
 					storelinestate();
 					int planes = GET_PLANES(l->bplcon0);
 
-					r = draw_line_fast(lvpos, bplpt, true);
-
 					if (doflickerfix_active()) {
+
+						bool borderline = scandoubled_vdiw[lvpos][0] || scandoubled_vdiw[lvpos][1] || scandoubled_vdiw[lvpos + 1][lof_display];
+						if (borderline) {
+							draw_border_fast(lvpos);
+						} else {
+							r = draw_line_fast(lvpos, bplpt, true);
+						}
+
 						int lvpos2 = lvpos + 1;
 						if (lvpos2 < MAX_SCANDOUBLED_LINES) {
 							lof_display ^= 1;
@@ -10812,10 +10814,8 @@ static bool checkprevfieldlinestateequal(void)
 								if (l2->drawmode) {
 									uaecptr bplptx[MAX_PLANES];
 									bool skip = getbplptx(bplptx, planes, lvpos2, lof_store, true);
-									bool borderline = scandoubled_vdiw[lvpos2][0] || scandoubled_vdiw[lvpos2][1];
-									if (vb_fast || vb_fast_prev) {
-										draw_blank_fast(lvpos2);
-									} else if (skip || borderline) {
+									bool borderline = scandoubled_vdiw[lvpos2][0] || scandoubled_vdiw[lvpos2][1] || scandoubled_vdiw[lvpos2 + 1][lof_display];
+									if (skip || borderline) {
 										draw_border_fast(lvpos2);
 									} else {
 										draw_line_fast(lvpos2, bplptx, false);
@@ -10826,6 +10826,11 @@ static bool checkprevfieldlinestateequal(void)
 							}
 							lof_display ^= 1;
 						}
+
+					} else {
+
+						r = draw_line_fast(lvpos, bplpt, true);
+
 					}
 
 				}
@@ -10833,6 +10838,7 @@ static bool checkprevfieldlinestateequal(void)
 			}
 		}
 	}
+
 	return ret;
 }
 
@@ -10876,14 +10882,16 @@ static void do_draw_line(void)
 	if (!custom_disabled) {
 		draw_line_wclks = linear_hpos - (display_hstart_cyclewait_skip_start - display_hstart_cyclewait_skip_end);
 		if (custom_fastmode >= 0) {
-			if (lvpos < MAX_SCANDOUBLED_LINES) {
+			if (lvpos < MAX_SCANDOUBLED_LINES - 1) {
 				struct linestate *l = &lines[lvpos][lof_display];
 				if (doflickerfix_active()) {
 
-					uae_s8 borderline = scandoubled_vdiw[lvpos][0] || scandoubled_vdiw[lvpos][1];
+					uae_s8 borderline = scandoubled_vdiw[lvpos][0] || scandoubled_vdiw[lvpos][1] || scandoubled_vdiw[lvpos + 1][lof_display];
+					// make sure first odd/even line is blanked
 					if (vb_fast || vb_fast_prev) {
 						borderline = -1;
 					}
+
 					denise_store_restore_registers_queue(true, rga_denise_cycle_line);
 					draw_line(lvpos, true, borderline);
 					denise_store_restore_registers_queue(false, rga_denise_cycle_line);
@@ -10893,6 +10901,14 @@ static void do_draw_line(void)
 					lof_display ^= 1;
 					draw_line(lvpos, true, borderline);
 					lof_display ^= 1;
+
+					// make sure last odd/even line is blanked
+					if (borderline < 0 && !vb_fast_prev) {
+						if (lof_display && linear_vpos_start_prev < MAX_SCANDOUBLED_LINES - 1) {
+							lvpos = linear_vpos_start_prev;
+						}
+						draw_blank_fast(lvpos);
+					}
 
 				} else {
 
@@ -11140,7 +11156,8 @@ static void vsync_nosync(void)
 
 static void custom_trigger_start_nosync(void)
 {
-	linear_vpos_start = linear_vpos;
+	linear_vpos_start_prev = linear_vpos_start;
+	linear_vpos_start = linear_vpos_start_prev;
 	linear_vpos++;
 	hsync_ccks = maxhpos;
 	if (linear_vpos >= maxvpos + lof_store) {
@@ -11166,6 +11183,7 @@ static void custom_trigger_start(void)
 	if (!ecs_agnus) {
 		vpos &= 511;
 	}
+	linear_vpos_start_prev = linear_vpos_start;
 	linear_vpos_start = linear_vpos;
 	linear_vpos++;
 	linear_vpos_vblank_lines_cnt++;
