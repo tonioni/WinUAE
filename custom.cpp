@@ -8588,9 +8588,10 @@ uae_u8 *save_custom_slots(size_t *len, uae_u8 *dstptr)
 		save_u16(0);//save_u16(cycle_line_slot[i]);
 	}
 
-	// RGA pipeline
+	// RGA pipeline: save the real slots in pipeline order, without the
+	// rotating extra entry, so they restore with a zero slot offset.
 	for (int i = 0; i < RGA_SLOT_TOTAL; i++) {
-		struct rgabuf *r = &rga_pipe[i];
+		struct rgabuf *r = &rga_pipe[(i + rga_slot_first_offset) & 3];
 		int regidx;
 		save_u32(r->type);
 		save_u16(r->reg);
@@ -8612,7 +8613,7 @@ uae_u8 *save_custom_slots(size_t *len, uae_u8 *dstptr)
 		save_u16(regidx);
 	}
 
-	save_u8(rga_slot_first_offset);
+	save_u8(0);
 
 	*len = dst - dstbak;
 	return dstbak;
