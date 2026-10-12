@@ -1,4 +1,22 @@
 
+Beta 17:
+
+- "Remove interlace artifacts" option should be mostly working now. Last line of bitplane is not drawn and first blanking line can flicker.
+- Very hidden OCS Denise only feature discovered and emulated: Already known undocumented feature "BPL1DAT does not enable bitplanes (and sprites) if OCS Denise BURST signal is active" (Burst signal and pin was originally meant for early NTSC/PAL color encoders, later ones internally generate color burst timing signal) but due to way it is implemented, it temporarily enables internal bitplanes and sprite outputs for 0.5 CCK (1 lores/2 hires pixels). This is normally completely hidden because normally BURST signal is only active inside horizontal blanking. Until ross used VHPOSW writes to skip BURST deactivation cycle and suddenly (at first) unexplained oddly striped bitplane data appeared on screen. UAE incorrectly shows normal display until this update.
+- "A1000 (No EHB)" chipset option incorrectly selected OCS Agnus.
+- b16 scanline length check relaxed, at least some displays ignore few different size scan line lengths before it causes resync. Trigger no sync only if multiple lines have different scanline lengths.
+- Trigger no sync condition if vsync is active far too many consecutive lines.
+- Horizontal centering option improved (Amiberry)
+- Relaxed automatic scaling limits, very small (horizontal or vertical) display sizes are again allowed.
+- Moved CIA-A TOD VSync and CIA-B TOD HSync counting to v6+ hsync/vsync check routines.
+- WORD or BYTE read from non-existing PCI board's config space returned zeros instead of $FFFF/$FF if bridge was endian swapping. LONG reads were correct. BPPC 44.71 ROM detected ghost PCI board in all G-REX slots.
+- Statefile save didn't always save correct RGA pipeline slots.
+- Do not allow disabling all sound drivers. In this condition default sound device appeared to work but stopped working after first GUI open and it probably also caused other side-effects.
+- Fixed panel specific Help button redirection links to updated help page at https://winuaehelp.vware.at/
+- Removed support for old CHM based help file. CHM format has been obsoleted years ago. PDF is still supported.
+- Amiberry ARM64 JIT fixes (FMOVEM to/from with EA = (d8,An,Xn),(d16,PC) or (d8,PC,Xn) and shift instructions with >31 shift counts)
+- GUI ROM panel Advanced Custom ROM settings is now disabled if either (or both) address boxes are cleared. Previously only way to clear it was to set both address values to zero.
+
 Beta 16:
 
 - Non-CE non-immediate mode blitter speed was almost as fast as immediate (b13)
