@@ -6300,6 +6300,7 @@ static void cia_hsync_do(void)
 	// vertical: interlaced = toggles every other field, non-interlaced = both fields (normal)
 	// horizontal: PAL = every line, NTSC = every other line
 	genlockhtoggle = !genlockhtoggle;
+	set_cia_syncs();
 
 	CIA_hsync_posthandler(false, false);
 
@@ -6937,6 +6938,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 
 	//vdiw_change(0);
 	check_harddis();
+	set_cia_syncs();
 
 	init_hz_reset();
 	init_hz();
@@ -11238,6 +11240,7 @@ static void custom_trigger_start(void)
 		}
 		if ((bplcon0 & 2) && currprefs.genlock) {
 			genlockvtoggle = lof_store ? 1 : 0;
+			set_cia_syncs();
 		}
 
 		vposzero = true;
