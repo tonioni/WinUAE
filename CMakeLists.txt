@@ -504,6 +504,9 @@ target_compile_options(winuae_core PRIVATE
 )
 
 set(WINUAE_UNIX_EXTRA_SOURCES)
+add_executable(winuae_gdb_protocol_test EXCLUDE_FROM_ALL
+    gdb_protocol.cpp gdb_protocol_test.cpp)
+winuae_unix_register_test(winuae_gdb_protocol_test)
 set(WINUAE_UNIX_EXTRA_LIBRARIES)
 set(WINUAE_UNIX_EXTRA_LIBRARY_DIRS)
 set(WINUAE_UNIX_ENABLE_SANA2 OFF)
@@ -1771,6 +1774,9 @@ set(WINUAE_CORE_SOURCES
     fsdb.cpp
     fsdb_unix.cpp
     gayle.cpp
+    gdb_protocol.cpp
+    gdb_server.cpp
+    gdb_target.cpp
     gfxlib.cpp
     gfxutil.cpp
     hardfile.cpp

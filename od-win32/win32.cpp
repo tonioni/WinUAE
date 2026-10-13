@@ -43,6 +43,7 @@
 #include <pktdef.h>
 
 #include "sysdeps.h"
+#include "gdb_server.h"
 #include "options.h"
 #include "audio.h"
 #include "sound.h"
@@ -3357,6 +3358,7 @@ int handle_msgpump(bool vblank)
 
 bool handle_events (void)
 {
+	gdb_server_poll();
 	struct AmigaMonitor *mon = &AMonitors[0];
 	static int was_paused = 0;
 	static int cnt1, cnt2;
