@@ -42,6 +42,7 @@ std::unique_ptr<winuae_gdb::Session> session;
 std::string pending;
 bool polling, sockets_started;
 int configured_port;
+bool threaded_cpu_warned;
 
 void disconnect_client()
 {
@@ -99,6 +100,17 @@ void gdb_server_poll()
 {
 	if (polling) return;
 	int port = (currprefs.debugging_features & DEBUG_FEATURE_GDBSERVER) ? currprefs.gdb_port : 0;
+	// With the threaded CPU, debug() runs on either thread while the other
+	// keeps executing, so remote breakpoint, watchpoint and detach handling
+	// would change debugger and memory bank state under a running thread.
+	if (port && currprefs.cpu_thread) {
+		if (!threaded_cpu_warned)
+			write_log(_T("WinUAE GDB: not available with the threaded CPU (cpu_threaded=true)\n"));
+		threaded_cpu_warned = true;
+		port = 0;
+	} else {
+		threaded_cpu_warned = false;
+	}
 	if (quit_program) port = 0;
 	if (port != configured_port) {
 		gdb_server_close();

@@ -480,7 +480,8 @@ resumes execution and removes only the remote client's breakpoints and
 watchpoints. Commands execute on the emulation thread; no networking thread
 accesses guest state. An enabled but unattached server does not trace the CPU.
 Release a host UI pause before attaching; the CPU must reach a debugger
-boundary to stop.
+boundary to stop. The server is not available with the threaded CPU
+(`cpu_threaded=true`); WinUAE then logs that and does not listen.
 
 Custom register reads at `$DFF000` use WinUAE's saved register snapshot;
 aligned word writes use its existing debugger hardware-write path. Other
