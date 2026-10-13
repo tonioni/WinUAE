@@ -10281,6 +10281,12 @@ static void check_vsyncs_fast(void)
 	}
 
 	check_vidsyncs();
+
+	if (!beamcon0_has_hsync) {
+		ciab_tod_maybe_inc(35);
+	} else {
+		ciab_tod_maybe_inc(hsstop);
+	}
 }
 
 static void check_vsyncs(void)
@@ -10402,13 +10408,6 @@ static void check_vsyncs(void)
 			update_agnus_vb();
 		}
 	}
-
-	if (!beamcon0_has_hsync) {
-		ciab_tod_maybe_inc(35);
-	} else {
-		ciab_tod_maybe_inc(hsstop);
-	}
-
 }
 
 static uae_u64 olddat[DENISE_RGA_SLOT_TOTAL / DENISE_RGA_SLOT_CHUNKS];
