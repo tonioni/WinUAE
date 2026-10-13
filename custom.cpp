@@ -10180,7 +10180,7 @@ static void check_vsyncs_fast(void)
 		}
 		if (vpos == 5) {
 			if (agnus_vsync && !beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
-				ciaa_tod_maybe_inc(132);
+				ciaa_tod_maybe_inc(lof_store ? 132 : 18);
 			}
 			agnus_vsync = false;
 		}
@@ -10206,7 +10206,7 @@ static void check_vsyncs_fast(void)
 		}
 		if (vpos == 6) {
 			if (agnus_vsync && !beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
-				ciaa_tod_maybe_inc(18);
+				ciaa_tod_maybe_inc(lof_store ? 18 : 132);
 			}
 			agnus_vsync = false;
 		}
