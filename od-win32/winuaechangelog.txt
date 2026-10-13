@@ -1,4 +1,16 @@
 
+Beta 18:
+
+- A2024 fixed, now works in all overscan modes. (TODO: Other display ports adapters)
+- AGA + NTSC + CE + normal Display panel Overscan setting or lower: left/right edge had NTSC long/short line artifacts visible.
+- Chipset display started 1 line too late (b17).
+- b17 CIA TOD change fixed.
+- 68030 and 68040/060 MMU translation cache emulation fix. (SS&SR)
+- Directory filesystem file/directory rename (ACTION_RENAME_OBJECT) fix. (SR)
+- Magic mouse cursor "Host only" size glitch on AGA screens. (Amiberry)
+- Built-in AROS ROM updated.
+- Built-in GDB server (SR). Config file -debugging_features=gdbserver and -gdb_port=<port> (default 2345).
+
 Beta 17:
 
 - "Remove interlace artifacts" option should be mostly working now. Last line of bitplane is not drawn and first blanking line can flicker.
