@@ -161,7 +161,12 @@ void Session::command(const std::string& s)
 	if (s[0] == 'p' || s[0] == 'P') {
 		auto eq = s.find('=');
 		uint32_t reg, value;
-		if (!number(s, 1, s[0] == 'p' ? s.size() : eq, reg) || reg >= 18) { reply("E01"); return; }
+		if (!number(s, 1, s[0] == 'p' ? s.size() : eq, reg)) { reply("E01"); return; }
+		// GDB's m68k register set also lists the FPU registers: fp0-fp7 (18-25,
+		// 12 bytes each) and fpcontrol, fpstatus, fpiaddr (4 bytes each). Report
+		// them as unavailable instead of failing, so "info registers" still works.
+		if (s[0] == 'p' && reg >= 18) { reply(std::string(reg <= 25 ? 24 : 8, 'x')); return; }
+		if (reg >= 18) { reply("E01"); return; }
 		if (s[0] == 'p') { reply(encode(target.registers()[reg])); return; }
 		if (eq == std::string::npos || s.size() - eq != 9 || !number(s, eq + 1, s.size(), value)) {
 			reply("E01"); return;
