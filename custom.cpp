@@ -11160,7 +11160,7 @@ static void vsync_nosync(void)
 static void custom_trigger_start_nosync(void)
 {
 	linear_vpos_start_prev = linear_vpos_start;
-	linear_vpos_start = linear_vpos_start_prev;
+	linear_vpos_start = linear_vpos;
 	linear_vpos++;
 	hsync_ccks = maxhpos;
 	if (linear_vpos >= maxvpos + lof_store) {
