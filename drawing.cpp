@@ -1546,7 +1546,7 @@ static void center_image(void)
 		}
 	}
 
-	vidinfo->inbuffer->xoffset = visible_left_border << (RES_MAX - currprefs.gfx_resolution);
+	vidinfo->inbuffer->xoffset = frame_internal_pixel_start_cnt;
 	vidinfo->inbuffer->yoffset = minfirstline_linear << VRES_MAX;
 
 	int linedbl = currprefs.gfx_vresolution;
