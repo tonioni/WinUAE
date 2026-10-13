@@ -474,7 +474,8 @@ The server is built when both `DEBUGGER` and `GDBSERVER` are defined, as
 they are in the Windows and Unix `sysconfig.h`. The same settings apply to
 Windows builds. The server listens only on
 `127.0.0.1`, accepts one client, and stops at a CPU debugger boundary on
-attach. It supports the 18 m68k integer registers, physical RAM/ROM reads,
+attach. It supports the 18 m68k integer registers (GDB's FPU registers read
+as unavailable), physical RAM/ROM reads,
 RAM writes, stepping, PC breakpoints, and CPU data watchpoints. Disconnect
 resumes execution and removes only the remote client's breakpoints and
 watchpoints. Commands execute on the emulation thread; no networking thread
@@ -487,7 +488,8 @@ Custom register reads at `$DFF000` use WinUAE's saved register snapshot;
 aligned word writes use its existing debugger hardware-write path. Other
 I/O banks and ROM writes return errors. Memory addresses are physical, not
 guest MMU translations. Watchpoints use the existing debugger's supported
-range below `$7FFF0000`, with a maximum length of 64 KiB; they are unavailable
+range below `$7FFF0000` (below `$01000000` with 24-bit addressing, which also
+limits PC breakpoints), with a maximum length of 64 KiB; they are unavailable
 while its MMU debugger mode is enabled. Standard GDB `qXfer:memory-map:read`
 provides RAM/ROM XML from the existing debugger memory map when that map is
 complete. Unlisted regions are not certified as safe to access.
