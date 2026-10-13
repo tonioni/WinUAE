@@ -470,7 +470,9 @@ debugging_features=gdbserver
 gdb_port=2345
 ```
 
-The same settings apply to Windows builds. The server listens only on
+The server is built when both `DEBUGGER` and `GDBSERVER` are defined, as
+they are in the Windows and Unix `sysconfig.h`. The same settings apply to
+Windows builds. The server listens only on
 `127.0.0.1`, accepts one client, and stops at a CPU debugger boundary on
 attach. It supports the 18 m68k integer registers, physical RAM/ROM reads,
 RAM writes, stepping, PC breakpoints, and CPU data watchpoints. Disconnect
