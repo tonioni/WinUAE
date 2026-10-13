@@ -12486,7 +12486,6 @@ static void sync_equalline_handler(void)
 	custom_trigger_start();
 
 	if (eventtab[ev_sync].active) {
-		check_vsyncs_fast();
 		check_bpl_vdiw();
 		do_imm_dmal();
 	} else {
