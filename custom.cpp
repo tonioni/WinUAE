@@ -6300,6 +6300,7 @@ static void cia_hsync_do(void)
 	// vertical: interlaced = toggles every other field, non-interlaced = both fields (normal)
 	// horizontal: PAL = every line, NTSC = every other line
 	genlockhtoggle = !genlockhtoggle;
+	set_cia_syncs();
 
 	CIA_hsync_posthandler(false, false);
 
@@ -6937,6 +6938,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 
 	//vdiw_change(0);
 	check_harddis();
+	set_cia_syncs();
 
 	init_hz_reset();
 	init_hz();
@@ -10178,7 +10180,7 @@ static void check_vsyncs_fast(void)
 		}
 		if (vpos == 5) {
 			if (agnus_vsync && !beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
-				ciaa_tod_maybe_inc(132);
+				ciaa_tod_maybe_inc(lof_store ? 132 : 18);
 			}
 			agnus_vsync = false;
 		}
@@ -10204,7 +10206,7 @@ static void check_vsyncs_fast(void)
 		}
 		if (vpos == 6) {
 			if (agnus_vsync && !beamcon0_has_vsync && currprefs.cs_ciaatod == 0) {
-				ciaa_tod_maybe_inc(18);
+				ciaa_tod_maybe_inc(lof_store ? 18 : 132);
 			}
 			agnus_vsync = false;
 		}
@@ -10279,6 +10281,12 @@ static void check_vsyncs_fast(void)
 	}
 
 	check_vidsyncs();
+
+	if (!beamcon0_has_hsync) {
+		ciab_tod_maybe_inc(35);
+	} else {
+		ciab_tod_maybe_inc(hsstop);
+	}
 }
 
 static void check_vsyncs(void)
@@ -10400,13 +10408,6 @@ static void check_vsyncs(void)
 			update_agnus_vb();
 		}
 	}
-
-	if (!beamcon0_has_hsync) {
-		ciab_tod_maybe_inc(35);
-	} else {
-		ciab_tod_maybe_inc(hsstop);
-	}
-
 }
 
 static uae_u64 olddat[DENISE_RGA_SLOT_TOTAL / DENISE_RGA_SLOT_CHUNKS];
@@ -11158,7 +11159,7 @@ static void vsync_nosync(void)
 static void custom_trigger_start_nosync(void)
 {
 	linear_vpos_start_prev = linear_vpos_start;
-	linear_vpos_start = linear_vpos_start_prev;
+	linear_vpos_start = linear_vpos;
 	linear_vpos++;
 	hsync_ccks = maxhpos;
 	if (linear_vpos >= maxvpos + lof_store) {
@@ -11238,6 +11239,7 @@ static void custom_trigger_start(void)
 		}
 		if ((bplcon0 & 2) && currprefs.genlock) {
 			genlockvtoggle = lof_store ? 1 : 0;
+			set_cia_syncs();
 		}
 
 		vposzero = true;
@@ -12484,7 +12486,6 @@ static void sync_equalline_handler(void)
 	custom_trigger_start();
 
 	if (eventtab[ev_sync].active) {
-		check_vsyncs_fast();
 		check_bpl_vdiw();
 		do_imm_dmal();
 	} else {
