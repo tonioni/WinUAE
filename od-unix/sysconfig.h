@@ -45,6 +45,7 @@
 #define UAE_FILESYS_THREADS 1
 #define AUTOCONFIG 1
 #define DEBUGGER 1
+#define GDBSERVER 1
 #define ECS_DENISE 1
 #define AGA 1
 #define CD32 1
