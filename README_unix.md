@@ -582,6 +582,34 @@ direction, access size and function code. MMU bus faults retain the raw
 68030/68040 SSW or 68060 FSLW; unknown transfer sizes are null. These are
 captured at the existing exception hook, without changing frame creation.
 
+`monitor dma-watch add ADDRESS LENGTH MODE MASK` adds an independently owned
+DMA watchpoint; MODE is 1=read, 2=write or 3=access, and MASK uses the
+existing WinUAE DMA source bits in `debug.h`. CPU source bits are rejected.
+The reply is a decimal watchpoint ID; remove it with `monitor dma-watch
+remove ID`, or inspect owned entries with `monitor dma-watch list`. Ranges
+are limited to 64 KiB and the existing watchpoint mapper's address space.
+Standard GDB CPU watchpoints remain separate. Stop replies include the
+actual source mask and custom register.
+
+`monitor watch add ADDRESS SIZE ACCESS SOURCES VALUE_ENABLED VALUE MASK
+CHANGE_ONLY LOG_ONLY` adds an exact-width watchpoint predicate for an
+aligned 1, 2 or 4 byte access, using the existing memwatch value masks and
+change detection. Change-only predicates require RAM and write access.
+Log-only entries record evidence without stopping. `watch list` and
+`watch remove ID` manage these entries. `monitor watch events`, `watch last`
+and `watch clear-events` read or clear a 64-entry ring of access evidence
+from all remote watchpoints, with access values, previous RAM values,
+sources and an eviction count.
+
+`monitor guest-output on|off|read|clear` captures the guest's existing uaelib
+function 86 debug messages. Capture is opt-in and retains at most 64 records
+and 4096 payload bytes, with each message capped at 1024 bytes. JSON output
+includes record IDs, truncation flags and an eviction count. Reads preserve
+the records; clear empties them while keeping the capture setting. Turning
+capture off retains records for inspection; disconnect/reset clears them.
+This is a guest debug-message channel, not AmigaDOS console or serial output.
+Host logging keeps its original behavior.
+
 ## Smoke Test
 
 The repository includes a headless A1200 smoke test. It uses SDL dummy video/audio by default and checks that ROM loading, audio initialization, and hard reset reached the expected log points:

@@ -1,5 +1,7 @@
 #include "include/gdb_protocol.h"
 #include "include/gdb_amiga.h"
+#include "include/gdb_output.h"
+#include "include/gdb_watch.h"
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
@@ -137,6 +139,11 @@ static void process_reader_tests()
 
 int main()
 {
+	WatchLog log;
+	for (unsigned i = 0; i < 70; ++i) log.capture({0,1,i,2,2,1,0,0x10000,i,0,true});
+	require(log.snapshot().find("\"dropped\":6") != std::string::npos &&
+		log.snapshot(true).find("\"address\":69") != std::string::npos, "watch log bounds/order");
+	log.clear(); require(log.snapshot(true) == "null", "stale watch evidence after clear");
 	FakeTarget target;
 	Session s(target);
 	require(send(s, "qXfer:memory-map:read::0,8") == "+" + frame("m<memory-"), "memory map first chunk");
@@ -215,6 +222,19 @@ int main()
 	require(send(s, monitor("test-invalid")) == frame("E01"), "monitor rejection");
 	process_reader_tests();
 	task_reader_tests();
+	GuestOutput output;
+	output.capture("disabled");
+	require(output.snapshot().find("disabled") == std::string::npos, "guest capture enabled by default");
+	output.enable(true);
+	output.capture("hello\n");
+	require(output.snapshot().find("hello\\u000a") != std::string::npos, "guest output escaping");
+	std::string flood(2048, char(255));
+	for (int i = 0; i < 100; ++i) output.capture(flood.c_str());
+	auto snapshot = output.snapshot();
+	require(snapshot.size() < Session::packet_size / 2 && snapshot.find("\"truncated\":true") != std::string::npos &&
+		snapshot.find("\"dropped\":97") != std::string::npos, "guest output flood not bounded");
+	output.clear(true); output.capture("detached");
+	require(output.snapshot() == "{\"enabled\":false,\"dropped\":0,\"records\":[]}", "guest output teardown");
 	require(json_string("a\n\"") == "\"a\\u000a\\\"\"", "JSON escaping");
 	require(send(s, "D") == frame("OK") && s.finished(), "detach");
 	Session oversized(target);
