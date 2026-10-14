@@ -601,6 +601,14 @@ and `watch clear-events` read or clear a 64-entry ring of access evidence
 from all remote watchpoints, with access values, previous RAM values,
 sources and an eviction count.
 
+`monitor watch range ADDRESS LENGTH ACCESS SOURCES VALUE_ENABLED VALUE MASK
+CHANGE_ONLY LOG_ONLY` takes the same arguments for a range of up to 64 KiB.
+Like a console watchpoint, it matches any access that overlaps the range.
+ACCESS combines 1 (read), 2 (write) and 4 (instruction fetch); fetches need
+the CPU instruction source bit in SOURCES, and reads or writes need another
+source. `watch list` marks these entries with `"range":true`; they share
+`watch remove` and the access log with `watch add`.
+
 `monitor guest-output on|off|read|clear` captures the guest's existing uaelib
 function 86 debug messages. Capture is opt-in and retains at most 64 records
 and 4096 payload bytes, with each message capped at 1024 bytes. JSON output
