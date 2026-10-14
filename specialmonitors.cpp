@@ -1917,6 +1917,8 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 		xstart++;
 		xend++;
 	}
+	if ((xstart << RES_MAX) < src->xoffset)
+		return false;
 
 	srcbuf = src->bufmem + (((ystart << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes + (((xstart << RES_MAX) - src->xoffset) / avidinfo->xchange) * src->pixbytes;
 
@@ -2083,6 +2085,8 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		if (src->yoffset > (idline << VRES_MAX))
 			continue;
 		int x = (210 << RES_MAX) - src->xoffset;
+		if (x < 0)
+			continue;
 		int sy = (((idline << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes;
 		int sx = (x / avidinfo->xchange) * src->pixbytes;
 		dataline = src->bufmem + sy + sx;
@@ -2164,6 +2168,8 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 			return false;
 		total_width = 512 + 512;
 	}
+	if (srcxoffset < 0)
+		return false;
 	panel_height = ntsc ? 400 : 512;
 
 	if (monitor != MONITOREMU_A2024) {
