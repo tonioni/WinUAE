@@ -319,6 +319,9 @@
     <ClCompile Include="..\..\gayle.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\gdb_monitor.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\gdb_protocol.cpp">
       <Filter>common</Filter>
     </ClCompile>

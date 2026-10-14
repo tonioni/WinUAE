@@ -713,6 +713,18 @@ void screenshot_reset(void)
 {
 }
 
+bool screenshot_save(int monid, const TCHAR *path)
+{
+#ifdef WINUAE_UNIX_WITH_LIBPNG
+    std::vector<uae_u8> storage;
+    struct vidbuffer prepared;
+    return unix_prepare_active_screenshot(monid, &prepared, storage, true)
+        && unix_write_png(path, &prepared);
+#else
+    return false;
+#endif
+}
+
 uae_u8 *save_screenshot(int monid, size_t *len)
 {
     std::vector<uae_u8> prepared_storage;

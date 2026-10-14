@@ -219,7 +219,7 @@ void GdbTarget::interrupt()
 void GdbTarget::resume(bool step)
 {
 	range_active = false;
-	debug_remote_resume(step, false);
+	debug_remote_resume(step, trace_checks());
 }
 
 bool GdbTarget::resume_range(uint32_t start, uint32_t end)
@@ -272,12 +272,6 @@ winuae_gdb::Target& debug_gdb_target()
 	return gdb_target();
 }
 
-GdbTarget& gdb_target()
-{
-	static GdbTarget target;
-	return target;
-}
-
 bool gdb_target_check_stop(uaecptr pc, char* reason, size_t size)
 {
 	return gdb_target().check_stop(pc, reason, size);
@@ -286,5 +280,11 @@ bool gdb_target_check_stop(uaecptr pc, char* reason, size_t size)
 void gdb_target_stopped(char* reason, size_t size)
 {
 	gdb_target().stopped(reason, size);
+}
+
+void gdb_target_exception(int nr)
+{
+	// No guest inspection or trace changes when the remote feature is idle.
+	gdb_target().exception(nr);
 }
 #endif

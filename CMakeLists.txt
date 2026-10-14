@@ -1774,6 +1774,7 @@ set(WINUAE_CORE_SOURCES
     fsdb.cpp
     fsdb_unix.cpp
     gayle.cpp
+    gdb_monitor.cpp
     gdb_protocol.cpp
     gdb_server.cpp
     gdb_target.cpp

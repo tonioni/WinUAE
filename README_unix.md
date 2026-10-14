@@ -499,11 +499,88 @@ and stops when PC leaves [START,END). Empty ranges single-step. Existing
 breakpoints and interrupts still stop execution. Range state clears on any
 stop and disconnect, without adding a new CPU execution loop.
 
-The server is unauthenticated and grants local clients control of the guest.
+The server is unauthenticated and grants local clients control of the guest
+and of host paths used by monitor commands.
 
 The packet parser test is included in `winuae_unix_tests`. It also builds
 independently with a C++17 compiler (`gdb_protocol.cpp` plus
 `gdb_protocol_test.cpp`).
+
+### WinUAE monitor commands
+
+WinUAE-specific operations use GDB `monitor` (qRcmd) commands. Replies are
+hex-encoded text, usually JSON; numeric arguments are hexadecimal unless
+stated otherwise. Monitor commands run only while the CPU is stopped,
+except `capabilities` and `execution-status`.
+
+`monitor capabilities` reports protocol version 1, current CPU/MMU models,
+physical address semantics, monitor commands and execution controls.
+Commands unavailable in the current build/configuration are omitted.
+`monitor execution-status` reports debugger and host pause state, frame
+counter, beam position and cycle count without stopping the guest.
+
+`monitor disasm <hex-address> <decimal-count>` disassembles 1–100
+instructions with the existing debugger. `monitor screenshot
+<native-host-path>` writes a PNG (requires libpng on Unix); paths may
+contain spaces.
+
+`monitor memory-map` adapts the existing debugger map to bounded JSON,
+including RAM/ROM/I/O and chip-RAM classification and a truncation flag.
+`monitor memory-check ADDRESS LENGTH` certifies a physical RAM write range
+and its chip/fast kind without performing a read or write. Mixed, indirect,
+I/O, ROM and unmapped ranges are rejected. This does not allocate RAM or
+establish guest ownership of it.
+
+`monitor process-break name <name>` arms a one-shot breakpoint at the
+first segment's entry instruction of the matching AmigaDOS process. Names
+are case-insensitive ASCII and may be command basenames or complete names.
+`monitor process-break address <hex-task-address>` selects a Process by
+address. Use `process-break status` to inspect the selection, `process-break
+clear` to cancel it, and continue execution after arming. The selection is
+cleared on disconnect. This does not launch a program; launch it in the guest.
+
+`monitor segments [process-address-in-hex]` reports the current or selected
+AmigaDOS Process and its loaded segments as JSON. Each segment includes its
+zero-based load order, first payload address and allocated payload size.
+CLI and Workbench process segment lists are supported; corrupt, cyclic or
+unreadable lists fail without partial results. The limit is 256 segments.
+Clients can use these addresses to relocate host symbols by hunk index;
+allocation sizes are bounds, not exact source/code lengths.
+
+`monitor tasks` reads current/ready/waiting Exec tasks with a 128-node
+bound and cycle detection. It reports saved SP and stack bounds, without
+guessing inactive register contexts. `monitor history on|off` opts remote
+execution into the existing debugger history ring; `history read COUNT`
+returns at most 128 chronological entries with D/A registers and beam
+positions. Adjacent identical PCs may be coalesced. Recording slows
+execution and is disabled on detach.
+
+`monitor condition add REG OP VALUE MASK SIGNED` allocates a remotely
+owned condition in the existing breakpoint table. Registers use debugger
+indices (D0-D7=0-7, A0-A7=8-f, USP/MSP/ISP/VBR/SR=11-15), operations are
+eq/ne/le/ge/lt/gt=0-5. PC conditions use standard address breakpoints.
+`condition list` and `condition remove ID` only manage remote conditions.
+`monitor step-over` uses the console debugger's next-sequential-PC trace
+mode and resumes asynchronously, reporting a later stop. It can be
+interrupted if control flow never reaches that PC.
+
+`monitor exception-mask <hex-mask>` selects CPU exception vectors 2-63
+(bit N selects vector N); zero disables remote exception stops. The mask
+is independent of console exception settings and clears on disconnect.
+`monitor exception` reports that mask and the last selected exception as
+JSON, including its vector, instruction PC and pre-frame register snapshot
+(D0-D7, A0-A7, SR, PC). Stops occur at the normal CPU debugger boundary after
+exception-frame construction; current registers describe the handler entry.
+The stop packet carries the vector and fault instruction PC, with SIGBUS,
+SIGILL, SIGFPE or SIGTRAP as appropriate. The snapshot's PC may already have
+advanced; use instruction_pc to locate the instruction. Unselected
+exceptions retain normal WinUAE behavior.
+
+Exception snapshots also include CPU/MMU models, VBR and the pre-frame
+USP/ISP/MSP values. Bus/address faults include the fault address, access
+direction, access size and function code. MMU bus faults retain the raw
+68030/68040 SSW or 68060 FSLW; unknown transfer sizes are null. These are
+captured at the existing exception hook, without changing frame creation.
 
 ## Smoke Test
 

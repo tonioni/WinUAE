@@ -1288,6 +1288,25 @@ void screenshot_reset(void)
 	screenshot_free();
 }
 
+bool screenshot_save(int monid, const TCHAR *path)
+{
+	int original = screenshot_originalsize, clip = screenshot_clipmode;
+	bool prepared = screenshot_prepare(monid, -1, nullptr, true) != 0;
+	screenshot_originalsize = original;
+	screenshot_clipmode = clip;
+	bool ok = false;
+	if (prepared) {
+		FILE* file = _tfopen(path, _T("wb"));
+		if (file) {
+			ok = savepng(file, usealpha()) == 0;
+			if (fclose(file)) ok = false;
+			if (!ok) _tunlink(path);
+		}
+	}
+	screenshot_free();
+	return ok;
+}
+
 uae_u8 *save_screenshot(int monid, size_t *len)
 {
 #if 0
