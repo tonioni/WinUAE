@@ -4,6 +4,7 @@
 
 #if defined(DEBUGGER) && defined(GDBSERVER)
 #include "options.h"
+#include "uae.h"
 #include "memory.h"
 #include "newcpu.h"
 #include "custom.h"
@@ -11,10 +12,15 @@
 #include "debug.h"
 #include "disasm.h"
 #include "inputdevice.h"
+#include "inputrecord.h"
+#include "savestate.h"
 #include "xwin.h"
+#include "zfile.h"
+#include "fsdb.h"
 #include "gdb_server.h"
 #include "gdb_target.h"
 #include "gdb_amiga.h"
+#include "gdb_input.h"
 #include "gdb_output.h"
 #include "gdb_watch.h"
 #include <algorithm>
@@ -54,7 +60,7 @@ bool structure_address(const std::string& text, uaecptr& address)
 }
 }
 
-class GdbMonitor : public GdbTarget, private winuae_gdb::GuestReader {
+class GdbMonitor : public GdbTarget, private winuae_gdb::GuestReader, private winuae_gdb::InputSink {
 public:
 	winuae_gdb::GuestOutput guest_output;
 	bool disassemble(uint32_t address, unsigned count, std::string& output) override;
@@ -63,11 +69,14 @@ public:
 	MonitorResult monitor(const std::string& command, std::string& result) override;
 	bool check_stop(uaecptr pc, char* reason, size_t size) override;
 	void stopped(char* reason, size_t size) override;
+	void finish_checkpoint();
 	void exception(int nr) override;
 	void watch_hit(int slot, uaecptr addr, int size, int rwi, uae_u32 source, uae_u32 reg,
 		uae_u32 value, uae_u32 old_value, bool old_valid) override;
 	void detach() override;
+	void input_frame();
 private:
+	winuae_gdb::GuestInput guest_input { *this };
 	winuae_gdb::WatchLog watch_log;
 	std::string process_name;
 	uaecptr process_address = 0;
@@ -77,19 +86,23 @@ private:
 	uae_u64 exception_mask = 0;
 	int exception_vector = -1;
 	bool exception_pending = false;
+	bool checkpoint_saving = false;
 	uaecptr exception_instruction = 0;
 	winuae_gdb::Registers exception_registers {};
 	std::string exception_details;
 
 	bool trace_checks() override { return process_armed || remote_history; }
 	bool read(uint32_t address, uint8_t* bytes, size_t length) override;
+	void input(const winuae_gdb::InputEvent& e) override;
 	bool disassemble_line(uaecptr pc, TCHAR* line, int size, uaecptr& next);
 	MonitorResult status_command(const std::string& command, std::string& result);
 	MonitorResult process_command(const std::string& command, std::string& result);
 	MonitorResult exception_command(const std::string& command, std::string& result);
 	MonitorResult watch_command(const std::string& command, std::string& result);
 	MonitorResult output_command(const std::string& command, std::string& result);
+	MonitorResult checkpoint_command(const std::string& command, std::string& result);
 	MonitorResult task_command(const std::string& command, std::string& result);
+	MonitorResult input_command(const std::string& command, std::string& result);
 };
 
 bool GdbMonitor::read(uint32_t address, uint8_t* bytes, size_t length)
@@ -156,7 +169,7 @@ bool GdbMonitor::screenshot(const std::string& path)
 
 bool GdbMonitor::monitor_running(const std::string& command)
 {
-	return command == "capabilities" || command == "execution-status";
+	return command == "capabilities" || command == "execution-status" || command.compare(0, 6, "input ") == 0;
 }
 
 MonitorResult GdbMonitor::monitor(const std::string& command, std::string& result)
@@ -168,7 +181,9 @@ MonitorResult GdbMonitor::monitor(const std::string& command, std::string& resul
 		&GdbMonitor::exception_command,
 		&GdbMonitor::watch_command,
 		&GdbMonitor::output_command,
+		&GdbMonitor::checkpoint_command,
 		&GdbMonitor::task_command,
+		&GdbMonitor::input_command,
 	};
 	for (auto handler : handlers) {
 		auto status = (this->*handler)(command, result);
@@ -187,7 +202,11 @@ MonitorResult GdbMonitor::status_command(const std::string& command, std::string
 		if (!mmu_enabled)
 			commands += ",\"dma-watch\",\"watch\"";
 		commands += ",\"guest-output\"";
+#ifdef SAVESTATE
+		commands += ",\"checkpoint\"";
+#endif
 		commands += ",\"tasks\",\"history\",\"condition\",\"step-over\"";
+		commands += ",\"input\",\"input-sequence\"";
 		result = "{\"protocol\":1,\"cpu_model\":" + std::to_string(currprefs.cpu_model) +
 			",\"mmu_model\":" + std::to_string(currprefs.mmu_model) +
 			",\"memory_addressing\":\"physical\",\"commands\":[" + commands +
@@ -476,6 +495,69 @@ MonitorResult GdbMonitor::output_command(const std::string& command, std::string
 	return MonitorResult::ok;
 }
 
+MonitorResult GdbMonitor::checkpoint_command(const std::string& command, std::string&)
+{
+	bool restore = command.compare(0, 19, "checkpoint restore ") == 0;
+	if (!restore && command.compare(0, 16, "checkpoint save ") != 0)
+		return MonitorResult::unsupported;
+#ifdef SAVESTATE
+	auto path = command.substr(restore ? 19 : 16);
+	if (path.empty() || savestate_state || quit_program || input_record || input_play ||
+		is_savestate_incompatible() || !save_filesys_cando())
+		return MonitorResult::error;
+	TCHAR* filename = utf8u(path.c_str());
+	if (!filename)
+		return MonitorResult::error;
+	if (_tcslen(filename) >= MAX_DPATH) {
+		xfree(filename);
+		return MonitorResult::error;
+	}
+	if (restore) {
+		// Reject missing files and obvious non-state input before reset.
+		struct zfile* file = zfile_fopen(filename, _T("rb"), 0);
+		char header[4];
+		bool valid = file && zfile_fread(header, 1, 4, file) == 4 && !memcmp(header, "ASF ", 4);
+		if (file)
+			zfile_fclose(file);
+		if (!valid) {
+			xfree(filename);
+			return MonitorResult::error;
+		}
+		savestate_initsave(filename, 1, true, false);
+		xfree(filename);
+		// Remote ownership cannot survive memory remapping. Clear it
+		// before loading saved console watches, while keeping transport.
+		detach();
+		debug_remote_hold();
+		gdb_server_begin_restore();
+		savestate_state = STATE_DORESTORE;
+		uae_reset(1, 0);
+		return MonitorResult::pending;
+	}
+	// A save that cannot open its file would be retried every frame.
+	bool existed = zfile_exists(filename) != 0;
+	struct zfile* file = zfile_fopen(filename, _T("ab"), 0);
+	if (file)
+		zfile_fclose(file);
+	if (file && !existed)
+		my_unlink(filename, true);
+	if (!file) {
+		xfree(filename);
+		return MonitorResult::error;
+	}
+	// State files are only valid at the start of a frame. Run there and
+	// stop right after the save; an earlier stop cancels it.
+	savestate_initsave(filename, 1, true, false);
+	xfree(filename);
+	checkpoint_saving = true;
+	debug_remote_frame_save(true);
+	resume(false);
+	return MonitorResult::pending;
+#else
+	return MonitorResult::unsupported;
+#endif
+}
+
 MonitorResult GdbMonitor::task_command(const std::string& command, std::string& result)
 {
 	if (command == "tasks") {
@@ -580,6 +662,76 @@ MonitorResult GdbMonitor::task_command(const std::string& command, std::string& 
 	return MonitorResult::unsupported;
 }
 
+void GdbMonitor::input(const winuae_gdb::InputEvent& e)
+{
+	if (e.kind == 0) {
+		inputdevice_do_keyboard(e.code, e.value);
+		return;
+	}
+	static const int axes[2][2] = {
+		{ INPUTEVENT_MOUSE1_HORIZ, INPUTEVENT_MOUSE1_VERT },
+		{ INPUTEVENT_MOUSE2_HORIZ, INPUTEVENT_MOUSE2_VERT }
+	};
+	static const int controls[2][7] = {
+		{ INPUTEVENT_JOY1_LEFT, INPUTEVENT_JOY1_RIGHT, INPUTEVENT_JOY1_UP, INPUTEVENT_JOY1_DOWN,
+		  INPUTEVENT_JOY1_FIRE_BUTTON, INPUTEVENT_JOY1_2ND_BUTTON, INPUTEVENT_JOY1_3RD_BUTTON },
+		{ INPUTEVENT_JOY2_LEFT, INPUTEVENT_JOY2_RIGHT, INPUTEVENT_JOY2_UP, INPUTEVENT_JOY2_DOWN,
+		  INPUTEVENT_JOY2_FIRE_BUTTON, INPUTEVENT_JOY2_2ND_BUTTON, INPUTEVENT_JOY2_3RD_BUTTON }
+	};
+	// Relative mouse counts bypass host scaling and window coordinates.
+	int value = e.value <= 127 ? static_cast<int>(e.value) : -static_cast<int>(0u - e.value);
+	send_input_event(e.kind == 1 ? axes[e.port][e.code] : controls[e.port][e.code], value, 0, 0);
+}
+
+void GdbMonitor::input_frame()
+{
+	if (input_record || input_play)
+		guest_input.cancel();
+	else
+		guest_input.frame();
+}
+
+MonitorResult GdbMonitor::input_command(const std::string& command, std::string& result)
+{
+	if (command == "input status" || command == "input release") {
+		if (command == "input release")
+			guest_input.cancel();
+		result = guest_input.status();
+		return MonitorResult::ok;
+	}
+	if (command.compare(0, 15, "input sequence ") == 0) {
+		if (input_record || input_play)
+			return MonitorResult::error;
+		std::vector<winuae_gdb::InputStep> steps;
+		size_t start = 15;
+		while (start < command.size()) {
+			auto end = command.find(';', start);
+			if (end == std::string::npos)
+				end = command.size();
+			uint32_t args[5];
+			if (steps.size() == 256 || !hex_words(command.substr(start, end - start), 5, args))
+				return MonitorResult::error;
+			steps.push_back({ args[0], { args[1], args[2], args[3], args[4] } });
+			if (end + 1 == command.size())
+				return MonitorResult::error;
+			start = end + 1;
+		}
+		if (!guest_input.start(steps))
+			return MonitorResult::error;
+		result = guest_input.status();
+		return MonitorResult::ok;
+	}
+	if (command.compare(0, 12, "input event ") == 0) {
+		uint32_t args[4];
+		if (input_record || input_play || !hex_words(command.substr(12), 4, args) ||
+			!guest_input.event({ args[0], args[1], args[2], args[3] }))
+			return MonitorResult::error;
+		result = guest_input.status();
+		return MonitorResult::ok;
+	}
+	return MonitorResult::unsupported;
+}
+
 bool GdbMonitor::check_stop(uaecptr pc, char* reason, size_t size)
 {
 	if (process_armed && !(get_mem_bank(pc).flags & ABFLAG_ROM)) {
@@ -631,6 +783,7 @@ void GdbMonitor::exception(int nr)
 void GdbMonitor::stopped(char* reason, size_t size)
 {
 	GdbTarget::stopped(reason, size);
+	finish_checkpoint();
 	if (!exception_pending)
 		return;
 	exception_pending = false;
@@ -648,8 +801,21 @@ void GdbMonitor::watch_hit(int slot, uaecptr addr, int size, int rwi, uae_u32 so
 		static_cast<uint32_t>(rwi), source, reg, regs.instruction_pc, value, old_value, old_valid });
 }
 
+void GdbMonitor::finish_checkpoint()
+{
+	if (!checkpoint_saving)
+		return;
+	checkpoint_saving = false;
+	bool saved = !debug_remote_frame_save(false) && savestate_state != STATE_SAVE;
+	if (savestate_state == STATE_SAVE)
+		savestate_state = 0;
+	gdb_server_monitor_complete(saved);
+}
+
 void GdbMonitor::detach()
 {
+	finish_checkpoint();
+	guest_input.cancel();
 	watch_log.clear();
 	guest_output.clear(true);
 	remote_history = false;
@@ -672,6 +838,12 @@ static GdbMonitor gdb_monitor;
 GdbTarget& gdb_target()
 {
 	return gdb_monitor;
+}
+
+void gdb_server_input_frame()
+{
+	if (gdb_server_connected())
+		gdb_monitor.input_frame();
 }
 
 void gdb_server_guest_output(const char* text)

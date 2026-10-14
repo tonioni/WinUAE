@@ -610,6 +610,36 @@ capture off retains records for inspection; disconnect/reset clears them.
 This is a guest debug-message channel, not AmigaDOS console or serial output.
 Host logging keeps its original behavior.
 
+`monitor checkpoint save <native-path>` writes a standard WinUAE state file.
+State files are only valid at the start of a frame, so the save resumes
+emulation, writes the file at the next frame start and stops again right
+after it; the CPU is then up to one frame past the original stop. Any
+other stop before that, such as a breakpoint or an interrupt, cancels the
+save and the command fails.
+
+`monitor checkpoint restore <native-path>` uses the normal restore/reset
+lifecycle and replies only after restoration, with the CPU
+still stopped and the connection retained. Restore clears remote breakpoints,
+watchpoints, exception selection, entry/range state and captured output.
+Re-arm them after inspecting restored state. Remote watches are excluded
+from saved console-watchpoint state. Ordinary resets continue to disconnect.
+
+Checkpoints follow WinUAE savestate limitations: external disk/file writes
+are not rolled back, and saving can finish an active blit. Incompatible
+devices, busy host filesystems and active input recording/playback are
+rejected. These are debugging checkpoints, not transactional disk snapshots.
+
+`monitor input event KIND PORT CODE VALUE` delivers raw Amiga keyboard
+(KIND 0), relative mouse (1) and joystick (2) input through the shared
+input handlers without host window or device dependencies. `monitor input
+sequence` takes up to 256 `DELAY KIND PORT CODE VALUE` steps separated by
+`;`, with relative delays counted in emulated frames (KIND 3 is a frame
+delay without input). Sequences are validated before they start, are frozen
+while the debugger is stopped and release held controls on completion,
+`input release`, disconnect or restore. `input status` reports held controls
+and sequence progress. Input commands run without stopping the guest and
+are rejected during input recording or playback.
+
 ## Smoke Test
 
 The repository includes a headless A1200 smoke test. It uses SDL dummy video/audio by default and checks that ROM loading, audio initialization, and hard reset reached the expected log points:
