@@ -606,7 +606,11 @@ CHANGE_ONLY LOG_ONLY` takes the same arguments for a range of up to 64 KiB.
 Like a console watchpoint, it matches any access that overlaps the range.
 ACCESS combines 1 (read), 2 (write) and 4 (instruction fetch); fetches need
 the CPU instruction source bit in SOURCES, and reads or writes need another
-source. `watch list` marks these entries with `"range":true`; they share
+source. memwatch compares values at the width of the watch, so a value
+condition needs a LENGTH of 1, 2 or 4. Fetches are only seen when the CPU
+emulation fetches through the memory banks, such as the compatible 68000;
+faster CPU modes fetch from RAM directly, as for console watchpoints.
+`watch list` marks these entries with `"range":true`; they share
 `watch remove` and the access log with `watch add`.
 
 `monitor guest-output on|off|read|clear` captures the guest's existing uaelib
