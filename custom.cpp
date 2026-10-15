@@ -3450,7 +3450,7 @@ static void update_agnus_vb(void)
 		if (agnus_pvb_end_line && vb_start_detect && !vb_end_detect) {
 			vb_end_detect = true;
 			vb_start_detect = false;
-			linear_vpos_vblank_end = linear_vpos_start;
+			linear_vpos_vblank_end = linear_vpos;
 			linear_vpos_vblank_lines = linear_vpos_vblank_lines_cnt;
 		}
 	} else {
@@ -3460,14 +3460,14 @@ static void update_agnus_vb(void)
 		if (agnus_vb_start_line && !vb_start_detect) {
 			vb_start_detect = true;
 			if (linear_vpos_vblank_lines_cnt) {
-				linear_vpos_vblank_start = linear_vpos_start;
+				linear_vpos_vblank_start = linear_vpos;
 			}
 			linear_vpos_vblank_lines_cnt = 0;
 		}
 		if (agnus_vb_end_line && vb_start_detect && !vb_end_detect) {
 			vb_end_detect = true;
 			vb_start_detect = false;
-			linear_vpos_vblank_end = linear_vpos_start;
+			linear_vpos_vblank_end = linear_vpos;
 			linear_vpos_vblank_lines = linear_vpos_vblank_lines_cnt;
 		}
 	}
@@ -11195,7 +11195,7 @@ static void custom_trigger_start(void)
 	draw_line_next_line = 0;
 
 	if (linear_vpos_start == linear_vpos_vb_end) {
-		linear_vb_offset = linear_vpos_start + 1;
+		linear_vb_offset = linear_vpos_start;
 	}
 
 #ifdef DEBUGGER

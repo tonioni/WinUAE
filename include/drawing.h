@@ -120,7 +120,7 @@ extern void redraw_frame(void);
 extern void full_redraw_all(void);
 extern int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hres, int *vres);
 extern void store_custom_limits(int w, int h, int dx, int dy);
-extern void set_custom_limits(int w, int h, int dx, int dy, bool blank);
+extern void set_custom_limits(int w, int h, int dx, int dy);
 extern void check_custom_limits(void);
 extern void get_custom_topedge(int *x, int *y, bool max);
 extern void get_custom_raw_limits(int *pw, int *ph, int *pdx, int *pdy);
