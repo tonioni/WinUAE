@@ -2394,6 +2394,8 @@ int check_prefs_changed_gfx(void)
 	if (
 		currprefs.gf[0].gfx_filter_autoscale != changed_prefs.gf[0].gfx_filter_autoscale ||
 		currprefs.gf[2].gfx_filter_autoscale != changed_prefs.gf[2].gfx_filter_autoscale ||
+		currprefs.gf[0].gfx_filter_blanking != changed_prefs.gf[0].gfx_filter_blanking ||
+		currprefs.gf[2].gfx_filter_blanking != changed_prefs.gf[2].gfx_filter_blanking ||
 		currprefs.gfx_xcenter_pos != changed_prefs.gfx_xcenter_pos ||
 		currprefs.gfx_ycenter_pos != changed_prefs.gfx_ycenter_pos ||
 		currprefs.gfx_xcenter_size != changed_prefs.gfx_xcenter_size ||
@@ -2409,6 +2411,8 @@ int check_prefs_changed_gfx(void)
 		currprefs.gfx_ycenter = changed_prefs.gfx_ycenter;
 		currprefs.gf[0].gfx_filter_autoscale = changed_prefs.gf[0].gfx_filter_autoscale;
 		currprefs.gf[2].gfx_filter_autoscale = changed_prefs.gf[2].gfx_filter_autoscale;
+		currprefs.gf[0].gfx_filter_blanking = changed_prefs.gf[0].gfx_filter_blanking;
+		currprefs.gf[2].gfx_filter_blanking = changed_prefs.gf[2].gfx_filter_blanking;
 
 		get_custom_limits (NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 		fixup_prefs_dimensions (&changed_prefs);
@@ -4081,7 +4085,7 @@ static void updatedisplayarea2(int monid)
 
 void updatedisplayarea(int monid)
 {
-	set_custom_limits(-1, -1, -1, -1, false);
+	set_custom_limits(-1, -1, -1, -1);
 	if (monid >= 0) {
 		updatedisplayarea2(monid);
 	} else {

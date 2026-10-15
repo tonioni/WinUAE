@@ -1128,6 +1128,7 @@
 #define IDC_FILTERENABLE                1711
 #define IDC_CS_CIAA_TOD2                1712
 #define IDC_CS_EXT                      1712
+#define IDC_FILTERBLANKING              1712
 #define IDC_CS_CIAA_TOD3                1713
 #define IDC_SOUND_DS                    1713
 #define IDC_MONITOREMU                  1713

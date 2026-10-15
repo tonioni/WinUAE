@@ -44,6 +44,7 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 
 	cx = *cxp;
 	cy = *cyp;
+
 	v = currprefs.gfx_xcenter_pos;
 	if (v >= MANUAL_SCALE_MIN_RANGE) {
 		cx = (v >> (RES_MAX - currprefs.gfx_resolution)) - cx;
@@ -56,18 +57,6 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 
 	v = currprefs.gfx_xcenter_size;
 	if (v <= 0) {
-#if 0
-		if (programmedmode && native) {
-			cw = maxhpos_display << (RES_MAX + (doublescan == 1));
-		} else {
-			if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
-				// keep old version compatibility
-				cw = native ? AMIGA_WIDTH_MAX << RES_MAX : avidinfo->outbuffer->outwidth << 1;
-			} else {
-				cw = native ? maxhpos_display << RES_MAX : avidinfo->outbuffer->outwidth << 1;
-			}
-		}
-#endif
 		cw = (avidinfo->outbuffer->outwidth ? avidinfo->outbuffer->outwidth : avidinfo->outbuffer->inwidth) << (RES_MAX - currprefs.gfx_resolution);
 	} else {	
 		cw = v;
@@ -76,16 +65,6 @@ static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 
 	v = currprefs.gfx_ycenter_size;
 	if (v <= 0) {
-#if 0
-		if (programmedmode && native) {
-			ch = (current_linear_vpos - minfirstline) << (VRES_MAX - (doublescan == 1 && !interlace_seen));
-		} else if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
-			// keep old version compatiblity
-			ch = native ? (ispal(NULL) ? AMIGA_HEIGHT_MAX_PAL : AMIGA_HEIGHT_MAX_NTSC) << VRES_MAX : avidinfo->outbuffer->outheight;
-		} else {
-			ch = native ? (current_linear_vpos - minfirstline) << VRES_MAX : avidinfo->outbuffer->outheight;
-		}
-#endif
 		ch = (avidinfo->outbuffer->outheight ? avidinfo->outbuffer->outheight : avidinfo->outbuffer->inheight) << (VRES_MAX - currprefs.gfx_vresolution);
 	} else {
 		ch = v;
@@ -388,7 +367,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 					}
 				}
 				if (scalemode != AUTOSCALE_INTEGER && scalemode != AUTOSCALE_INTEGER_AUTOSCALE) {
-					set_custom_limits (cw, ch, cx, cy, true);
+					set_custom_limits (cw, ch, cx, cy);
 					store_custom_limits (cw, ch, cx, cy);
 					scl = true;
 				}
@@ -412,7 +391,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 				if (scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 					ok = get_custom_limits (&cw, &ch, &cx, &cy, &crealh, &hres, &vres) != 0;
 					if (ok) {
-						set_custom_limits(cw, ch, cx, cy, true);
+						set_custom_limits(cw, ch, cx, cy);
 						store_custom_limits(cw, ch, cx, cy);
 						scl = true;
 						manual = true;
@@ -421,7 +400,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 				if (scalemode == AUTOSCALE_INTEGER || ok == false) {
 					manual = getmanualpos(monid, &cx, &cy, &cw, &ch);
 					crealh = ch;
-					set_custom_limits(cw, ch, cx, cy, true);
+					set_custom_limits(cw, ch, cx, cy);
 					store_custom_limits(cw, ch, cx, cy);
 					scl = true;
 				}
@@ -503,7 +482,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 			//write_log (_T("%dx%d %dx%d\n"), cx, cy, currprefs.gfx_resolution, currprefs.gfx_vresolution);
 
 			getmanualpos(monid, &cx, &cy, &cw, &ch);
-			set_custom_limits(cw, ch, cx, cy, true);
+			set_custom_limits(cw, ch, cx, cy);
 			store_custom_limits(cw, ch, cx, cy);
 			scl = true;
 
@@ -523,7 +502,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh, &hres, &vres);
 			if (cv) {
-				set_custom_limits(cw, ch, cx, cy, false);
+				set_custom_limits(cw, ch, cx, cy);
 				store_custom_limits(cw, ch, cx, cy);
 				scl = true;
 			}
@@ -532,7 +511,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh, &hres, &vres);
 			if (cv) {
-				set_custom_limits (cw, ch, cx, cy, true);
+				set_custom_limits (cw, ch, cx, cy);
 				store_custom_limits (cw, ch, cx, cy);
 				scl = true;
 			}
@@ -540,7 +519,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 		}
 
 		if (!scl) {
-			set_custom_limits (0, 0, 0, 0, false);
+			set_custom_limits (0, 0, 0, 0);
 		}
 	
 		if (!autoaspect_done) {
@@ -704,7 +683,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 		int cw = avidinfo->drawbuffer.inwidth;
 		int ch = avidinfo->drawbuffer.inheight;
-		set_custom_limits(cw, ch, 0, 0, true);
+		set_custom_limits(cw, ch, 0, 0);
 
 		int dw = ds->dstwidth;
 		int dh = ds->dstheight;

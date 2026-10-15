@@ -997,6 +997,8 @@ BEGIN
     PUSHBUTTON      "Delete",IDC_FILTERPRESETDELETE,325,280,55,14
     CONTROL         "Always stretch NTSC mode [] NTSC modes are strecthed to match PAL mode",IDC_SCALENTSC,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,219,125,10
+    CONTROL         "Blank filtered region borders",IDC_FILTERBLANKING,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,177,245,126,11
 END
 
 IDD_HARDDRIVE DIALOGEX 0, 0, 397, 208

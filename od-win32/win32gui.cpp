@@ -20768,6 +20768,18 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew(hDlg, IDC_FILTEROVERLAY, workprefs.gfx_api);
 	ew(hDlg, IDC_FILTEROVERLAYTYPE, workprefs.gfx_api);
 
+	switch (workprefs.gf[filter_nativertg].gfx_filter_autoscale)
+	{
+		case AUTOSCALE_NORMAL:
+		case AUTOSCALE_INTEGER_AUTOSCALE:
+		case AUTOSCALE_MANUAL:
+		ew(hDlg, IDC_FILTERBLANKING, !rtg);
+		break;
+		default:
+		ew(hDlg, IDC_FILTERBLANKING, FALSE);
+		break;
+	}
+
 	ew(hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
 	ew(hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
 	ew(hDlg, IDC_FILTERPRESETDELETE, filterpreset_selected > 0 && filterpreset_builtin < 0);
@@ -21305,6 +21317,11 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 	SetDlgItemInt (hDlg, IDC_FILTERVZV, (int)vz, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERHOV, (int)ho, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERVOV, (int)vo, TRUE);
+
+	if (filter_nativertg == GF_RTG) {
+		workprefs.gf[filter_nativertg].gfx_filter_blanking = 1;
+	}
+	CheckDlgButton(hDlg, IDC_FILTERBLANKING, workprefs.gf[filter_nativertg].gfx_filter_blanking);
 }
 
 static void values_from_hw3ddlg (HWND hDlg)
@@ -21645,6 +21662,9 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				workprefs.gf[filter_nativertg].enable = ischecked(hDlg, IDC_FILTERENABLE);
 			}
 			break;
+		case IDC_FILTERBLANKING:
+			workprefs.gf[filter_nativertg].gfx_filter_blanking = ischecked(hDlg, IDC_FILTERBLANKING);
+		break;
 
 		case IDC_FILTERHZV:
 		case IDC_FILTERVZV:
@@ -21783,9 +21803,21 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				case IDC_FILTERAUTOSCALE:
 					item = xSendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
-						if (item == AUTOSCALE_SEPARATOR)
+						if (item == AUTOSCALE_SEPARATOR) {
 							item++;
+						}
 						workprefs.gf[filter_nativertg].gfx_filter_autoscale = item;
+						switch (item) {
+							case AUTOSCALE_NORMAL:
+							case AUTOSCALE_INTEGER_AUTOSCALE:
+							case AUTOSCALE_INTEGER:
+							case AUTOSCALE_MANUAL:
+							workprefs.gf[filter_nativertg].gfx_filter_blanking = 1;
+							break;
+							default:
+							workprefs.gf[filter_nativertg].gfx_filter_blanking = 0;
+							break;
+						}
 						values_to_hw3ddlg (hDlg, false);
 						enable_for_hw3ddlg (hDlg);
 					}
