@@ -6866,7 +6866,11 @@ void m68k_go (int may_quit)
 		cpu_hardreset = false;
 		cpu_keyboardreset = false;
 		event_wait = true;
-		unset_special(SPCFLAG_MODE_CHANGE);
+		// A reset requested from the debugger stop above can already have
+		// raised MODE_CHANGE; keep it so that m68k_run() returns for it.
+		if (quit_program <= 0) {
+			unset_special(SPCFLAG_MODE_CHANGE);
+		}
 
 		if (!restored && hardboot) {
 			uaerandomizeseed();
@@ -7814,7 +7818,9 @@ uae_u8 *restore_mmu(uae_u8 *src)
 cpu_debug_fault cpu_get_debug_fault(int vector)
 {
 	cpu_debug_fault fault;
-	if (vector != 2 && vector != 3) return fault;
+	if (vector != 2 && vector != 3) {
+		return fault;
+	}
 	fault.memory = true;
 #ifndef CPUEMU_68000_ONLY
 	if (vector == 2 && currprefs.mmu_model) {
