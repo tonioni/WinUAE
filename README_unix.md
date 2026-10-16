@@ -634,7 +634,8 @@ State files are only valid at the start of a frame, so the save resumes
 emulation, writes the file at the next frame start and stops again right
 after it; the CPU is then up to one frame past the original stop. Any
 other stop before that, such as a breakpoint or an interrupt, cancels the
-save and the command fails.
+save and the command fails. A failed write also fails the command and is
+not retried on later frames.
 
 `monitor checkpoint restore <native-path>` uses the normal restore/reset
 lifecycle and replies only after restoration, with the CPU

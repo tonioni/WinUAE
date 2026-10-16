@@ -563,6 +563,7 @@ MonitorResult GdbMonitor::checkpoint_command(const std::string& command, std::st
 	// stop right after the save; an earlier stop cancels it.
 	savestate_initsave(filename, 1, true, false);
 	xfree(filename);
+	savestate_last_save_result = -1;
 	checkpoint_saving = true;
 	debug_remote_frame_save(true);
 	resume(false);
@@ -844,9 +845,10 @@ void GdbMonitor::finish_checkpoint()
 	if (!checkpoint_saving)
 		return;
 	checkpoint_saving = false;
-	bool saved = !debug_remote_frame_save(false) && savestate_state != STATE_SAVE;
+	bool saved = !debug_remote_frame_save(false) && savestate_last_save_result > 0;
 	if (savestate_state == STATE_SAVE)
 		savestate_state = 0;
+	savestate_last_save_result = -1;
 	gdb_server_monitor_complete(saved);
 }
 
