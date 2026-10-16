@@ -556,8 +556,10 @@ It reports saved SP and stack bounds, without guessing inactive register
 contexts. `monitor history on|off` opts remote
 execution into the existing debugger history ring; `history read COUNT`
 returns at most 128 chronological entries with D/A registers and beam
-positions. Adjacent identical PCs may be coalesced. Recording slows
-execution and is disabled on detach.
+positions. Its `truncated` flag is true if the reply reached the remote
+packet limit; a truncated reply keeps the most recent instructions and is
+still returned oldest first. Adjacent identical PCs may be coalesced.
+Recording slows execution and is disabled on detach.
 
 `monitor condition add REG OP VALUE MASK SIGNED` allocates a remotely
 owned condition in the existing breakpoint table. Registers use debugger
