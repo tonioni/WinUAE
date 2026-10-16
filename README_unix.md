@@ -549,8 +549,10 @@ Clients can use these addresses to relocate host symbols by hunk index;
 allocation sizes are bounds, not exact source/code lengths.
 
 `monitor tasks` reads current/ready/waiting Exec tasks with a 128-node
-bound and cycle detection. It reports saved SP and stack bounds, without
-guessing inactive register contexts. `monitor history on|off` opts remote
+bound and cycle detection. The reply is a JSON object with a `tasks` array;
+its `truncated` flag is true if the reply reached the remote packet limit.
+It reports saved SP and stack bounds, without guessing inactive register
+contexts. `monitor history on|off` opts remote
 execution into the existing debugger history ring; `history read COUNT`
 returns at most 128 chronological entries with D/A registers and beam
 positions. Adjacent identical PCs may be coalesced. Recording slows
