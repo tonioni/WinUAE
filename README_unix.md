@@ -527,6 +527,7 @@ contain spaces.
 
 `monitor memory-map` adapts the existing debugger map to bounded JSON,
 including RAM/ROM/I/O and chip-RAM classification and a truncation flag.
+ROMIN banks, such as the UAE Boot ROM, are reported as ROM.
 `monitor memory-check ADDRESS LENGTH` certifies a physical RAM write range
 and its chip/fast kind without performing a read or write. Mixed, indirect,
 I/O, ROM and unmapped ranges are rejected. This does not allocate RAM or
