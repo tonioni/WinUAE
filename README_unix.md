@@ -511,7 +511,8 @@ independently with a C++17 compiler (`gdb_protocol.cpp` plus
 WinUAE-specific operations use GDB `monitor` (qRcmd) commands. Replies are
 hex-encoded text, usually JSON; numeric arguments are hexadecimal unless
 stated otherwise. Monitor commands run only while the CPU is stopped,
-except `capabilities` and `execution-status`.
+except `capabilities`, `execution-status`, and `input` commands. Input
+events and frame-scheduled sequences may be submitted while the guest runs.
 
 `monitor capabilities` reports protocol version 1, current CPU/MMU models,
 physical address semantics, monitor commands and execution controls.
@@ -526,6 +527,7 @@ contain spaces.
 
 `monitor memory-map` adapts the existing debugger map to bounded JSON,
 including RAM/ROM/I/O and chip-RAM classification and a truncation flag.
+ROMIN banks, such as the UAE Boot ROM, are reported as ROM.
 `monitor memory-check ADDRESS LENGTH` certifies a physical RAM write range
 and its chip/fast kind without performing a read or write. Mixed, indirect,
 I/O, ROM and unmapped ranges are rejected. This does not allocate RAM or
@@ -548,12 +550,16 @@ Clients can use these addresses to relocate host symbols by hunk index;
 allocation sizes are bounds, not exact source/code lengths.
 
 `monitor tasks` reads current/ready/waiting Exec tasks with a 128-node
-bound and cycle detection. It reports saved SP and stack bounds, without
-guessing inactive register contexts. `monitor history on|off` opts remote
+bound and cycle detection. The reply is a JSON object with a `tasks` array;
+its `truncated` flag is true if the reply reached the remote packet limit.
+It reports saved SP and stack bounds, without guessing inactive register
+contexts. `monitor history on|off` opts remote
 execution into the existing debugger history ring; `history read COUNT`
 returns at most 128 chronological entries with D/A registers and beam
-positions. Adjacent identical PCs may be coalesced. Recording slows
-execution and is disabled on detach.
+positions. Its `truncated` flag is true if the reply reached the remote
+packet limit; a truncated reply keeps the most recent instructions and is
+still returned oldest first. Adjacent identical PCs may be coalesced.
+Recording slows execution and is disabled on detach.
 
 `monitor condition add REG OP VALUE MASK SIGNED` allocates a remotely
 owned condition in the existing breakpoint table. Registers use debugger
@@ -615,8 +621,9 @@ faster CPU modes fetch from RAM directly, as for console watchpoints.
 
 `monitor guest-output on|off|read|clear` captures the guest's existing uaelib
 function 86 debug messages. Capture is opt-in and retains at most 64 records
-and 4096 payload bytes, with each message capped at 1024 bytes. JSON output
-includes record IDs, truncation flags and an eviction count. Reads preserve
+and 4096 payload bytes, with each message capped at 1024 bytes. Exactly 1024
+bytes is not truncated; a longer guest string is capped and flagged. JSON
+output includes record IDs, truncation flags and an eviction count. Reads preserve
 the records; clear empties them while keeping the capture setting. Turning
 capture off retains records for inspection; disconnect/reset clears them.
 This is a guest debug-message channel, not AmigaDOS console or serial output.
@@ -627,7 +634,8 @@ State files are only valid at the start of a frame, so the save resumes
 emulation, writes the file at the next frame start and stops again right
 after it; the CPU is then up to one frame past the original stop. Any
 other stop before that, such as a breakpoint or an interrupt, cancels the
-save and the command fails.
+save and the command fails. A failed write also fails the command and is
+not retried on later frames.
 
 `monitor checkpoint restore <native-path>` uses the normal restore/reset
 lifecycle and replies only after restoration, with the CPU

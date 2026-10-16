@@ -248,6 +248,22 @@ int main()
 	require(input.start({{0,{2,1,4,1}}, {20,{3,0,0,0}}}), "second sequence rejected");
 	input.frame(); input.cancel(); require(!input.active() && sink.events.size() == 9, "cancel did not release");
 	input.frame(); require(sink.events.size() == 9, "cancelled sequence advanced");
+	struct CancellingSink : InputSink {
+		GuestInput* guest = nullptr;
+		std::vector<InputEvent> events;
+		void input(const InputEvent& e) override {
+			events.push_back(e);
+			if (e.kind == 0 && e.code == 0x45 && e.value)
+				guest->cancel();
+		}
+	} cancelling_sink;
+	GuestInput cancelled_input(cancelling_sink);
+	cancelling_sink.guest = &cancelled_input;
+	require(cancelled_input.start({{0,{0,0,0x45,1}}, {0,{0,0,0x20,1}}}), "cancelling sequence rejected");
+	cancelled_input.frame();
+	require(!cancelled_input.active() && cancelling_sink.events.size() == 2 &&
+		cancelling_sink.events[1].code == 0x45 && !cancelling_sink.events[1].value,
+		"cancelled sequence dispatched another input");
 	process_reader_tests();
 	task_reader_tests();
 	GuestOutput output;
@@ -256,6 +272,12 @@ int main()
 	output.enable(true);
 	output.capture("hello\n");
 	require(output.snapshot().find("hello\\u000a") != std::string::npos, "guest output escaping");
+	GuestOutput boundary_output;
+	boundary_output.enable(true);
+	std::string boundary(1024, 'x');
+	boundary_output.capture(boundary.c_str());
+	require(boundary_output.snapshot().find("\"truncated\":false") != std::string::npos,
+		"exact guest output boundary marked truncated");
 	std::string flood(2048, char(255));
 	for (int i = 0; i < 100; ++i) output.capture(flood.c_str());
 	auto snapshot = output.snapshot();

@@ -15,6 +15,7 @@
 #include "inputrecord.h"
 #include "savestate.h"
 #include "xwin.h"
+#include "drawing.h"
 #include "zfile.h"
 #include "fsdb.h"
 #include "gdb_server.h"
@@ -123,19 +124,32 @@ bool GdbMonitor::read(uint32_t address, uint8_t* bytes, size_t length)
 
 bool GdbMonitor::disassemble_line(uaecptr pc, TCHAR* line, int size, uaecptr& next)
 {
-	// Check instruction and extension words before calling the existing
-	// debugger disassembler. Never disassemble hardware registers.
-	if ((pc & 1) || pc > 0xffffffe0)
+	// The longest 68k instruction is 22 bytes (MOVE between two memory
+	// indirect operands with 32-bit displacements). None of those bytes may
+	// be a hardware register, so the disassembler never reads I/O; the
+	// decoded instruction itself must lie in readable RAM or ROM.
+	static const int max_instruction = 22;
+	if ((pc & 1) || pc > 0xffffffff - max_instruction)
 		return false;
-	addrbank& bank = get_mem_bank(pc);
-	if (!(bank.flags & (ABFLAG_RAM | ABFLAG_ROM | ABFLAG_ROMIN)) || !bank.check(pc, 32))
+	int readable = 0;
+	for (int i = 0; i < max_instruction; i++) {
+		uaecptr addr = pc + i;
+		addrbank& bank = get_mem_bank(addr);
+		if ((bank.flags & (ABFLAG_RAM | ABFLAG_ROM | ABFLAG_ROMIN)) && bank.check(addr, 1)) {
+			if (readable == i)
+				readable++;
+		} else if (bank.flags & ABFLAG_IO) {
+			return false;
+		}
+	}
+	if (readable < 2)
 		return false;
 	int flags = disasm_flags;
 	disasm_flags &= ~(DISASM_FLAG_VAL | DISASM_FLAG_VAL_FORCE);
 	next = pc;
 	m68k_disasm_2(line, size, pc, NULL, 0, &next, 1, NULL, NULL, 0xffffffff, 1);
 	disasm_flags = flags;
-	return next > pc;
+	return next > pc && next - pc <= static_cast<uaecptr>(readable);
 }
 
 bool GdbMonitor::disassemble(uint32_t address, unsigned count, std::string& output)
@@ -159,6 +173,7 @@ bool GdbMonitor::disassemble(uint32_t address, unsigned count, std::string& outp
 
 bool GdbMonitor::screenshot(const std::string& path)
 {
+	draw_denise_line_queue_flush();
 	TCHAR* filename = utf8u(path.c_str());
 	if (!filename)
 		return false;
@@ -233,7 +248,7 @@ MonitorResult GdbMonitor::status_command(const std::string& command, std::string
 			addrbank* bank = &get_mem_bank(address);
 			if (bank->sub_banks)
 				bank = get_sub_bank(&address);
-			const char* type = bank->flags & ABFLAG_ROM ? "rom" : bank->flags & ABFLAG_RAM ? "ram" : "io";
+			const char* type = bank->flags & (ABFLAG_ROM | ABFLAG_ROMIN) ? "rom" : bank->flags & ABFLAG_RAM ? "ram" : "io";
 			char* name = uutf8(r.name);
 			if (i)
 				result += ",";
@@ -561,6 +576,7 @@ MonitorResult GdbMonitor::checkpoint_command(const std::string& command, std::st
 	// stop right after the save; an earlier stop cancels it.
 	savestate_initsave(filename, 1, true, false);
 	xfree(filename);
+	savestate_last_save_result = -1;
 	checkpoint_saving = true;
 	debug_remote_frame_save(true);
 	resume(false);
@@ -576,17 +592,25 @@ MonitorResult GdbMonitor::task_command(const std::string& command, std::string& 
 		std::vector<winuae_gdb::AmigaTask> tasks;
 		if (!winuae_gdb::read_tasks(*this, tasks))
 			return MonitorResult::error;
-		result = "[";
+		const std::string suffix = "],\"truncated\":false}";
+		result = "{\"tasks\":[";
+		bool truncated = false;
 		for (const auto& task : tasks) {
-			if (result.size() > 1)
-				result += ",";
-			result += "{\"address\":" + std::to_string(task.address) + ",\"name\":" + json_string(task.name) +
+			std::string entry = "{\"address\":" + std::to_string(task.address) + ",\"name\":" + json_string(task.name) +
 				",\"list\":" + json_string(task.list) + ",\"type\":" + std::to_string(task.type) +
 				",\"state\":" + std::to_string(task.state) + ",\"saved_sp\":" + std::to_string(task.saved_sp) +
 				",\"stack_lower\":" + std::to_string(task.stack_lower) + ",\"stack_upper\":" + std::to_string(task.stack_upper) +
 				",\"signals_wait\":" + std::to_string(task.signals_wait) + "}";
+			const size_t separator = result.back() == '[' ? 0 : 1;
+			if (result.size() + separator + entry.size() + suffix.size() > winuae_gdb::Session::packet_size / 2) {
+				truncated = true;
+				break;
+			}
+			if (separator)
+				result += ",";
+			result += entry;
 		}
-		result += "]";
+		result += "],\"truncated\":" + std::string(truncated ? "true" : "false") + "}";
 		return MonitorResult::ok;
 	}
 	if (command == "history on" || command == "history off") {
@@ -598,22 +622,38 @@ MonitorResult GdbMonitor::task_command(const std::string& command, std::string& 
 		if (!hex_words(command.substr(13), 1, &count) || !count || count > 128)
 			return MonitorResult::error;
 		int size = debug_history_size();
+		const std::string suffix = "],\"truncated\":false}";
 		result = "{\"recording\":" + std::string(remote_history ? "true" : "false") + ",\"entries\":[";
-		for (int i = (std::max)(0, size - static_cast<int>(count)); i < size; i++) {
+		// Collect from the newest entry back so a truncated reply keeps the
+		// most recent instructions, then emit them oldest first.
+		std::vector<std::string> entries;
+		size_t length = result.size() + suffix.size();
+		bool truncated = false;
+		for (int i = size - 1; i >= (std::max)(0, size - static_cast<int>(count)); i--) {
 			int frame, entry_vpos, entry_hpos;
 			const struct regstruct* r = debug_history_get(i, &frame, &entry_vpos, &entry_hpos);
-			if (result.back() != '[')
-				result += ",";
-			result += "{\"pc\":" + std::to_string(r->pc) + ",\"frame\":" + std::to_string(frame) +
+			std::string entry = "{\"pc\":" + std::to_string(r->pc) + ",\"frame\":" + std::to_string(frame) +
 				",\"vpos\":" + std::to_string(entry_vpos) + ",\"hpos\":" + std::to_string(entry_hpos) + ",\"registers\":[";
 			for (int j = 0; j < 16; j++) {
 				if (j)
-					result += ",";
-				result += std::to_string(r->regs[j]);
+					entry += ",";
+				entry += std::to_string(r->regs[j]);
 			}
-			result += "]}";
+			entry += "]}";
+			const size_t separator = entries.empty() ? 0 : 1;
+			if (length + separator + entry.size() > winuae_gdb::Session::packet_size / 2) {
+				truncated = true;
+				break;
+			}
+			length += separator + entry.size();
+			entries.push_back(std::move(entry));
 		}
-		result += "]}";
+		for (auto it = entries.rbegin(); it != entries.rend(); ++it) {
+			if (it != entries.rbegin())
+				result += ",";
+			result += *it;
+		}
+		result += "],\"truncated\":" + std::string(truncated ? "true" : "false") + "}";
 		return MonitorResult::ok;
 	}
 	if (command == "condition list") {
@@ -818,9 +858,10 @@ void GdbMonitor::finish_checkpoint()
 	if (!checkpoint_saving)
 		return;
 	checkpoint_saving = false;
-	bool saved = !debug_remote_frame_save(false) && savestate_state != STATE_SAVE;
+	bool saved = !debug_remote_frame_save(false) && savestate_last_save_result > 0;
 	if (savestate_state == STATE_SAVE)
 		savestate_state = 0;
+	savestate_last_save_result = -1;
 	gdb_server_monitor_complete(saved);
 }
 
@@ -858,8 +899,8 @@ void gdb_server_input_frame()
 		gdb_monitor.input_frame();
 }
 
-void gdb_server_guest_output(const char* text)
+void gdb_server_guest_output(const char* text, bool truncated)
 {
-	gdb_monitor.guest_output.capture(text);
+	gdb_monitor.guest_output.capture(text, truncated);
 }
 #endif
