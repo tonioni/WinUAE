@@ -511,7 +511,8 @@ independently with a C++17 compiler (`gdb_protocol.cpp` plus
 WinUAE-specific operations use GDB `monitor` (qRcmd) commands. Replies are
 hex-encoded text, usually JSON; numeric arguments are hexadecimal unless
 stated otherwise. Monitor commands run only while the CPU is stopped,
-except `capabilities` and `execution-status`.
+except `capabilities`, `execution-status`, and `input` commands. Input
+events and frame-scheduled sequences may be submitted while the guest runs.
 
 `monitor capabilities` reports protocol version 1, current CPU/MMU models,
 physical address semantics, monitor commands and execution controls.
