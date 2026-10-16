@@ -616,8 +616,9 @@ faster CPU modes fetch from RAM directly, as for console watchpoints.
 
 `monitor guest-output on|off|read|clear` captures the guest's existing uaelib
 function 86 debug messages. Capture is opt-in and retains at most 64 records
-and 4096 payload bytes, with each message capped at 1024 bytes. JSON output
-includes record IDs, truncation flags and an eviction count. Reads preserve
+and 4096 payload bytes, with each message capped at 1024 bytes. Exactly 1024
+bytes is not truncated; a longer guest string is capped and flagged. JSON
+output includes record IDs, truncation flags and an eviction count. Reads preserve
 the records; clear empties them while keeping the capture setting. Turning
 capture off retains records for inspection; disconnect/reset clears them.
 This is a guest debug-message channel, not AmigaDOS console or serial output.

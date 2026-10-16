@@ -389,9 +389,20 @@ static uae_u32 uaelib_demux_common(TrapContext *ctx, uae_u32 ARG0, uae_u32 ARG1,
 		case 85: return native_dos_op(ctx, ARG1, ARG2, ARG3, ARG4);
 		case 86:
 		if (valid_address(ARG1, 1)) {
-			uae_char tmp[MAX_DPATH];
-			trap_get_string(ctx, tmp, ARG1, sizeof tmp);
-			gdb_server_guest_output(tmp);
+			uae_char tmp[1025];
+			int len = 0;
+			while (len < 1024) {
+				uae_u8 v = trap_get_byte(ctx, ARG1 + len);
+				tmp[len++] = v;
+				if (!v)
+					break;
+			}
+			bool truncated = false;
+			if (tmp[len - 1]) {
+				tmp[len] = 0;
+				truncated = trap_get_byte(ctx, ARG1 + len) != 0;
+			}
+			gdb_server_guest_output(tmp, truncated);
 			TCHAR *s = au(tmp);
 			write_log(_T("DBG: %s\n"), s);
 			xfree(s);
