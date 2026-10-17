@@ -8,7 +8,7 @@
 #define WINUAEPUBLICBETA 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("18")
+#define WINUAEBETA _T("19")
 #else
 #define WINUAEBETA _T("")
 #endif
@@ -28,6 +28,6 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEDATE MAKEBD(2026, 10, 13)
+#define WINUAEDATE MAKEBD(2026, 10, 17)
 
 #endif

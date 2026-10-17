@@ -1,4 +1,13 @@
 
+Beta 19:
+
+- "Remove interlace artifacts" last line does not flicker anymore. Last line of bitmap is still missing.
+- Automatic scaling, Auto integer scaling border and Manual filter "border blanking" works again (b13).
+- Filter border blanking option added to GUI and config file (gfx_filter_blanking). Can be used to override default filter blanking mode. Enabled when Automatic scaling, Auto integer scaling or Manual scaling is selected. Disabled in other filter modes.
+- Added "Always stretch PAL as NTSC" to filter panel. Makes PAL mode look vertically like NTSC to PAL streched mode (bottom part of display is cut). Result is not exactly same due to different VB line counts. Experimental, current implementation may not always work correctly and vertical positioning may need adjustments.
+- PCem/86box RTG boards 15 bit depth in lores fixed.
+- GDB improvements.
+
 Beta 18:
 
 - A2024 fixed, now works in all overscan modes. (TODO: Other display ports adapters)
