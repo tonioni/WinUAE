@@ -20979,6 +20979,7 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 	CheckDlgButton(hDlg, IDC_FILTERKEEPASPECT, workprefs.gf[filter_nativertg].gfx_filter_aspect_type);
 	CheckDlgButton(hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, workprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect != 0);
 	CheckDlgButton(hDlg, IDC_SCALENTSC, workprefs.gfx_ntscpixels);
+	CheckDlgButton(hDlg, IDC_SCALENTSCPAL, workprefs.gfx_ntscpixelspal);
 
 	xSendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_SETCURSEL,
 		workprefs.gf[filter_nativertg].gfx_filter_aspect_type, 0);
@@ -21633,11 +21634,17 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			filter_preset (hDlg, wParam);
 			break;
 		case IDC_SCALENTSC:
-			currprefs.gfx_ntscpixels = workprefs.gfx_ntscpixels = ischecked(hDlg, IDC_SCALENTSC);
-			enable_for_hw3ddlg(hDlg);
-			values_to_hw3ddlg(hDlg, false);
-			updatedisplayarea(-1);
-			break;
+		currprefs.gfx_ntscpixels = workprefs.gfx_ntscpixels = ischecked(hDlg, IDC_SCALENTSC);
+		enable_for_hw3ddlg(hDlg);
+		values_to_hw3ddlg(hDlg, false);
+		updatedisplayarea(-1);
+		break;
+		case IDC_SCALENTSCPAL:
+		workprefs.gfx_ntscpixelspal = ischecked(hDlg, IDC_SCALENTSCPAL);
+		enable_for_hw3ddlg(hDlg);
+		values_to_hw3ddlg(hDlg, false);
+		updatedisplayarea(-1);
+		break;
 		case IDC_FILTERKEEPASPECT:
 			{
 				if (ischecked (hDlg, IDC_FILTERKEEPASPECT))

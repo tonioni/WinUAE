@@ -120,7 +120,6 @@ static float getpalntscratiointernal(float ratio, bool isp, int aspect_type)
 	return ratio;
 }
 
-
 static float getpalntscratio(float dstratio, int aspect_type, int palntscadjust)
 {
 	int lh = 0;
@@ -128,7 +127,7 @@ static float getpalntscratio(float dstratio, int aspect_type, int palntscadjust)
 	float palntscratio = dstratio;
 	if (lh > 1) {
 		if (currprefs.ntscmode) {
-			if (palntscadjust) {
+			if (palntscadjust & 1) {
 				if (!isp) {
 					palntscratio = palntscratio / ntscpar;
 				}
@@ -136,9 +135,11 @@ static float getpalntscratio(float dstratio, int aspect_type, int palntscadjust)
 				palntscratio = getpalntscratiointernal(palntscratio, isp, aspect_type);
 			}
 		} else {
-			if (palntscadjust) {
+			if (palntscadjust & 1) {
 				if (!isp) {
 					palntscratio = palntscratio / ntscpar * palntscmult;
+				} else if (isp && (palntscadjust & 2)) {
+					palntscratio = palntscratio / ntscpar;
 				}
 			} else {
 				palntscratio = getpalntscratiointernal(palntscratio, isp, aspect_type);
@@ -215,7 +216,7 @@ void getfilterdata(int monid, struct displayscale *ds)
 	int idx = ad->gf_index;
 	int aspect_type = currprefs.gf[idx].gfx_filter_aspect_type;
 	int filter_aspect = currprefs.gf[idx].gfx_filter_aspect;
-	int palntscadjust = currprefs.gfx_ntscpixels;
+	int palntscadjust = (currprefs.gfx_ntscpixels ? 1 : 0) | (currprefs.gfx_ntscpixelspal ? 2 : 0);
 	int autoselect = 0;
 
 	float filter_horiz_zoom = currprefs.gf[idx].gfx_filter_horiz_zoom / 1000.0f;
