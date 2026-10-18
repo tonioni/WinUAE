@@ -130,9 +130,15 @@ static float getpalntscratio(float dstratio, int aspect_type, int palntscadjust)
 			if (palntscadjust & 1) {
 				if (!isp) {
 					palntscratio = palntscratio / ntscpar;
+				} else if (isp && (palntscadjust & 2)) {
+					palntscratio = palntscratio / ntscpar;
 				}
 			} else {
-				palntscratio = getpalntscratiointernal(palntscratio, isp, aspect_type);
+				if (isp && (palntscadjust & 2)) {
+					palntscratio = palntscratio / ntscpar;
+				} else {
+					palntscratio = getpalntscratiointernal(palntscratio, isp, aspect_type);
+				}
 			}
 		} else {
 			if (palntscadjust & 1) {
@@ -142,7 +148,11 @@ static float getpalntscratio(float dstratio, int aspect_type, int palntscadjust)
 					palntscratio = palntscratio / ntscpar;
 				}
 			} else {
-				palntscratio = getpalntscratiointernal(palntscratio, isp, aspect_type);
+				if (isp && (palntscadjust & 2)) {
+					palntscratio = palntscratio / ntscpar;
+				} else {
+					palntscratio = getpalntscratiointernal(palntscratio, isp, aspect_type);
+				}
 			}
 		}
 	}
