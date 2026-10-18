@@ -1690,7 +1690,7 @@ static void update_display_vars(void)
 	if (currprefs.gfx_ntscpixelspal && (beamcon0 & BEAMCON0_PAL) && !(beamcon0 & BEAMCON0_VARBEAMEN)
 		&& (current_linear_vpos == 312 || current_linear_vpos == 313)) {
 		vb->inheight = (vb->inheight * 525) / 625;
-		vb->inheight++;
+		vb->inheight += 3;
 		vb->inheight &= ~1;
 	}
 
