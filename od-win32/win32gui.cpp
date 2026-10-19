@@ -20771,6 +20771,9 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	switch (workprefs.gf[filter_nativertg].gfx_filter_autoscale)
 	{
 		case AUTOSCALE_NORMAL:
+		case AUTOSCALE_STATIC_AUTO:
+		case AUTOSCALE_STATIC_NOMINAL:
+		case AUTOSCALE_STATIC_MAX:
 		case AUTOSCALE_INTEGER_AUTOSCALE:
 		case AUTOSCALE_MANUAL:
 		ew(hDlg, IDC_FILTERBLANKING, !rtg);
@@ -21816,6 +21819,9 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 						workprefs.gf[filter_nativertg].gfx_filter_autoscale = item;
 						switch (item) {
 							case AUTOSCALE_NORMAL:
+							case AUTOSCALE_STATIC_AUTO:
+							case AUTOSCALE_STATIC_NOMINAL:
+							case AUTOSCALE_STATIC_MAX:
 							case AUTOSCALE_INTEGER_AUTOSCALE:
 							case AUTOSCALE_INTEGER:
 							case AUTOSCALE_MANUAL:

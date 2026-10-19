@@ -3917,6 +3917,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		if (cfgfile_strval(option, value, _T("gfx_filter_autoscale"), ext, &gf->gfx_filter_autoscale, j != GF_RTG ? autoscale : autoscale_rtg, 0)) {
 			switch (gf->gfx_filter_autoscale) {
 				case AUTOSCALE_NORMAL:
+				case AUTOSCALE_STATIC_AUTO:
+				case AUTOSCALE_STATIC_NOMINAL:
+				case AUTOSCALE_STATIC_MAX:
 				case AUTOSCALE_INTEGER_AUTOSCALE:
 				case AUTOSCALE_MANUAL:
 				gf->gfx_filter_blanking = 1;
