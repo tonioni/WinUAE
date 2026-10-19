@@ -21823,7 +21823,6 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 							case AUTOSCALE_STATIC_NOMINAL:
 							case AUTOSCALE_STATIC_MAX:
 							case AUTOSCALE_INTEGER_AUTOSCALE:
-							case AUTOSCALE_INTEGER:
 							case AUTOSCALE_MANUAL:
 							workprefs.gf[filter_nativertg].gfx_filter_blanking = 1;
 							break;
