@@ -186,4 +186,34 @@ run_case a4091 "$WORK/a4091.uae" \
     "a4091_rom_file hardfile2 uaehf1 cdimage2" \
     "uaescsimode unix.uaescsimode"
 
+# Blanking defaults on for most autoscale modes (not "integer"); an
+# explicit value must win.
+cat > "$WORK/filter-blanking.uae" <<EOF
+config_description=Roundtrip filter blanking
+gfx_filter_autoscale=manual
+gfx_filter_blanking=0
+gfx_filter_autoscale_lace=scale
+gfx_filter_blanking_lace=1
+EOF
+
+run_case filter-blanking "$WORK/filter-blanking.uae" \
+    "gfx_filter_autoscale gfx_filter_blanking gfx_filter_autoscale_lace gfx_filter_blanking_lace" \
+    "gfx_filter_blanking_rtg"
+
+cat > "$WORK/filter-blanking-default.uae" <<EOF
+config_description=Roundtrip filter blanking default
+gfx_filter_autoscale=standard
+gfx_filter_autoscale_lace=integer
+EOF
+
+run_case filter-blanking-default "$WORK/filter-blanking-default.uae" \
+    "gfx_filter_autoscale gfx_filter_autoscale_lace"
+output="$WORK/filter-blanking-default-out.uae"
+if [ "$(config_value gfx_filter_blanking "$output")" != "1" ] ||
+    [ "$(config_value gfx_filter_blanking_lace "$output")" != "0" ]; then
+    echo "FAIL: filter-blanking-default: autoscale did not set the blanking default" >&2
+    cat "$output" >&2
+    exit 1
+fi
+
 echo "winuae config roundtrip smoke passed"

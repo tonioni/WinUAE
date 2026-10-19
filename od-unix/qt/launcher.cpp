@@ -522,6 +522,7 @@ struct WinUaeQtFilterState {
     QString keepAspect = QStringLiteral("none");
     bool enable = true;
     bool keepAutoscaleAspect = false;
+    bool blanking = false;
     bool bilinear = false;
     double horizZoom = 0.0;
     double vertZoom = 0.0;
@@ -3138,6 +3139,18 @@ static QString filterAutoscaleConfigValue(const QString &display, int target)
         value = QStringLiteral("resize");
     }
     return value;
+}
+
+/* Autoscale modes that support border blanking; selecting one turns it on
+ * by default, like cfgfile_parse_host() and the Win32 filter panel. */
+static bool filterAutoscaleSupportsBlanking(const QString &value)
+{
+    return value == QStringLiteral("auto")
+        || value == QStringLiteral("standard")
+        || value == QStringLiteral("max")
+        || value == QStringLiteral("scale")
+        || value == QStringLiteral("integer_auto")
+        || value == QStringLiteral("manual");
 }
 
 static QString filterAutoscaleDisplay(const QString &value, int target)
@@ -5839,6 +5852,7 @@ private:
     QDoubleSpinBox *filterHorizOffset = nullptr;
     QDoubleSpinBox *filterVertOffset = nullptr;
     QCheckBox *filterKeepAutoscaleAspect = nullptr;
+    QCheckBox *filterBlanking = nullptr;
     QCheckBox *filterKeepAspect = nullptr;
     QComboBox *filterAspect = nullptr;
     QComboBox *filterPresetName = nullptr;
@@ -9469,6 +9483,7 @@ private:
         }
         filterAutoscale = combo({});
         filterIntegerLimit = combo(configChoiceDisplays(filterIntegerLimitChoices, int(sizeof(filterIntegerLimitChoices) / sizeof(filterIntegerLimitChoices[0]))), QStringLiteral("1/1"));
+        filterBlanking = new QCheckBox(QStringLiteral("Blank filtered region borders"));
         QPushButton *reset = new QPushButton(QStringLiteral("Reset to defaults"));
 
         QGridLayout *settings = new QGridLayout;
@@ -9490,6 +9505,7 @@ private:
         settings->addWidget(filterAutoscale, 2, 1);
         settings->addWidget(label(QStringLiteral("Integer limit:")), 2, 2);
         settings->addWidget(filterIntegerLimit, 2, 3);
+        settings->addWidget(filterBlanking, 3, 1, 1, 3);
         root->addWidget(groupBox(QStringLiteral("Filter Settings"), settings));
 
         filterHorizZoomMult = doubleSpin(0.25, 8.0, 0.25, 2);
@@ -9596,6 +9612,16 @@ private:
             loadFilterStateToUi(index);
         });
         connect(filterKeepAspect, &QCheckBox::toggled, this, [this]() { updateFilterControlState(); });
+        connect(filterAutoscale, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this]() {
+            if (filterUpdating) {
+                return;
+            }
+            const int target = filterTarget->currentIndex();
+            if (target != 1) {
+                filterBlanking->setChecked(filterAutoscaleSupportsBlanking(filterAutoscaleConfigValue(filterAutoscale->currentText(), target)));
+            }
+            updateFilterControlState();
+        });
         connect(reset, &QPushButton::clicked, this, [this]() {
             filterStates[currentFilterTarget] = defaultFilterState(currentFilterTarget);
             loadFilterStateToUi(currentFilterTarget);
@@ -13066,6 +13092,7 @@ private:
         WinUaeQtFilterState state;
         if (target == 1) {
             state.autoscale = QStringLiteral("resize");
+            state.blanking = true;
         } else if (target == 2) {
             state.enable = false;
         }
@@ -13120,6 +13147,7 @@ private:
             ? configChoiceValue(filterAspectChoices, int(sizeof(filterAspectChoices) / sizeof(filterAspectChoices[0])), filterAspect->currentText())
             : QStringLiteral("none");
         state.keepAutoscaleAspect = filterKeepAutoscaleAspect->isChecked();
+        state.blanking = filterBlanking->isChecked();
         state.bilinear = filterBilinear->isChecked();
         state.horizZoom = filterHorizZoom->value();
         state.vertZoom = filterVertZoom->value();
@@ -13155,6 +13183,7 @@ private:
         const int target = filterTarget->currentIndex();
         filterEnable->setEnabled(target == 2);
         filterAspect->setEnabled(filterKeepAspect->isChecked());
+        filterBlanking->setEnabled(target != 1 && filterAutoscaleSupportsBlanking(filterAutoscaleConfigValue(filterAutoscale->currentText(), target)));
     }
 
     void loadFilterStateToUi(int target)
@@ -13174,6 +13203,7 @@ private:
         filterKeepAspect->setChecked(state.keepAspect != QStringLiteral("none"));
         filterAspect->setCurrentText(configChoiceDisplay(filterAspectChoices, int(sizeof(filterAspectChoices) / sizeof(filterAspectChoices[0])), state.keepAspect));
         filterKeepAutoscaleAspect->setChecked(state.keepAutoscaleAspect);
+        filterBlanking->setChecked(target == 1 || state.blanking);
         filterBilinear->setChecked(state.bilinear);
         filterHorizZoom->setValue(state.horizZoom);
         filterVertZoom->setValue(state.vertZoom);
@@ -13406,7 +13436,8 @@ private:
             QStringLiteral("gfx_filter_scanlines"),
             QStringLiteral("gfx_filter_scanlinelevel"),
             QStringLiteral("gfx_filter_scanlineoffset"),
-            QStringLiteral("gfx_filter_enable")
+            QStringLiteral("gfx_filter_enable"),
+            QStringLiteral("gfx_filter_blanking")
         };
         for (int target = 0; target < 3; target++) {
             for (const QString &base : bases) {
@@ -13438,6 +13469,8 @@ private:
                     state.autoscale = target == 1 && !isRtgAutoscaleValue(value) ? QStringLiteral("resize") : value;
                     if (target == 1) {
                         applyRtgScaleValue(state.autoscale);
+                    } else {
+                        state.blanking = filterAutoscaleSupportsBlanking(state.autoscale);
                     }
                 } else if (base == QStringLiteral("gfx_filter_autoscale_limit")) {
                     state.integerLimit = value;
@@ -13463,6 +13496,8 @@ private:
                     state.scanlineOffset = value.toInt();
                 } else if (base == QStringLiteral("gfx_filter_enable")) {
                     state.enable = value.toInt() != 0 || configBoolValue(value);
+                } else if (base == QStringLiteral("gfx_filter_blanking")) {
+                    state.blanking = target == 1 || value.toInt() != 0 || configBoolValue(value);
                 }
                 if (target == currentFilterTarget) {
                     loadFilterStateToUi(target);
@@ -15920,6 +15955,9 @@ private:
             settings.insert(filterKey(QStringLiteral("gfx_filter_scanlines"), i), QString::number(state.scanlines));
             settings.insert(filterKey(QStringLiteral("gfx_filter_scanlinelevel"), i), QString::number(state.scanlineLevel));
             settings.insert(filterKey(QStringLiteral("gfx_filter_scanlineoffset"), i), QString::number(state.scanlineOffset));
+            if (i != 1) {
+                settings.insert(filterKey(QStringLiteral("gfx_filter_blanking"), i), state.blanking ? QStringLiteral("1") : QStringLiteral("0"));
+            }
         }
         settings.insert(QStringLiteral("gfx_filter_enable_lace"), filterStateFromUi(2).enable ? QStringLiteral("1") : QStringLiteral("0"));
         settings.insert(QStringLiteral("unix.gfx_shader"), filterStateFromUi(0).filter);
@@ -16379,6 +16417,7 @@ private:
             QStringLiteral("gfx_filter_scanlines"),
             QStringLiteral("gfx_filter_scanlinelevel"),
             QStringLiteral("gfx_filter_scanlineoffset"),
+            QStringLiteral("gfx_filter_blanking"),
             QStringLiteral("gfx_filter_mode_rtg"),
             QStringLiteral("gfx_filter_mode2_rtg"),
             QStringLiteral("gfx_filter_horiz_zoomf_rtg"),
@@ -16422,6 +16461,7 @@ private:
             QStringLiteral("gfx_filter_scanlines_lace"),
             QStringLiteral("gfx_filter_scanlinelevel_lace"),
             QStringLiteral("gfx_filter_scanlineoffset_lace"),
+            QStringLiteral("gfx_filter_blanking_lace"),
             QStringLiteral("gfx_filter_enable_lace"),
             QStringLiteral("unix.gfx_shader"),
             QStringLiteral("cdimage0"),
