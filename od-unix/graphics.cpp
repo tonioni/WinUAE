@@ -364,7 +364,7 @@ void flush_screen(struct vidbuffer*, int, int) {}
 void flush_clear_screen(struct vidbuffer*) {}
 bool render_screen(int, int, bool)
 {
-    set_custom_limits(-1, -1, -1, -1, false);
+    set_custom_limits(-1, -1, -1, -1);
     return true;
 }
 
