@@ -220,9 +220,10 @@ int soread(struct socket *so)
  * so when OOB data arrives, we soread() it and everything
  * in the send buffer is sent as urgent data
  */
-void sorecvoob(struct socket *so)
+int sorecvoob(struct socket *so)
 {
 	struct tcpcb *tp = sototcpcb(so);
+	int ret;
 
 	DEBUG_CALL("sorecvoob");
 	DEBUG_ARG("so = %p", so);
@@ -235,11 +236,14 @@ void sorecvoob(struct socket *so)
 	 * urgent data, or the read() doesn't return all the 
 	 * urgent data.
 	 */
-	soread(so);
-	tp->snd_up = tp->snd_una + so->so_snd.sb_cc;
-	tp->t_force = 1;
-	tcp_output(tp);
-	tp->t_force = 0;
+	ret = soread(so);
+	if (ret > 0) {
+		tp->snd_up = tp->snd_una + so->so_snd.sb_cc;
+		tp->t_force = 1;
+		tcp_output(tp);
+		tp->t_force = 0;
+	}
+	return ret;
 }
 
 /*

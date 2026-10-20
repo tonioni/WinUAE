@@ -453,7 +453,10 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 			 * test for readfds below if this succeeds
 			 */
 			if (FD_ISSET(so->s, xfds)) {
-				sorecvoob(so);
+				if (sorecvoob(so) < 0) {
+					/* the socket may have been freed on error */
+					continue;
+				}
 			/*
 			 * Check sockets for reading
 			 */
@@ -470,6 +473,10 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds)
 				/* Output it if we read something */
 				if (ret > 0)
 					tcp_output(sototcpcb(so));
+				if (ret < 0) {
+					/* the socket may have been freed on error */
+					continue;
+				}
 			}
 
 			/*
