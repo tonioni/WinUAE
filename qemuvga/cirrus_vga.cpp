@@ -214,19 +214,15 @@ static void check_blit(int64_t addr, uint32_t mask, int pitch, int width, int *h
 }
 
 // Number of source bytes a colour expansion blit consumes per row.
-static int colorexpand_srcbytes(int bltwidth, int dstskipleft, int srcskipleft, int pixelbytes)
+static int colorexpand_srcbytes(int bltwidth, int dstskipleft, int srcskipleftbits, int srcskipleftbytes, int pixelbytes)
 {
 	int npix;
 
 	if (bltwidth <= dstskipleft) {
-		return 1;
+		return srcskipleftbytes + 1;
 	}
 	npix = (bltwidth - dstskipleft + pixelbytes - 1) / pixelbytes;
-	if (srcskipleft >= 8) {
-		// initial byte is fully skipped
-		return 1 + (npix + 7) / 8;
-	}
-	return (srcskipleft + npix - 1) / 8 + 1;
+	return srcskipleftbytes + (srcskipleftbits + npix - 1) / 8 + 1;
 }
 
 // width in bytes rounded up to whole pixels/accesses
@@ -244,9 +240,9 @@ static int colorexpand_srcbytes(int bltwidth, int dstskipleft, int srcskipleft, 
 		BLTCHECK_ROUNDUP(bltwidth - (skip), DEPTH / 8), &bltheight, 1);
 
 // colour expansion source is read sequentially, srcpitch is ignored
-#define BLTCHECK_SRC_EXPAND(srcskip, dstskip) \
+#define BLTCHECK_SRC_EXPAND(srcskipbits, srcskipbytes, dstskip) \
 	{ \
-		int srcbytes = colorexpand_srcbytes(bltwidth, dstskip, srcskip, DEPTH / 8); \
+		int srcbytes = colorexpand_srcbytes(bltwidth, dstskip, srcskipbits, srcskipbytes, DEPTH / 8); \
 		check_blit(srcaddr & srcmask, srcmask, srcbytes, srcbytes, &bltheight, 1); \
 	}
 
