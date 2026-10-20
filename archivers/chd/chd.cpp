@@ -41,7 +41,6 @@ static const UINT8 V34_MAP_ENTRY_FLAG_TYPE_MASK = 0x0f;     // what type of hunk
 static const UINT8 V34_MAP_ENTRY_FLAG_NO_CRC = 0x10;        // no CRC is present
 
 
-
 // V3-V4 entry types
 enum
 {
@@ -752,6 +751,15 @@ chd_error chd_file::read_hunk(UINT32 hunknum, void *buffer)
 				{
 					case V34_MAP_ENTRY_TYPE_COMPRESSED:
 						blocklen = be_read(&rawmap[12], 2) + (rawmap[14] << 16);
+						// the 24-bit length must fit the hunk-sized compressed buffer
+						if (blocklen > UINT32(m_compressed.count()))
+						{
+							throw CHDERR_DECOMPRESSION_ERROR;
+						}
+						if (m_decompressor[0] == NULL)
+						{
+							throw CHDERR_DECOMPRESSION_ERROR;
+						}
 						file_read(blockoffs, m_compressed, blocklen);
 						m_decompressor[0]->decompress(m_compressed, blocklen, dest, m_hunkbytes);
 						if (!(rawmap[15] & V34_MAP_ENTRY_FLAG_NO_CRC) && dest != NULL && crc32_creator::simple(dest, m_hunkbytes) != blockcrc)
@@ -765,6 +773,11 @@ chd_error chd_file::read_hunk(UINT32 hunknum, void *buffer)
 						return CHDERR_NONE;
 
 					case V34_MAP_ENTRY_TYPE_MINI:
+						// the 8-byte pattern must fit in the hunk
+						if (m_hunkbytes < 8)
+						{
+							throw CHDERR_DECOMPRESSION_ERROR;
+						}
 						be_write(dest, blockoffs, 8);
 						for (UINT32 bytes = 8; bytes < m_hunkbytes; bytes++)
 							dest[bytes] = dest[bytes - 8];
@@ -773,11 +786,30 @@ chd_error chd_file::read_hunk(UINT32 hunknum, void *buffer)
 						return CHDERR_NONE;
 
 					case V34_MAP_ENTRY_TYPE_SELF_HUNK:
-						return read_hunk(blockoffs, dest);
+						// follow the chain here rather than by recursion; each link must
+						// name an earlier hunk, so a self-reference or cycle is rejected
+						// and a long chain cannot exhaust the stack
+						for (;;)
+						{
+							if (blockoffs >= hunknum)
+							{
+								throw CHDERR_DECOMPRESSION_ERROR;
+							}
+							hunknum = UINT32(blockoffs);
+							rawmap = m_rawmap + 16 * hunknum;
+							if ((rawmap[15] & V34_MAP_ENTRY_FLAG_TYPE_MASK) != V34_MAP_ENTRY_TYPE_SELF_HUNK)
+							{
+								break;
+							}
+							blockoffs = be_read(&rawmap[0], 8);
+						}
+						return read_hunk(hunknum, dest);
 
 					case V34_MAP_ENTRY_TYPE_PARENT_HUNK:
-						if (m_parent_missing)
+						if (m_parent_missing || m_parent == NULL)
+						{
 							throw CHDERR_REQUIRES_PARENT;
+						}
 						return m_parent->read_hunk(blockoffs, dest);
 				}
 				break;
@@ -811,6 +843,15 @@ chd_error chd_file::read_hunk(UINT32 hunknum, void *buffer)
 					case COMPRESSION_TYPE_1:
 					case COMPRESSION_TYPE_2:
 					case COMPRESSION_TYPE_3:
+						// the 24-bit length must fit the hunk-sized compressed buffer
+						if (blocklen > UINT32(m_compressed.count()))
+						{
+							throw CHDERR_DECOMPRESSION_ERROR;
+						}
+						if (m_decompressor[rawmap[0]] == NULL)
+						{
+							throw CHDERR_DECOMPRESSION_ERROR;
+						}
 						file_read(blockoffs, m_compressed, blocklen);
 						m_decompressor[rawmap[0]]->decompress(m_compressed, blocklen, dest, m_hunkbytes);
 						if (!m_decompressor[rawmap[0]]->lossy() && dest != NULL && crc16_creator::simple(dest, m_hunkbytes) != blockcrc)
@@ -826,11 +867,30 @@ chd_error chd_file::read_hunk(UINT32 hunknum, void *buffer)
 						return CHDERR_NONE;
 
 					case COMPRESSION_SELF:
-						return read_hunk(blockoffs, dest);
+						// follow the chain here rather than by recursion; each link must
+						// name an earlier hunk, so a self-reference or cycle is rejected
+						// and a long chain cannot exhaust the stack
+						for (;;)
+						{
+							if (blockoffs >= hunknum)
+							{
+								throw CHDERR_DECOMPRESSION_ERROR;
+							}
+							hunknum = UINT32(blockoffs);
+							rawmap = m_rawmap + m_mapentrybytes * hunknum;
+							if (rawmap[0] != COMPRESSION_SELF)
+							{
+								break;
+							}
+							blockoffs = be_read(&rawmap[4], 6);
+						}
+						return read_hunk(hunknum, dest);
 
 					case COMPRESSION_PARENT:
-						if (m_parent_missing)
+						if (m_parent_missing || m_parent == NULL)
+						{
 							throw CHDERR_REQUIRES_PARENT;
+						}
 						return m_parent->read_bytes(UINT64(blockoffs) * UINT64(m_parent->unit_bytes()), dest, m_hunkbytes);
 				}
 				break;
@@ -949,6 +1009,12 @@ chd_error chd_file::write_units(UINT64 unitnum, const void *buffer, UINT32 count
 
 chd_error chd_file::read_bytes(UINT64 offset, void *buffer, UINT32 bytes)
 {
+	// nothing to do; also keeps offset + bytes - 1 below from underflowing
+	if (bytes == 0)
+	{
+		return CHDERR_NONE;
+	}
+
 	// iterate over hunks
 	UINT32 first_hunk = offset / m_hunkbytes;
 	UINT32 last_hunk = (offset + bytes - 1) / m_hunkbytes;
@@ -993,6 +1059,12 @@ chd_error chd_file::read_bytes(UINT64 offset, void *buffer, UINT32 bytes)
 
 chd_error chd_file::write_bytes(UINT64 offset, const void *buffer, UINT32 bytes)
 {
+	// nothing to do; also keeps offset + bytes - 1 below from underflowing
+	if (bytes == 0)
+	{
+		return CHDERR_NONE;
+	}
+
 	// iterate over hunks
 	UINT32 first_hunk = offset / m_hunkbytes;
 	UINT32 last_hunk = (offset + bytes - 1) / m_hunkbytes;
