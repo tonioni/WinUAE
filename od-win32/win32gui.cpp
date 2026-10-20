@@ -24606,10 +24606,6 @@ void gui_led (int led, int on, int brightness)
 			_tcscat(ptr, _T("PPC: "));
 			if (ppc_state == PPC_STATE_ACTIVE)
 				_tcscat(ptr, _T("RUN"));
-			else if (ppc_state == PPC_STATE_CRASH)
-				_tcscat(ptr, _T("CRASH"));
-			else if (ppc_state == PPC_STATE_SLEEP)
-				_tcscat(ptr, _T("SLEEP"));
 			else
 				_tcscat(ptr, _T("STOP"));
 			_tcscat(ptr, _T(" "));
