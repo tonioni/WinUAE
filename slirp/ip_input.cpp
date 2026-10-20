@@ -205,6 +205,7 @@ void ip_input(struct mbuf *m)
 				return;
 			ipstat.ips_reassembled++;
 			m = dtom(ip);
+			hlen = ip->ip_hl << 2;
 		} else
 			if (fp)
 		   	   ip_freef(fp);
