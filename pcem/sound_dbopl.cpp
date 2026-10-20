@@ -5,7 +5,7 @@
 static struct
 {
         DBOPL::Chip chip;
-        struct opl3_chip opl3chip;
+        opl3_chip opl3chip;
         int addr;
         int timer[2];
         uint8_t timer_ctrl;
@@ -79,6 +79,18 @@ void opl_timer_over(int nr, int timer)
         opl_status_update(nr);
 }
 
+/* Nuked OPL3 1.8 no longer latches the address itself: the second register
+ * bank is only selectable with OPL3 mode (NEW) enabled, except for the
+ * NEW register (0x105) itself. */
+static uint16_t nukedopl_write_addr(opl3_chip *chip, uint16_t port, uint8_t val)
+{
+	uint16_t addr = val;
+	if ((port & 2) && (addr == 0x05 || chip->newm)) {
+		addr |= 0x100;
+	}
+	return addr;
+}
+
 void opl_write(int nr, uint16_t addr, uint8_t val)
 {
         if (!(addr & 1))
@@ -86,7 +98,7 @@ void opl_write(int nr, uint16_t addr, uint8_t val)
 		if (!opl[nr].is_opl3 || !opl[nr].opl_emu)
 			opl[nr].addr = (int)opl[nr].chip.WriteAddr(addr, val) & (opl[nr].is_opl3 ? 0x1ff : 0xff);
 		else
-			opl[nr].addr = (int)OPL3_WriteAddr(&opl[nr].opl3chip, addr, val) & 0x1ff;
+			opl[nr].addr = nukedopl_write_addr(&opl[nr].opl3chip, addr, val);
 	}
         else
         {
