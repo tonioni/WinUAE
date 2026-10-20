@@ -230,6 +230,7 @@ int sosendoob(struct socket *so)
 {
 	struct sbuf *sb = &so->so_rcv;
 	char buff[2048]; /* XXX Shouldn't be sending more oob data than this */
+	u_int urgc = so->so_urgc;
 	
 	int n, len;
 	
@@ -237,15 +238,20 @@ int sosendoob(struct socket *so)
 	DEBUG_ARG("so = %p", so);
 	DEBUG_ARG("sb->sb_cc = %d", sb->sb_cc);
 	
-	if (so->so_urgc > 2048)
-	   so->so_urgc = 2048; /* XXXX */
+	/*
+	 * so_urgc is derived from the urgent pointer sent by the guest,
+	 * it can be far beyond the data we actually have.
+	 */
+	if (urgc > sizeof(buff)) {
+		urgc = sizeof(buff);
+	}
+	if (urgc > sb->sb_cc) {
+		urgc = sb->sb_cc;
+	}
 	
 	if (sb->sb_rptr < sb->sb_wptr) {
 		/* We can send it directly */
-		n = send(so->s, sb->sb_rptr, so->so_urgc, (MSG_OOB)); /* |MSG_DONTWAIT)); */
-		so->so_urgc -= n;
-		
-		DEBUG_MISC((" --- sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
+		n = send(so->s, sb->sb_rptr, urgc, (MSG_OOB)); /* |MSG_DONTWAIT)); */
 	} else {
 		/* 
 		 * Since there's no sendv or sendtov like writev,
@@ -253,14 +259,13 @@ int sosendoob(struct socket *so)
 		 * send it all
 		 */
 		len = (int)((sb->sb_data + sb->sb_datalen) - sb->sb_rptr);
-		if (len > so->so_urgc) len = so->so_urgc;
+		if (len > (int)urgc) len = urgc;
 		memcpy(buff, sb->sb_rptr, len);
-		so->so_urgc -= len;
-		if (so->so_urgc) {
+		urgc -= len;
+		if (urgc) {
 			n = (int)(sb->sb_wptr - sb->sb_data);
-			if (n > so->so_urgc) n = so->so_urgc;
+			if (n > (int)urgc) n = urgc;
 			memcpy((buff + len), sb->sb_data, n);
-			so->so_urgc -= n;
 			len += n;
 		}
 		n = send(so->s, buff, len, (MSG_OOB)); /* |MSG_DONTWAIT)); */
@@ -268,9 +273,14 @@ int sosendoob(struct socket *so)
 		if (n != len)
 		   DEBUG_ERROR(("Didn't send all data urgently XXXXX\n"));
 #endif		
-		DEBUG_MISC((" ---2 sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
 	}
 	
+	if (n < 0) {
+		return n;
+	}
+	so->so_urgc -= n;
+	DEBUG_MISC((" --- sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
+
 	sb->sb_cc -= n;
 	sb->sb_rptr += n;
 	if (sb->sb_rptr >= (sb->sb_data + sb->sb_datalen))
@@ -285,7 +295,7 @@ int sosendoob(struct socket *so)
  */
 int sowrite(struct socket *so)
 {
-	int  n,nn;
+	int  n,nn, noob = 0;
 	struct sbuf *sb = &so->so_rcv;
 	u_int len = sb->sb_cc;
 	struct iovec iov[2];
@@ -294,9 +304,21 @@ int sowrite(struct socket *so)
 	DEBUG_ARG("so = %p", so);
 	
 	if (so->so_urgc) {
-		sosendoob(so);
+		int expected = so->so_urgc;
+		noob = sosendoob(so);
+		if (noob < 0) {
+			/* let the normal write below deal with the error */
+			noob = 0;
+		} else if (noob < expected) {
+			/*
+			 * Short write: either we have not yet received all
+			 * urgent data, or the socket buffers are full. Leave
+			 * it for later when we have data or have room.
+			 */
+			return noob;
+		}
 		if (sb->sb_cc == 0)
-			return 0;
+			return noob;
 	}
 
 	/*
@@ -337,7 +359,7 @@ int sowrite(struct socket *so)
 	if (nn < 0) {
 		int error = WSAGetLastError();
 		if (IS_EAGAIN(error))
-			return 0;
+			return noob;
 	}
 
 	if (nn <= 0) {
@@ -371,7 +393,7 @@ int sowrite(struct socket *so)
 	if ((so->so_state & SS_FWDRAIN) && sb->sb_cc == 0)
 		sofcantsendmore(so);
 	
-	return nn;
+	return noob + nn;
 }
 
 /*
