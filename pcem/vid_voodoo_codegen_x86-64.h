@@ -2311,6 +2311,15 @@ static inline void voodoo_generate(uint8_t *code_block, voodoo_t *voodoo, voodoo
                 addbyte(0xc2);
         }
 
+        if ((params->alphaMode & (1 << 4)) && dest_afunc == AFUNC_ACOLORBEFOREFOG)
+        {
+                addbyte(0xf3); /*MOVQ XMM15, XMM0 - save pre-fog colour output for blend stage*/
+                addbyte(0x44);
+                addbyte(0x0f);
+                addbyte(0x7e);
+                addbyte(0xf8);
+        }
+
         if (params->fogMode & FOG_ENABLE)
         {
                 if (params->fogMode & FOG_CONSTANT)                     
@@ -2744,17 +2753,23 @@ static inline void voodoo_generate(uint8_t *code_block, voodoo_t *voodoo, voodoo
                         addbyte(0xef);
                         addbyte(0xe4);
                         break;
-                        case AFUNC_ASATURATE:
-                        addbyte(0x66); /*PMULLW XMM4, XMM11(minus_254)*/
+                        case AFUNC_ACOLORBEFOREFOG:
+                        addbyte(0x66); /*PUNPCKLBW XMM15, XMM2*/
+                        addbyte(0x44);
+                        addbyte(0x0f);
+                        addbyte(0x60);
+                        addbyte(0xfa);
+
+                        addbyte(0x66); /*PMULLW XMM4, XMM15*/
                         addbyte(0x41);
                         addbyte(0x0f);
                         addbyte(0xd5);
-                        addbyte(0xe3);
+                        addbyte(0xe7);
                         addbyte(0xf3); /*MOVQ XMM5, XMM4*/
                         addbyte(0x0f);
                         addbyte(0x7e);
                         addbyte(0xec);
-                        addbyte(0x66); /*PADDW XMM4, alookup[1*8]*/
+                        addbyte(0x66); /*PADDW XMM4, R10(alookup)[1*8]*/
                         addbyte(0x41);
                         addbyte(0x0f);
                         addbyte(0xfd);
@@ -2774,6 +2789,7 @@ static inline void voodoo_generate(uint8_t *code_block, voodoo_t *voodoo, voodoo
                         addbyte(0x71);
                         addbyte(0xd4);
                         addbyte(8);
+                        break;
                 }
 
                 switch (src_afunc)
@@ -2927,7 +2943,14 @@ static inline void voodoo_generate(uint8_t *code_block, voodoo_t *voodoo, voodoo
                         addbyte(0xef);
                         addbyte(0xc0);
                         break;
-                        case AFUNC_ACOLORBEFOREFOG:
+                        case AFUNC_ASATURATE:
+                        /*min(As, 1 - Ad): there is no destination alpha
+                          here (Ad = 0xff, see AFUNC_ADST_ALPHA), so the
+                          source factor is always 0*/
+                        addbyte(0x66); /*PXOR XMM0, XMM0*/
+                        addbyte(0x0f);
+                        addbyte(0xef);
+                        addbyte(0xc0);
                         break;
                 }
                 

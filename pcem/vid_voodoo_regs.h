@@ -344,8 +344,20 @@ enum
         LFB_FORMAT_ARGB1555 = 2,
         LFB_FORMAT_XRGB8888 = 4,
         LFB_FORMAT_ARGB8888 = 5,
+        LFB_FORMAT_DEPTH_RGB565 = 12,
+        LFB_FORMAT_DEPTH_RGB555 = 13,
+        LFB_FORMAT_DEPTH_ARGB1555 = 14,
         LFB_FORMAT_DEPTH = 15,
         LFB_FORMAT_MASK = 15
+};
+
+enum
+{
+        LFB_RGBCHANNEL_ARGB = (0 << 9),
+        LFB_RGBCHANNEL_ABGR = (1 << 9),
+        LFB_RGBCHANNEL_RGBA = (2 << 9),
+        LFB_RGBCHANNEL_BGRA = (3 << 9),
+        LFB_RGBCHANNEL_MASK = (3 << 9)
 };
 
 enum
