@@ -173,7 +173,7 @@ void udp_input(struct mbuf *m, int iphlen)
 	 * Locate pcb for datagram.
 	 */
 	so = udp_last_so;
-	if (so->so_lport != uh->uh_sport ||
+	if (so == &udb || so->so_lport != uh->uh_sport ||
 	    so->so_laddr.s_addr != ip->ip_src.s_addr) {
 		struct socket *tmp;
 		
