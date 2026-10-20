@@ -283,16 +283,28 @@ int handle_msgpump(bool)
     return got;
 }
 
+static bool unix_filter_blanking_prefs_changed(void)
+{
+    return currprefs.gf[GF_NORMAL].gfx_filter_blanking != changed_prefs.gf[GF_NORMAL].gfx_filter_blanking ||
+        currprefs.gf[GF_INTERLACE].gfx_filter_blanking != changed_prefs.gf[GF_INTERLACE].gfx_filter_blanking;
+}
+
 int check_prefs_changed_gfx(void)
 {
     int flags = config_changed_flags;
     bool changed = unix_runtime_graphics_prefs_changed(0);
+    bool blanking_changed = unix_filter_blanking_prefs_changed();
 
-    if (!unix_graphics_initialized || (!changed && !flags)) {
+    if (!unix_graphics_initialized || (!changed && !blanking_changed && !flags)) {
         return 0;
     }
 
     config_changed_flags = 0;
+    if (blanking_changed) {
+        /* Like win32gfx.cpp; render_screen() reapplies the limits each frame. */
+        currprefs.gf[GF_NORMAL].gfx_filter_blanking = changed_prefs.gf[GF_NORMAL].gfx_filter_blanking;
+        currprefs.gf[GF_INTERLACE].gfx_filter_blanking = changed_prefs.gf[GF_INTERLACE].gfx_filter_blanking;
+    }
     if (changed) {
         unix_copy_runtime_graphics_prefs(0);
         unix_apply_video_mode_from_prefs(&currprefs, 0);
