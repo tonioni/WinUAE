@@ -103,6 +103,10 @@ void udp_input(struct mbuf *m, int iphlen)
 	/*
 	 * Get IP and UDP header together in first mbuf.
 	 */
+	if (m->m_len < iphlen + sizeof(struct udphdr)) {
+		udpstat.udps_hdrops++;
+		goto bad;
+	}
 	ip = mtod(m, struct ip *);
 	uh = (struct udphdr *)((caddr_t)ip + iphlen);
 
@@ -112,6 +116,10 @@ void udp_input(struct mbuf *m, int iphlen)
 	 */
 	len = ntohs((u_int16_t)uh->uh_ulen);
 
+	if (len < (int)sizeof(struct udphdr)) {
+		udpstat.udps_badlen++;
+		goto bad;
+	}
 	if (ip->ip_len != len) {
 		if (len > ip->ip_len) {
 			udpstat.udps_badlen++;
