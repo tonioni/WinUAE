@@ -118,6 +118,7 @@ glue(glue(glue(cirrus_colorexpand_transp_, ROP_NAME), _),DEPTH)
 #endif
 
 	BLTCHECK_DST(dstskipleft)
+	BLTCHECK_SRC_EXPAND(srcskipleft, dstskipleft)
 	INITBLIT
 
 	if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
@@ -167,6 +168,7 @@ glue(glue(glue(cirrus_colorexpand_, ROP_NAME), _),DEPTH)
     int dstskipleft = srcskipleft * (DEPTH / 8);
 
 	BLTCHECK_DST(dstskipleft)
+	BLTCHECK_SRC_EXPAND(srcskipleft, dstskipleft)
 	INITBLIT
 		
 	colors[0] = s->cirrus_blt_bgcol;
