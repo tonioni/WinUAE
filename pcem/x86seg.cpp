@@ -1238,7 +1238,7 @@ void loadcscall(uint16_t seg, uint32_t old_pc)
                                                 cpl_override = 0;
 #endif
                                                 
-                                                CS=seg2;
+                                                CS=(seg2 & ~3) | DPL;
                                                 do_seg_load(&cpu_state.seg_cs, segdat);
                                                 if (CPL==3 && oldcpl!=3) flushmmucache_cr3();
                                                 oldcpl = CPL;
@@ -1333,7 +1333,7 @@ void loadcscall(uint16_t seg, uint32_t old_pc)
                                                 return;
                                         }
                                         case 0x1C00: case 0x1D00: case 0x1E00: case 0x1F00: /*Conforming*/
-                                        CS=seg2;
+                                        CS=(seg2 & ~3) | CPL;
                                         do_seg_load(&cpu_state.seg_cs, segdat);
                                         if (CPL==3 && oldcpl!=3) flushmmucache_cr3();
                                         oldcpl = CPL;
