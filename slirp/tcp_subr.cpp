@@ -563,6 +563,14 @@ static struct tos_t tcptos[] = {
 };
 
 struct emu_t *tcpemu = 0;
+
+/*
+ * Protocol emulation (FTP, IRC DCC, ident, RealAudio, kshell, talk,
+ * CU-SeeMe) rewrites addresses inside the payload of guest connections.
+ * It has a long history of memory safety bugs, so like libslirp keep it
+ * disabled unless explicitly enabled.
+ */
+int slirp_enable_emu = 0;
 		
 /*
  * Return TOS according to the above table
@@ -575,7 +583,9 @@ u_int8_t tcp_tos(struct socket *so)
 	while(tcptos[i].tos) {
 		if ((tcptos[i].fport && (ntohs(so->so_fport) == tcptos[i].fport)) ||
 		    (tcptos[i].lport && (ntohs(so->so_lport) == tcptos[i].lport))) {
-			so->so_emu = tcptos[i].emu;
+			if (slirp_enable_emu) {
+				so->so_emu = tcptos[i].emu;
+			}
 			return tcptos[i].tos;
 		}
 		i++;
@@ -585,7 +595,9 @@ u_int8_t tcp_tos(struct socket *so)
 	for (emup = tcpemu; emup; emup = emup->next) {
 		if ((emup->fport && (ntohs(so->so_fport) == emup->fport)) ||
 		    (emup->lport && (ntohs(so->so_lport) == emup->lport))) {
-			so->so_emu = emup->emu;
+			if (slirp_enable_emu) {
+				so->so_emu = emup->emu;
+			}
 			return emup->tos;
 		}
 	}

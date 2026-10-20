@@ -376,7 +376,9 @@ u_int8_t udp_tos(struct socket *so)
 	while(udptos[i].tos) {
 		if ((udptos[i].fport && ntohs(so->so_fport) == udptos[i].fport) ||
 		    (udptos[i].lport && ntohs(so->so_lport) == udptos[i].lport)) {
-		    	so->so_emu = udptos[i].emu;
+			if (slirp_enable_emu) {
+				so->so_emu = udptos[i].emu;
+			}
 			return udptos[i].tos;
 		}
 		i++;
