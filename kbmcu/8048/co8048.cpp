@@ -656,6 +656,7 @@ void ATCoProc8048::Run() {
 				break;
 
 			case 0x00:		// NOP
+			case 0x01:		// undocumented - treated as NOP for now (seen in 1029 Polish firmware)
 				break;
 
 			case 0x48:		// ORL A,Rr
@@ -837,6 +838,16 @@ void ATCoProc8048::Run() {
 					uint8 t = mA;
 					mA = *r;
 					*r = t;
+				}
+				break;
+
+			case 0x30:		// XCHD A,@Rr
+			case 0x31:
+				{
+					uint8 *r = &mRAM[mpRegBank[opcode - 0x30]];
+					uint8 d = (*r ^ mA) & 15;
+					*r ^= d;
+					mA ^= d;
 				}
 				break;
 
