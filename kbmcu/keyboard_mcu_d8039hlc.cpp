@@ -211,6 +211,21 @@ uint8 mpFnReadT1(void)
 	}
 	return v;
 }
+// MOVX: no external data memory is attached, reads float high.
+uint8 mpFnReadXRAM(uint8 addr)
+{
+	uint8 v = 0xff;
+	if (kb_mcu_log & 2) {
+		write_log("%04x read XRAM %02x = %02x\n", mcu->GetPC(), addr, v);
+	}
+	return v;
+}
+void mpFnWriteXRAM(uint8 addr, uint8 v)
+{
+	if (kb_mcu_log & 2) {
+		write_log("%04x write XRAM %02x = %02x\n", mcu->GetPC(), addr, v);
+	}
+}
 
 static void keymcu_res(void)
 {

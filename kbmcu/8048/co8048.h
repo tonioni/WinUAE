@@ -114,5 +114,7 @@ void mpFnWriteBus(uint8);
 uint8 mpFnReadPort(int, uint8);
 uint8 mpFnReadT0(void);
 uint8 mpFnReadT1(void);
+uint8 mpFnReadXRAM(uint8);
+void mpFnWriteXRAM(uint8, uint8);
 
 #endif	// f_ATCOPROC_CO8048_H

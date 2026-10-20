@@ -647,12 +647,12 @@ void ATCoProc8048::Run() {
 
 			case 0x80:		// MOVX A,@Rr
 			case 0x81:
-				mA = mpRegBank[opcode - 0x80];
+				mA = mpFnReadXRAM(mpRegBank[opcode - 0x80]);
 				break;
 
 			case 0x90:		// MOVX @Rr,A
 			case 0x91:
-				mpRegBank[opcode - 0x90], mA;
+				mpFnWriteXRAM(mpRegBank[opcode - 0x90], mA);
 				break;
 
 			case 0x00:		// NOP
