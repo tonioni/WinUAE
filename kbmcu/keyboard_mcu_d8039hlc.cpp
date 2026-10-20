@@ -367,7 +367,8 @@ uae_u8 *save_kbmcu3(size_t *len, uae_u8 *dstptr)
 	save_u32((kbhandshake ? 1 : 0) | (mcu->mbTimerActive ? 2 : 0) | (mcu->mbIrqAttention ? 4 : 0) |
 		(mcu->mbIrqEnabled ? 8 : 0) | (mcu->mbF1 ? 16 : 0) | (mcu->mbTF ? 32 : 0) |
 		(mcu->mbIF ? 64 : 0) | (mcu->mbPBK ? 128 : 0) | (mcu->mbDBF ? 256 : 0) |
-		(mcu->mbIrqPending ? 512 : 0) | (mcu->mbTimerIrqPending ? 1024 : 0));
+		(mcu->mbIrqPending ? 512 : 0) | (mcu->mbTimerIrqPending ? 1024 : 0) |
+		(mcu->mbTIF ? 2048 : 0) | (mcu->mbCountEnabled ? 4096 : 0));
 	save_u32(mcu_wd);
 	save_u8(kbdata);
 	save_u8(kbdatacnt);
@@ -416,6 +417,8 @@ uae_u8 *restore_kbmcu3(uae_u8* src)
 	mcu->mbDBF = (v & 256) != 0;
 	mcu->mbIrqPending = (v & 512) != 0;
 	mcu->mbTimerIrqPending = (v & 1024) != 0;
+	mcu->mbTIF = (v & 2048) != 0;
+	mcu->mbCountEnabled = (v & 4096) != 0;
 	mcu_wd = restore_u32();
 	kbdata = restore_u8();
 	kbdatacnt = restore_u8();
