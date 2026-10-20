@@ -274,14 +274,14 @@ static void do_cmd(ESPState *s, uint8_t *buf)
 
 static int handle_satn(ESPState *s)
 {
-    uint8_t buf[32];
+    uint8_t *buf = s->selbuf;
     int len;
 
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_satn;
         return 1;
     }
-    len = get_cmd(s, buf, sizeof(buf));
+    len = get_cmd(s, buf, sizeof(s->selbuf));
     if (len)
         do_cmd(s, buf);
 	return 1;
@@ -289,14 +289,14 @@ static int handle_satn(ESPState *s)
 
 static int handle_s_without_atn(ESPState *s)
 {
-    uint8_t buf[32];
+    uint8_t *buf = s->selbuf;
     int len;
 
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_s_without_atn;
         return 1;
     }
-    len = get_cmd(s, buf, sizeof(buf));
+    len = get_cmd(s, buf, sizeof(s->selbuf));
     if (len) {
         do_busid_cmd(s, buf, 0);
     }

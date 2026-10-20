@@ -34,6 +34,9 @@ struct ESPState {
     SCSIRequest *current_req;
     uint8_t cmdbuf[ESP_CMDBUF_SZ];
     uint32_t cmdlen;
+    // Select (with ATN) command bytes. Pseudo DMA keeps the destination
+    // pointer until the transfer completes, so this can't live on the stack.
+    uint8_t selbuf[ESP_CMDBUF_SZ];
     uint32_t do_cmd;
 
     /* The amount of data left in the current DMA transfer.  */
