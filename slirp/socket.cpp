@@ -63,6 +63,23 @@ struct socket *socreate(void)
 }
 
 /*
+ * Remove references to so from the given output queue.
+ */
+static void soqfree(struct socket *so, struct mbuf *qh)
+{
+	struct mbuf *ifq, *ifm;
+
+	for (ifq = qh->ifq_next; ifq != qh; ifq = ifq->ifq_next) {
+		if (ifq->ifq_so == so) {
+			ifq->ifq_so = NULL;
+			for (ifm = ifq->ifs_next; ifm != ifq; ifm = ifm->ifs_next) {
+				ifm->ifq_so = NULL;
+			}
+		}
+	}
+}
+
+/*
  * remque and free a socket, clobber cache
  */
 void sofree(struct socket *so)
@@ -71,6 +88,9 @@ void sofree(struct socket *so)
 	sofree((struct socket*)so->extra);
 	so->extra=NULL;
   }
+  soqfree(so, &if_fastq);
+  soqfree(so, &if_batchq);
+
   if (so == tcp_last_so)
     tcp_last_so = &tcb;
   else if (so == udp_last_so)
