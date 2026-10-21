@@ -231,7 +231,6 @@ static const TCHAR *genlockmodes[] = { _T("none"), _T("noise"), _T("testcard"), 
 static const TCHAR *ppc_implementations[] = {
 	_T("auto"),
 	_T("dummy"),
-	_T("pearpc"),
 	_T("qemu"),
 	NULL
 };
