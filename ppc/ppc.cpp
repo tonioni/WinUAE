@@ -122,6 +122,24 @@ static void PPCCALL dummy_ppc_cpu_pause(int pause)
     UAE_LOG_STUB("pause=%d\n", pause);
 }
 
+/* The common code calls these QEMU entry points without checking which
+ * implementation is loaded. No thread is the PPC CPU thread, locking
+ * always succeeds and interrupts go nowhere. */
+
+static bool UAECALL dummy_qemu_uae_ppc_in_cpu_thread(void)
+{
+	return false;
+}
+
+static void UAECALL dummy_qemu_uae_ppc_external_interrupt(bool active)
+{
+}
+
+static int UAECALL dummy_qemu_uae_lock(int type)
+{
+	return 0;
+}
+
 /* Functions typedefs for PPC implementation */
 
 typedef bool (PPCCALL *ppc_cpu_init_function)(const char *model, uint32_t hid1);
@@ -160,6 +178,9 @@ static void load_dummy_implementation(void)
 	impl.map_memory = dummy_ppc_cpu_map_memory;
 	impl.run_continuous = dummy_ppc_cpu_run_continuous;
 	impl.pause = dummy_ppc_cpu_pause;
+	impl.in_cpu_thread = dummy_qemu_uae_ppc_in_cpu_thread;
+	impl.external_interrupt = dummy_qemu_uae_ppc_external_interrupt;
+	impl.lock = dummy_qemu_uae_lock;
 }
 
 static void uae_patch_library_ppc(UAE_DLHANDLE handle)
