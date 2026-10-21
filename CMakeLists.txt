@@ -526,8 +526,8 @@ if(WINUAE_UNIX_WITH_LUA)
     elseif(WINUAE_LUA_FETCH)
         include(FetchContent)
         FetchContent_Declare(lua
-            URL https://www.lua.org/ftp/lua-5.4.8.tar.gz
-            URL_HASH SHA256=4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae
+            URL https://www.lua.org/ftp/lua-5.4.9.tar.gz
+            URL_HASH SHA256=2335b6c582a52654f94612bf10d2f4672805d05329aa6568b1d8cd9e5c6fb8e6
             DOWNLOAD_EXTRACT_TIMESTAMP TRUE
         )
         FetchContent_MakeAvailable(lua)
