@@ -8,6 +8,16 @@
 /* ------------------------------------------------------------------------ */
 #include "lha.h"
 
+/* Bad tables only log an error here (the command line LHa exits), so leave
+ * an empty table behind that the decoder can still walk safely. */
+static void bad_table(short tablebits, unsigned short table[], const TCHAR *msg)
+{
+	error(_T("make_table(): %s"), msg);
+	for (int i = 0; i < (1 << tablebits); i++) {
+		table[i] = 0;
+	}
+}
+
 void lha_make_table(short nchar, unsigned char bitlen[], short tablebits, unsigned short table[])
 {
 	unsigned short  count[17];	/* count of bitlen */
@@ -27,8 +37,14 @@ void lha_make_table(short nchar, unsigned char bitlen[], short tablebits, unsign
 	}
 
 	/* count */
-	for (i = 0; i < nchar; i++)
+	for (i = 0; i < nchar; i++) {
+		if (bitlen[i] > 16) {
+			/* CVE-2006-4335 */
+			bad_table(tablebits, table, _T("Bad table (bitlen)\n"));
+			return;
+		}
 		count[bitlen[i]]++;
+	}
 
 	/* calculate first code */
 	total = 0;
@@ -36,8 +52,10 @@ void lha_make_table(short nchar, unsigned char bitlen[], short tablebits, unsign
 		start[i] = total;
 		total += weight[i] * count[i];
 	}
-	if ((total & 0xffff) != 0)
-		error(_T("make_table()"), _T("Bad table (5)\n"));
+	if ((total & 0xffff) != 0) {
+		bad_table(tablebits, table, _T("Bad table (5)\n"));
+		return;
+	}
 
 	/* shift data for make table. */
 	m = 16 - tablebits;
@@ -61,6 +79,9 @@ void lha_make_table(short nchar, unsigned char bitlen[], short tablebits, unsign
 		l = start[k] + weight[k];
 		if (k <= tablebits) {
 			/* code in table */
+			if (l > (1u << tablebits)) {
+				l = 1u << tablebits;
+			}
 			for (i = start[k]; i < l; i++)
 				table[i] = j;
 		}
@@ -72,6 +93,10 @@ void lha_make_table(short nchar, unsigned char bitlen[], short tablebits, unsign
 			/* make tree (n length) */
 			while (--n >= 0) {
 				if (*p == 0) {
+					if (avail >= 2 * NC - 1) {
+						bad_table(tablebits, table, _T("Bad table (tree)\n"));
+						return;
+					}
 					h_right[avail] = h_left[avail] = 0;
 					*p = avail++;
 				}

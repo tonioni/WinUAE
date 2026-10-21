@@ -40,6 +40,10 @@ static const UINT32 METADATA_HEADER_SIZE = 16;          // metadata header size
 static const UINT8 V34_MAP_ENTRY_FLAG_TYPE_MASK = 0x0f;     // what type of hunk
 static const UINT8 V34_MAP_ENTRY_FLAG_NO_CRC = 0x10;        // no CRC is present
 
+// sanity limits for values read from a (possibly malformed) file
+static const UINT32 CHD_MAX_HUNK_SIZE = 128 * 1024 * 1024;  // largest hunk we accept
+static const UINT64 CHD_MAX_MAP_SIZE = 256 * 1024 * 1024;   // largest in-memory hunk map we allocate
+static const UINT32 CHD_MAX_METADATA_ENTRIES = 65536;       // longest metadata chain we walk
 
 
 // V3-V4 entry types
@@ -752,6 +756,15 @@ chd_error chd_file::read_hunk(UINT32 hunknum, void *buffer)
 				{
 					case V34_MAP_ENTRY_TYPE_COMPRESSED:
 						blocklen = be_read(&rawmap[12], 2) + (rawmap[14] << 16);
+						// the 24-bit length must fit the hunk-sized compressed buffer
+						if (blocklen > UINT32(m_compressed.count()))
+						{
+							throw CHDERR_DECOMPRESSION_ERROR;
+						}
+						if (m_decompressor[0] == NULL)
+						{
+							throw CHDERR_DECOMPRESSION_ERROR;
+						}
 						file_read(blockoffs, m_compressed, blocklen);
 						m_decompressor[0]->decompress(m_compressed, blocklen, dest, m_hunkbytes);
 						if (!(rawmap[15] & V34_MAP_ENTRY_FLAG_NO_CRC) && dest != NULL && crc32_creator::simple(dest, m_hunkbytes) != blockcrc)
@@ -765,6 +778,11 @@ chd_error chd_file::read_hunk(UINT32 hunknum, void *buffer)
 						return CHDERR_NONE;
 
 					case V34_MAP_ENTRY_TYPE_MINI:
+						// the 8-byte pattern must fit in the hunk
+						if (m_hunkbytes < 8)
+						{
+							throw CHDERR_DECOMPRESSION_ERROR;
+						}
 						be_write(dest, blockoffs, 8);
 						for (UINT32 bytes = 8; bytes < m_hunkbytes; bytes++)
 							dest[bytes] = dest[bytes - 8];
@@ -773,11 +791,30 @@ chd_error chd_file::read_hunk(UINT32 hunknum, void *buffer)
 						return CHDERR_NONE;
 
 					case V34_MAP_ENTRY_TYPE_SELF_HUNK:
-						return read_hunk(blockoffs, dest);
+						// follow the chain here rather than by recursion; each link must
+						// name an earlier hunk, so a self-reference or cycle is rejected
+						// and a long chain cannot exhaust the stack
+						for (;;)
+						{
+							if (blockoffs >= hunknum)
+							{
+								throw CHDERR_DECOMPRESSION_ERROR;
+							}
+							hunknum = UINT32(blockoffs);
+							rawmap = m_rawmap + 16 * hunknum;
+							if ((rawmap[15] & V34_MAP_ENTRY_FLAG_TYPE_MASK) != V34_MAP_ENTRY_TYPE_SELF_HUNK)
+							{
+								break;
+							}
+							blockoffs = be_read(&rawmap[0], 8);
+						}
+						return read_hunk(hunknum, dest);
 
 					case V34_MAP_ENTRY_TYPE_PARENT_HUNK:
-						if (m_parent_missing)
+						if (m_parent_missing || m_parent == NULL)
+						{
 							throw CHDERR_REQUIRES_PARENT;
+						}
 						return m_parent->read_hunk(blockoffs, dest);
 				}
 				break;
@@ -811,6 +848,15 @@ chd_error chd_file::read_hunk(UINT32 hunknum, void *buffer)
 					case COMPRESSION_TYPE_1:
 					case COMPRESSION_TYPE_2:
 					case COMPRESSION_TYPE_3:
+						// the 24-bit length must fit the hunk-sized compressed buffer
+						if (blocklen > UINT32(m_compressed.count()))
+						{
+							throw CHDERR_DECOMPRESSION_ERROR;
+						}
+						if (m_decompressor[rawmap[0]] == NULL)
+						{
+							throw CHDERR_DECOMPRESSION_ERROR;
+						}
 						file_read(blockoffs, m_compressed, blocklen);
 						m_decompressor[rawmap[0]]->decompress(m_compressed, blocklen, dest, m_hunkbytes);
 						if (!m_decompressor[rawmap[0]]->lossy() && dest != NULL && crc16_creator::simple(dest, m_hunkbytes) != blockcrc)
@@ -826,11 +872,30 @@ chd_error chd_file::read_hunk(UINT32 hunknum, void *buffer)
 						return CHDERR_NONE;
 
 					case COMPRESSION_SELF:
-						return read_hunk(blockoffs, dest);
+						// follow the chain here rather than by recursion; each link must
+						// name an earlier hunk, so a self-reference or cycle is rejected
+						// and a long chain cannot exhaust the stack
+						for (;;)
+						{
+							if (blockoffs >= hunknum)
+							{
+								throw CHDERR_DECOMPRESSION_ERROR;
+							}
+							hunknum = UINT32(blockoffs);
+							rawmap = m_rawmap + m_mapentrybytes * hunknum;
+							if (rawmap[0] != COMPRESSION_SELF)
+							{
+								break;
+							}
+							blockoffs = be_read(&rawmap[4], 6);
+						}
+						return read_hunk(hunknum, dest);
 
 					case COMPRESSION_PARENT:
-						if (m_parent_missing)
+						if (m_parent_missing || m_parent == NULL)
+						{
 							throw CHDERR_REQUIRES_PARENT;
+						}
 						return m_parent->read_bytes(UINT64(blockoffs) * UINT64(m_parent->unit_bytes()), dest, m_hunkbytes);
 				}
 				break;
@@ -949,6 +1014,12 @@ chd_error chd_file::write_units(UINT64 unitnum, const void *buffer, UINT32 count
 
 chd_error chd_file::read_bytes(UINT64 offset, void *buffer, UINT32 bytes)
 {
+	// nothing to do; also keeps offset + bytes - 1 below from underflowing
+	if (bytes == 0)
+	{
+		return CHDERR_NONE;
+	}
+
 	// iterate over hunks
 	UINT32 first_hunk = offset / m_hunkbytes;
 	UINT32 last_hunk = (offset + bytes - 1) / m_hunkbytes;
@@ -993,6 +1064,12 @@ chd_error chd_file::read_bytes(UINT64 offset, void *buffer, UINT32 bytes)
 
 chd_error chd_file::write_bytes(UINT64 offset, const void *buffer, UINT32 bytes)
 {
+	// nothing to do; also keeps offset + bytes - 1 below from underflowing
+	if (bytes == 0)
+	{
+		return CHDERR_NONE;
+	}
+
 	// iterate over hunks
 	UINT32 first_hunk = offset / m_hunkbytes;
 	UINT32 last_hunk = (offset + bytes - 1) / m_hunkbytes;
@@ -1441,6 +1518,10 @@ void chd_file::parse_v3_header(UINT8 *rawheader, sha1_t &parentsha1)
 	m_metaoffset = be_read(&rawheader[36], 8);
 	m_hunkbytes = be_read(&rawheader[76], 4);
 	m_hunkcount = be_read(&rawheader[24], 4);
+	if (m_hunkbytes == 0 || m_hunkbytes > CHD_MAX_HUNK_SIZE)
+	{
+		throw CHDERR_INVALID_FILE;
+	}
 
 	// extract parent SHA-1
 	UINT32 flags = be_read(&rawheader[16], 4);
@@ -1473,6 +1554,10 @@ void chd_file::parse_v3_header(UINT8 *rawheader, sha1_t &parentsha1)
 
 	// guess at the units based on snooping the metadata
 	m_unitbytes = guess_unitbytes();
+	if (m_unitbytes == 0)
+	{
+		throw CHDERR_INVALID_FILE;
+	}
 	m_unitcount = (m_logicalbytes + m_unitbytes - 1) / m_unitbytes;
 }
 
@@ -1494,6 +1579,10 @@ void chd_file::parse_v4_header(UINT8 *rawheader, sha1_t &parentsha1)
 	m_metaoffset = be_read(&rawheader[36], 8);
 	m_hunkbytes = be_read(&rawheader[44], 4);
 	m_hunkcount = be_read(&rawheader[24], 4);
+	if (m_hunkbytes == 0 || m_hunkbytes > CHD_MAX_HUNK_SIZE)
+	{
+		throw CHDERR_INVALID_FILE;
+	}
 
 	// extract parent SHA-1
 	UINT32 flags = be_read(&rawheader[16], 4);
@@ -1526,6 +1615,10 @@ void chd_file::parse_v4_header(UINT8 *rawheader, sha1_t &parentsha1)
 
 	// guess at the units based on snooping the metadata
 	m_unitbytes = guess_unitbytes();
+	if (m_unitbytes == 0)
+	{
+		throw CHDERR_INVALID_FILE;
+	}
 	m_unitcount = (m_logicalbytes + m_unitbytes - 1) / m_unitbytes;
 }
 
@@ -1546,9 +1639,22 @@ void chd_file::parse_v5_header(UINT8 *rawheader, sha1_t &parentsha1)
 	m_mapoffset = be_read(&rawheader[40], 8);
 	m_metaoffset = be_read(&rawheader[48], 8);
 	m_hunkbytes = be_read(&rawheader[56], 4);
-	m_hunkcount = (m_logicalbytes + m_hunkbytes - 1) / m_hunkbytes;
 	m_unitbytes = be_read(&rawheader[60], 4);
-	m_unitcount = (m_logicalbytes + m_unitbytes - 1) / m_unitbytes;
+
+	// hunk and unit sizes must be sane before calculating counts
+	if (m_hunkbytes == 0 || m_unitbytes == 0 || m_hunkbytes > CHD_MAX_HUNK_SIZE)
+	{
+		throw CHDERR_INVALID_FILE;
+	}
+
+	// the hunk count must fit in 32 bits (computed without overflowing)
+	UINT64 hunkcount = m_logicalbytes / m_hunkbytes + ((m_logicalbytes % m_hunkbytes) != 0 ? 1 : 0);
+	if (hunkcount > 0xffffffff)
+	{
+		throw CHDERR_INVALID_FILE;
+	}
+	m_hunkcount = UINT32(hunkcount);
+	m_unitcount = m_logicalbytes / m_unitbytes + ((m_logicalbytes % m_unitbytes) != 0 ? 1 : 0);
 
 	// determine compression
 	m_compression[0] = be_read(&rawheader[16], 4);
@@ -1803,6 +1909,20 @@ void chd_file::decompress_v5_map()
 	UINT8 selfbits = rawbuf[13];
 	UINT8 parentbits = rawbuf[14];
 
+	// these are bit widths for the bitstream reader; chdman never makes them
+	// wider than 32, and anything wider is undefined behaviour in the reader
+	if (lengthbits > 32 || selfbits > 32 || parentbits > 32)
+	{
+		throw CHDERR_INVALID_FILE;
+	}
+
+	// the compressed map must fit in the file
+	UINT64 filesize = core_fsize(m_file);
+	if (m_mapoffset > filesize || filesize - m_mapoffset < sizeof(rawbuf) || mapbytes > filesize - m_mapoffset - sizeof(rawbuf) || mapbytes > CHD_MAX_MAP_SIZE)
+	{
+		throw CHDERR_INVALID_FILE;
+	}
+
 	// now read the map
 	dynamic_buffer compressed(mapbytes);
 	file_read(m_mapoffset + 16, compressed, mapbytes);
@@ -2047,6 +2167,22 @@ chd_error chd_file::open_common(bool writeable)
 		else if (m_parent != NULL)
 			throw CHDERR_INVALID_PARAMETER;
 
+		// bound the hunk map before it is allocated; a raw (v3/v4 or
+		// uncompressed v5) map is stored as-is and must fit in the file
+		UINT64 mapbytes = UINT64(m_hunkcount) * UINT64(m_mapentrybytes);
+		if (mapbytes > CHD_MAX_MAP_SIZE)
+		{
+			throw CHDERR_INVALID_FILE;
+		}
+		if (m_version < 5 || !compressed())
+		{
+			UINT64 filesize = core_fsize(m_file);
+			if (m_mapoffset > filesize || mapbytes > filesize - m_mapoffset)
+			{
+				throw CHDERR_INVALID_FILE;
+			}
+		}
+
 		// finish opening the file
 		create_open_common();
 		return CHDERR_NONE;
@@ -2208,9 +2344,16 @@ bool chd_file::metadata_find(chd_metadata_tag metatag, INT32 metaindex, metadata
 		metaentry.offset = metaentry.next;
 	}
 
-	// loop until we run out of options
+	// loop until we run out of options; bound the walk so that a cyclic
+	// chain in a malformed file cannot loop forever
+	UINT32 entries = 0;
 	while (metaentry.offset != 0)
 	{
+		if (++entries > CHD_MAX_METADATA_ENTRIES)
+		{
+			throw CHDERR_INVALID_FILE;
+		}
+
 		// read the raw header
 		UINT8 raw_meta_header[METADATA_HEADER_SIZE];
 		file_read(metaentry.offset, raw_meta_header, sizeof(raw_meta_header));

@@ -43,6 +43,14 @@ UINT64 core_ftell(core_file *file)
 {
 	return zfile_ftell(file);
 }
+UINT64 core_fsize(core_file *file)
+{
+	uae_s64 pos = zfile_ftell(file);
+	zfile_fseek(file, 0, SEEK_END);
+	uae_s64 size = zfile_ftell(file);
+	zfile_fseek(file, pos, SEEK_SET);
+	return size < 0 ? 0 : size;
+}
 
 
 file_error osd_rmfile(const TCHAR *filename)
