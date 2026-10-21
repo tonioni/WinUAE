@@ -809,9 +809,9 @@ uint8_t sb_read(uint16_t a, void *priv)
         switch (a & 0xf)
         {
                 case 0xA: /*Read data*/
-                dsp->sbreaddat = dsp->sb_read_data[dsp->sb_read_rp];
                 if (dsp->sb_read_rp != dsp->sb_read_wp)
                 {
+                        dsp->sbreaddat = dsp->sb_read_data[dsp->sb_read_rp];
                         dsp->sb_read_rp++;
                         dsp->sb_read_rp &= 0xFF;
                 }
