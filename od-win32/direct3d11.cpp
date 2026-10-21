@@ -3415,6 +3415,7 @@ static float xD3D_getrefreshrate(int monid)
 static int xD3D11_initvals(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t_h, int *freq, int mmulth, int mmultv, bool doalloc)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
+	struct amigadisplay *ad = &adisplays[monid];
 	int changed = 0;
 
 	if (d3d->m_screenWidth != w_w || d3d->m_screenHeight != w_h) {
@@ -3432,6 +3433,9 @@ static int xD3D11_initvals(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int
 	if (d3d->m_device) {
 		target_graphics_buffer_update(monid, false);
 	}
+
+	d3d->filterd3didx = ad->gf_index;
+	d3d->filterd3d = &currprefs.gf[d3d->filterd3didx];
 
 	return changed;
 }
