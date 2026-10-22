@@ -11293,8 +11293,12 @@ static void custom_trigger_start(void)
 			write_log("Chipset emulation inactive\n");
 			resetfulllinestate();
 		}
-		add_vsync_linecnt();
-		check_vsyncs_fast();
+		// Without the fast sync handler (cycle-exact memory), the normal
+		// sync path still counts lines and checks vsyncs.
+		if (eventtab[ev_sync].active) {
+			add_vsync_linecnt();
+			check_vsyncs_fast();
+		}
 		linear_hpos_prev[2] = linear_hpos_prev[1];
 		linear_hpos_prev[1] = linear_hpos_prev[0];
 		linear_hpos_prev[0] = maxhpos;
