@@ -355,7 +355,26 @@ typedef struct svga_t {
     void *     priv_parent;
 
     void *     local;
+
+#ifdef UAE
+    /* Amiga boards: red and blue swapped in 24/32 bit modes and the palette */
+    int swaprb;
+    /* Show the frame horizontally doubled */
+    int horizontal_linedbl;
+    /* fb_only in all but the planar and text modes */
+    int fb_auto;
+    /* Set by svga_poll() at the start of vertical sync */
+    int vsync_eod;
+#endif
 } svga_t;
+
+#ifdef UAE
+/* In WinUAE: the board's VRAM and showing the frame (86box_video.cpp) */
+extern void *pcem_getvram(int size);
+extern void  svga_doblit_uae(svga_t *svga, int x, int y, int w, int h);
+
+#define svga_swap_rb(c) ((((c) >> 16) & 0xff) | (((c) & 0xff) << 16) | ((c) & 0xff00ff00))
+#endif
 
 extern void     ibm8514_set_poll(svga_t *svga);
 extern void     ibm8514_poll(void *priv);

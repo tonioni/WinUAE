@@ -53,6 +53,12 @@
     #undef CLAMP
 #endif
 
+#ifdef UAE
+/* gfxboard.cpp: big endian LFB and MMIO apertures of the PCI board */
+extern void gfxboard_s3virge_lfb_endianswap(int m);
+extern void gfxboard_s3virge_lfb_endianswap2(int m);
+#endif
+
 static uint64_t virge_time = 0;
 
 static int dither[4][4] = {
@@ -364,6 +370,11 @@ typedef struct virge_t {
 
     uint8_t subsys_stat;
     uint8_t subsys_cntl;
+#ifdef UAE
+    /* VGA vertical retrace interrupt (CR11): 1 = pending, 0 = armed,
+       -1 = cleared until CR11 bit 4 is set again */
+    int vblank_irq;
+#endif
 
     int local;
 
@@ -520,10 +531,24 @@ enum {
 #define SERIAL_PORT_SCR (1 << 2)
 #define SERIAL_PORT_SDR (1 << 3)
 
+#ifdef UAE
+/* The VGA vertical retrace interrupt (CR11 bits 4/5) is enabled and pending,
+   the Amiga drivers use it besides the SUBSYS_CNTL one. */
+static int
+s3_virge_vga_vsync_enabled(const virge_t *virge)
+{
+    return (virge->svga.crtc[0x32] & 0x10) && !(virge->svga.crtc[0x11] & 0x20) && (virge->vblank_irq > 0);
+}
+#endif
+
 static void
 s3_virge_update_irqs(virge_t *virge)
 {
+#ifdef UAE
+    if (((virge->svga.crtc[0x32] & 0x10) && (virge->subsys_stat & virge->subsys_cntl & INT_MASK)) || s3_virge_vga_vsync_enabled(virge))
+#else
     if ((virge->svga.crtc[0x32] & 0x10) && (virge->subsys_stat & virge->subsys_cntl & INT_MASK))
+#endif
         pci_set_irq(virge->pci_slot, PCI_INTA, &virge->irq_state);
     else
         pci_clear_irq(virge->pci_slot, PCI_INTA, &virge->irq_state);
@@ -621,6 +646,21 @@ s3_virge_out(uint16_t addr, uint8_t val, void *priv)
             svga->crtc[svga->crtcreg] = val;
 
             switch (svga->crtcreg) {
+#ifdef UAE
+                case 0x11:
+                    /* Bit 4 = 0 clears the vertical retrace interrupt, it
+                       can only trigger again after bit 4 is set back to 1 */
+                    if (!(val & 0x10)) {
+                        if (virge->vblank_irq > 0)
+                            virge->vblank_irq = -1;
+                    } else if (virge->vblank_irq < 0)
+                        virge->vblank_irq = 0;
+                    s3_virge_update_irqs(virge);
+                    /* Interrupt bits only: no timing recalculation */
+                    if ((val & ~0x30) == (old & ~0x30))
+                        old = val;
+                    break;
+#endif
                 case 0x31:
                     virge->ma_ext = (virge->ma_ext & 0x1c) | ((val & 0x30) >> 4);
                     break;
@@ -715,7 +755,20 @@ s3_virge_out(uint16_t addr, uint8_t val, void *priv)
                     virge->hwc_col_stack_pos = (virge->hwc_col_stack_pos + 1) & 3;
                     break;
 
+#ifdef UAE
                 case 0x53:
+                    /* Bits 1-2: LFB byte swapping, done by gfxboard.cpp for
+                       the big endian aperture of the PCI board */
+                    gfxboard_s3virge_lfb_endianswap((val >> 1) & 3);
+                    s3_virge_updatemapping(virge);
+                    break;
+                case 0x54:
+                    /* Bits 0-1: MMIO byte swapping, the same */
+                    gfxboard_s3virge_lfb_endianswap2(val & 3);
+                    break;
+#else
+                case 0x53:
+#endif
                 case 0x58:
                 case 0x59:
                 case 0x5a:
@@ -817,6 +870,11 @@ s3_virge_in(uint16_t addr, void *priv)
                 else
                     ret = 0x10;
             }
+#ifdef UAE
+            /* Bit 7: vertical retrace interrupt pending */
+            if ((virge->subsys_stat & INT_VSY) || (virge->vblank_irq > 0))
+                ret |= 0x80;
+#endif
             break;
 
         case 0x3c5:
@@ -915,6 +973,12 @@ static void
 s3_virge_recalctimings(svga_t *svga)
 {
     virge_t *virge = (virge_t *) svga->priv;
+
+#ifdef UAE
+    /* Text modes follow the CRTC's byte/word/dword addressing: NetBSD's
+       CyberVision 64/3D console writes them through the linear aperture. */
+    svga->force_old_addr = (svga->gdcreg[6] & 1) || (svga->attrregs[0x10] & 1);
+#endif
 
     svga->hdisp = svga->hdisp_old;
 
@@ -1244,6 +1308,11 @@ s3_virge_updatemapping(virge_t *virge)
         }
 
     virge->linear_base = (svga->crtc[0x5a] << 16) | (svga->crtc[0x59] << 24);
+#ifdef UAE
+    /* The aperture is 64 MB aligned, the new MMIO follows it even while
+       the linear framebuffer is off (NetBSD sets CR5A before CR58) */
+    virge->linear_base &= 0xfc000000;
+#endif
 
     if ((svga->crtc[0x58] & 0x10) || (virge->advfunc_cntl & 0x10)) { /*Linear framebuffer*/
         /*Linear framebuffer*/
@@ -1278,10 +1347,18 @@ s3_virge_updatemapping(virge_t *virge)
                 svga->banked_mask = 0xffff;
             }
         } else {
+#ifdef UAE
+            /* The PCI board's BAR is 64 MB, the Zorro boards put the
+               aperture at 0 (MMIO at 16 MB) and gfxboard.cpp reaches it
+               through the mapping's handlers */
+            virge->linear_base &= 0xfc000000;
+            mem_mapping_set_addr(&virge->linear_mapping, virge->linear_base, virge->linear_size);
+#else
             if (virge->linear_base)
                 mem_mapping_set_addr(&virge->linear_mapping, virge->linear_base, virge->linear_size);
             else
                 mem_mapping_disable(&virge->linear_mapping);
+#endif
         }
         svga->fb_only = 1;
     } else {
@@ -1299,10 +1376,15 @@ s3_virge_updatemapping(virge_t *virge)
         mem_mapping_disable(&virge->mmio_mapping);
 
     if (svga->crtc[0x53] & 0x08) { /*New MMIO*/
+#ifdef UAE
+        /* With the aperture at 0 too, gfxboard.cpp expects it at 16 MB */
+        mem_mapping_set_addr(&virge->new_mmio_mapping, virge->linear_base + 0x1000000, 0x10000);
+#else
         if (virge->linear_base)
             mem_mapping_set_addr(&virge->new_mmio_mapping, virge->linear_base + 0x1000000, 0x10000);
         else
             mem_mapping_disable(&virge->new_mmio_mapping);
+#endif
     } else
         mem_mapping_disable(&virge->new_mmio_mapping);
 }
@@ -1312,6 +1394,10 @@ s3_virge_vblank_start(svga_t *svga)
 {
     virge_t *virge = (virge_t *) svga->priv;
 
+#ifdef UAE
+    if (virge->vblank_irq >= 0)
+        virge->vblank_irq = 1;
+#endif
     if (virge->irq_pending)
         virge->irq_pending--;
     virge->subsys_stat |= INT_VSY;
@@ -2321,17 +2407,30 @@ s3_virge_mmio_write_l(uint32_t addr, uint32_t val, void *priv)
                 svga->fullchange = changeframecount;
                 break;
             case 0x81d0:
+#ifdef UAE
+                /* Keep the overlay inside VRAM */
+                virge->streams.sec_fb0 = val & 0x3fffff;
+#else
                 virge->streams.sec_fb0 = val;
+#endif
                 svga_recalctimings(svga);
                 svga->fullchange = changeframecount;
                 break;
             case 0x81d4:
+#ifdef UAE
+                virge->streams.sec_fb1 = val & 0x3fffff;
+#else
                 virge->streams.sec_fb1 = val;
+#endif
                 svga_recalctimings(svga);
                 svga->fullchange = changeframecount;
                 break;
             case 0x81d8:
+#ifdef UAE
+                virge->streams.sec_stride = val & 0xfff;
+#else
                 virge->streams.sec_stride = val;
+#endif
                 svga_recalctimings(svga);
                 svga->fullchange = changeframecount;
                 break;
@@ -3543,7 +3642,13 @@ s3_virge_bitblt(virge_t *virge, int count, uint32_t cpu_dat)
 
             while (count && virge->s3d.h) {
                 uint32_t dest_addr = virge->s3d.dest_base + (virge->s3d.dest_x * x_mul) + (virge->s3d.dest_y * virge->s3d.dest_str);
+#ifdef UAE
+                /* Fills use the pattern colour as the source too, for ROPs that
+                   use the source (Amiga drivers) */
+                uint32_t source    = virge->s3d.pat_fg_clr;
+#else
                 uint32_t source    = 0;
+#endif
                 uint32_t dest      = 0;
                 uint32_t pattern   = virge->s3d.pat_fg_clr;
                 uint32_t out       = 0;
@@ -3628,7 +3733,11 @@ s3_virge_bitblt(virge_t *virge, int count, uint32_t cpu_dat)
 
                     if (update) {
                         READ(dest_addr, dest);
+#ifdef UAE
+                        source = pattern = virge->s3d.pat_fg_clr;
+#else
                         pattern = virge->s3d.pat_fg_clr;
+#endif
 
                         MIX();
 
@@ -3674,7 +3783,11 @@ skip_line:
 
                     if (update) {
                         READ(dest_addr, dest);
+#ifdef UAE
+                        source = pattern = pattern_data[(y & 7) * 8 + (x & 7)];
+#else
                         pattern = pattern_data[(y & 7) * 8 + (x & 7)];
+#endif
 
                         MIX();
 
@@ -3692,8 +3805,14 @@ skip_line:
             break;
 
         default:
+#ifdef UAE
+            /* Ignore unknown commands: Amiga NetBSD writes 0111 instead of
+               1111 (NOP) */
+            break;
+#else
             fatal("s3_virge_bitblt : blit command %i %08x\n",
                   (virge->s3d.cmd_set >> 27) & 0xf, virge->s3d.cmd_set);
+#endif
     }
 }
 
@@ -4440,7 +4559,12 @@ tri(virge_t *virge, s3d_t *s3d_tri, s3d_state_t *state, int yc, int32_t dx1, int
             state->x1 += (dx1 * diff_y);
             state->x2 += (dx2 * diff_y);
             state->y -= diff_y;
+#ifdef UAE
+            /* Skip all the clipped lines */
+            dest_offset -= s3d_tri->dest_str * diff_y;
+#else
             dest_offset -= s3d_tri->dest_str;
+#endif
             z_offset -= s3d_tri->z_str;
             y_count -= diff_y;
         }
@@ -6215,6 +6339,10 @@ s3_virge_init(const device_t *info)
             virge->virge_id_low     = 0x31;
             virge->svga.crtc[0x59]  = 0x70;
             virge->chip             = S3_VIRGE;
+#ifdef UAE
+            /* The CyberVision 64/3D drivers use the vertical retrace interrupt */
+            virge->svga.vblank_start = s3_virge_vblank_start;
+#endif
             video_inform(VIDEO_FLAG_TYPE_SPECIAL, &timing_diamond_stealth3d_2000_pci);
             break;
         case S3_DIAMOND_STEALTH3D_3000:
@@ -7120,3 +7248,24 @@ const device_t s3_trio3d2x_agp_device = {
     .force_redraw  = s3_virge_force_redraw,
     .config        = s3_trio3d2x_config
 };
+
+#ifdef UAE
+/* WinUAE: the original ViRGE (86C325) of the CyberVision 64/3D (Zorro II
+   and III, behind Phase 5's bridge) and of the PCI board. gfxboard.cpp
+   supplies the ROM, maps the apertures and does the byte swapping. */
+extern const device_t s3_virge_device;
+
+const device_t s3_virge_device = {
+    .name          = "S3 ViRGE",
+    .internal_name = "virge_uae",
+    .flags         = DEVICE_PCI,
+    .local         = S3_VIRGE_325,
+    .init          = s3_virge_init,
+    .close         = s3_virge_close,
+    .reset         = s3_virge_reset,
+    .available     = NULL,
+    .speed_changed = s3_virge_speed_changed,
+    .force_redraw  = s3_virge_force_redraw,
+    .config        = s3_virge_config
+};
+#endif

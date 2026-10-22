@@ -409,6 +409,11 @@ typedef struct s3_t {
     uint64_t blitter_time;
 
     uint8_t subsys_cntl, subsys_stat;
+#ifdef UAE
+    /* VGA vertical retrace interrupt (CR11): 1 = pending, 0 = armed,
+       -1 = cleared until CR11 bit 4 is set again */
+    int vblank_irq;
+#endif
 
     uint32_t hwc_fg_col, hwc_bg_col;
     int      hwc_col_stack_pos;
@@ -539,16 +544,50 @@ s3_queue(s3_t *s3, const uint32_t addr, const uint32_t val, const uint32_t type)
         wake_fifo_thread(s3);
 }
 
+#ifdef UAE
+/* The VGA vertical retrace interrupt (CR11 bits 4/5) is enabled and pending.
+   The Amiga drivers use it besides the enhanced mode SUBSYS_CNTL one, and
+   both only reach the interrupt line when CR32 bit 4 is set. */
+static int
+s3_vga_vsync_enabled(const s3_t *s3)
+{
+    return (s3->svga.crtc[0x32] & 0x10) && !(s3->svga.crtc[0x11] & 0x20) && (s3->vblank_irq > 0);
+}
+
+/* From the FIFO thread: only raise the interrupt, the clearing and the
+   vertical retrace state belong to the emulation thread. */
+static void
+s3_update_irqs_thread(s3_t *s3, int mask)
+{
+    if (!s3->pci)
+        return;
+
+    if ((s3->subsys_cntl & s3->subsys_stat & mask) && (s3->svga.crtc[0x32] & 0x10))
+        pci_set_irq(s3->pci_slot, PCI_INTA, &s3->irq_state);
+}
+#endif
+
 static void
 s3_update_irqs(s3_t *s3)
 {
     if (!s3->pci)
         return;
 
+#ifdef UAE
+    int enabled = s3_vga_vsync_enabled(s3);
+    if (((s3->subsys_cntl & s3->subsys_stat & INT_MASK) && (s3->svga.crtc[0x32] & 0x10)) || (enabled && (s3->subsys_stat & INT_VSY)))
+        pci_set_irq(s3->pci_slot, PCI_INTA, &s3->irq_state);
+    else
+        pci_clear_irq(s3->pci_slot, PCI_INTA, &s3->irq_state);
+
+    if ((s3->subsys_stat & INT_VSY) && !(s3->subsys_cntl & INT_VSY) && !enabled)
+        s3->subsys_stat &= ~INT_VSY;
+#else
     if (s3->subsys_cntl & s3->subsys_stat & INT_MASK)
         pci_set_irq(s3->pci_slot, PCI_INTA, &s3->irq_state);
     else
         pci_clear_irq(s3->pci_slot, PCI_INTA, &s3->irq_state);
+#endif
 }
 
 #define WRITE8(addr, var, val)                        \
@@ -1560,6 +1599,10 @@ s3_accel_out_fifo(s3_t *s3, uint16_t port, uint8_t val)
 
         case 0xbd48:
         case 0xbee8:
+#ifdef UAE
+        /* A long MMIO write to BEE8 carries two MULTIFUNC_CNTL values */
+        case 0xbeea:
+#endif
             if ((s3->accel.multifunc_cntl >> 12) == 0x00) {
                 s3->accel.multifunc_phase = 1;
                 s3->accel.height = s3->accel.multifunc[0];
@@ -1568,6 +1611,9 @@ s3_accel_out_fifo(s3_t *s3, uint16_t port, uint8_t val)
             break;
         case 0xbd49:
         case 0xbee9:
+#ifdef UAE
+        case 0xbeeb:
+#endif
             s3->accel.multifunc_cntl = (s3->accel.multifunc_cntl & 0xff) | (val << 8);
             if ((val >> 4) == 0x0f) {
                 s3->accel.read_sel_reg = s3->accel.multifunc_cntl & 0xfff;
@@ -2305,6 +2351,12 @@ s3_vblank_start(svga_t *svga)
 {
     s3_t *s3 = (s3_t *) svga->priv;
 
+#ifdef UAE
+    if (s3->vblank_irq >= 0)
+        s3->vblank_irq = 1;
+    if (!(s3->subsys_cntl & INT_VSY) && !s3_vga_vsync_enabled(s3))
+        return;
+#endif
     s3->subsys_stat |= INT_VSY;
     s3_update_irqs(s3);
 }
@@ -3202,6 +3254,24 @@ s3_out(uint16_t addr, uint8_t val, void *priv)
             svga->crtc[svga->crtcreg] = val;
 
             switch (svga->crtcreg) {
+#ifdef UAE
+                case 0x11:
+                    /* Bit 4 = 0 clears the vertical retrace interrupt, it
+                       can only trigger again after bit 4 is set back to 1 */
+                    if (!(val & 0x10)) {
+                        if (s3->vblank_irq > 0)
+                            s3->vblank_irq = -1;
+                    } else if (s3->vblank_irq < 0)
+                        s3->vblank_irq = 0;
+                    s3_update_irqs(s3);
+                    /* Interrupt bits only: no timing recalculation */
+                    if ((val & ~0x30) == (old & ~0x30))
+                        old = val;
+                    break;
+                case 0x32:
+                    s3_update_irqs(s3);
+                    break;
+#endif
                 case 0x31:
                     s3->ma_ext             = (s3->ma_ext & 0x1c) | ((val & 0x30) >> 4);
                     svga->force_dword_mode = !!(val & 0x08);
@@ -3490,6 +3560,13 @@ s3_in(uint16_t addr, void *priv)
             break;
 
         case 0x3c2:
+#ifdef UAE
+            /* Bit 7: vertical retrace interrupt pending */
+            temp = svga_in(addr, svga);
+            if ((s3->subsys_stat & INT_VSY) || (s3->vblank_irq > 0))
+                temp |= 0x80;
+            return temp;
+#endif
             if (s3->elsa_eeprom) {
                 temp = nmc93cxx_eeprom_read(s3->eeprom) ? 0x10 : 0x00;
                 const uint8_t temp2 = (svga_in(addr, svga) & 0xef) | temp;
@@ -3821,6 +3898,12 @@ s3_recalctimings(svga_t *svga)
     int clk_sel = (svga->miscout >> 2) & 3;
     uint8_t mask = 0xc0;
     int enhanced_8bpp_modes = 0x00;
+
+#ifdef UAE
+    /* Text modes follow the CRTC's byte/word/dword addressing: NetBSD's
+       CyberVision 64 console writes them through the linear aperture. */
+    svga->force_old_addr = (svga->gdcreg[6] & 1) || (svga->attrregs[0x10] & 1);
+#endif
 
     if (svga->crtc[0x33] & 0x20) {
         /* In this mode, the dots per clock are always 8 or 16, never 9 or 18. */
@@ -5173,10 +5256,16 @@ s3_updatemapping(s3_t *s3)
                         s3->linear_base &= 0xfe000000;
                 }
                 s3_log("Update LinearBase update=%x, size=%x.\n", s3->linear_base, s3->linear_size);
+#ifdef UAE
+                /* The Amiga drivers may put the aperture at 0, gfxboard.cpp
+                   reaches it through the mapping's handlers */
+                mem_mapping_set_addr(&s3->linear_mapping, s3->linear_base, s3->linear_size);
+#else
                 if (s3->linear_base)
                     mem_mapping_set_addr(&s3->linear_mapping, s3->linear_base, s3->linear_size);
                 else
                     mem_mapping_disable(&s3->linear_mapping);
+#endif
             }
             svga->fb_only = 1;
         } else {
@@ -5259,6 +5348,11 @@ s3_accel_out(uint16_t port, uint8_t val, void *priv)
             case 0x4149:
             case 0x42e9:
                 s3->accel.subsys_cntl = (s3->accel.subsys_cntl & 0xff) | (val << 8);
+#ifdef UAE
+                /* The interrupt enables the CyberVision 64 drivers write here
+                   (no MMIO on that board), s3_update_irqs() uses subsys_cntl */
+                s3->subsys_cntl = val;
+#endif
                 s3_update_irqs(s3);
                 break;
             case 0x45e8:
@@ -8481,6 +8575,14 @@ s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_data, vo
     frgd_mix = (s3->accel.frgd_mix >> 5) & 3;
     bkgd_mix = (s3->accel.bkgd_mix >> 5) & 3;
 
+#ifdef UAE
+    /* The Amiga CGX4 driver sets all the clipping values to 0xfff */
+    if (clip_t == 0xfff)
+        clip_t = 0;
+    if ((s3->accel.multifunc[2] & 0xfff) == 0xfff)
+        clip_l = 0;
+#endif
+
     if (((s3->chip >= S3_TRIO64) || (s3->chip == S3_VISION968) || (s3->chip == S3_VISION868)) && (s3->accel.cmd & (1 << 11)))
         cmd |= 0x08;
 
@@ -8733,15 +8835,28 @@ s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_data, vo
                             update = 1;
 
                         if (update) {
+#ifdef UAE
+                            /* Lines are drawn at DST-BASE like the other commands */
+                            READ(dstbase + (s3->accel.cy * s3->width * x_mul) + (s3->accel.cx * x_mul), dest_dat);
+#else
                             READ((s3->accel.cy * s3->width * x_mul) + (s3->accel.cx * x_mul), dest_dat);
+#endif
 
                             old_dest_dat = dest_dat;
                             MIX
 
                             if ((s3->accel.cmd & 0x04) && s3->accel.sy) {
+#ifdef UAE
+                                WRITE(dstbase + (s3->accel.cy * s3->width * x_mul) + (s3->accel.cx * x_mul), dest_dat);
+#else
                                 WRITE((s3->accel.cy * s3->width * x_mul) + (s3->accel.cx * x_mul), dest_dat);
+#endif
                             } else if (!(s3->accel.cmd & 0x04)) {
+#ifdef UAE
+                                WRITE(dstbase + (s3->accel.cy * s3->width * x_mul) + (s3->accel.cx * x_mul), dest_dat);
+#else
                                 WRITE((s3->accel.cy * s3->width * x_mul) + (s3->accel.cx * x_mul), dest_dat);
+#endif
                             }
                         }
                     }
@@ -8845,12 +8960,20 @@ s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_data, vo
                             update = 1;
 
                         if (update) {
+#ifdef UAE
+                            READ(dstbase + (s3->accel.cy * s3->width * x_mul) + (s3->accel.cx * x_mul), dest_dat);
+#else
                             READ((s3->accel.cy * s3->width * x_mul) + (s3->accel.cx * x_mul), dest_dat);
+#endif
 
                             old_dest_dat = dest_dat;
                             MIX
 
+#ifdef UAE
+                            WRITE(dstbase + (s3->accel.cy * s3->width * x_mul) + (s3->accel.cx * x_mul), dest_dat);
+#else
                             WRITE((s3->accel.cy * s3->width * x_mul) + (s3->accel.cx * x_mul), dest_dat);
+#endif
                         }
                     }
 
@@ -8884,7 +9007,13 @@ s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_data, vo
                         else
                             s3->accel.cy--;
 
+#ifdef UAE
+                        /* Step the minor axis when the error term is not negative,
+                           the Amiga drivers' lines depend on it */
+                        if (s3->accel.err_term >= 0) {
+#else
                         if (s3->accel.err_term >= s3->accel.maj_axis_pcnt) {
+#endif
                             s3->accel.err_term = (int16_t) (s3->accel.err_term + s3->accel.destx_distp);
                             if (s3->accel.cmd & 0x20)
                                 s3->accel.cx++;
@@ -8898,7 +9027,11 @@ s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_data, vo
                         else
                             s3->accel.cx--;
 
+#ifdef UAE
+                        if (s3->accel.err_term >= 0) {
+#else
                         if (s3->accel.err_term >= s3->accel.maj_axis_pcnt) {
+#endif
                             s3->accel.err_term = (int16_t) (s3->accel.err_term + s3->accel.destx_distp);
                             if (s3->accel.cmd & 0x80)
                                 s3->accel.cy++;
@@ -10307,7 +10440,11 @@ mach64_fifo_thread(void *param)
         }
         s3->blitter_busy = 0;
         s3->subsys_stat |= INT_FIFO_EMP;
+#ifdef UAE
+        s3_update_irqs_thread(s3, INT_FIFO_EMP);
+#else
         s3_update_irqs(s3);
+#endif
     }
 }
 
@@ -13346,3 +13483,40 @@ const device_t s3_trio64v2dx_pci_device = {
     .force_redraw  = s3_force_redraw,
     .config        = s3_trio64v2dx_pci_config
 };
+
+#ifdef UAE
+/* WinUAE's Amiga boards. Both are a Trio64 on a PCI style bus (the
+   CyberVision 64 has Phase 5's Zorro III bridge in front of it), with the
+   ROM, VRAM size, address decoding, byte swapping and the board's own
+   control register handled by gfxboard.cpp. */
+extern const device_t s3_cybervision_trio64_device;
+extern const device_t s3_trio64_device;
+
+const device_t s3_cybervision_trio64_device = {
+    .name          = "CyberVision 64 (S3 Trio64)",
+    .internal_name = "cybervision64",
+    .flags         = DEVICE_PCI,
+    .local         = S3_PHOENIX_TRIO64,
+    .init          = s3_init,
+    .close         = s3_close,
+    .reset         = s3_reset,
+    .available     = NULL,
+    .speed_changed = s3_speed_changed,
+    .force_redraw  = s3_force_redraw,
+    .config        = NULL
+};
+
+const device_t s3_trio64_device = {
+    .name          = "S3 Trio64 PCI",
+    .internal_name = "s3trio64_uae",
+    .flags         = DEVICE_PCI,
+    .local         = S3_PHOENIX_TRIO64,
+    .init          = s3_init,
+    .close         = s3_close,
+    .reset         = s3_reset,
+    .available     = NULL,
+    .speed_changed = s3_speed_changed,
+    .force_redraw  = s3_force_redraw,
+    .config        = NULL
+};
+#endif

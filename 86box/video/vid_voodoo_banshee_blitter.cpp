@@ -895,6 +895,28 @@ banshee_do_host_to_screen_blt(voodoo_t *voodoo, UNUSED(int count), uint32_t data
             voodoo->banshee_blt.host_data_count = 0;
         }
     } else {
+#ifdef UAE
+        /* Amiga Prometheus PCI bridge + Voodoo 3: the driver sets the blit
+           height to one and then writes several lines worth of data (plus
+           an extra garbage line that won't become visible). Lines beyond
+           the configured height are drawn when the next line is complete
+           and a new word arrives. */
+        *(uint32_t *) &voodoo->banshee_blt.host_data[voodoo->banshee_blt.host_data_count] = data;
+        voodoo->banshee_blt.host_data_count += 4;
+        while (voodoo->banshee_blt.host_data_count >= voodoo->banshee_blt.src_stride_dest) {
+            if ((voodoo->banshee_blt.cur_y + 1) != voodoo->banshee_blt.dstSizeY && voodoo->banshee_blt.host_data_count == voodoo->banshee_blt.src_stride_dest)
+                return;
+
+            do_screen_to_screen_line(voodoo, voodoo->banshee_blt.host_data, 0, 0, 0, 0);
+            voodoo->banshee_blt.cur_y++;
+            if (voodoo->banshee_blt.cur_y == voodoo->banshee_blt.dstSizeY)
+                end_command(voodoo);
+
+            voodoo->banshee_blt.host_data_count -= voodoo->banshee_blt.src_stride_dest;
+            if (voodoo->banshee_blt.host_data_count)
+                *(uint32_t *) &voodoo->banshee_blt.host_data[0] = data >> (4 - voodoo->banshee_blt.host_data_count) * 8;
+        }
+#else
         *(uint32_t *) &voodoo->banshee_blt.host_data[voodoo->banshee_blt.host_data_count] = data;
         voodoo->banshee_blt.host_data_count += 4;
         while (voodoo->banshee_blt.host_data_count >= voodoo->banshee_blt.src_stride_dest) {
@@ -917,6 +939,7 @@ banshee_do_host_to_screen_blt(voodoo_t *voodoo, UNUSED(int count), uint32_t data
                 *(uint32_t *) &voodoo->banshee_blt.host_data[0] = data >> (4 - voodoo->banshee_blt.host_data_count) * 8;
             }
         }
+#endif
     }
 }
 

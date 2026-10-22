@@ -40,7 +40,18 @@ svga_lookup_lut_ram(svga_t* svga, uint32_t val)
     return makecol32(r, g, b) | (val & 0xFF000000);
 }
 
+#ifdef UAE
+static __inline uint32_t
+svga_lookup_lut_swap_rb(svga_t *svga, uint32_t val)
+{
+    val = svga_lookup_lut_ram(svga, val);
+    return svga->swaprb ? svga_swap_rb(val) : val;
+}
+
+#define lookup_lut(val) svga_lookup_lut_swap_rb(svga, val)
+#else
 #define lookup_lut(val) svga_lookup_lut_ram(svga, val)
+#endif
 
 void
 svga_render_null(svga_t *svga)

@@ -614,47 +614,6 @@ set(WINUAE_UNIX_MIDI_LIBRARY_DIRS)
 set(WINUAE_UNIX_MIDI_COMPILE_OPTIONS)
 set(WINUAE_UNIX_MIDI_QT_DEFINITIONS)
 
-set(WINUAE_UNIX_PCEM_COMMON_SOURCES
-    od-unix/pcem_wincompat.cpp
-    pcem/pcemglue.cpp
-    pcem/timer.cpp
-)
-
-set(WINUAE_UNIX_PCEM_VIDEO_SOURCES
-    pcem/vid_bt482_ramdac.cpp
-    pcem/vid_cl5429.cpp
-    pcem/vid_et4000.cpp
-    pcem/vid_et4000w32.cpp
-    pcem/vid_inmos.cpp
-    pcem/vid_mga.cpp
-    pcem/vid_ncr.cpp
-    pcem/vid_permedia2.cpp
-    pcem/vid_s3.cpp
-    pcem/vid_s3_virge.cpp
-    pcem/vid_sc1502x_ramdac.cpp
-    pcem/vid_sdac_ramdac.cpp
-    pcem/vid_svga.cpp
-    pcem/vid_svga_render.cpp
-    pcem/vid_tvp3026_ramdac.cpp
-    pcem/vid_voodoo.cpp
-    pcem/vid_voodoo_banshee.cpp
-    pcem/vid_voodoo_banshee_blitter.cpp
-    pcem/vid_voodoo_blitter.cpp
-    pcem/vid_voodoo_display.cpp
-    pcem/vid_voodoo_fb.cpp
-    pcem/vid_voodoo_fifo.cpp
-    pcem/vid_voodoo_reg.cpp
-    pcem/vid_voodoo_render.cpp
-    pcem/vid_voodoo_setup.cpp
-    pcem/vid_voodoo_texture.cpp
-    qemuvga/cirrus_vga.cpp
-    qemuvga/es1370.cpp
-    qemuvga/ne2000.cpp
-    qemuvga/qemu.cpp
-    qemuvga/qemuuaeglue.cpp
-    qemuvga/vga.cpp
-)
-
 # 86Box x86 CPU, PC chipset, keyboard, mouse, serial and ISA sound for the
 # bridgeboards, ATonce and DraCo. Built by winuae_86box with 86Box's own
 # include paths; the WinUAE glue is built with the core.
@@ -928,6 +887,57 @@ set(WINUAE_UNIX_86BOX_GLUE_SOURCES
 
 set(WINUAE_UNIX_86BOX_DRACO_SOURCES
     86box/winuae/keyboard_at_draco.cpp
+)
+
+# 86Box video cards for the RTG boards in gfxboard.cpp. Built by
+# winuae_86box_video, the WinUAE glue is built with the core.
+set(WINUAE_UNIX_86BOX_VIDEO_SOURCES
+    86box/device/i2c.cpp
+    86box/device/i2c_gpio.cpp
+    86box/mem/i2c_eeprom.cpp
+    86box/mem/nmc93cxx.cpp
+    86box/video/clockgen/vid_clockgen_av9194.cpp
+    86box/video/clockgen/vid_clockgen_ch9204.cpp
+    86box/video/clockgen/vid_clockgen_icd2061.cpp
+    86box/video/clockgen/vid_clockgen_ics2494.cpp
+    86box/video/ramdac/vid_ramdac_att20c49x.cpp
+    86box/video/ramdac/vid_ramdac_att2xc498.cpp
+    86box/video/ramdac/vid_ramdac_bt48x.cpp
+    86box/video/ramdac/vid_ramdac_ibm_rgb528.cpp
+    86box/video/ramdac/vid_ramdac_mu9c1880.cpp
+    86box/video/ramdac/vid_ramdac_sc1148x.cpp
+    86box/video/ramdac/vid_ramdac_sc1502x.cpp
+    86box/video/ramdac/vid_ramdac_sdac.cpp
+    86box/video/ramdac/vid_ramdac_stg1702.cpp
+    86box/video/ramdac/vid_ramdac_tvp3026.cpp
+    86box/video/vid_cl54xx.cpp
+    86box/video/vid_ddc.cpp
+    86box/video/vid_et4000.cpp
+    86box/video/vid_et4000w32.cpp
+    86box/video/vid_mga.cpp
+    86box/video/vid_s3.cpp
+    86box/video/vid_s3_virge.cpp
+    86box/video/vid_svga.cpp
+    86box/video/vid_svga_render.cpp
+    86box/video/vid_voodoo.cpp
+    86box/video/vid_voodoo_banshee.cpp
+    86box/video/vid_voodoo_banshee_blitter.cpp
+    86box/video/vid_voodoo_blitter.cpp
+    86box/video/vid_voodoo_display.cpp
+    86box/video/vid_voodoo_fb.cpp
+    86box/video/vid_voodoo_fifo.cpp
+    86box/video/vid_voodoo_reg.cpp
+    86box/video/vid_voodoo_render.cpp
+    86box/video/vid_voodoo_setup.cpp
+    86box/video/vid_voodoo_texture.cpp
+    86box/winuae/vid_inmos.cpp
+    86box/winuae/vid_ncr.cpp
+    86box/winuae/vid_permedia2.cpp
+    86box/winuae/vid_ramdac_bt482.cpp
+)
+
+set(WINUAE_UNIX_86BOX_VIDEO_GLUE_SOURCES
+    86box/winuae/86box_video.cpp
 )
 
 set(WINUAE_UNIX_86BOX_SOURCES)
@@ -1378,8 +1388,13 @@ list(APPEND WINUAE_UNIX_EXTRA_SOURCES
     pci.cpp
     mame/a2410.cpp
     mame/tm34010/tms34010.cpp
-    ${WINUAE_UNIX_PCEM_COMMON_SOURCES}
-    ${WINUAE_UNIX_PCEM_VIDEO_SOURCES}
+    qemuvga/cirrus_vga.cpp
+    qemuvga/es1370.cpp
+    qemuvga/ne2000.cpp
+    qemuvga/qemu.cpp
+    qemuvga/qemuuaeglue.cpp
+    qemuvga/vga.cpp
+    ${WINUAE_UNIX_86BOX_VIDEO_GLUE_SOURCES}
 )
 
 set(WINUAE_UNIX_ENABLE_X86 ON)
@@ -1421,8 +1436,27 @@ if(WINUAE_UNIX_86BOX_SOURCES)
     # The glue and the WinUAE files that drive the PC include 86Box headers
     # by their 86box/... path.
     set_source_files_properties(${WINUAE_UNIX_86BOX_GLUE_SOURCES} ${WINUAE_UNIX_86BOX_DRACO_SOURCES} atonce.cpp x86.cpp draco.cpp
+        ${WINUAE_UNIX_86BOX_VIDEO_GLUE_SOURCES}
         PROPERTIES INCLUDE_DIRECTORIES
             "${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae;${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae/include;${CMAKE_CURRENT_SOURCE_DIR}/86box/include")
+endif()
+
+# The video cards get their memory, I/O, timer and device calls renamed to
+# the RTG versions in 86box_video.cpp.
+if(WINUAE_UNIX_ENABLE_GFXBOARD)
+    add_library(winuae_86box_video OBJECT ${WINUAE_UNIX_86BOX_VIDEO_SOURCES})
+    set_target_properties(winuae_86box_video PROPERTIES CXX_STANDARD 20 CXX_EXTENSIONS ON)
+    target_include_directories(winuae_86box_video PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/86box/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/86box/cpu"
+        "${CMAKE_CURRENT_SOURCE_DIR}/86box"
+    )
+    target_compile_definitions(winuae_86box_video PRIVATE UAE=)
+    # C11's _Static_assert, which older GCCs don't take in C++
+    target_compile_definitions(winuae_86box_video PRIVATE $<$<CXX_COMPILER_ID:GNU>:_Static_assert=static_assert>)
+    target_compile_options(winuae_86box_video PRIVATE -w
+        -include "${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae/86box_video_redirect.h")
 endif()
 
 if(WINUAE_UNIX_ENABLE_PCEM)
@@ -2123,6 +2157,9 @@ if(WINUAE_UNIX_BUILD_EXECUTABLE)
     add_executable(winuae_unix $<TARGET_OBJECTS:winuae_core>)
     if(TARGET winuae_86box)
         target_sources(winuae_unix PRIVATE $<TARGET_OBJECTS:winuae_86box>)
+    endif()
+    if(TARGET winuae_86box_video)
+        target_sources(winuae_unix PRIVATE $<TARGET_OBJECTS:winuae_86box_video>)
     endif()
     # Keep the developer-facing target name stable; the produced binary is
     # named winuae to match the installed name, the .desktop files, the

@@ -85,6 +85,10 @@ svga_get_pri(void)
 void
 svga_set_poll(svga_t *svga)
 {
+#ifdef UAE
+    /* gfxboard.cpp runs svga_poll() */
+    return;
+#endif
     svga_log("SVGA Timer activated, enabled?=%x.\n", timer_is_enabled(&svga->timer));
     timer_set_callback(&svga->timer, svga_poll);
     if (!timer_is_enabled(&svga->timer))
@@ -387,6 +391,10 @@ svga_out(uint16_t addr, uint8_t val, void *priv)
                         svga->pallook[index] = makecol32(svga->vgapal[index].r, svga->vgapal[index].g, svga->vgapal[index].b);
                     else
                         svga->pallook[index] = makecol32(video_6to8[svga->vgapal[index].r & 0x3f], video_6to8[svga->vgapal[index].g & 0x3f], video_6to8[svga->vgapal[index].b & 0x3f]);
+#ifdef UAE
+                    if (svga->swaprb)
+                        svga->pallook[index] = svga_swap_rb(svga->pallook[index]);
+#endif
                     svga->dac_pos  = 0;
                     svga->dac_addr = (svga->dac_addr + 1) & 0xff;
                     break;
@@ -764,6 +772,10 @@ svga_set_ramdac_type(svga_t *svga, int type)
                 svga->pallook[c] = makecol32((svga->vgapal[c].r & 0x3f) * 4,
                                              (svga->vgapal[c].g & 0x3f) * 4,
                                              (svga->vgapal[c].b & 0x3f) * 4);
+#ifdef UAE
+            if (svga->swaprb)
+                svga->pallook[c] = svga_swap_rb(svga->pallook[c]);
+#endif
         }
     }
 }
@@ -1004,6 +1016,15 @@ svga_recalctimings(svga_t *svga)
         svga->dots_per_clock = 1;
 
     svga->multiplier = 1.0;
+
+#ifdef UAE
+    if (svga->fb_auto) {
+        if ((!(svga->gdcreg[6] & 1) && !(svga->attrregs[0x10] & 1)) || (svga->gdcreg[5] & 0x60) < 0x40)
+            svga->fb_only = 0;
+        else
+            svga->fb_only = -1;
+    }
+#endif
 
     if (svga->recalctimings_ex)
         svga->recalctimings_ex(svga);
@@ -1379,6 +1400,11 @@ svga_recalctimings(svga_t *svga)
             svga->hdisp >>= 1;
     }
 
+#ifdef UAE
+    /* Tall modes like 320x400 look better doubled */
+    svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
+#endif
+
     svga->monitor->mon_interlace = 0;
     if (!svga->override) {
         switch (set_timer) {
@@ -1505,7 +1531,9 @@ svga_poll(void *priv)
             svga->overlay_oddeven = 1;
         }
 
+#ifndef UAE
         timer_advance_u64(&svga->timer, svga->dispofftime);
+#endif
         svga->cgastat |= 1;
         svga->linepos = 1;
 
@@ -1554,7 +1582,9 @@ svga_poll(void *priv)
         if (svga->displine > 2000)
             svga->displine = 0;
     } else {
+#ifndef UAE
         timer_advance_u64(&svga->timer, svga->dispontime);
+#endif
         video_lightpen_hsync();
 
         if (svga->adv_flags & FLAG_PANNING_ATI) {
@@ -1690,6 +1720,9 @@ svga_poll(void *priv)
                 svga->fullchange--;
         }
         if (svga->vc == svga->vsyncstart) {
+#ifdef UAE
+            svga->vsync_eod = 1;
+#endif
             svga->dispon = 0;
             svga->cgastat |= 8;
             x = svga->hdisp;
@@ -1840,7 +1873,12 @@ svga_init(const device_t *info, svga_t *svga, void *priv, int memsize,
     svga->dispontime        = 1000ULL << 32;
     svga->dispofftime       = 1000ULL << 32;
     svga->bpp               = 8;
+#ifdef UAE
+    /* The board's VRAM, the Amiga can map it directly */
+    svga->vram              = (uint8_t *) pcem_getvram(memsize);
+#else
     svga->vram              = (uint8_t *) calloc(memsize + 4096, 1);
+#endif
     svga->vram_max          = memsize;
     svga->vram_display_mask = svga->vram_mask = memsize - 1;
     svga->decode_mask                         = 0x7fffff;
@@ -1863,10 +1901,15 @@ svga_init(const device_t *info, svga_t *svga, void *priv, int memsize,
     svga->ksc5601_english_font_type = 0;
 
     /* TODO: Move DEVICE_MCA to 16-bit once the device flags have been appropriately corrected. */
+#ifdef UAE
+    /* The Amiga accesses the boards 8, 16 and 32 bits wide */
+    if (1) {
+#else
     if ((info->flags & DEVICE_MCA) || (info->flags & DEVICE_MCA32) ||
         (info->flags & DEVICE_EISA) || (info->flags & DEVICE_AT32) ||
         (info->flags & DEVICE_OLB) || (info->flags & DEVICE_VLB) ||
         (info->flags & DEVICE_PCI) || (info->flags & DEVICE_AGP)) {
+#endif
         svga->read = svga_read;
         svga->readw = svga_readw;
         svga->readl = svga_readl;
@@ -1902,11 +1945,17 @@ svga_init(const device_t *info, svga_t *svga, void *priv, int memsize,
                         NULL, MEM_MAPPING_EXTERNAL, svga);
     }
 
+#ifndef UAE
     timer_add(&svga->timer, svga_poll, svga, 1);
+#endif
 
     svga_pri = svga;
 
     svga->ramdac_type = RAMDAC_6BIT;
+#ifdef UAE
+    /* No VGA BIOS sets it on the Amiga */
+    svga->dac_mask = 0xff;
+#endif
 
     svga->map8            = svga->pallook;
 
@@ -1917,7 +1966,9 @@ void
 svga_close(svga_t *svga)
 {
     free(svga->changedvram);
+#ifndef UAE
     free(svga->vram);
+#endif
 
     if ((svga->monitor != NULL) && (svga->monitor->mon_dpms))
         svga->monitor->mon_dpms = 0;
@@ -2299,6 +2350,16 @@ svga_doblit(int wx, int wy, svga_t *svga)
     int       j;
     int       xs_temp;
     int       ys_temp;
+
+#ifdef UAE
+    if ((wx <= 0) || (wy <= 0))
+        return;
+    ys_temp = wy + 1;
+    if (svga->vertical_linedbl)
+        ys_temp++;
+    svga_doblit_uae(svga, svga->left_overscan, svga->vertical_linedbl ? (svga->y_add << 1) : svga->y_add, wx, ys_temp);
+    return;
+#endif
 
     y_add   = enable_overscan ? svga->monitor->mon_overscan_y : 0;
     x_add   = enable_overscan ? svga->monitor->mon_overscan_x : 0;

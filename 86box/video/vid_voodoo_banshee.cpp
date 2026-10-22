@@ -650,7 +650,16 @@ banshee_recalctimings(svga_t *svga)
 
     svga->interlace = 0;
 
+#ifdef UAE
+    /* WinUAE: use the desktop pixel format whenever the video processor
+       is enabled, not only with extended shift out. The G-REX driver sets
+       the VGA low resolution bit and still expects a normal 640x480
+       display, so ignore it in this mode. */
+    if (banshee->vidProcCfg & VIDPROCCFG_VIDPROC_ENABLE) {
+        svga->lowres = 0;
+#else
     if (banshee->vgaInit0 & VGAINIT0_EXTENDED_SHIFT_OUT) {
+#endif
         switch (VIDPROCCFG_DESKTOP_PIX_FORMAT) {
             case PIX_FORMAT_8:
                 svga->render = svga_render_8bpp_highres;
@@ -836,9 +845,14 @@ banshee_ext_outl(uint16_t addr, uint32_t val, void *priv)
     switch (addr & 0xff) {
         case Init_pciInit0:
             banshee->pciInit0  = val;
+            /* WinUAE: the board is on the Amiga's PCI bridge, not on the x86
+               CPU's bus. Leave the access times at 0 so that accesses don't
+               take cycles from the bridgeboard CPU. */
+#ifndef UAE
             voodoo->read_time  = (banshee->agp ? agp_nonburst_time : pci_nonburst_time) + (banshee->agp ? agp_burst_time : pci_burst_time) * ((val & 0x100) ? 2 : 1);
             voodoo->burst_time = (banshee->agp ? agp_burst_time : pci_burst_time) * ((val & 0x200) ? 1 : 0);
             voodoo->write_time = (banshee->agp ? agp_nonburst_time : pci_nonburst_time) + voodoo->burst_time;
+#endif
             break;
 
         case Init_lfbMemoryConfig:
@@ -856,6 +870,14 @@ banshee_ext_outl(uint16_t addr, uint32_t val, void *priv)
         case Init_miscInit0:
             banshee->miscInit0    = val;
             voodoo->y_origin_swap = (val & MISCINIT0_Y_ORIGIN_SWAP_MASK) >> MISCINIT0_Y_ORIGIN_SWAP_SHIFT;
+#ifdef UAE
+            /* Bits 30-31 select the linear frame buffer byte swapping,
+               which the Amiga side (gfxboard.cpp) does */
+            {
+                extern void gfxboard_voodoo_lfb_endianswap(int);
+                gfxboard_voodoo_lfb_endianswap(val >> 30);
+            }
+#endif
             break;
         case Init_miscInit1:
             banshee->miscInit1 = val;
@@ -1321,6 +1343,23 @@ banshee_ext_inl(uint16_t addr, void *priv)
     return ret;
 }
 
+#ifdef UAE
+/* miscInit0 register byte/word swizzle for big-endian hosts (the Amiga
+   drivers use it). Applies to the 2D registers when address bit 19 is set
+   and to the 3D registers when address bit 20 is set. */
+static uint32_t
+banshee_register_swizzle(uint32_t data, uint32_t addr, int addrtype, const banshee_t *banshee)
+{
+    if ((!addrtype && (addr & 0x00080000)) || (addrtype && (addr & 0x00100000))) {
+        if (banshee->miscInit0 & 4)
+            data = (data >> 24) | ((data >> 8) & 0xff00) | ((data << 8) & 0xff0000) | (data << 24);
+        if (banshee->miscInit0 & 8)
+            data = (data >> 16) | (data << 16);
+    }
+    return data;
+}
+#endif
+
 static uint32_t banshee_reg_readl(uint32_t addr, void *priv);
 
 static uint8_t
@@ -1515,6 +1554,9 @@ banshee_reg_readl(uint32_t addr, void *priv)
                 default:
                     banshee_log("banshee_reg_readl: addr=%08x\n", addr);
             }
+#ifdef UAE
+            ret = banshee_register_swizzle(ret, addr, 0, banshee);
+#endif
             break;
 
         case 0x0200000:
@@ -1597,6 +1639,9 @@ banshee_reg_readl(uint32_t addr, void *priv)
                     banshee_log("banshee_reg_readl: 3D addr=%08x\n", addr);
                     break;
             }
+#ifdef UAE
+            ret = banshee_register_swizzle(ret, addr, 1, banshee);
+#endif
             break;
 
         default:
@@ -1876,6 +1921,9 @@ banshee_reg_writel(uint32_t addr, uint32_t val, void *priv)
             break;
 
         case 0x0100000: /*2D registers*/
+#ifdef UAE
+            val = banshee_register_swizzle(val, addr, 0, banshee);
+#endif
             if ((addr & 0x3fc) == SST_intrCtrl) {
                 banshee->intrCtrl = val & 0x0030003f;
             } else {
@@ -1887,6 +1935,9 @@ banshee_reg_writel(uint32_t addr, uint32_t val, void *priv)
         case 0x0300000:
         case 0x0400000:
         case 0x0500000: /*3D registers*/
+#ifdef UAE
+            val = banshee_register_swizzle(val, addr, 1, banshee);
+#endif
             switch (addr & 0x3fc) {
                 case SST_intrCtrl:
                     banshee->intrCtrl = val & 0x0030003f;
@@ -3413,6 +3464,22 @@ banshee_pci_write(int func, int addr, UNUSED(int len), uint8_t val, void *priv)
     }
 }
 
+#ifdef UAE
+/* gfxboard.cpp moved the VRAM (svga_setvram()), point the 3D engine to it */
+void
+voodoo_update_vram(void *priv)
+{
+    banshee_t *banshee = (banshee_t *) priv;
+
+    banshee->voodoo->vram         = banshee->svga.vram;
+    banshee->voodoo->fb_mem       = banshee->svga.vram;
+    banshee->voodoo->tex_mem[0]   = banshee->svga.vram;
+    banshee->voodoo->tex_mem_w[0] = (uint16_t *) banshee->svga.vram;
+    banshee->voodoo->tex_mem[1]   = banshee->svga.vram;
+    banshee->voodoo->tex_mem_w[1] = (uint16_t *) banshee->svga.vram;
+}
+#endif
+
 static void *
 banshee_init_common(const device_t *info, const char *fn, const int has_sgram,
                     const int type, const int voodoo_type, const int agp, const int clamp)
@@ -3490,7 +3557,13 @@ banshee_init_common(const device_t *info, const char *fn, const int has_sgram,
     banshee->svga.vblank_start = banshee_vblank_start;
 
     banshee->svga.bpp     = 8;
+#ifdef UAE
+    /* No VGA BIOS runs on the Amiga: start with colour I/O addressing
+       like WinUAE's PCem based card did */
+    banshee->svga.miscout = 1;
+#else
     banshee->svga.miscout = 0;
+#endif
 
     banshee->dramInit0 = 1 << 27;
     if (has_sgram && mem_size == 16)

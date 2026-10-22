@@ -61,9 +61,16 @@ typedef struct tvp3026_ramdac_t {
     void     *gpio_priv;
 } tvp3026_ramdac_t;
 
+#ifdef UAE
+void pcemvideorbswap(bool swapped);
+#endif
+
 static void
 tvp3026_set_bpp(tvp3026_ramdac_t *ramdac, svga_t *svga)
 {
+#ifdef UAE
+    svga->swaprb = 0;
+#endif
     if (ramdac->true_color & 0x80) {
         if (ramdac->mcr & 0x08)
             svga->bpp = 8;
@@ -85,16 +92,28 @@ tvp3026_set_bpp(tvp3026_ramdac_t *ramdac, svga_t *svga)
                     svga->bpp = 24;
                 else
                     svga->bpp = 32;
+#ifdef UAE
+                /* True colour modes 7 and 0xf are the BGR ones */
+                if ((ramdac->true_color & 0x0f) == 0x07)
+                    svga->swaprb = 1;
+#endif
                 break;
             case 0x0e:
             case 0x0f:
                 svga->bpp = 24;
+#ifdef UAE
+                if ((ramdac->true_color & 0x0f) == 0x0f)
+                    svga->swaprb = 1;
+#endif
                 break;
 
             default:
                 break;
         }
     }
+#ifdef UAE
+    pcemvideorbswap(svga->swaprb);
+#endif
     svga_recalctimings(svga);
 }
 

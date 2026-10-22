@@ -91,6 +91,11 @@
 
 #define CIRRUS_ID_USE_CONFIG_BIOS       0xff
 
+#ifdef UAE
+/* info->local: Amiga board with red and blue swapped (svga_t swaprb) */
+#define CIRRUS_UAE_SWAPRB               0x10000
+#endif
+
 /* sequencer 0x07 */
 #define CIRRUS_SR7_BPP_VGA           0x00
 #define CIRRUS_SR7_BPP_SVGA          0x01
@@ -575,8 +580,12 @@ gd54xx_vga_vsync_enabled(gd54xx_t *gd54xx)
 static void
 gd54xx_update_irqs(gd54xx_t *gd54xx)
 {
+    /* UAE: the Zorro boards (Picasso II, Piccolo, ...) use the vertical
+       interrupt too, the glue sends it to gfxboard.cpp. */
+#ifndef UAE
     if (!gd54xx->pci)
         return;
+#endif
 
     if ((gd54xx->vblank_irq > 0) && gd54xx_vga_vsync_enabled(gd54xx))
         pci_set_irq(gd54xx->pci_slot, PCI_INTA, &gd54xx->irq_state);
@@ -898,6 +907,13 @@ gd54xx_out(uint16_t addr, uint8_t val, void *priv)
                         gd54xx_set_svga_fast(gd54xx);
                         svga_recalctimings(svga);
                         break;
+#ifdef UAE
+                    case 0x0f:
+                        /* DRAM bank switch (bit 7) sets how much VRAM the linear aperture decodes */
+                        if (gd54xx_is_5422(svga))
+                            gd543x_recalc_mapping(gd54xx);
+                        break;
+#endif
                     case 0x17:
                         if (gd54xx_is_5422(svga))
                             gd543x_recalc_mapping(gd54xx);
@@ -949,6 +965,11 @@ gd54xx_out(uint16_t addr, uint8_t val, void *priv)
                         gd54xx->extpallook[index] = makecol32(video_6to8[gd54xx->extpal[index].r & 0x3f],
                                                               video_6to8[gd54xx->extpal[index].g & 0x3f],
                                                               video_6to8[gd54xx->extpal[index].b & 0x3f]);
+#ifdef UAE
+                        /* This card writes the DAC itself, not through svga_out() */
+                        if (svga->swaprb)
+                            gd54xx->extpallook[index] = svga_swap_rb(gd54xx->extpallook[index]);
+#endif
                         if (svga->ext_overscan && (index == 2)) {
                             o32                  = svga->overscan_color;
                             svga->overscan_color = gd54xx->extpallook[2];
@@ -962,6 +983,10 @@ gd54xx_out(uint16_t addr, uint8_t val, void *priv)
                         svga->pallook[index]  = makecol32(video_6to8[svga->vgapal[index].r & 0x3f],
                                                           video_6to8[svga->vgapal[index].g & 0x3f],
                                                           video_6to8[svga->vgapal[index].b & 0x3f]);
+#ifdef UAE
+                        if (svga->swaprb)
+                            svga->pallook[index] = svga_swap_rb(svga->pallook[index]);
+#endif
                     }
                     svga->dac_addr = (svga->dac_addr + 1) & 255;
                     svga->dac_pos  = 0;
@@ -1070,7 +1095,13 @@ gd54xx_out(uint16_t addr, uint8_t val, void *priv)
                         break;
 
                     case 0x0e:
+#ifdef UAE
+                        /* WinUAE switches away from the board when its screen is in a DPMS
+                           power saving state, the Picasso II (5426/5428) drivers use it too. */
+                        if (svga->crtc[0x27] >= CIRRUS_ID_CLGD5426) {
+#else
                         if (svga->crtc[0x27] >= CIRRUS_ID_CLGD5429) {
+#endif
                             svga->dpms = (val & 0x06) && ((svga->miscout & ((val & 0x06) << 5)) != 0xc0);
                             svga_recalctimings(svga);
                         }
@@ -1496,6 +1527,11 @@ gd54xx_in(uint16_t addr, void *priv)
                             default:
                                 break;
                         }
+#ifdef UAE
+                        /* The Amiga drivers set the DRAM bank switch bit themselves (no
+                           VGA BIOS) and expect to read it back, see gd543x_recalc_mapping(). */
+                        ret = (ret & ~0x80) | (svga->seqregs[0x0f] & 0x80);
+#endif
                         break;
                     case 0x15: /*Scratch Pad 3 (Memory size for 543x)*/
                         ret = svga->seqregs[0x15] & ~0x0f;
@@ -1783,6 +1819,14 @@ gd54xx_in(uint16_t addr, void *priv)
                             (svga->crtc[0x27] == CIRRUS_ID_CLGD5440))
                             ret = 0xff; /*Standard CL-GD5430/40*/
                         break;
+#ifdef UAE
+                    case 0x3f:
+                        /* Fake video port vertical sync toggle, polled by the Picasso IV drivers */
+                        if (svga->crtc[0x27] == CIRRUS_ID_CLGD5446)
+                            gd54xx->vportsync = !gd54xx->vportsync;
+                        ret = gd54xx->vportsync ? 0x80 : 0x00;
+                        break;
+#endif
 
                     default:
                         break;
@@ -1824,6 +1868,12 @@ gd54xx_recalc_banking(gd54xx_t *gd54xx)
         } else
             svga->extra_banks[1] = svga->extra_banks[0] + 0x8000;
     }
+
+#ifdef UAE
+    /* The bank 0 offset moves the Amiga's VRAM window, see gd543x_recalc_mapping() */
+    if (gd54xx_is_5422(svga) && (svga->seqregs[0x07] & 0xf0))
+        gd543x_recalc_mapping(gd54xx);
+#endif
 }
 
 static void
@@ -1845,8 +1895,14 @@ gd543x_recalc_mapping(gd54xx_t *gd54xx)
 
     gd54xx->mmio_vram_overlap = 0;
 
+#ifdef UAE
+    /* The Amiga writes the VRAM through the linear aperture in the planar
+       modes too (Picasso96 planar screens). */
+    if (!gd54xx_is_5422(svga) || !(svga->seqregs[0x07] & 0xf0)) {
+#else
     if (!gd54xx_is_5422(svga) || !(svga->seqregs[0x07] & 0xf0) ||
         !(svga->seqregs[0x07] & CIRRUS_SR7_BPP_SVGA)) {
+#endif
         mem_mapping_disable(&gd54xx->linear_mapping);
         mem_mapping_disable(&gd54xx->aperture2_mapping);
         switch (svga->gdcreg[6] & 0x0c) {
@@ -1920,13 +1976,43 @@ gd543x_recalc_mapping(gd54xx_t *gd54xx)
         if (size >= (16 * 1024 * 1024))
             gd54xx->aperture_mask = 0x03;
 
+#ifdef UAE
+        {
+            /*
+               The Amiga boards wire the VRAM into their own Zorro window and
+               gfxboard.cpp calls the linear handlers directly:
+               - the window decodes 1 or 2 MB (2 or 4 MB on the 543x/5446)
+                 depending on the DRAM bank switch bit, CyberGraphX sizes the
+                 memory with it,
+               - it goes through the bank 0 offset like the A0000 window,
+               - gfxboard.cpp does the byte swapping of the big endian
+                 apertures itself.
+             */
+            uint32_t max = ((svga->crtc[0x27] <= CIRRUS_ID_CLGD5429) ||
+                            (!gd54xx->pci && !gd54xx->vlb)) ? (2 << 20) : (4 << 20);
+
+            gd54xx->linear_mask   = (svga->seqregs[0x0f] & 0x80) ? (max - 1) : ((max >> 1) - 1);
+            svga->decode_mask     = gd54xx->linear_mask;
+            gd54xx->aperture_mask = 0x00;
+            if (svga->gdcreg[0x0b] & CIRRUS_BANKING_GRANULARITY_16K)
+                base += svga->gdcreg[0x09] << 14;
+            else
+                base += svga->gdcreg[0x09] << 12;
+        }
+#endif
+
         mem_mapping_disable(&svga->mapping);
         mem_mapping_set_addr(&gd54xx->linear_mapping, base, size);
         if ((svga->seqregs[0x17] & CIRRUS_MMIO_ENABLE) &&
             (svga->crtc[0x27] >= CIRRUS_ID_CLGD5429)) {
             if (svga->seqregs[0x17] & CIRRUS_MMIO_USE_PCIADDR)
+#ifdef UAE
+                /* gfxboard.cpp sends the Picasso IV's MMIO window to B8000 */
+                mem_mapping_set_addr(&gd54xx->mmio_mapping, 0xb8000, 0x00100);
+#else
                 /* MMIO is handled in the linear read/write functions */
                 mem_mapping_disable(&gd54xx->mmio_mapping);
+#endif
             else
                 mem_mapping_set_addr(&gd54xx->mmio_mapping, 0xb8000, 0x00100);
         } else
@@ -1952,7 +2038,12 @@ gd54xx_recalctimings(svga_t *svga)
     const gd54xx_t *gd54xx = (gd54xx_t *) svga->priv;
     uint8_t         clocksel;
     uint8_t         rdmask;
+#ifdef UAE
+    /* WinUAE doubles these modes when it shows the frame (horizontal_linedbl) */
+    uint8_t         linedbl = 0;
+#else
     uint8_t         linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
+#endif
     uint8_t         m = 0;
     int             d = 0;
     int             n = 0;
@@ -2087,9 +2178,14 @@ gd54xx_recalctimings(svga_t *svga)
                             svga->render = svga_render_32bpp_lowres;
                         else
                             svga->render = svga_render_32bpp_highres;
+#ifdef UAE
+                        /* The Picasso IV drivers program the 5446 pitch like the 5434's */
+                        svga->rowoffset *= 2;
+#else
                         if (svga->crtc[0x27] < CIRRUS_ID_CLGD5436) {
                             svga->rowoffset *= 2;
                         }
+#endif
                     } else {
                         svga->bpp = 24;
                         if (linedbl)
@@ -2250,7 +2346,24 @@ gd54xx_hwcursor_draw(svga_t *svga, int displine)
     int             pitch   = (svga->hwcursor.cur_xsize == 64) ? 16 : 4;
     uint32_t        bgcol   = gd54xx->extpallook[0x00];
     uint32_t        fgcol   = gd54xx->extpallook[0x0f];
+#ifdef UAE
+    /* WinUAE doubles these modes when it shows the frame (horizontal_linedbl) */
+    uint8_t         linedbl = 0;
+    int             x_add   = svga->x_add;
+
+    /*
+       Possible 5426/5428 chip bug, not sure if this is the exact condition:
+       the Amiga Picasso96 driver has an 8 pixel cursor offset in the 15 and
+       16-bit modes with GR5 zero, CyberGraphX 4 does not have the offset
+       and sets GR5 bit 6 (256 color mode).
+     */
+    if (!(svga->gdcreg[5] & 0x40) && (svga->crtc[0x27] <= CIRRUS_ID_CLGD5428) &&
+        ((svga->bpp == 15) || (svga->bpp == 16)))
+        x_add -= 8;
+#else
     uint8_t         linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
+    int             x_add   = svga->x_add;
+#endif
 
     offset <<= linedbl;
 
@@ -2267,23 +2380,27 @@ gd54xx_hwcursor_draw(svga_t *svga, int displine)
             b0   = (dat[0] >> (7 - xx)) & 1;
             b1   = (dat[1] >> (7 - xx)) & 1;
             comb = (b1 | (b0 << 1));
+#ifdef UAE
+            if ((offset >= svga->hwcursor_latch.x) && ((offset + x_add) >= 0)) {
+#else
             if (offset >= svga->hwcursor_latch.x) {
+#endif
                 switch (comb) {
                     case 0:
                         /* The original screen pixel is shown (invisible cursor) */
                         break;
                     case 1:
                         /* The pixel is shown in the cursor background color */
-                        (svga->monitor->target_buffer->line[displine])[offset + svga->x_add] = bgcol;
+                        (svga->monitor->target_buffer->line[displine])[offset + x_add] = bgcol;
                         break;
                     case 2:
                         /* The pixel is shown as the inverse of the original screen pixel
                            (XOR cursor) */
-                        (svga->monitor->target_buffer->line[displine])[offset + svga->x_add] ^= 0xffffff;
+                        (svga->monitor->target_buffer->line[displine])[offset + x_add] ^= 0xffffff;
                         break;
                     case 3:
                         /* The pixel is shown in the cursor foreground color */
-                        (svga->monitor->target_buffer->line[displine])[offset + svga->x_add] = fgcol;
+                        (svga->monitor->target_buffer->line[displine])[offset + x_add] = fgcol;
                         break;
 
                     default:
@@ -5098,6 +5215,11 @@ gd54xx_init(const device_t *info)
     gd54xx->vlb   = !!(info->flags & DEVICE_VLB);
     gd54xx->mca   = !!(info->flags & DEVICE_MCA);
     gd54xx->bit32 = gd54xx->pci || gd54xx->vlb;
+#ifdef UAE
+    /* The Amiga accesses all the boards 8, 16 and 32 bits wide, gfxboard.cpp
+       calls the linear long handlers directly. */
+    gd54xx->bit32 = 1;
+#endif
 
     gd54xx->rev      = 0;
     gd54xx->has_bios = 1;
@@ -5281,7 +5403,12 @@ gd54xx_init(const device_t *info)
             else if (id == CIRRUS_ID_CLGD5401)
                 vram = 256;
             else
+#ifdef UAE
+                /* WinUAE gives the board's VRAM size in MB, these configs are in KB */
+                vram = device_get_config_int("memory") << 10;
+#else
                 vram = device_get_config_int("memory");
+#endif
 
             video_clamp_vram(bios_flags, &vram);
 
@@ -5325,6 +5452,15 @@ gd54xx_init(const device_t *info)
     svga->ven_write    = gd54xx_write_modes45;
     if ((vram == 1) || (vram >= 256 && vram <= 1024))
         svga->decode_mask = gd54xx->vram_mask;
+
+#ifdef UAE
+    svga->swaprb  = !!(local & CIRRUS_UAE_SWAPRB);
+    /* Frame buffer only mode except in the VGA planar and text modes */
+    svga->fb_only = -1;
+    svga->fb_auto = 1;
+    if (gd54xx->pci)
+        gd54xx->int_line = 1;
+#endif
 
     svga->read = gd54xx_read;
     svga->readw = gd54xx_readw;
@@ -6734,3 +6870,101 @@ const device_t gd5480_pci_device = {
     .force_redraw  = gd54xx_force_redraw,
     .config        = gd5480_config
 };
+
+#ifdef UAE
+/*
+   The Amiga boards (gfxboard.cpp): Picasso II/II+, Piccolo, Piccolo SD64,
+   Spectrum, Graffity, Pixel64 and Picasso IV. The _swapped boards show
+   red and blue swapped. gd5434_vlb_device above is the Pixel64's.
+ */
+extern const device_t gd5426_device;
+extern const device_t gd5426_swapped_device;
+extern const device_t gd5428_device;
+extern const device_t gd5428_swapped_device;
+extern const device_t gd5434_vlb_swapped_device;
+extern const device_t gd5446_device;
+
+const device_t gd5426_device = {
+    .name          = "Cirrus Logic GD5426",
+    .internal_name = "cl_gd5426_uae",
+    .flags         = DEVICE_ISA16,
+    .local         = CIRRUS_ID_CLGD5426,
+    .init          = gd54xx_init,
+    .close         = gd54xx_close,
+    .reset         = gd54xx_reset,
+    .available     = NULL,
+    .speed_changed = gd54xx_speed_changed,
+    .force_redraw  = gd54xx_force_redraw,
+    .config        = gd542x_2mb_config
+};
+
+const device_t gd5426_swapped_device = {
+    .name          = "Cirrus Logic GD5426 (swapped)",
+    .internal_name = "cl_gd5426_swapped_uae",
+    .flags         = DEVICE_ISA16,
+    .local         = CIRRUS_ID_CLGD5426 | CIRRUS_UAE_SWAPRB,
+    .init          = gd54xx_init,
+    .close         = gd54xx_close,
+    .reset         = gd54xx_reset,
+    .available     = NULL,
+    .speed_changed = gd54xx_speed_changed,
+    .force_redraw  = gd54xx_force_redraw,
+    .config        = gd542x_2mb_config
+};
+
+const device_t gd5428_device = {
+    .name          = "Cirrus Logic GD5428",
+    .internal_name = "cl_gd5428_uae",
+    .flags         = DEVICE_ISA16,
+    .local         = CIRRUS_ID_CLGD5428,
+    .init          = gd54xx_init,
+    .close         = gd54xx_close,
+    .reset         = gd54xx_reset,
+    .available     = NULL,
+    .speed_changed = gd54xx_speed_changed,
+    .force_redraw  = gd54xx_force_redraw,
+    .config        = gd542x_2mb_config
+};
+
+const device_t gd5428_swapped_device = {
+    .name          = "Cirrus Logic GD5428 (swapped)",
+    .internal_name = "cl_gd5428_swapped_uae",
+    .flags         = DEVICE_ISA16,
+    .local         = CIRRUS_ID_CLGD5428 | CIRRUS_UAE_SWAPRB,
+    .init          = gd54xx_init,
+    .close         = gd54xx_close,
+    .reset         = gd54xx_reset,
+    .available     = NULL,
+    .speed_changed = gd54xx_speed_changed,
+    .force_redraw  = gd54xx_force_redraw,
+    .config        = gd542x_2mb_config
+};
+
+const device_t gd5434_vlb_swapped_device = {
+    .name          = "Cirrus Logic GD5434 (VLB) (swapped)",
+    .internal_name = "cl_gd5434_vlb_swapped_uae",
+    .flags         = DEVICE_VLB,
+    .local         = CIRRUS_ID_CLGD5434 | CIRRUS_UAE_SWAPRB,
+    .init          = gd54xx_init,
+    .close         = gd54xx_close,
+    .reset         = gd54xx_reset,
+    .available     = NULL,
+    .speed_changed = gd54xx_speed_changed,
+    .force_redraw  = gd54xx_force_redraw,
+    .config        = gd5434_vlb_config
+};
+
+const device_t gd5446_device = {
+    .name          = "Cirrus Logic GD5446 (PCI)",
+    .internal_name = "cl_gd5446_uae",
+    .flags         = DEVICE_PCI,
+    .local         = CIRRUS_ID_CLGD5446,
+    .init          = gd54xx_init,
+    .close         = gd54xx_close,
+    .reset         = gd54xx_reset,
+    .available     = NULL,
+    .speed_changed = gd54xx_speed_changed,
+    .force_redraw  = gd54xx_force_redraw,
+    .config        = gd543x_4mb_config
+};
+#endif

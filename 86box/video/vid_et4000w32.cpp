@@ -70,6 +70,11 @@ enum {
     GENERIC_REVD,
     CARDEX_REVD,
     DIAMOND_STEALTH_32,
+#ifdef UAE
+    /* Amiga boards, ET4000/W32i */
+    UAE_MERLIN,
+    UAE_OMNIBUS,
+#endif
     USE_CONFIG_BIOS           = 0xff
 };
 
@@ -78,11 +83,29 @@ typedef enum {
     ATT49X,
     STG170X,
     ET4K_SDAC
+#ifdef UAE
+    /* Merlin: BT482 at its own I/O ports, nothing at 3C6-3C9 */
+    , UAE_BT482
+#endif
 } et4000w32_ramdac_type;
+
+#ifdef UAE
+/* WinUAE's BT482 RAMDAC (vid_ramdac_bt482.cpp) */
+extern const device_t bt482_ramdac_device;
+extern void    bt482_ramdac_out(uint16_t addr, int rs2, uint8_t val, void *priv, svga_t *svga);
+extern uint8_t bt482_ramdac_in(uint16_t addr, int rs2, void *priv, svga_t *svga);
+extern void    bt482_hwcursor_draw(svga_t *svga, int displine);
+#endif
 
 typedef struct et4000w32p_t {
     mem_mapping_t linear_mapping;
     mem_mapping_t mmu_mapping;
+#ifdef UAE
+    /* MMU apertures and registers over the linear VRAM space */
+    mem_mapping_t mmu_mapping2;
+    /* Vertical retrace interrupt pending */
+    int vblank_irq;
+#endif
 
     rom_t bios_rom;
 
@@ -146,8 +169,15 @@ typedef struct et4000w32p_t {
 
 static int et4000w32_vbus[4] = { 1, 2, 4, 4 };
 
+#ifdef UAE
+/* At least on the W32 horizontal wrap 0 works like 1 (documented as
+   reserved), fixes Amiga ProBench 2.x glitches (Toni Wilen) */
+static int et4000w32_max_x[8]  = { 1, 1, 4, 8, 0x10, 0x20, 0x40, 0x70000000 };
+static int et4000w32_wrap_x[8] = { 1, 1, 3, 7, 0x0f, 0x1f, 0x3f, ~0 };
+#else
 static int et4000w32_max_x[8]  = { 0, 0, 4, 8, 0x10, 0x20, 0x40, 0x70000000 };
 static int et4000w32_wrap_x[8] = { 0, 0, 3, 7, 0x0f, 0x1f, 0x3f, ~0 };
+#endif
 static int et4000w32_wrap_y[8] = { 1, 2, 4, 8, ~0, ~0, ~0, ~0 };
 
 static video_timings_t timing_et4000w32_vlb = { .type = VIDEO_BUS, .write_b = 4, .write_w = 4, .write_l = 4, .read_b = 10, .read_w = 10, .read_l = 10 };
@@ -165,6 +195,28 @@ static void    et4000w32_blit(int count, int cpu_input, uint32_t src_dat, uint32
 static void    et4000w32p_blit(int count, uint32_t mix, uint32_t sdat, int cpu_input, et4000w32p_t *et4000);
 static void    et4000w32p_out(uint16_t addr, uint8_t val, void *priv);
 static uint8_t et4000w32p_in(uint16_t addr, void *priv);
+
+#ifdef UAE
+/* Vertical retrace interrupt (CRTC 11 bits 4 and 5, input status 0 bit 7),
+   the Merlin and oMniBus Amiga drivers use it (Toni Wilen). */
+static void
+et4000w32_update_irqs(et4000w32p_t *et4000)
+{
+    if ((et4000->vblank_irq > 0) && !(et4000->svga.crtc[0x11] & 0x20))
+        pci_set_irq(et4000->pci_slot, PCI_INTA, NULL);
+    else
+        pci_clear_irq(et4000->pci_slot, PCI_INTA, NULL);
+}
+
+static void
+et4000w32_vsync_callback(svga_t *svga)
+{
+    et4000w32p_t *et4000 = (et4000w32p_t *) svga->priv;
+
+    et4000->vblank_irq = 1;
+    et4000w32_update_irqs(et4000);
+}
+#endif
 
 #ifdef ENABLE_ET4000W32_LOG
 int et4000w32_do_log = ENABLE_ET4000W32_LOG;
@@ -213,8 +265,17 @@ et4000w32p_out(uint16_t addr, uint8_t val, void *priv)
                     stg_ramdac_out(addr, val, svga->ramdac, svga);
                     break;
                 case ET4K_SDAC:
+#ifdef UAE
+                    /* The oMniBus driver doesn't use RS2 (CRTC 31 bit 6) */
+                    sdac_ramdac_out(addr, 0, val, svga->ramdac, svga);
+#else
                     sdac_ramdac_out(addr, !!(svga->crtc[0x31] & 0x40), val, svga->ramdac, svga);
+#endif
                     break;
+#ifdef UAE
+                case UAE_BT482:
+                    break;
+#endif
                 default:
                     svga_out(addr, val, svga);
                     break;
@@ -285,12 +346,24 @@ et4000w32p_out(uint16_t addr, uint8_t val, void *priv)
             if (svga->crtcreg == 0x30) {
                 if (et4000->pci && (et4000->rev != ET4000W32P_REVB))
                     et4000->linearbase = (et4000->linearbase & 0xc0000000) | ((val & 0xfc) << 22);
+#ifdef UAE
+                /* ISA: 24-bit addresses */
+                else if (!et4000->vlb && !et4000->pci)
+                    et4000->linearbase = (val & 0x03) << 22;
+#endif
                 else
                     et4000->linearbase = val << 22;
                 et4000w32p_recalcmapping(et4000);
             }
             if ((svga->crtcreg == 0x32) || (svga->crtcreg == 0x36))
                 et4000w32p_recalcmapping(et4000);
+#ifdef UAE
+            if (svga->crtcreg == 0x11) {
+                if (!(val & 0x10))
+                    et4000->vblank_irq = 0;
+                et4000w32_update_irqs(et4000);
+            }
+#endif
             break;
 
         case 0x210a:
@@ -385,6 +458,15 @@ et4000w32p_in(uint16_t addr, void *priv)
         addr ^= 0x60;
 
     switch (addr) {
+#ifdef UAE
+        case 0x3c2:
+            /* Vertical retrace interrupt pending */
+            temp = svga_in(addr, svga);
+            if (et4000->vblank_irq > 0)
+                temp |= 0x80;
+            return temp;
+#endif
+
         case 0x3c5:
             if ((svga->seqaddr & 0xf) == 7)
                 return svga->seqregs[svga->seqaddr & 0xf] | 4;
@@ -400,7 +482,15 @@ et4000w32p_in(uint16_t addr, void *priv)
                 case STG170X:
                     return stg_ramdac_in(addr, svga->ramdac, svga);
                 case ET4K_SDAC:
+#ifdef UAE
+                    return sdac_ramdac_in(addr, 0, svga->ramdac, svga);
+#else
                     return sdac_ramdac_in(addr, !!(svga->crtc[0x31] & 0x40), svga->ramdac, svga);
+#endif
+#ifdef UAE
+                case UAE_BT482:
+                    return 0x00;
+#endif
                 default:
                     return svga_in(addr, svga);
             }
@@ -540,6 +630,18 @@ et4000w32p_recalctimings(svga_t *svga)
         svga->dots_per_clock <<= 1;
     }
 
+#ifdef UAE
+    /* Interlace (CRTC 35 bit 7), the vertical registers count frame lines */
+    svga->interlace = svga->crtc[0x35] & 0x80;
+    if (svga->interlace) {
+        int shift = (svga->crtc[0x17] & 4) ? 2 : 1;
+        svga->vtotal >>= shift;
+        svga->vsyncstart >>= shift;
+        svga->vblankstart >>= shift;
+        svga->dispend >>= shift;
+    }
+#endif
+
     et4000->adjust_cursor = 0;
     et4000->adjust_cursor_x = 0;
 
@@ -606,6 +708,13 @@ et4000w32p_recalctimings(svga_t *svga)
                     if ((et4000->card_type == DIAMOND_STEALTH_32) && ((svga->hdisp == (640 / 2)) || (svga->hdisp == 1232)))
                         svga->hdisp = 640;
                     break;
+#ifdef UAE
+                case 32:
+                    /* 32-bit RAMDAC modes (Merlin, oMniBus): four bytes per pixel */
+                    svga->hdisp /= 4;
+                    svga->dots_per_clock /= 4;
+                    break;
+#endif
                 default:
                     break;
             }
@@ -678,13 +787,37 @@ et4000w32p_recalcmapping(et4000w32p_t *et4000)
         mem_mapping_disable(&svga->mapping);
         mem_mapping_disable(&et4000->linear_mapping);
         mem_mapping_disable(&et4000->mmu_mapping);
+#ifdef UAE
+        mem_mapping_disable(&et4000->mmu_mapping2);
+#endif
         return;
     }
 
     if (svga->crtc[0x36] & 0x10) { /* Linear frame buffer */
+#ifdef UAE
+        /* All of the VRAM. W32/W32i with the MMU enabled (CRTC 36 bits 3
+           and 5): 512 KB of VRAM, the MMU at 512 KB and the MMU apertures
+           and registers from 2 MB, the Merlin and oMniBus Amiga drivers
+           use them (Toni Wilen). */
+        map = (svga->gdcreg[6] & 0xc) >> 2;
+        if (svga->crtc[0x36] & 0x20)
+            map |= 4;
+        if (svga->crtc[0x36] & 0x08)
+            map |= 8;
+        mem_mapping_disable(&svga->mapping);
+        mem_mapping_disable(&et4000->mmu_mapping);
+        mem_mapping_disable(&et4000->mmu_mapping2);
+        mem_mapping_set_addr(&et4000->linear_mapping, et4000->linearbase, svga->vram_max);
+        if ((map == 0x0c) && (et4000->rev < ET4000W32P_REVB)) {
+            mem_mapping_set_addr(&et4000->linear_mapping, et4000->linearbase, 0x080000);
+            mem_mapping_set_addr(&et4000->mmu_mapping, et4000->linearbase + 0x080000, 0x080000);
+            mem_mapping_set_addr(&et4000->mmu_mapping2, et4000->linearbase + 0x200000, 0x200000);
+        }
+#else
         mem_mapping_set_addr(&et4000->linear_mapping, et4000->linearbase, 0x200000);
         mem_mapping_disable(&svga->mapping);
         mem_mapping_disable(&et4000->mmu_mapping);
+#endif
     } else {
         map = (svga->gdcreg[6] & 0xc) >> 2;
         if (svga->crtc[0x36] & 0x20)
@@ -693,6 +826,9 @@ et4000w32p_recalcmapping(et4000w32p_t *et4000)
             map |= 8;
 
         mem_mapping_disable(&et4000->linear_mapping);
+#ifdef UAE
+        mem_mapping_disable(&et4000->mmu_mapping2);
+#endif
         switch (map) {
             case 0x0:
             case 0x4:
@@ -851,6 +987,12 @@ et4000w32p_accel_write_fifo(et4000w32p_t *et4000, uint32_t addr, uint8_t val)
             break;
         case 0xa3:
             et4000->acl.queued.dest_addr = (et4000->acl.queued.dest_addr & 0x00ffffff) | (val << 24);
+#ifdef UAE
+            /* The W32/W32i start from the operation state register (MMU 31),
+               the W32p here only when OSR bit 4 is set (Toni Wilen). */
+            if ((et4000->rev < ET4000W32P_REVB) || !(et4000->acl.osr & 0x10))
+                break;
+#endif
             et4000->acl.internal = et4000->acl.queued;
             if (et4000->rev >= ET4000W32P_REVB) {
                 et4000w32p_blit_start(et4000);
@@ -995,6 +1137,11 @@ et4000w32p_mmu_write(uint32_t addr, uint8_t val, void *priv)
             }
             break;
         case 0x6000:
+#ifdef UAE
+            /* The registers are only in the last 256 bytes (Toni Wilen) */
+            if ((addr & 0xff00) != 0xff00)
+                break;
+#endif
             if ((addr & 0xff) >= 0x80)
                 et4000w32p_accel_write_fifo(et4000, addr & 0x7fff, val);
             else {
@@ -1043,6 +1190,27 @@ et4000w32p_mmu_write(uint32_t addr, uint8_t val, void *priv)
                         break;
                     case 0x31:
                         et4000->acl.osr = val;
+#ifdef UAE
+                        /* Start the operation (Toni Wilen) */
+                        if (val & 1) {
+                            et4000->acl.internal = et4000->acl.queued;
+                            if (et4000->rev >= ET4000W32P_REVB) {
+                                et4000w32p_blit_start(et4000);
+                                if (!(et4000->acl.queued.ctrl_routing & 0x43))
+                                    et4000w32p_blit(-1, 0xffffffff, 0, 0, et4000);
+                                if ((et4000->acl.queued.ctrl_routing & 0x40) && !(et4000->acl.internal.ctrl_routing & 3))
+                                    et4000w32p_blit(4, 0xffffffff, 0, 0, et4000);
+                            } else {
+                                et4000w32_blit_start(et4000);
+                                et4000->acl.cpu_input_num = 0;
+                                if (!(et4000->acl.queued.ctrl_routing & 0x37)) {
+                                    et4000->acl.mmu_start = 1;
+                                    et4000w32_blit(-1, 0, 0, 0xffffffff, et4000);
+                                } else
+                                    et4000->acl.mmu_start = 0;
+                            }
+                        }
+#endif
                         break;
 
                     default:
@@ -1088,6 +1256,11 @@ et4000w32p_mmu_read(uint32_t addr, void *priv)
             return svga->vram[(addr & 0x1fff) + et4000->mmu.base[et4000->bank]];
 
         case 0x6000:
+#ifdef UAE
+            /* The registers are only in the last 256 bytes (Toni Wilen) */
+            if ((addr & 0xff00) != 0xff00)
+                break;
+#endif
             switch (addr & 0xff) {
                 case 0x00:
                     return et4000->mmu.base[0] & 0xff;
@@ -1202,6 +1375,62 @@ et4000w32p_mmu_read(uint32_t addr, void *priv)
     return 0xff;
 }
 
+#ifdef UAE
+/* W32/W32i linear frame buffer with the MMU enabled: the MMU apertures at
+   0x200000-0x37ffff and the registers at 0x380000-0x3fffff and in the last
+   256 bytes of each 1 MB, used by the Merlin and oMniBus drivers. The
+   aperture decoding is WinUAE's (Toni Wilen): one window from MMU 0 base
+   when the frame buffer is at 0. */
+static void
+et4000w32p_mmu_write2(uint32_t addr, uint8_t val, void *priv)
+{
+    et4000w32p_t *et4000 = (et4000w32p_t *) priv;
+    svga_t       *svga   = &et4000->svga;
+    uint32_t      offset;
+
+    if (((addr & 0xfff00) == 0xfff00) || ((addr & 0x380000) == 0x380000)) {
+        et4000w32p_mmu_write(0xff00 | (addr & 0xff), val, priv);
+        return;
+    }
+
+    et4000->bank = (addr >> 22) & 3;
+    if (et4000->bank > 2)
+        return;
+    if (et4000->mmu.ctrl & (1 << et4000->bank)) {
+        et4000w32p_accel_write_mmu(et4000, addr, val, et4000->bank);
+        return;
+    }
+    offset = (addr & 0x1fffff) + et4000->mmu.base[et4000->bank];
+    if (offset < svga->vram_max) {
+        svga->vram[offset & et4000->vram_mask]                = val;
+        svga->changedvram[(offset & et4000->vram_mask) >> 12] = changeframecount;
+    }
+}
+
+static uint8_t
+et4000w32p_mmu_read2(uint32_t addr, void *priv)
+{
+    et4000w32p_t *et4000 = (et4000w32p_t *) priv;
+    const svga_t *svga   = &et4000->svga;
+    uint32_t      offset;
+
+    if (((addr & 0xfff00) == 0xfff00) || ((addr & 0x380000) == 0x380000))
+        return et4000w32p_mmu_read(0xff00 | (addr & 0xff), priv);
+
+    et4000->bank = (addr >> 22) & 3;
+    if (et4000->bank > 2)
+        return 0xff;
+    if (et4000->mmu.ctrl & (1 << et4000->bank)) {
+        /* Accelerator data, as through the banked aperture */
+        return et4000w32p_mmu_read(et4000->bank << 13, priv);
+    }
+    offset = (addr & 0x1fffff) + et4000->mmu.base[et4000->bank];
+    if (offset >= svga->vram_max)
+        return 0xff;
+    return svga->vram[offset & et4000->vram_mask];
+}
+#endif
+
 static void
 et4000w32_blit_start(et4000w32p_t *et4000)
 {
@@ -1219,6 +1448,16 @@ et4000w32_blit_start(et4000w32p_t *et4000)
 
     if (!(et4000->acl.internal.ctrl_routing & 7) || (et4000->acl.internal.ctrl_routing & 4))
         et4000->acl.status |= ACL_SSO;
+
+#ifdef UAE
+    /* The W32 and W32i have no source/pattern alignment restrictions
+       (Toni Wilen), this is only used for them. */
+    et4000->acl.pattern_back   = et4000->acl.pattern_addr;
+    et4000->acl.pattern_x_back = et4000->acl.pattern_x;
+    et4000->acl.source_back    = et4000->acl.source_addr;
+    et4000->acl.source_x_back  = et4000->acl.source_x;
+    return;
+#endif
 
     if (et4000w32_wrap_x[et4000->acl.internal.pattern_wrap & 7]) {
         et4000->acl.pattern_x = et4000->acl.pattern_addr & et4000w32_wrap_x[et4000->acl.internal.pattern_wrap & 7];
@@ -2762,6 +3001,25 @@ et4000w32p_pci_write(UNUSED(int func), int addr, UNUSED(int len), uint8_t val, v
     }
 }
 
+#ifdef UAE
+/* Merlin: BT482 at I/O ports 0-1F, RS0-1 from address bits 2-3, RS2 from bit 4 */
+static void
+et4000w32_bt482_out(uint16_t addr, uint8_t val, void *priv)
+{
+    et4000w32p_t *et4000 = (et4000w32p_t *) priv;
+
+    bt482_ramdac_out(0x3c8 + ((addr >> 2) & 3), (addr >> 4) & 1, val, et4000->svga.ramdac, &et4000->svga);
+}
+
+static uint8_t
+et4000w32_bt482_in(uint16_t addr, void *priv)
+{
+    et4000w32p_t *et4000 = (et4000w32p_t *) priv;
+
+    return bt482_ramdac_in(0x3c8 + ((addr >> 2) & 3), (addr >> 4) & 1, et4000->svga.ramdac, &et4000->svga);
+}
+#endif
+
 static void *
 et4000w32p_init(const device_t *info)
 {
@@ -2939,6 +3197,34 @@ et4000w32p_init(const device_t *info)
             et4000->svga.getclock  = stg_getclock;
             break;
 
+#ifdef UAE
+        case UAE_MERLIN:
+            /* ET4000/W32i rev B, BT482 RAMDAC at I/O ports 0-1F. The clock
+               chip isn't emulated, WinUAE doesn't use the pixel clock. */
+            et4000->rev = ET4000W32I_REVB;
+            et4000->ramdac_type = UAE_BT482;
+
+            et4000->svga.ramdac            = device_add(&bt482_ramdac_device);
+            et4000->svga.dac_hwcursor_draw = bt482_hwcursor_draw;
+            et4000->svga.clock_gen         = device_add(&ics2494an_324_device);
+            et4000->svga.getclock          = ics2494_getclock;
+            svga_set_ramdac_type(&et4000->svga, RAMDAC_8BIT);
+            io_sethandler(0x0000, 0x0020, et4000w32_bt482_in, NULL, NULL, et4000w32_bt482_out, NULL, NULL, et4000);
+            break;
+
+        case UAE_OMNIBUS:
+            /* ET4000/W32i rev B, 87C716-like SDAC as in WinUAE's PCem version */
+            et4000->rev = ET4000W32I_REVB;
+            et4000->ramdac_type = ET4K_SDAC;
+
+            et4000->svga.ramdac    = device_add(&tseng_ics5341_ramdac_device);
+            et4000->svga.clock_gen = et4000->svga.ramdac;
+            et4000->svga.getclock  = sdac_getclock;
+            sdac_set_ref_clock(et4000->svga.ramdac, 14318184.0f);
+            svga_recalctimings(&et4000->svga);
+            break;
+#endif
+
         default:
             break;
     }
@@ -2952,6 +3238,13 @@ et4000w32p_init(const device_t *info)
     }
     mem_mapping_add(&et4000->linear_mapping, 0, 0, svga_read_linear, svga_readw_linear, svga_readl_linear, svga_write_linear, svga_writew_linear, svga_writel_linear, NULL, MEM_MAPPING_EXTERNAL, &et4000->svga);
     mem_mapping_add(&et4000->mmu_mapping, 0, 0, et4000w32p_mmu_read, NULL, NULL, et4000w32p_mmu_write, NULL, NULL, NULL, MEM_MAPPING_EXTERNAL, et4000);
+#ifdef UAE
+    mem_mapping_add(&et4000->mmu_mapping2, 0, 0, et4000w32p_mmu_read2, NULL, NULL, et4000w32p_mmu_write2, NULL, NULL, NULL, MEM_MAPPING_EXTERNAL, et4000);
+
+    /* Vertical retrace interrupt, disabled at reset */
+    et4000->svga.vsync_callback = et4000w32_vsync_callback;
+    et4000->svga.crtc[0x11] |= 0x20;
+#endif
 
     et4000w32p_io_set(et4000);
 
@@ -3317,3 +3610,52 @@ const device_t et4000w32p_pci_device = {
     .force_redraw  = et4000w32p_force_redraw,
     .config        = et4000w32p_pci_config
 };
+
+#ifdef UAE
+/* Amiga boards (gfxboard.cpp), the VRAM size comes from WinUAE */
+extern const device_t et4000w32_merlin_z2_device;
+extern const device_t et4000w32_merlin_z3_device;
+extern const device_t et4000w32_omnibus_device;
+
+const device_t et4000w32_merlin_z2_device = {
+    .name          = "Merlin Z2",
+    .internal_name = "et4000w32_merlin_z2",
+    .flags         = DEVICE_ISA16,
+    .local         = UAE_MERLIN,
+    .init          = et4000w32p_init,
+    .close         = et4000w32p_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = et4000w32p_speed_changed,
+    .force_redraw  = et4000w32p_force_redraw,
+    .config        = NULL
+};
+
+const device_t et4000w32_merlin_z3_device = {
+    .name          = "Merlin Z3",
+    .internal_name = "et4000w32_merlin_z3",
+    .flags         = DEVICE_ISA16,
+    .local         = UAE_MERLIN,
+    .init          = et4000w32p_init,
+    .close         = et4000w32p_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = et4000w32p_speed_changed,
+    .force_redraw  = et4000w32p_force_redraw,
+    .config        = NULL
+};
+
+const device_t et4000w32_omnibus_device = {
+    .name          = "oMniBus",
+    .internal_name = "et4000w32_omnibus",
+    .flags         = DEVICE_ISA16,
+    .local         = UAE_OMNIBUS,
+    .init          = et4000w32p_init,
+    .close         = et4000w32p_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = et4000w32p_speed_changed,
+    .force_redraw  = et4000w32p_force_redraw,
+    .config        = NULL
+};
+#endif

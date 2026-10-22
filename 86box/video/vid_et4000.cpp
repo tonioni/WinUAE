@@ -96,6 +96,11 @@ typedef struct {
     uint8_t  kasan_cfg_regs[16];
     uint16_t kasan_access_addr;
     uint8_t  kasan_font_data[4];
+
+#ifdef UAE
+    /* The Amiga boards see the whole VRAM through it (gfxboard.cpp) */
+    mem_mapping_t linear_mapping;
+#endif
 } et4000_t;
 
 static const uint8_t crtc_mask[0x40] = {
@@ -847,7 +852,12 @@ et4000_init(const device_t *info)
         case ET4000_TYPE_TC6058AF: /* ISA ET4000AX (TC6058AF) */
             vram                                = device_get_config_int("memory");
             video_clamp_vram(bios_flags, &vram);
+#ifdef UAE
+            /* WinUAE gives the VRAM size in MB */
+            dev->vram_size                      = vram << 20;
+#else
             dev->vram_size                      = vram << 10;
+#endif
             video_inform(VIDEO_FLAG_TYPE_SPECIAL, &timing_et4000_isa);
             svga_init(info, &dev->svga, dev, dev->vram_size,
                       et4000_recalctimings, et4000_in, et4000_out,
@@ -960,6 +970,15 @@ et4000_init(const device_t *info)
     dev->svga.packed_chain4 = 1;
 
     dev->svga.adv_flags    |= FLAG_EXT_AR;
+
+#ifdef UAE
+    /* Domino and oMniBus: gfxboard.cpp accesses the VRAM through this
+       linear mapping, at offset 0x800000 that the decode mask removes. */
+    mem_mapping_add(&dev->linear_mapping, 0, dev->vram_size,
+                    svga_read_linear, svga_readw_linear, svga_readl_linear,
+                    svga_write_linear, svga_writew_linear, svga_writel_linear,
+                    NULL, MEM_MAPPING_EXTERNAL, &dev->svga);
+#endif
 
     return dev;
 }
@@ -1143,3 +1162,37 @@ const device_t et4000_mca_device = {
     .force_redraw  = et4000_force_redraw,
     .config        = et4000_config
 };
+
+#ifdef UAE
+/* Amiga Zorro II boards: ET4000AX with the SC1502x RAMDAC, no BIOS */
+extern const device_t et4000_domino_device;
+extern const device_t et4000_omnibus_device;
+
+const device_t et4000_domino_device = {
+    .name          = "Domino",
+    .internal_name = "et4000_domino",
+    .flags         = DEVICE_ISA | DEVICE_ISA16,
+    .local         = ET4000_TYPE_ISA,
+    .init          = et4000_init,
+    .close         = et4000_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = et4000_speed_changed,
+    .force_redraw  = et4000_force_redraw,
+    .config        = NULL
+};
+
+const device_t et4000_omnibus_device = {
+    .name          = "oMniBus",
+    .internal_name = "et4000_omnibus",
+    .flags         = DEVICE_ISA | DEVICE_ISA16,
+    .local         = ET4000_TYPE_ISA,
+    .init          = et4000_init,
+    .close         = et4000_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = et4000_speed_changed,
+    .force_redraw  = et4000_force_redraw,
+    .config        = NULL
+};
+#endif

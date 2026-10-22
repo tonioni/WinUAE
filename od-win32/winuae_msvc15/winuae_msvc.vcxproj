@@ -2367,6 +2367,219 @@
       <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <ObjectFileName>$(IntDir)86box\</ObjectFileName>
     </ClCompile>
+    <ClCompile Include="..\..\86box\device\i2c.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\i2c_gpio.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\mem\i2c_eeprom.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\mem\nmc93cxx.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\clockgen\vid_clockgen_av9194.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\clockgen\vid_clockgen_ch9204.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\clockgen\vid_clockgen_icd2061.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\clockgen\vid_clockgen_ics2494.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_att20c49x.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_att2xc498.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_bt48x.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_ibm_rgb528.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_mu9c1880.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_sc1148x.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_sc1502x.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_sdac.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_stg1702.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_tvp3026.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_cl54xx.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_ddc.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_et4000.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_et4000w32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_mga.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_s3.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_s3_virge.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_svga.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_svga_render.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_banshee.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_banshee_blitter.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_blitter.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_display.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_fb.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_fifo.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_reg.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_render.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_setup.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_texture.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\vid_inmos.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\vid_ncr.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\vid_permedia2.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\vid_ramdac_bt482.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;86box_video_redirect.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\86box_video.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxGlueIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="..\..\86box\winuae\86box_glue.cpp">
       <AdditionalIncludeDirectories>$(WinUAE86BoxGlueIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -2376,34 +2589,6 @@
     <ClCompile Include="..\..\86box\winuae\keyboard_at_draco.cpp">
       <AdditionalIncludeDirectories>$(WinUAE86BoxGlueIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\pcemglue.cpp" />
-    <ClCompile Include="..\..\pcem\timer.cpp" />
-    <ClCompile Include="..\..\pcem\vid_bt482_ramdac.cpp" />
-    <ClCompile Include="..\..\pcem\vid_cl5429.cpp" />
-    <ClCompile Include="..\..\pcem\vid_et4000.cpp" />
-    <ClCompile Include="..\..\pcem\vid_et4000w32.cpp" />
-    <ClCompile Include="..\..\pcem\vid_inmos.cpp" />
-    <ClCompile Include="..\..\pcem\vid_mga.cpp" />
-    <ClCompile Include="..\..\pcem\vid_ncr.cpp" />
-    <ClCompile Include="..\..\pcem\vid_permedia2.cpp" />
-    <ClCompile Include="..\..\pcem\vid_s3.cpp" />
-    <ClCompile Include="..\..\pcem\vid_s3_virge.cpp" />
-    <ClCompile Include="..\..\pcem\vid_sc1502x_ramdac.cpp" />
-    <ClCompile Include="..\..\pcem\vid_sdac_ramdac.cpp" />
-    <ClCompile Include="..\..\pcem\vid_svga.cpp" />
-    <ClCompile Include="..\..\pcem\vid_svga_render.cpp" />
-    <ClCompile Include="..\..\pcem\vid_tvp3026_ramdac.cpp" />
-    <ClCompile Include="..\..\pcem\vid_voodoo.cpp" />
-    <ClCompile Include="..\..\pcem\vid_voodoo_banshee.cpp" />
-    <ClCompile Include="..\..\pcem\vid_voodoo_banshee_blitter.cpp" />
-    <ClCompile Include="..\..\pcem\vid_voodoo_blitter.cpp" />
-    <ClCompile Include="..\..\pcem\vid_voodoo_display.cpp" />
-    <ClCompile Include="..\..\pcem\vid_voodoo_fb.cpp" />
-    <ClCompile Include="..\..\pcem\vid_voodoo_fifo.cpp" />
-    <ClCompile Include="..\..\pcem\vid_voodoo_reg.cpp" />
-    <ClCompile Include="..\..\pcem\vid_voodoo_render.cpp" />
-    <ClCompile Include="..\..\pcem\vid_voodoo_setup.cpp" />
-    <ClCompile Include="..\..\pcem\vid_voodoo_texture.cpp" />
     <ClCompile Include="..\..\pci.cpp" />
     <ClCompile Include="..\..\ppc\ppc.cpp" />
     <ClCompile Include="..\..\ppc\ppcd.cpp" />

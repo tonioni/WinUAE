@@ -243,6 +243,7 @@ void pc_speed_changed(void)
 #define NOT_THIS_MACHINE(n) int n(const machine_t *model) { return 0; }
 
 NOT_THIS_MACHINE(machine_at_acera1g_init)
+NOT_THIS_MACHINE(machine_at_advantage40xxd_init)
 NOT_THIS_MACHINE(machine_at_bx6_init)
 NOT_THIS_MACHINE(machine_at_cobalt3k_init)
 NOT_THIS_MACHINE(machine_at_nupro592_init)

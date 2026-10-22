@@ -3694,49 +3694,6 @@ static int x86_global_settings;
 
 static int x86_device_config_int(const char *s)
 {
-	if (!strcmp(s, "bilinear")) {
-		return 1;
-	}
-	if (!strcmp(s, "dithering")) {
-		return 1;
-	}
-	if (!strcmp(s, "dithersub")) {
-		return 1;
-	}
-	if (!strcmp(s, "dacfilter")) {
-		return 1;
-	}
-	if (!strcmp(s, "recompiler")) {
-#if defined(_WIN32) || defined(PCEM_VOODOO_CODEGEN)
-		return 1;
-#else
-		return 0;
-#endif
-	}
-	if (!strcmp(s, "sli") || !strcmp(s, "type")) {
-		return 0;
-	}
-	if (!strcmp(s, "framebuffer_memory") || !strcmp(s, "texture_memory")) {
-		return 2;
-	}
-	if (!strcmp(s, "memory")) {
-		return pcem_getvramsize() >> 20;
-	}
-	if (!strcmp(s, "render_threads")) {
-#ifdef _WIN32
-		SYSTEM_INFO si;
-		GetSystemInfo(&si);
-		if (si.dwNumberOfProcessors >= 8)
-			return 4;
-		if (si.dwNumberOfProcessors >= 4)
-			return 2;
-		return 1;
-#else
-		return 4;
-#endif
-	}
-
-
 	if (x86_global_settings < 0)
 		return 0;
 	if (!strcmp(s, "base")) {
@@ -3786,19 +3743,6 @@ bool x86_device_config(const device_t *dev, const char *s, int *value)
 	if (dev == &mouse_ps2_device && !strcmp(s, "buttons") && xb) {
 		*value = xb->mouse_type == 2 ? 4 : 2;
 		return true;
-	}
-	if (!dev) {
-		// PCem RTG board options
-		static const char *const video_options[] = {
-			"bilinear", "dithering", "dithersub", "dacfilter", "recompiler", "sli", "type",
-			"framebuffer_memory", "texture_memory", "memory", "render_threads", NULL
-		};
-		for (int i = 0; video_options[i]; i++) {
-			if (!strcmp(s, video_options[i])) {
-				*value = x86_device_config_int(s);
-				return true;
-			}
-		}
 	}
 	return false;
 }
