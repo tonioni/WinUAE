@@ -5483,6 +5483,15 @@ static QApplication &winUaeQtSharedApplication(int argc, char **argv)
     return *sharedApplication;
 }
 
+/* Settings page selected when the dialog was last open, so reopening it
+ * during the same session (e.g. to swap floppies) returns to that page. */
+static int lastNavigationPageIndex = -1;
+
+/* Dropdown history of image/file path fields, keyed by field group. Each
+ * dialog only knows the paths of the config it was opened with, so the
+ * history is carried over to the next dialog opened in the same session. */
+static QHash<QString, QStringList> sessionPathHistory;
+
 class WinUaeQtDialog final : public QDialog {
 public:
     explicit WinUaeQtDialog(
@@ -5556,6 +5565,7 @@ public:
                 return;
             }
             pageStack->setCurrentIndex(pageIndex.toInt());
+            lastNavigationPageIndex = pageIndex.toInt();
             if (item->text(0) == QStringLiteral("Hardware info")) {
                 refreshHardwareInfoPage();
             } else if (item->text(0) == QStringLiteral("Frontend")) {
@@ -5627,7 +5637,7 @@ public:
         root->addLayout(buttons);
 
         resetDefaults();
-        navigation->setCurrentItem(quickstartPage);
+        navigation->setCurrentItem(navigationItemForPage(lastNavigationPageIndex, quickstartPage));
         if (!initialConfigPath.isEmpty()) {
             if (loadConfig(initialConfigPath)) {
                 setLoadedConfigDisplayPath(displayConfigPath);
@@ -5852,6 +5862,7 @@ private:
     QCheckBox *dfEnable[4] = {};
     QComboBox *dfType[4] = {};
     QComboBox *dfPath[4] = {};
+    QString floppyPathsAtOpen[4];
     QCheckBox *dfWriteProtect[4] = {};
     int dfBridgeSubtype[4] = {};
     QString dfBridgeSubtypeId[4];
@@ -6143,6 +6154,20 @@ private:
         layout->addWidget(navigation);
         layout->addWidget(pageFrame, 1);
         return content;
+    }
+
+    QTreeWidgetItem *navigationItemForPage(int pageIndex, QTreeWidgetItem *fallback) const
+    {
+        if (pageIndex < 0) {
+            return fallback;
+        }
+        for (QTreeWidgetItemIterator it(navigation); *it; ++it) {
+            const QVariant itemPage = (*it)->data(0, Qt::UserRole);
+            if (itemPage.isValid() && itemPage.toInt() == pageIndex) {
+                return *it;
+            }
+        }
+        return fallback;
     }
 
     QTreeWidgetItem *addPage(const QString &title, const QString &icon, QWidget *page, QTreeWidgetItem *parent = nullptr)
@@ -7729,6 +7754,21 @@ private:
                 browseDiskSwapperImage(row);
             }
         });
+        /* Like Windows: left click on the Drive column inserts/cycles the
+         * image through the drives, right click ejects it. */
+        connect(diskSwapperList, &QTableWidget::cellClicked, this, [this](int row, int column) {
+            if (column == 2) {
+                swapDiskSwapperEntry(row, false);
+            }
+        });
+        diskSwapperList->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(diskSwapperList, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
+            const QModelIndex index = diskSwapperList->indexAt(pos);
+            if (index.isValid() && index.column() == 2) {
+                diskSwapperList->selectRow(index.row());
+                swapDiskSwapperEntry(index.row(), true);
+            }
+        });
         connect(browse, &QPushButton::clicked, this, [this]() {
             browseDiskSwapperImage(selectedDiskSwapperSlot());
         });
@@ -7821,6 +7861,64 @@ private:
             }
             drive->setText(driveText);
         }
+    }
+
+    bool floppyDriveEnabled(int drive) const
+    {
+        return dfEnable[drive] && dfEnable[drive]->isChecked() && dfType[drive]
+            && floppyTypeConfigValue(dfType[drive]->currentText()) >= 0;
+    }
+
+    /* Port of win32gui.cpp disk_swap(). */
+    void swapDiskSwapperEntry(int entry, bool eject)
+    {
+        const QString image = diskSwapperPathAt(entry);
+        if (image.isEmpty()) {
+            return;
+        }
+        bool hasSwapperDisk[4] = {};
+        int imageDrive = -1;
+        for (int drive = 0; drive < 4; drive++) {
+            const QString inserted = dfPath[drive] ? dfPath[drive]->currentText() : QString();
+            if (inserted.isEmpty()) {
+                continue;
+            }
+            for (int slot = 0; slot < MaxDiskSwapperSlots; slot++) {
+                if (diskSwapperPathAt(slot) == inserted) {
+                    hasSwapperDisk[drive] = true;
+                    break;
+                }
+            }
+            if (imageDrive < 0 && inserted == image) {
+                imageDrive = drive;
+            }
+        }
+        if (imageDrive >= 0) {
+            if (eject) {
+                setPathComboText(dfPath[imageDrive], QString());
+                return;
+            }
+            /* Changed in this dialog: revert to the running disk, else eject. */
+            const QString atOpen = floppyPathsAtOpen[imageDrive];
+            setPathComboText(dfPath[imageDrive], dfPath[imageDrive]->currentText() != atOpen ? atOpen : QString());
+            if (!hasSwapperDisk[0] || !hasSwapperDisk[1] || !hasSwapperDisk[2] || !hasSwapperDisk[3]) {
+                int next = imageDrive + 1;
+                while (next < 4 && hasSwapperDisk[next]) {
+                    next++;
+                }
+                if (next < 4 && floppyDriveEnabled(next)) {
+                    setPathComboText(dfPath[next], image);
+                }
+            }
+            return;
+        }
+        for (int drive = 0; drive < 4; drive++) {
+            if (!hasSwapperDisk[drive] && floppyDriveEnabled(drive)) {
+                setPathComboText(dfPath[drive], image);
+                return;
+            }
+        }
+        setPathComboText(dfPath[0], image);
     }
 
     void browseDiskSwapperImage(int slot)
@@ -11715,8 +11813,70 @@ private:
         field->setCurrentText(current);
     }
 
+    QList<QPair<QString, QComboBox *>> historyPathCombos() const
+    {
+        /* All floppy fields share one history, like the Windows disk MRU. */
+        QList<QPair<QString, QComboBox *>> combos;
+        for (int i = 0; i < 4; i++) {
+            combos.append({ QStringLiteral("floppy"), dfPath[i] });
+        }
+        for (int i = 0; i < 2; i++) {
+            combos.append({ QStringLiteral("floppy"), quickDfPath[i] });
+        }
+        combos.append({ QStringLiteral("diskswapper"), diskSwapperPath });
+        combos.append({ QStringLiteral("cdslot"), cdSlotPath });
+        combos.append({ QStringLiteral("statefile"), stateFileName });
+        combos.append({ QStringLiteral("genlock"), genlockFile });
+        return combos;
+    }
+
+public:
+    void rememberFloppyPathsAtOpen()
+    {
+        for (int drive = 0; drive < 4; drive++) {
+            floppyPathsAtOpen[drive] = dfPath[drive] ? dfPath[drive]->currentText() : QString();
+        }
+    }
+
+    void restoreSessionPathHistory()
+    {
+        for (const auto &[group, field] : historyPathCombos()) {
+            if (!field) {
+                continue;
+            }
+            const QSignalBlocker blocker(field);
+            const QString current = field->currentText();
+            for (const QString &path : sessionPathHistory.value(group)) {
+                if (field->findText(path) < 0) {
+                    field->addItem(path);
+                }
+            }
+            field->setCurrentText(current);
+        }
+    }
+
+    void saveSessionPathHistory() const
+    {
+        QHash<QString, QStringList> history;
+        for (const auto &[group, field] : historyPathCombos()) {
+            if (!field) {
+                continue;
+            }
+            QStringList &paths = history[group];
+            for (int i = 0; i < field->count(); i++) {
+                const QString path = field->itemText(i);
+                if (!path.isEmpty() && !paths.contains(path)) {
+                    paths.append(path);
+                }
+            }
+        }
+        sessionPathHistory = history;
+    }
+
+private:
     void clearDiskHistoryCombos()
     {
+        sessionPathHistory.clear();
         for (int i = 0; i < 4; i++) {
             clearPathComboHistory(dfPath[i]);
         }
@@ -17001,8 +17161,12 @@ private:
         } else if (key == QStringLiteral("unix.ui.log_window")) {
             logWindow->setChecked(configBoolValue(value));
         } else if (key == QStringLiteral("unix.ui.gui_scale")) {
+            /* "Select..." means no scale was chosen: keep the current size. */
+            const QSignalBlocker blocker(miscGuiSize);
             miscGuiSize->setCurrentText(value);
-            applyGuiScaleSelection(false);
+            if (value.trimmed() != QStringLiteral("Select...")) {
+                applyGuiScaleSelection(false);
+            }
         } else if (key == QStringLiteral("unix.ui.gui_resize")) {
             miscGuiResize->setChecked(configBoolValue(value));
             applyGuiResizeMode();
@@ -18089,7 +18253,11 @@ static WinUaeQtLauncherResult runWinUaeQtLauncherDialog(QApplication &app, WinUa
         return roundtripResult;
     }
     armQtSmokeExit(dialog);
-    if (dialog.exec() == QDialog::Accepted) {
+    dialog.restoreSessionPathHistory();
+    dialog.rememberFloppyPathsAtOpen();
+    const int dialogResult = dialog.exec();
+    dialog.saveSessionPathHistory();
+    if (dialogResult == QDialog::Accepted) {
         return dialog.launcherResult();
     }
 
