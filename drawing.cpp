@@ -916,7 +916,7 @@ void set_custom_limits (int w, int h, int dx, int dy)
 		visible_top_start = 0;
 		visible_bottom_stop = MAX_STOP;
 	} else {
-		int startypos = (linear_vpos_vb_end + 1) << vshift;
+		int startypos = linear_vpos_vb_end << vshift;
 		visible_top_start = startypos + dy;
 		visible_bottom_stop = startypos + dy + h;
 		visible_top_start += hhadd;

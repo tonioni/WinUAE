@@ -1674,7 +1674,7 @@ static void update_display_vars(void)
 	int hiddentopv = (vblines - display_vblankstart_skip);
 	int hiddenbottomv = display_vblankend_skip;
 	int maxv = current_linear_vpos - (hiddentopv + hiddenbottomv) + 1;
-	linear_vpos_vb_end = current_linear_vpos_vb_end - display_vblankstart_skip - 1;
+	linear_vpos_vb_end = current_linear_vpos_vb_end - display_vblankstart_skip;
 	minfirstline = vblines - (display_vblankstart_skip > 0 ? display_vblankstart_skip : 0) - 1;
 	if (minfirstline < 2 * LINES_AFTER_VSYNC) {
 		minfirstline = 2 * LINES_AFTER_VSYNC;
@@ -10079,7 +10079,7 @@ static void vsync_mark(int cen)
 		}
 		vb_end_detect = false;
 		int off = currprefs.cs_hvcsync >= HVSYNC_SYNCPOS ? LINES_AFTER_VSYNC : linear_vb_offset;
-		minfirstline_linear = off;
+		minfirstline_linear = off - 1;
 	}
 }
 
@@ -11186,9 +11186,9 @@ static void custom_trigger_start(void)
 	if (!ecs_agnus) {
 		vpos &= 511;
 	}
+	linear_vpos++;
 	linear_vpos_start_prev = linear_vpos_start;
 	linear_vpos_start = linear_vpos;
-	linear_vpos++;
 	linear_vpos_vblank_lines_cnt++;
 	draw_line_next_line = 0;
 
