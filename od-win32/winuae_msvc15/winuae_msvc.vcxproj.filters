@@ -1744,6 +1744,141 @@
     <ClCompile Include="..\..\86box\winuae\86box_video.cpp">
       <Filter>86box</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_accumulate.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_allocator.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_block.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ir.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_3dnow.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_arith.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_branch.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_fpu_arith.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_fpu_constant.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_fpu_loadstore.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_fpu_misc.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_helpers.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_jump.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_logic.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_misc.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_arith.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_cmp.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_loadstore.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_logic.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_pack.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_shift.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mov.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_rep.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_shift.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_stack.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_reg.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\386_dynarec_ops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_486.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_686.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_common.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_k6.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_p6.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_pentium.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_winchip.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_winchip2.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_arm64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_arm64_imm.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_arm64_ops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_arm64_uops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_x86-64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_x86-64_ops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_x86-64_ops_sse.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_x86-64_uops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\86box\winuae\86box_glue.cpp">
       <Filter>86box</Filter>
     </ClCompile>

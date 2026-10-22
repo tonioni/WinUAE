@@ -1440,8 +1440,13 @@ codegen_backend_init(void)
         codegen_allocator_set_veneers(veneer_targets, sizeof(veneer_targets) / sizeof(veneer_targets[0]));
     }
 
+#    if defined UAE && defined _MSC_VER && !defined __clang__
+    /* FPCR, ARM64_SYSREG(3, 3, 4, 4, 0) */
+    cpu_state.old_fp_control = _ReadStatusReg(0x5a20);
+#    else
     asm("mrs %0, fpcr\n"
         : "=r"(cpu_state.old_fp_control));
+#    endif
 }
 
 void

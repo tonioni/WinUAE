@@ -1598,9 +1598,13 @@ codegen_backend_init(void)
 
     block_write_data = NULL;
 
+#    if defined UAE && defined _MSC_VER && !defined __clang__
+    cpu_state.old_fp_control = _mm_getcsr();
+#    else
     asm(
         "stmxcsr %0\n"
         : "=m"(cpu_state.old_fp_control));
+#    endif
     cpu_state.trunc_fp_control = cpu_state.old_fp_control | 0x6000;
 }
 

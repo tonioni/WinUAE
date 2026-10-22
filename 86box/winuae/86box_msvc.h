@@ -50,6 +50,12 @@
 /* C11's _Static_assert, which GCC and Clang also accept in C++ */
 #define _Static_assert static_assert
 
+/* The ARM64 recompiler flushes new code from the data cache with GCC's
+   helper; the files using it include windows.h */
+#if defined(_M_ARM64)
+#define __clear_cache(begin, end) \
+	FlushInstructionCache(GetCurrentProcess(), (begin), (SIZE_T)((char *)(end) - (char *)(begin)))
+#endif
 #define __builtin_bswap16(x) _byteswap_ushort(x)
 #define __builtin_bswap32(x) _byteswap_ulong(x)
 #define __builtin_bswap64(x) _byteswap_uint64(x)
