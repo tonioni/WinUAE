@@ -22,7 +22,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <wchar.h>
+#ifndef __cplusplus
 #include <stdatomic.h>
+#endif
 #include <stdbool.h>
 #define HAVE_STDARG_H
 #include <86box/86box.h>
@@ -3287,7 +3289,8 @@ s3_out(uint16_t addr, uint8_t val, void *priv)
                 case 0x4e:
                 case 0x4f:
                     ;
-                    uint16_t x_mask = 0x7ff;
+                    uint16_t x_mask;
+                    x_mask = 0x7ff;
 
                     if (((s3->chip >= S3_86C928) && (s3->chip <= S3_86C805I) && ((svga->bpp == 15) || (svga->bpp == 16)) && s3->elsa_eeprom && (svga->hwcursor_draw != NULL)))
                         x_mask = 0xfff;
@@ -6558,7 +6561,18 @@ s3_accel_write(uint32_t addr, uint8_t val, void *priv)
             s3_queue(s3, addr & addr_mask, val, FIFO_WRITE_BYTE);
         } else {
             switch (addr & addr_mask) {
-                case 0x83b0 ... 0x83df:
+                case 0x83b0: case 0x83b1: case 0x83b2: case 0x83b3:
+                case 0x83b4: case 0x83b5: case 0x83b6: case 0x83b7:
+                case 0x83b8: case 0x83b9: case 0x83ba: case 0x83bb:
+                case 0x83bc: case 0x83bd: case 0x83be: case 0x83bf:
+                case 0x83c0: case 0x83c1: case 0x83c2: case 0x83c3:
+                case 0x83c4: case 0x83c5: case 0x83c6: case 0x83c7:
+                case 0x83c8: case 0x83c9: case 0x83ca: case 0x83cb:
+                case 0x83cc: case 0x83cd: case 0x83ce: case 0x83cf:
+                case 0x83d0: case 0x83d1: case 0x83d2: case 0x83d3:
+                case 0x83d4: case 0x83d5: case 0x83d6: case 0x83d7:
+                case 0x83d8: case 0x83d9: case 0x83da: case 0x83db:
+                case 0x83dc: case 0x83dd: case 0x83de: case 0x83df:
                     s3_out(addr & 0x3ff, val, s3);
                     break;
                 case 0x8504:
@@ -6815,7 +6829,18 @@ s3_accel_read(uint32_t addr, void *priv)
         if ((addr >= 0x08000) && (addr <= 0x0803f))
             return s3_pci_read(0, (uint8_t) (addr & 0xff), 1, s3);
         switch (addr & 0x1ffff) {
-            case 0x83b0 ... 0x83df:
+            case 0x83b0: case 0x83b1: case 0x83b2: case 0x83b3:
+            case 0x83b4: case 0x83b5: case 0x83b6: case 0x83b7:
+            case 0x83b8: case 0x83b9: case 0x83ba: case 0x83bb:
+            case 0x83bc: case 0x83bd: case 0x83be: case 0x83bf:
+            case 0x83c0: case 0x83c1: case 0x83c2: case 0x83c3:
+            case 0x83c4: case 0x83c5: case 0x83c6: case 0x83c7:
+            case 0x83c8: case 0x83c9: case 0x83ca: case 0x83cb:
+            case 0x83cc: case 0x83cd: case 0x83ce: case 0x83cf:
+            case 0x83d0: case 0x83d1: case 0x83d2: case 0x83d3:
+            case 0x83d4: case 0x83d5: case 0x83d6: case 0x83d7:
+            case 0x83d8: case 0x83d9: case 0x83da: case 0x83db:
+            case 0x83dc: case 0x83dd: case 0x83de: case 0x83df:
                 return s3_in(addr & 0x3ff, s3);
             case 0x8504:
                 return s3->subsys_stat;
@@ -9659,8 +9684,10 @@ s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_data, vo
 
         case 14: /*ROPBlt (Vision868/968 only)*/
             ;
-            uint32_t mono_pattern[8][8] = { 0 };
-            int use_rop_mix = 0;
+            uint32_t mono_pattern[8][8];
+            int use_rop_mix;
+            memset(mono_pattern, 0, sizeof(mono_pattern));
+            use_rop_mix = 0;
 
             if ((s3->chip != S3_VISION968) && (s3->chip != S3_VISION868))
                 break;
@@ -10339,7 +10366,7 @@ s3_reset(void *priv)
         if (s3->pci)
             reset_state->pci_slot = s3->pci_slot;
 
-        *s3 = *reset_state;
+        memcpy((void *) s3, reset_state, sizeof(s3_t));
     } else
         s3_log("NULL reset.\n");
 }
@@ -10363,8 +10390,8 @@ s3_calc_crc16(const int ndata, const uint16_t *data)
 static void *
 s3_init(const device_t *info)
 {
-    s3_t *       s3          = calloc(1, sizeof(s3_t));
-                 reset_state = calloc(1, sizeof(s3_t));
+    s3_t *       s3          = (s3_t *) calloc(1, sizeof(s3_t));
+                 reset_state = (s3_t *) calloc(1, sizeof(s3_t));
     svga_t *     svga        = &s3->svga;
     char         fn[1024]    = { 0 };
     const char * bios_fn;
@@ -11418,7 +11445,7 @@ s3_init(const device_t *info)
         params.default_content  = s3->eeprom_data;
         params.filename         = fn;
         snprintf(fn, sizeof(fn), "nmc93cxx_eeprom_%s_%d.nvr", info->internal_name, s3->eeprom_inst);
-        s3->eeprom = device_add_inst_params(&nmc93cxx_device, s3->eeprom_inst, &params);
+        s3->eeprom = (nmc93cxx_eeprom_t *) device_add_inst_params(&nmc93cxx_device, s3->eeprom_inst, &params);
     }
 
     s3->accel.multifunc[0xd] = 0xd000;
@@ -11429,7 +11456,7 @@ s3_init(const device_t *info)
     s3->fifo_thread_run     = 1;
     s3->fifo_thread         = thread_create(mach64_fifo_thread, s3);
 
-    *reset_state = *s3;
+    memcpy((void *) reset_state, s3, sizeof(s3_t));
 
     return s3;
 }

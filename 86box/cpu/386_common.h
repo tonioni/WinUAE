@@ -943,11 +943,11 @@ x86_lock_legal(int is_0f, uint8_t opcode, uint8_t modrm)
     }
 
     switch (opcode) {
-        case 0x80 ... 0x83:
+        case 0x80: case 0x81: case 0x82: case 0x83:
             return reg != 7; /* not CMP */
-        case 0xf6 ... 0xf7:
+        case 0xf6: case 0xf7:
             return (reg == 2) || (reg == 3); /* NOT NEG */
-        case 0xfe ... 0xff:
+        case 0xfe: case 0xff:
             return reg <= 1; /* INC DEC */
         default:
             return 1;

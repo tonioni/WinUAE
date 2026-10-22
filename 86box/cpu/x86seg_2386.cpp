@@ -19,4 +19,4 @@
 #ifndef OPS_286_386
 #    define OPS_286_386
 #endif
-#include "x86seg.c"
+#include "x86seg.cpp"

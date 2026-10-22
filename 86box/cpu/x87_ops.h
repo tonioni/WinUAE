@@ -23,7 +23,13 @@
 #include <math.h>
 #include <fenv.h>
 
-#if defined _M_X64 || defined __amd64__
+#ifdef UAE
+/* MSVC has no inline assembler for x86-64, and WinUAE's MSVC project
+   defines __amd64__ too */
+#    if (defined _M_X64 || defined __amd64__) && (!defined _MSC_VER || defined __clang__)
+#        define X87_INLINE_ASM
+#    endif
+#elif defined _M_X64 || defined __amd64__
 #        define X87_INLINE_ASM
 #endif
 

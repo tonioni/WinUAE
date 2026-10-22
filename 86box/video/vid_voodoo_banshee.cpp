@@ -762,7 +762,18 @@ banshee_ext_out(uint16_t addr, uint8_t val, void *priv)
 #endif
 
     switch (addr & 0xff) {
-        case 0xb0 ... 0xdf:
+        case 0xb0: case 0xb1: case 0xb2: case 0xb3:
+        case 0xb4: case 0xb5: case 0xb6: case 0xb7:
+        case 0xb8: case 0xb9: case 0xba: case 0xbb:
+        case 0xbc: case 0xbd: case 0xbe: case 0xbf:
+        case 0xc0: case 0xc1: case 0xc2: case 0xc3:
+        case 0xc4: case 0xc5: case 0xc6: case 0xc7:
+        case 0xc8: case 0xc9: case 0xca: case 0xcb:
+        case 0xcc: case 0xcd: case 0xce: case 0xcf:
+        case 0xd0: case 0xd1: case 0xd2: case 0xd3:
+        case 0xd4: case 0xd5: case 0xd6: case 0xd7:
+        case 0xd8: case 0xd9: case 0xda: case 0xdb:
+        case 0xdc: case 0xdd: case 0xde: case 0xdf:
             banshee_out((addr & 0xff) + 0x300, val, priv);
             break;
 
@@ -787,7 +798,18 @@ banshee_ext_outw(uint16_t addr, uint16_t val, void *priv)
 #endif
 
     switch (addr & 0xff) {
-        case 0xb0 ... 0xdf:
+        case 0xb0: case 0xb1: case 0xb2: case 0xb3:
+        case 0xb4: case 0xb5: case 0xb6: case 0xb7:
+        case 0xb8: case 0xb9: case 0xba: case 0xbb:
+        case 0xbc: case 0xbd: case 0xbe: case 0xbf:
+        case 0xc0: case 0xc1: case 0xc2: case 0xc3:
+        case 0xc4: case 0xc5: case 0xc6: case 0xc7:
+        case 0xc8: case 0xc9: case 0xca: case 0xcb:
+        case 0xcc: case 0xcd: case 0xce: case 0xcf:
+        case 0xd0: case 0xd1: case 0xd2: case 0xd3:
+        case 0xd4: case 0xd5: case 0xd6: case 0xd7:
+        case 0xd8: case 0xd9: case 0xda: case 0xdb:
+        case 0xdc: case 0xdd: case 0xde: case 0xdf:
             banshee_ext_out(addr, val & 0xff, priv);
             banshee_ext_out(addr + 1, val >> 8, priv);
             break;
@@ -1032,7 +1054,18 @@ banshee_ext_in(uint16_t addr, void *priv)
     uint8_t ret = 0xff;
 
     switch (addr & 0xff) {
-        case 0xb0 ... 0xdf:
+        case 0xb0: case 0xb1: case 0xb2: case 0xb3:
+        case 0xb4: case 0xb5: case 0xb6: case 0xb7:
+        case 0xb8: case 0xb9: case 0xba: case 0xbb:
+        case 0xbc: case 0xbd: case 0xbe: case 0xbf:
+        case 0xc0: case 0xc1: case 0xc2: case 0xc3:
+        case 0xc4: case 0xc5: case 0xc6: case 0xc7:
+        case 0xc8: case 0xc9: case 0xca: case 0xcb:
+        case 0xcc: case 0xcd: case 0xce: case 0xcf:
+        case 0xd0: case 0xd1: case 0xd2: case 0xd3:
+        case 0xd4: case 0xd5: case 0xd6: case 0xd7:
+        case 0xd8: case 0xd9: case 0xda: case 0xdb:
+        case 0xdc: case 0xdd: case 0xde: case 0xdf:
             ret = banshee_in((addr & 0xff) + 0x300, priv);
             break;
 
@@ -1054,7 +1087,18 @@ banshee_ext_inw(uint16_t addr, void *priv)
     uint16_t ret;
 
     switch (addr & 0xff) {
-        case 0xb0 ... 0xdf:
+        case 0xb0: case 0xb1: case 0xb2: case 0xb3:
+        case 0xb4: case 0xb5: case 0xb6: case 0xb7:
+        case 0xb8: case 0xb9: case 0xba: case 0xbb:
+        case 0xbc: case 0xbd: case 0xbe: case 0xbf:
+        case 0xc0: case 0xc1: case 0xc2: case 0xc3:
+        case 0xc4: case 0xc5: case 0xc6: case 0xc7:
+        case 0xc8: case 0xc9: case 0xca: case 0xcb:
+        case 0xcc: case 0xcd: case 0xce: case 0xcf:
+        case 0xd0: case 0xd1: case 0xd2: case 0xd3:
+        case 0xd4: case 0xd5: case 0xd6: case 0xd7:
+        case 0xd8: case 0xd9: case 0xda: case 0xdb:
+        case 0xdc: case 0xdd: case 0xde: case 0xdf:
             ret = banshee_ext_in(addr, priv);
             ret |= banshee_ext_in(addr + 1, priv) << 8;
             break;
@@ -3374,7 +3418,7 @@ banshee_init_common(const device_t *info, const char *fn, const int has_sgram,
                     const int type, const int voodoo_type, const int agp, const int clamp)
 {
     int        mem_size;
-    banshee_t *banshee = calloc(1, sizeof(banshee_t));
+    banshee_t *banshee = (banshee_t *) calloc(1, sizeof(banshee_t));
 
     banshee->type     = type;
     banshee->agp      = agp;
@@ -3460,7 +3504,7 @@ banshee_init_common(const device_t *info, const char *fn, const int has_sgram,
     else
         pci_add_card(banshee->agp ? PCI_ADD_AGP : PCI_ADD_VIDEO, banshee_pci_read, banshee_pci_write, banshee, &banshee->pci_slot);
 
-    banshee->voodoo               = voodoo_2d3d_card_init(voodoo_type);
+    banshee->voodoo               = (voodoo_t *) voodoo_2d3d_card_init(voodoo_type);
     banshee->voodoo->priv         = banshee;
     banshee->voodoo->vram         = banshee->svga.vram;
     banshee->voodoo->vram_max     = banshee->svga.vram_max;

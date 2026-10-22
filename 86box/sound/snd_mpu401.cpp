@@ -1788,7 +1788,7 @@ mpu401_standalone_init(const device_t *info)
     int      irq;
     uint16_t base;
 
-    mpu = calloc(1, sizeof(mpu_t));
+    mpu = (mpu_t *) calloc(1, sizeof(mpu_t));
 
     mpu401_log("mpu_init\n");
 

@@ -100,6 +100,13 @@
 #    define LIKELY(x)   (x)
 #endif
 
+#ifdef __cplusplus
+#    include <atomic>
+using atomic_int  = std::atomic_int;
+using atomic_uint = std::atomic_uint;
+using atomic_bool = std::atomic_bool;
+#endif
+
 /* Platform-specific atomic handling */
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     /* On x86/x64, aligned int/uint32_t accesses are naturally atomic */

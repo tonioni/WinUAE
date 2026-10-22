@@ -499,15 +499,13 @@ static void
 ltsermouse_switch_baud_rate(mouse_t *dev, int next_state, int prompt_off)
 {
     double word_lens[FORMATS_NUM] = {
-        [FORMAT_BP1_ABS]   = 7.0 + 1.0, /* 7 data bits + even parity */
-        [FORMAT_BP1_REL]   = 7.0 + 1.0, /* 7 data bits + even parity */
-        [FORMAT_MM_SERIES] = 8.0 + 1.0, /* 8 data bits + odd parity */
-        [FORMAT_PB_3BYTE]  = 8.0,       /* 8 data bits + no parity */
-        [FORMAT_PB_5BYTE]  = 8.0,       /* 8 data bits + no parity */
-        [FORMAT_MS]        = 7.0,       /* 7 datas bits + no parity */
-        [FORMAT_HEX]       = 8.0,       /* 8 data bits + no parity */
-        [FORMAT_MS_4BYTE]  = 7.0,       /* 7 datas bits + no parity */
-        [FORMAT_MS_WHEEL]  = 7.0        /* 7 datas bits + no parity */
+                0, 7.0 + 1.0, 7.0 + 1.0,         0,
+                0,         0,         0,         0,
+                0,         0,         0,         0,
+                0,         0,         0,         0,
+                0,         0,         0, 8.0 + 1.0,
+              8.0,       8.0,       7.0,       8.0,
+              7.0,       7.0
     };
     double word_len = word_lens[dev->format];
 
@@ -561,15 +559,8 @@ ltsermouse_process_command(mouse_t *dev)
     int     cmd_to_rps[9] = { 10, 20, 35, 70, 150, 0, -1, 100, 50 };
     int     b;
     uint8_t format_codes[FORMATS_NUM] = {
-        [FORMAT_BP1_ABS]   = 0x0c,
-        [FORMAT_BP1_REL]   = 0x06,
-        [FORMAT_MM_SERIES] = 0x0a,
-        [FORMAT_PB_3BYTE]  = 0x00,
-        [FORMAT_PB_5BYTE]  = 0x02,
-        [FORMAT_MS]        = 0x0e,
-        [FORMAT_HEX]       = 0x04,
-        [FORMAT_MS_4BYTE]  = 0x08, /* Guess */
-        [FORMAT_MS_WHEEL]  = 0x08  /* Guess */
+           0, 0x0c, 0x06,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+           0,    0,    0, 0x0a, 0x00, 0x02, 0x0e, 0x04, 0x08, 0x08
     };
     const char *copr = "\r\n(C) " COPYRIGHT_YEAR " 86Box, Revision 3.0";
 

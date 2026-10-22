@@ -951,7 +951,7 @@ voodoo_half_triangle(voodoo_t *voodoo, voodoo_params_t *params, voodoo_state_t *
     }
 #ifndef NO_CODEGEN
     if (voodoo->use_recompiler)
-        voodoo_draw = voodoo_get_block(voodoo, params, state, odd_even);
+        voodoo_draw = (uint8_t (*)(voodoo_state_t *, voodoo_params_t *, int, int)) voodoo_get_block(voodoo, params, state, odd_even);
     else
         voodoo_draw = NULL;
 #endif

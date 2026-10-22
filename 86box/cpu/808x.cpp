@@ -1028,20 +1028,21 @@ cpu_808x_access(int num, UNUSED(int bits))
     switch (num) {
         case  0:
         case 61:
-        case 63 ... 64:
+        case 63: case 64:
         case 67:
         case 69:
-        case 71 ... 72:
+        case 71: case 72:
         default:
             break;
         case  1:
-        case  6 ...  9:
+        case 6: case 7: case 8: case 9:
         case 17:
-        case 20 ... 21:
+        case 20: case 21:
         case 24:
         case 28:
-        case 47 ... 51:
-        case 55 ... 56:
+        case 47: case 48: case 49: case 50:
+        case 51:
+        case 55: case 56:
         case 62:
         case 66:
         case 68:
@@ -1050,15 +1051,15 @@ cpu_808x_access(int num, UNUSED(int bits))
         case  3:
         case 11:
         case 15:
-        case 22 ... 23:
-        case 25 ... 26:
+        case 22: case 23:
+        case 25: case 26:
         case 35:
-        case 44 ... 46:
-        case 52 ... 54:
+        case 44: case 45: case 46:
+        case 52: case 53: case 54:
             wait_cycs(2, 0);
             break;
         case 16:
-        case 18 ... 19:
+        case 18: case 19:
         case 27:
         case 32:
         case 37:
@@ -1066,9 +1067,9 @@ cpu_808x_access(int num, UNUSED(int bits))
             wait_cycs(3, 0);
             break;
         case 10:
-        case 12 ... 14:
-        case 29 ... 30:
-        case 33 ... 34:
+        case 12: case 13: case 14:
+        case 29: case 30:
+        case 33: case 34:
         case 39:
         case 41:
         case 60:
@@ -2061,7 +2062,7 @@ execx86_instruction(void)
                 handled = 1;
                 break;
 
-            case 0x6c ... 0x6d:    /* INM dst, DW/INS dst, DX */
+            case 0x6c: case 0x6d:    /* INM dst, DW/INS dst, DX */
                 bits    = 8 << (opcode & 1);
                 handled = 1;
                 if (!repeating)
@@ -2087,7 +2088,7 @@ execx86_instruction(void)
                 clock_end();
                 break;
 
-            case 0x6e ... 0x6f:    /* OUTM DW, src/OUTS DX, src */
+            case 0x6e: case 0x6f:    /* OUTM DW, src/OUTS DX, src */
                 dest_seg = ovr_seg ? *ovr_seg : ds;
                 bits     = 8 << (opcode & 1);
                 handled  = 1;
@@ -2134,7 +2135,7 @@ execx86_instruction(void)
                 handled = 1;
                 break;
 
-            case 0xc0 ... 0xc1:    /* rot imm8 */
+            case 0xc0: case 0xc1:    /* rot imm8 */
                 bits = 8 << (opcode & 1);
                 do_mod_rm();
                 if (cpu_mod == 3)
@@ -2267,14 +2268,14 @@ execx86_instruction(void)
                 completed = 0;
                 break;
 
-             case 0x00 ... 0x03:    /* alu rm, r / r, rm */
-             case 0x08 ... 0x0b:
-             case 0x10 ... 0x13:
-             case 0x18 ... 0x1b:
-             case 0x20 ... 0x23:
-             case 0x28 ... 0x2b:
-             case 0x30 ... 0x33:
-             case 0x38 ... 0x3b:
+             case 0x00: case 0x01: case 0x02: case 0x03:    /* alu rm, r / r, rm */
+             case 0x08: case 0x09: case 0x0a: case 0x0b:
+             case 0x10: case 0x11: case 0x12: case 0x13:
+             case 0x18: case 0x19: case 0x1a: case 0x1b:
+             case 0x20: case 0x21: case 0x22: case 0x23:
+             case 0x28: case 0x29: case 0x2a: case 0x2b:
+             case 0x30: case 0x31: case 0x32: case 0x33:
+             case 0x38: case 0x39: case 0x3a: case 0x3b:
                 bits = 8 << (opcode & 1);
                 do_mod_rm();
                 cpu_808x_access(46, bits);
@@ -2305,14 +2306,14 @@ execx86_instruction(void)
                     wait_cycs(1, 0);
                 break;
 
-            case 0x04 ... 0x05:    /* alu A, imm */
-            case 0x0c ... 0x0d:
-            case 0x14 ... 0x15:
-            case 0x1c ... 0x1d:
-            case 0x24 ... 0x25:
-            case 0x2c ... 0x2d:
-            case 0x34 ... 0x35:
-            case 0x3c ... 0x3d:
+            case 0x04: case 0x05:    /* alu A, imm */
+            case 0x0c: case 0x0d:
+            case 0x14: case 0x15:
+            case 0x1c: case 0x1d:
+            case 0x24: case 0x25:
+            case 0x2c: case 0x2d:
+            case 0x34: case 0x35:
+            case 0x3c: case 0x3d:
                 bits = 8 << (opcode & 1);
                 wait_cycs(1, 0);
                 cpu_data   = pfq_fetch();
@@ -2402,7 +2403,10 @@ execx86_instruction(void)
                 aa();
                 break;
 
-            case 0x40 ... 0x4f:    /* INCDEC rw */
+            case 0x40: case 0x41: case 0x42: case 0x43:
+            case 0x44: case 0x45: case 0x46: case 0x47:
+            case 0x48: case 0x49: case 0x4a: case 0x4b:
+            case 0x4c: case 0x4d: case 0x4e: case 0x4f:    /* INCDEC rw */
                 wait_cycs(1, 0);
                 cpu_dest = cpu_state.regs[opcode & 7].w;
                 cpu_src  = 1;
@@ -2419,46 +2423,48 @@ execx86_instruction(void)
                 cpu_state.regs[opcode & 7].w = cpu_data;
                 break;
 
-            case 0x50 ... 0x57:    /* PUSH r16 */
+            case 0x50: case 0x51: case 0x52: case 0x53:
+            case 0x54: case 0x55: case 0x56: case 0x57:    /* PUSH r16 */
                 cpu_808x_access(30, 16);
                 push(&(cpu_state.regs[opcode & 0x07].w));
                 break;
-            case 0x58 ... 0x5f:    /* POP r16 */
+            case 0x58: case 0x59: case 0x5a: case 0x5b:
+            case 0x5c: case 0x5d: case 0x5e: case 0x5f:    /* POP r16 */
                 cpu_808x_access(23, 16);
                 cpu_state.regs[opcode & 0x07].w = pop();
                 wait_cycs(1, 0);
                 break;
 
-            case 0x70 ... 0x71:    /* JO, JNO */
+            case 0x70: case 0x71:    /* JO, JNO */
                 jcc(opcode, cpu_state.flags & V_FLAG);
                 break;
-            case 0x72 ... 0x73:    /* JB, JNB */
+            case 0x72: case 0x73:    /* JB, JNB */
                 jcc(opcode, cpu_state.flags & C_FLAG);
                 break;
-            case 0x74 ... 0x75:    /* JE, JNE */
+            case 0x74: case 0x75:    /* JE, JNE */
                 jcc(opcode, cpu_state.flags & Z_FLAG);
                 break;
-            case 0x76 ... 0x77:    /* JBE, JBBE */
+            case 0x76: case 0x77:    /* JBE, JBBE */
                 jcc(opcode, cpu_state.flags & (C_FLAG | Z_FLAG));
                 break;
-            case 0x78 ... 0x79:    /* JS, JNS */
+            case 0x78: case 0x79:    /* JS, JNS */
                 jcc(opcode, cpu_state.flags & N_FLAG);
                 break;
-            case 0x7a ... 0x7b:    /* JP, JNP */
+            case 0x7a: case 0x7b:    /* JP, JNP */
                 jcc(opcode, cpu_state.flags & P_FLAG);
                 break;
-            case 0x7c ... 0x7d:    /* JL, JNL */
+            case 0x7c: case 0x7d:    /* JL, JNL */
                 temp  = (cpu_state.flags & N_FLAG) ? 1 : 0;
                 temp2 = (cpu_state.flags & V_FLAG) ? 1 : 0;
                 jcc(opcode, temp ^ temp2);
                 break;
-            case 0x7e ... 0x7f:    /* JLE, JNLE */
+            case 0x7e: case 0x7f:    /* JLE, JNLE */
                 temp  = (cpu_state.flags & N_FLAG) ? 1 : 0;
                 temp2 = (cpu_state.flags & V_FLAG) ? 1 : 0;
                 jcc(opcode, (cpu_state.flags & Z_FLAG) || (temp != temp2));
                 break;
 
-            case 0x80 ... 0x83:    /* alu rm, imm */
+            case 0x80: case 0x81: case 0x82: case 0x83:    /* alu rm, imm */
                 bits = 8 << (opcode & 1);
                 do_mod_rm();
                 cpu_808x_access(47, bits);
@@ -2490,7 +2496,7 @@ execx86_instruction(void)
                 }
                 break;
 
-            case 0x84 ... 0x85:
+            case 0x84: case 0x85:
                 /* TEST rm, reg */
                 bits = 8 << (opcode & 1);
                 do_mod_rm();
@@ -2501,7 +2507,7 @@ execx86_instruction(void)
                     wait_cycs(2, 0);
                 wait_cycs(2, 0);
                 break;
-            case 0x86 ... 0x87:
+            case 0x86: case 0x87:
                 /* XCHG rm, reg */
                 bits = 8 << (opcode & 1);
                 do_mod_rm();
@@ -2514,7 +2520,7 @@ execx86_instruction(void)
                 set_ea(cpu_src);
                 break;
 
-            case 0x88 ... 0x89:
+            case 0x88: case 0x89:
                 /* MOV rm, reg */
                 bits = 8 << (opcode & 1);
                 do_mod_rm();
@@ -2522,7 +2528,7 @@ execx86_instruction(void)
                 cpu_808x_access(13, bits);
                 set_ea(get_reg(cpu_reg));
                 break;
-            case 0x8a ... 0x8b:
+            case 0x8a: case 0x8b:
                 /* MOV reg, rm */
                 bits = 8 << (opcode & 1);
                 do_mod_rm();
@@ -2579,7 +2585,8 @@ execx86_instruction(void)
                 seteaw(cpu_data);
                 break;
 
-            case 0x90 ... 0x97:    /* XCHG AX, rw */
+            case 0x90: case 0x91: case 0x92: case 0x93:
+            case 0x94: case 0x95: case 0x96: case 0x97:    /* XCHG AX, rw */
                 wait_cycs(1, 0);
                 cpu_data                     = cpu_state.regs[opcode & 7].w;
                 cpu_state.regs[opcode & 7].w = AX;
@@ -2674,7 +2681,7 @@ execx86_instruction(void)
                 AH = cpu_state.flags & 0xd7;
                 break;
 
-            case 0xa0 ... 0xa1:    /* MOV A, [iw] */
+            case 0xa0: case 0xa1:    /* MOV A, [iw] */
                 bits = 8 << (opcode & 1);
                 wait_cycs(1, 0);
                 cpu_state.eaaddr = pfq_fetchw();
@@ -2682,7 +2689,7 @@ execx86_instruction(void)
                 set_accum(bits, readmem((ovr_seg ? *ovr_seg : ds)));
                 wait_cycs(1, 0);
                 break;
-            case 0xa2 ... 0xa3:    /* MOV [iw], A */
+            case 0xa2: case 0xa3:    /* MOV [iw], A */
                 bits = 8 << (opcode & 1);
                 wait_cycs(1, 0);
                 cpu_state.eaaddr = pfq_fetchw();
@@ -2690,8 +2697,8 @@ execx86_instruction(void)
                 writemem((ovr_seg ? *ovr_seg : ds), get_accum(bits));
                 break;
 
-            case 0xa4 ... 0xa5:    /* MOVS */
-            case 0xac ... 0xad:    /* LODS */
+            case 0xa4: case 0xa5:    /* MOVS */
+            case 0xac: case 0xad:    /* LODS */
                 bits = 8 << (opcode & 1);
                 if (!repeating) {
                     wait_cycs(1, 0);
@@ -2727,8 +2734,8 @@ execx86_instruction(void)
                     clock_end();
                 break;
 
-            case 0xa6 ... 0xa7:    /* CMPS */
-            case 0xae ... 0xaf:    /* SCAS */
+            case 0xa6: case 0xa7:    /* CMPS */
+            case 0xae: case 0xaf:    /* SCAS */
                 bits = 8 << (opcode & 1);
                 if (!repeating)
                     wait_cycs(1, 0);
@@ -2767,7 +2774,7 @@ execx86_instruction(void)
                     clock_end();
                 break;
 
-            case 0xa8 ... 0xa9:    /* TEST A, imm */
+            case 0xa8: case 0xa9:    /* TEST A, imm */
                 bits = 8 << (opcode & 1);
                 wait_cycs(1, 0);
                 cpu_data = pfq_fetch();
@@ -2775,7 +2782,7 @@ execx86_instruction(void)
                 wait_cycs(1, 0);
                 break;
 
-            case 0xaa ... 0xab:    /* STOS */
+            case 0xaa: case 0xab:    /* STOS */
                 bits = 8 << (opcode & 1);
                 if (!repeating) {
                     wait_cycs(1, 0);
@@ -2798,7 +2805,8 @@ execx86_instruction(void)
                     clock_end();
                 break;
 
-            case 0xb0 ... 0xb7:    /* MOV cpu_reg,#8 */
+            case 0xb0: case 0xb1: case 0xb2: case 0xb3:
+            case 0xb4: case 0xb5: case 0xb6: case 0xb7:    /* MOV cpu_reg,#8 */
                 wait_cycs(1, 0);
                 if (opcode & 0x04)
                     cpu_state.regs[opcode & 0x03].b.h = pfq_fetchb();
@@ -2807,14 +2815,15 @@ execx86_instruction(void)
                 wait_cycs(1, 0);
                 break;
 
-            case 0xb8 ... 0xbf:    /* MOV cpu_reg,#16 */
+            case 0xb8: case 0xb9: case 0xba: case 0xbb:
+            case 0xbc: case 0xbd: case 0xbe: case 0xbf:    /* MOV cpu_reg,#16 */
                 wait_cycs(1, 0);
                 cpu_state.regs[opcode & 0x07].w = pfq_fetchw();
                 wait_cycs(1, 0);
                 break;
 
-            case 0xc0 ... 0xc3:    /* RET */
-            case 0xc8 ... 0xcb:
+            case 0xc0: case 0xc1: case 0xc2: case 0xc3:    /* RET */
+            case 0xc8: case 0xc9: case 0xca: case 0xcb:
                 bits = 8 + (opcode & 0x08);
                 if ((opcode & 9) != 1)
                     wait_cycs(1, 0);
@@ -2850,7 +2859,7 @@ execx86_instruction(void)
                     biu_queue_flush();
                 break;
 
-            case 0xc4 ... 0xc5:    /* LsS rw, rmd */
+            case 0xc4: case 0xc5:    /* LsS rw, rmd */
                 do_mod_rm();
                 bits = 16;
                 cpu_808x_access(52, bits);
@@ -2862,7 +2871,7 @@ execx86_instruction(void)
                 wait_cycs(1, 0);
                 break;
 
-            case 0xc6 ... 0xc7:    /* MOV rm, imm */
+            case 0xc6: case 0xc7:    /* MOV rm, imm */
                 bits = 8 << (opcode & 1);
                 do_mod_rm();
                 wait_cycs(1, 0);
@@ -2915,7 +2924,7 @@ execx86_instruction(void)
                 cpu_dhlt_last_event = 2;
                 break;
 
-            case 0xd0 ... 0xd3:    /* rot rm */
+            case 0xd0: case 0xd1: case 0xd2: case 0xd3:    /* rot rm */
                 bits = 8 << (opcode & 1);
                 do_mod_rm();
                 if (cpu_mod == 3)
@@ -3043,7 +3052,8 @@ execx86_instruction(void)
                 wait_cycs(1, 0);
                 break;
 
-            case 0xd8 ... 0xdf:    /* esc i, r, rm */
+            case 0xd8: case 0xd9: case 0xda: case 0xdb:
+            case 0xdc: case 0xdd: case 0xde: case 0xdf:    /* esc i, r, rm */
                 do_mod_rm();
                 cpu_808x_access(54, 16);
                 tempw = cpu_state.pc;
@@ -3121,7 +3131,7 @@ execx86_instruction(void)
                     wait_cycs(2, 0);
                 break;
 
-            case 0xe0 ... 0xe3:    /* LOOP */
+            case 0xe0: case 0xe1: case 0xe2: case 0xe3:    /* LOOP */
                 wait_cycs(3, 0);
                 cpu_data = pfq_fetchb();
                 if (opcode != 0xe2)
@@ -3145,8 +3155,8 @@ execx86_instruction(void)
                     jump_short();
                 break;
 
-            case 0xe4 ... 0xe7:
-            case 0xec ... 0xef:
+            case 0xe4: case 0xe5: case 0xe6: case 0xe7:
+            case 0xec: case 0xed: case 0xee: case 0xef:
                 bits = 8 << (opcode & 1);
                 if ((opcode & 0x0e) != 0x0c)
                     wait_cycs(1, 0);
@@ -3206,13 +3216,13 @@ execx86_instruction(void)
                 wait_cycs(1, 0);
                 break;
 
-            case 0xf0 ... 0xf1:    /*LOCK - F1 is alias*/
+            case 0xf0: case 0xf1:    /*LOCK - F1 is alias*/
                 in_lock = 1;
                 wait_cycs(1, 0);
                 completed = 0;
                 break;
 
-            case 0xf2 ... 0xf3:    /* REPNE, REPE */
+            case 0xf2: case 0xf3:    /* REPNE, REPE */
                 wait_cycs(1, 0);
                 in_rep     = (opcode == 0xf2 ? 1 : 2);
                 completed  = 0;
@@ -3239,7 +3249,7 @@ execx86_instruction(void)
                 cpu_state.flags ^= C_FLAG;
                 break;
 
-            case 0xf6 ... 0xf7:
+            case 0xf6: case 0xf7:
                 bits = 8 << (opcode & 1);
                 do_mod_rm();
                 cpu_808x_access(55, bits);
@@ -3302,22 +3312,22 @@ execx86_instruction(void)
                 }
                 break;
 
-            case 0xf8 ... 0xf9:    /* CLCSTC */
+            case 0xf8: case 0xf9:    /* CLCSTC */
                 wait_cycs(1, 0);
                 set_cf(opcode & 1);
                 break;
-            case 0xfa ... 0xfb:    /* CLISTI */
+            case 0xfa: case 0xfb:    /* CLISTI */
                 wait_cycs(1, 0);
                 if ((opcode & 1) && !(cpu_state.flags & I_FLAG))
                     noint = 1;
                 set_if(opcode & 1);
                 break;
-            case 0xfc ... 0xfd:    /* CLDSTD */
+            case 0xfc: case 0xfd:    /* CLDSTD */
                 wait_cycs(1, 0);
                 set_df(opcode & 1);
                 break;
 
-            case 0xfe ... 0xff:    /* misc */
+            case 0xfe: case 0xff:    /* misc */
                 bits = 8 << (opcode & 1);
                 do_mod_rm();
                 cpu_808x_access(56, bits);

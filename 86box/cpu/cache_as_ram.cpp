@@ -245,7 +245,7 @@ cpu_car_update(void)
 
         if (r->size) {
             /* The handlers' word and long accesses stay within a granule. */
-            r->data = realloc(r->data, r->size);
+            r->data = (uint8_t *) realloc(r->data, r->size);
             memset(r->data, 0xff, r->size);
         } else {
             free(r->data);

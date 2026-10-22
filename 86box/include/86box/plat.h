@@ -138,6 +138,7 @@ extern int strnicmp(const char *s1, const char *s2, size_t n);
 #    include <atomic>
 #    define atomic_flag_t std::atomic_flag
 #    define atomic_bool_t std::atomic_bool
+#    define fallthrough [[fallthrough]]
 
 extern "C" {
 #else

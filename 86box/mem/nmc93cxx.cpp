@@ -180,7 +180,7 @@ nmc93cxx_eeprom_set_state(nmc93cxx_eeprom_t *dev, EepromState state)
 static void
 nmc93cxx_eeprom_cmd_complete_timer_callback(void *priv)
 {
-    nmc93cxx_eeprom_t *dev = priv;
+    nmc93cxx_eeprom_t *dev = (nmc93cxx_eeprom_t *) priv;
 
     dev->is_busy = false;
 }
@@ -291,7 +291,12 @@ nmc93cxx_eeprom_init(const device_t *info)
         assert(data_bits == 8);
     }
 
-    dev = calloc(1, offsetof(nmc93cxx_eeprom_t, array_data[nwords]));
+#ifdef UAE
+    /* GCC's C++ offsetof only takes constant array indices */
+    dev = (nmc93cxx_eeprom_t *) calloc(1, offsetof(nmc93cxx_eeprom_t, array_data) + nwords * sizeof(dev->array_data[0]));
+#else
+    dev = (nmc93cxx_eeprom_t *) calloc(1, offsetof(nmc93cxx_eeprom_t, array_data[nwords]));
+#endif
     if (!dev)
         return NULL;
     dev->cells = cells;
@@ -660,7 +665,7 @@ nmc93cxx_eeprom_read(nmc93cxx_eeprom_t *dev)
 static void
 nmc93cxx_eeprom_close(void *priv)
 {
-    nmc93cxx_eeprom_t *dev = priv;
+    nmc93cxx_eeprom_t *dev = (nmc93cxx_eeprom_t *) priv;
     FILE              *fp  = nvr_fopen(dev->filename, "wb");
     if (fp) {
         fwrite(dev->array_data, dev->data_bits / 8, dev->cells, fp);

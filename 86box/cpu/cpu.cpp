@@ -2972,7 +2972,7 @@ cpu_RDMSR(void)
                     break;
                 /* Unknown */
                 case 0x131:
-                case 0x142 ... 0x145:
+                case 0x142: case 0x143: case 0x144: case 0x145:
                 case 0x147:
                 case 0x150:
                 case 0x151:
@@ -3054,7 +3054,10 @@ cpu_RDMSR(void)
                     break;
                 /* ECX & 0: MTRRphysBase0 ... MTRRphysBase7
                    ECX & 1: MTRRphysMask0 ... MTRRphysMask7 */
-                case 0x200 ... 0x20f:
+                case 0x200: case 0x201: case 0x202: case 0x203:
+                case 0x204: case 0x205: case 0x206: case 0x207:
+                case 0x208: case 0x209: case 0x20a: case 0x20b:
+                case 0x20c: case 0x20d: case 0x20e: case 0x20f:
                     if (ECX & 1) {
                         EAX = msr.mtrr_physmask[(ECX - 0x200) >> 1] & 0xffffffff;
                         EDX = msr.mtrr_physmask[(ECX - 0x200) >> 1] >> 32;
@@ -3079,7 +3082,8 @@ cpu_RDMSR(void)
                     EDX = msr.mtrr_fix16k_a000 >> 32;
                     break;
                 /* MTRRfix4K_C0000 ... MTRRfix4K_F8000 */
-                case 0x268 ... 0x26f:
+                case 0x268: case 0x269: case 0x26a: case 0x26b:
+                case 0x26c: case 0x26d: case 0x26e: case 0x26f:
                     EAX = msr.mtrr_fix4k[ECX - 0x268] & 0xffffffff;
                     EDX = msr.mtrr_fix4k[ECX - 0x268] >> 32;
                     break;
@@ -3375,7 +3379,7 @@ amd_k_invalid_rdmsr:
                 case 0x80000003:
                 case 0x8000000a:
                 case 0x8000000f:
-                case 0x80000015 ... 0x80000017:
+                case 0x80000015: case 0x80000016: case 0x80000017:
                     EAX = (ECX & 0x1f) * 2;
                     break;
                 default:
@@ -3530,7 +3534,8 @@ pentium_invalid_rdmsr:
                 case 0x34:
                 case 0x3a:
                 case 0x3b:
-                case 0x50 ... 0x54:
+                case 0x50: case 0x51: case 0x52: case 0x53:
+                case 0x54:
                     break;
                 /* BIOS_UPDT_TRIG - BIOS Update Trigger */
                 case 0x79:
@@ -3539,7 +3544,7 @@ pentium_invalid_rdmsr:
                     break;
                 /* BBL_CR_D0 ... BBL_CR_D3 - Chunk 0..3 Data Register
                    8Bh: BIOS_SIGN - BIOS Update Signature */
-                case 0x88 ... 0x8b:
+                case 0x88: case 0x89: case 0x8a: case 0x8b:
                     EAX = msr.bbl_cr_dx[p6_msr - 0x88] & 0xffffffff;
                     EDX = msr.bbl_cr_dx[p6_msr - 0x88] >> 32;
                     break;
@@ -3590,7 +3595,7 @@ pentium_invalid_rdmsr:
                     break;
                 /* Unknown */
                 case 0x131:
-                case 0x14e ... 0x151:
+                case 0x14e: case 0x14f: case 0x150: case 0x151:
                 case 0x154:
                 case 0x15b:
                 case 0x15f:
@@ -3654,7 +3659,10 @@ pentium_invalid_rdmsr:
                     break;
                 /* ECX & 0: MTRRphysBase0 ... MTRRphysBase7
                    ECX & 1: MTRRphysMask0 ... MTRRphysMask7 */
-                case 0x200 ... 0x20f:
+                case 0x200: case 0x201: case 0x202: case 0x203:
+                case 0x204: case 0x205: case 0x206: case 0x207:
+                case 0x208: case 0x209: case 0x20a: case 0x20b:
+                case 0x20c: case 0x20d: case 0x20e: case 0x20f:
                     if (p6_msr & 1) {
                         EAX = msr.mtrr_physmask[(p6_msr - 0x200) >> 1] & 0xffffffff;
                         EDX = msr.mtrr_physmask[(p6_msr - 0x200) >> 1] >> 32;
@@ -3679,7 +3687,8 @@ pentium_invalid_rdmsr:
                     EDX = msr.mtrr_fix16k_a000 >> 32;
                     break;
                 /* MTRRfix4K_C0000 ... MTRRfix4K_F8000 */
-                case 0x268 ... 0x26f:
+                case 0x268: case 0x269: case 0x26a: case 0x26b:
+                case 0x26c: case 0x26d: case 0x26e: case 0x26f:
                     EAX = msr.mtrr_fix4k[p6_msr - 0x268] & 0xffffffff;
                     EDX = msr.mtrr_fix4k[p6_msr - 0x268] >> 32;
                     break;
@@ -3738,10 +3747,11 @@ pentium_invalid_rdmsr:
                     EDX = msr.ecx570 >> 32;
                     break;
                 /* Unknown, possibly debug registers? */
-                case 0x1000 ... 0x1007:
+                case 0x1000: case 0x1001: case 0x1002: case 0x1003:
+                case 0x1004: case 0x1005: case 0x1006: case 0x1007:
                 /* Unknown, possibly control registers? */
                 case 0x2000:
-                case 0x2002 ... 0x2004:
+                case 0x2002: case 0x2003: case 0x2004:
                     break;
                 default:
 i686_invalid_rdmsr:
@@ -3874,7 +3884,8 @@ cpu_WRMSR(void)
                     msr.fcr3 = EAX | ((uint64_t) EDX << 32);
                     break;
                 /* Memory Configuration Register 0..7 */
-                case 0x110 ... 0x117:
+                case 0x110: case 0x111: case 0x112: case 0x113:
+                case 0x114: case 0x115: case 0x116: case 0x117:
                     temp = ECX - 0x110;
                     if (cpu_s->cpu_type == CPU_WINCHIP2) {
                         if (EAX & 0x1f)
@@ -3890,7 +3901,7 @@ cpu_WRMSR(void)
                     break;
                 /* Unknown */
                 case 0x131:
-                case 0x142 ... 0x145:
+                case 0x142: case 0x143: case 0x144: case 0x145:
                 case 0x147:
                 case 0x150:
                 case 0x151:
@@ -3956,7 +3967,10 @@ cpu_WRMSR(void)
                     break;
                 /* ECX & 0: MTRRphysBase0 ... MTRRphysBase7
                    ECX & 1: MTRRphysMask0 ... MTRRphysMask7 */
-                case 0x200 ... 0x20f:
+                case 0x200: case 0x201: case 0x202: case 0x203:
+                case 0x204: case 0x205: case 0x206: case 0x207:
+                case 0x208: case 0x209: case 0x20a: case 0x20b:
+                case 0x20c: case 0x20d: case 0x20e: case 0x20f:
                     if (ECX & 1)
                         msr.mtrr_physmask[(ECX - 0x200) >> 1] = EAX | ((uint64_t) EDX << 32);
                     else
@@ -3976,7 +3990,8 @@ cpu_WRMSR(void)
                     msr.mtrr_fix16k_a000 = EAX | ((uint64_t) EDX << 32);
                     break;
                 /* MTRRfix4K_C0000 ... MTRRfix4K_F8000 */
-                case 0x268 ... 0x26f:
+                case 0x268: case 0x269: case 0x26a: case 0x26b:
+                case 0x26c: case 0x26d: case 0x26e: case 0x26f:
                     msr.mtrr_fix4k[ECX - 0x268] = EAX | ((uint64_t) EDX << 32);
                     break;
                 /* MTRRdefType */
@@ -4253,7 +4268,7 @@ amd_k_invalid_wrmsr:
                 case 0x80000003:
                 case 0x8000000a:
                 case 0x8000000f:
-                case 0x80000015 ... 0x80000017:
+                case 0x80000015: case 0x80000016: case 0x80000017:
                     break;
                 default:
 pentium_invalid_wrmsr:
@@ -4357,7 +4372,8 @@ pentium_invalid_wrmsr:
                 case 0x34:
                 case 0x3a:
                 case 0x3b:
-                case 0x50 ... 0x54:
+                case 0x50: case 0x51: case 0x52: case 0x53:
+                case 0x54:
                     break;
                 /* BIOS_UPDT_TRIG - BIOS Update Trigger */
                 case 0x79:
@@ -4365,7 +4381,7 @@ pentium_invalid_wrmsr:
                     break;
                 /* BBL_CR_D0 ... BBL_CR_D3 - Chunk 0..3 Data Register
                    8Bh: BIOS_SIGN - BIOS Update Signature */
-                case 0x88 ... 0x8b:
+                case 0x88: case 0x89: case 0x8a: case 0x8b:
                     msr.bbl_cr_dx[p6_msr - 0x88] = EAX | ((uint64_t) EDX << 32);
                     break;
                 /* Unknown */
@@ -4407,7 +4423,7 @@ pentium_invalid_wrmsr:
                     break;
                 /* Unknown */
                 case 0x131:
-                case 0x14e ... 0x151:
+                case 0x14e: case 0x14f: case 0x150: case 0x151:
                 case 0x154:
                 case 0x15b:
                 case 0x15f:
@@ -4457,7 +4473,10 @@ pentium_invalid_wrmsr:
                     break;
                 /* ECX & 0: MTRRphysBase0 ... MTRRphysBase7
                    ECX & 1: MTRRphysMask0 ... MTRRphysMask7 */
-                case 0x200 ... 0x20f:
+                case 0x200: case 0x201: case 0x202: case 0x203:
+                case 0x204: case 0x205: case 0x206: case 0x207:
+                case 0x208: case 0x209: case 0x20a: case 0x20b:
+                case 0x20c: case 0x20d: case 0x20e: case 0x20f:
                     /* Reserved bits and memory types are #GP: base bits
                        8-11 and 36-63, mask bits 0-10 and 36-63 */
                     if (p6_msr & 1) {
@@ -4490,7 +4509,8 @@ pentium_invalid_wrmsr:
                     msr.mtrr_fix16k_a000 = EAX | ((uint64_t) EDX << 32);
                     break;
                 /* MTRRfix4K_C0000 ... MTRRfix4K_F8000 */
-                case 0x268 ... 0x26f:
+                case 0x268: case 0x269: case 0x26a: case 0x26b:
+                case 0x26c: case 0x26d: case 0x26e: case 0x26f:
                     if (!mtrr_fixed_valid(EAX, EDX))
                         goto i686_invalid_wrmsr;
                     msr.mtrr_fix4k[p6_msr - 0x268] = EAX | ((uint64_t) EDX << 32);
@@ -4551,10 +4571,11 @@ pentium_invalid_wrmsr:
                     msr.ecx570 = EAX | ((uint64_t) EDX << 32);
                     break;
                 /* Unknown, possibly debug registers? */
-                case 0x1000 ... 0x1007:
+                case 0x1000: case 0x1001: case 0x1002: case 0x1003:
+                case 0x1004: case 0x1005: case 0x1006: case 0x1007:
                 /* Unknown, possibly control registers? */
                 case 0x2000:
-                case 0x2002 ... 0x2004:
+                case 0x2002: case 0x2003: case 0x2004:
                     break;
                 default:
 i686_invalid_wrmsr:
@@ -4616,7 +4637,9 @@ cpu_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
             ccr3 = val;
             break;
 
-        case 0xc4 ... 0xcc:
+        case 0xc4: case 0xc5: case 0xc6: case 0xc7:
+        case 0xc8: case 0xc9: case 0xca: case 0xcb:
+        case 0xcc:
             if (ccr5 & 0x20)
                 arr[cyrix_addr - 0xc4] = val;
             break;
@@ -4647,12 +4670,15 @@ cpu_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
                 cyrix.smhr &= ~SMHR_VALID;
             }
             break;
-        case 0xd0 ... 0xdb:
+        case 0xd0: case 0xd1: case 0xd2: case 0xd3:
+        case 0xd4: case 0xd5: case 0xd6: case 0xd7:
+        case 0xd8: case 0xd9: case 0xda: case 0xdb:
             if (((ccr3 & 0xf0) == 0x10) && (ccr5 & 0x20))
                 arr[cyrix_addr - 0xc4] = val;
             break;
 
-        case 0xdc ... 0xe3:
+        case 0xdc: case 0xdd: case 0xde: case 0xdf:
+        case 0xe0: case 0xe1: case 0xe2: case 0xe3:
             if ((ccr3 & 0xf0) == 0x10)
                 rcr[cyrix_addr - 0xdc] = val;
             break;
@@ -4718,20 +4744,25 @@ cpu_read(uint16_t addr, UNUSED(void *priv))
             ret = ccr3;
             break;
 
-        case 0xc4 ... 0xcc:
+        case 0xc4: case 0xc5: case 0xc6: case 0xc7:
+        case 0xc8: case 0xc9: case 0xca: case 0xcb:
+        case 0xcc:
             if (ccr5 & 0x20)
                 ret = arr[cyrix_addr - 0xc4];
             break;
-        case 0xcd ... 0xcf:
+        case 0xcd: case 0xce: case 0xcf:
             if ((ccr5 & 0x20) || (!(ccr3 & CCR3_SMI_LOCK) || in_smm))
                 ret = arr[cyrix_addr - 0xc4];
             break;
-        case 0xd0 ... 0xdb:
+        case 0xd0: case 0xd1: case 0xd2: case 0xd3:
+        case 0xd4: case 0xd5: case 0xd6: case 0xd7:
+        case 0xd8: case 0xd9: case 0xda: case 0xdb:
             if (((ccr3 & 0xf0) == 0x10) && (ccr5 & 0x20))
                 ret = arr[cyrix_addr - 0xc4];
             break;
 
-        case 0xdc ... 0xe3:
+        case 0xdc: case 0xdd: case 0xde: case 0xdf:
+        case 0xe0: case 0xe1: case 0xe2: case 0xe3:
             if ((ccr3 & 0xf0) == 0x10)
                 ret = rcr[cyrix_addr - 0xdc];
             break;

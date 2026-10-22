@@ -3042,9 +3042,9 @@ mem_reset(void)
 
     memset(page_lookup, 0x00, (1 << 20) * sizeof(page_t *));
 
-    byte_dirty_mask = calloc(1, ((size_t) mem_size * 1024) / 8);
+    byte_dirty_mask = (uint64_t *) calloc(1, ((size_t) mem_size * 1024) / 8);
 
-    byte_code_present_mask = calloc(1, ((size_t) mem_size * 1024) / 8);
+    byte_code_present_mask = (uint64_t *) calloc(1, ((size_t) mem_size * 1024) / 8);
 
     for (uint32_t c = 0; c < pages_sz; c++) {
         if (((uint64_t) c << 12) >= ((uint64_t) mem_size << 10))

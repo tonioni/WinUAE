@@ -69,6 +69,15 @@ int ftan(floatx80 *a, struct softfloat_status_t *status);
 
 #ifdef __cplusplus
 }
+
+/* Pointer forms used by the x87 code when it is compiled as C++ */
+static inline floatx80 fyl2x(floatx80 a, floatx80 b, struct softfloat_status_t *status) { return fyl2x(a, b, *status); }
+static inline floatx80 fyl2xp1(floatx80 a, floatx80 b, struct softfloat_status_t *status) { return fyl2xp1(a, b, *status); }
+static inline floatx80 fpatan(floatx80 a, floatx80 b, struct softfloat_status_t *status) { return fpatan(a, b, *status); }
+static inline int fsincos(floatx80 a, floatx80 *sin_a, floatx80 *cos_a, struct softfloat_status_t *status) { return fsincos(a, sin_a, cos_a, *status); }
+static inline int fsin(floatx80 *a, struct softfloat_status_t *status) { return fsin(*a, *status); }
+static inline int fcos(floatx80 *a, struct softfloat_status_t *status) { return fcos(*a, *status); }
+static inline int ftan(floatx80 *a, struct softfloat_status_t *status) { return ftan(*a, *status); }
 #endif
 
 /*-----------------------------------------------------------------------------

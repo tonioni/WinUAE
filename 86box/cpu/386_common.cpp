@@ -510,17 +510,17 @@ is_lock_legal(uint32_t fetchdat)
                     legal = ((fetch_dat.b[2] >> 6) != 0x03);    /* reg,imm is illegal */
             }
         } else if (legal == 3)  switch(fetch_dat.b[0]) {
-            case 0x80 ... 0x83:
+            case 0x80: case 0x81: case 0x82: case 0x83:
                 legal = lock_legal_80[(fetch_dat.b[1] >> 3) & 0x07];
             if (legal == 1)
                 legal = ((fetch_dat.b[1] >> 6) != 0x03);    /* reg is illegal */
             break;
-            case 0xf6 ... 0xf7:
+            case 0xf6: case 0xf7:
                 legal = lock_legal_f6[(fetch_dat.b[1] >> 3) & 0x07];
             if (legal == 1)
                 legal = ((fetch_dat.b[1] >> 6) != 0x03);    /* reg is illegal */
             break;
-            case 0xfe ... 0xff:
+            case 0xfe: case 0xff:
                 legal = lock_legal_fe[(fetch_dat.b[1] >> 3) & 0x07];
             if (legal == 1)
                 legal = ((fetch_dat.b[1] >> 6) != 0x03);    /* reg is illegal */

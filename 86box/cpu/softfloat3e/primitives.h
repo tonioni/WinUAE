@@ -40,9 +40,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdint.h>
 #include "softfloat_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/* No extern "C": the s_*.c files hide their own declaration from this
+   header, so their definitions only get the same linkage as the callers
+   when both are plain C++. */
 
 #define SOFTFLOAT_FAST_DIV64TO32
 
@@ -520,8 +520,4 @@ struct uint128 softfloat_mul128By32(uint64_t a64, uint64_t a0, uint32_t b)
 *----------------------------------------------------------------------------*/
 void
  softfloat_mul128To256M(uint64_t a64, uint64_t a0, uint64_t b64, uint64_t b0, uint64_t *zPtr);
-#ifdef __cplusplus
-}
-#endif
-
 #endif // _PRIMITIVES_H_

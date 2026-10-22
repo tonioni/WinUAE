@@ -1131,7 +1131,7 @@ biu_cycle(m808x_cpu_t *icpu)
 }
 
 static void
-cycles_mc(m808x_cpu_t *icpu, const uint16_t *lines, size_t count)
+cycles_mc(m808x_cpu_t *icpu, const unsigned int *lines, size_t count)
 {
     for (size_t i = 0; i < count && !icpu->fatal; i++)
         biu_cycle_i(icpu, lines[i], NULL);
@@ -1139,7 +1139,7 @@ cycles_mc(m808x_cpu_t *icpu, const uint16_t *lines, size_t count)
 
 #define CYCLES_MC(cpu_ptr, ...) \
     do { \
-        const uint16_t _mc_lines[] = {__VA_ARGS__}; \
+        const unsigned int _mc_lines[] = {__VA_ARGS__}; \
         cycles_mc((cpu_ptr), _mc_lines, ARRAY_LEN(_mc_lines)); \
     } while (0)
 
@@ -1969,20 +1969,33 @@ hardware_interrupt(m808x_cpu_t *icpu, const bool acknowledge)
 /* Effective-address timings split around displacement fetch, preserving the
  * known 8086 EA microflow used by the original probe. */
 static const uint8_t ea_pre[0xc0] = {
-    [0x00] = 4, [0x01] = 5, [0x02] = 5, [0x03] = 4,
-    [0x04] = 2, [0x05] = 2, [0x06] = 0, [0x07] = 2,
-    [0x40] = 4, [0x41] = 5, [0x42] = 5, [0x43] = 4,
-    [0x44] = 2, [0x45] = 2, [0x46] = 2, [0x47] = 2,
-    [0x80] = 4, [0x81] = 5, [0x82] = 5, [0x83] = 4,
-    [0x84] = 2, [0x85] = 2, [0x86] = 2, [0x87] = 2
+    4, 5, 5, 4, 2, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    4, 5, 5, 4, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    4, 5, 5, 4, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 static const uint8_t ea_post[0xc0] = {
-    [0x06] = 1,
-    [0x40] = 3, [0x41] = 3, [0x42] = 3, [0x43] = 3,
-    [0x44] = 3, [0x45] = 3, [0x46] = 3, [0x47] = 3,
-    [0x80] = 2, [0x81] = 2, [0x82] = 2, [0x83] = 2,
-    [0x84] = 2, [0x85] = 2, [0x86] = 2, [0x87] = 2
+    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 static bool
@@ -1991,16 +2004,34 @@ opcode_has_modrm(const uint8_t iopcode)
     switch (iopcode) {
         default:
             return false;
-        case 0x00 ... 0x3b:
+        case 0x00: case 0x01: case 0x02: case 0x03:
+        case 0x04: case 0x05: case 0x06: case 0x07:
+        case 0x08: case 0x09: case 0x0a: case 0x0b:
+        case 0x0c: case 0x0d: case 0x0e: case 0x0f:
+        case 0x10: case 0x11: case 0x12: case 0x13:
+        case 0x14: case 0x15: case 0x16: case 0x17:
+        case 0x18: case 0x19: case 0x1a: case 0x1b:
+        case 0x1c: case 0x1d: case 0x1e: case 0x1f:
+        case 0x20: case 0x21: case 0x22: case 0x23:
+        case 0x24: case 0x25: case 0x26: case 0x27:
+        case 0x28: case 0x29: case 0x2a: case 0x2b:
+        case 0x2c: case 0x2d: case 0x2e: case 0x2f:
+        case 0x30: case 0x31: case 0x32: case 0x33:
+        case 0x34: case 0x35: case 0x36: case 0x37:
+        case 0x38: case 0x39: case 0x3a: case 0x3b:
             if (!(iopcode & 0x04))
                 return true;
             return false;
-        case 0x80 ... 0x8f:
-        case 0xc4 ... 0xc7:
-        case 0xd0 ... 0xd3:
-        case 0xd8 ... 0xdf:
-        case 0xf6 ... 0xf7:
-        case 0xfe ... 0xff:
+        case 0x80: case 0x81: case 0x82: case 0x83:
+        case 0x84: case 0x85: case 0x86: case 0x87:
+        case 0x88: case 0x89: case 0x8a: case 0x8b:
+        case 0x8c: case 0x8d: case 0x8e: case 0x8f:
+        case 0xc4: case 0xc5: case 0xc6: case 0xc7:
+        case 0xd0: case 0xd1: case 0xd2: case 0xd3:
+        case 0xd8: case 0xd9: case 0xda: case 0xdb:
+        case 0xdc: case 0xdd: case 0xde: case 0xdf:
+        case 0xf6: case 0xf7:
+        case 0xfe: case 0xff:
             return true;
     }
 }
@@ -2722,7 +2753,7 @@ shift_rotate(m808x_cpu_t *icpu, const unsigned operation,
 
     set_flag_state(icpu, C_FLAG, cf);
     switch (op) {
-        case 0u ... 3u:
+        case 0u: case 1u: case 2u: case 3u:
             set_flag_state(icpu, V_FLAG, of);
             break;
 
@@ -2968,7 +2999,7 @@ mul_cor_negate_cycles(m808x_cpu_t *icpu, const unsigned bits, uint16_t tmpa, uin
         CYCLES_MC(icpu, 0x1beu, MC_JUMP);
     }
 
-    return (mul_tmp_t){tmpa, tmpb, tmpc, carry, negate};
+    return mul_tmp_t{tmpa, tmpb, tmpc, carry, negate};
 }
 
 static mul_tmp_t
@@ -3019,7 +3050,7 @@ mul_corx_cycles(m808x_cpu_t *icpu, const unsigned bits, const uint16_t tmpb, uin
 
     CYCLES_MC(icpu, 0x187u, MC_JUMP);
 
-    return (mul_tmp_t){tmpa, tmpb, tmpc, carry, false};
+    return mul_tmp_t{tmpa, tmpb, tmpc, carry, false};
 }
 
 static void
@@ -3186,7 +3217,7 @@ cord_cycles(m808x_cpu_t *icpu, const unsigned bits, uint16_t tmpa, uint16_t tmpb
 
     if (!carry) {
         biu_cycle_i(icpu, MC_JUMP, NULL);
-        return (m808x_cord_result_t){tmpa, tmpc, carry, false};
+        return m808x_cord_result_t{tmpa, tmpc, carry, false};
     }
 
     while (counter > 0u && !icpu->fatal) {
@@ -3233,7 +3264,7 @@ cord_cycles(m808x_cpu_t *icpu, const unsigned bits, uint16_t tmpa, uint16_t tmpb
     set_flag_state(icpu, C_FLAG, carry);
     CYCLES_MC(icpu, 0x194u, MC_JUMP);
 
-    return (m808x_cord_result_t){tmpa, tmpc, carry, true};
+    return m808x_cord_result_t{tmpa, tmpc, carry, true};
 }
 
 static mul_tmp_t
@@ -3263,7 +3294,7 @@ post_idiv_cycles(m808x_cpu_t *icpu, const unsigned bits, uint16_t tmpa, const ui
 
     if (!carry) {
         biu_cycle_i(icpu, MC_JUMP, NULL);
-        return (m808x_cord_result_t){tmpa, tmpc, carry, false};
+        return m808x_cord_result_t{tmpa, tmpc, carry, false};
     }
 
     bool divisor_negative = false;
@@ -3291,7 +3322,7 @@ post_idiv_cycles(m808x_cpu_t *icpu, const unsigned bits, uint16_t tmpa, const ui
     icpu->flags &= (uint16_t)~(C_FLAG | V_FLAG);
     CYCLES_MC(icpu, 0x1ccu, MC_JUMP);
 
-    return (m808x_cord_result_t){tmpa, sigma, false, true};
+    return m808x_cord_result_t{tmpa, sigma, false, true};
 }
 
 static bool

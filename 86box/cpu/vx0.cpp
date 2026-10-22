@@ -266,61 +266,43 @@ enum {
     MODRM_ADDR_BX_DISP16
 };
 
-static uint8_t     modrm_cycs_pre[256]   = { [MODRM_ADDR_BX_SI]        = 4,
-                                             [MODRM_ADDR_BX_DI]        = 5,
-                                             [MODRM_ADDR_BP_SI]        = 5,
-                                             [MODRM_ADDR_BP_DI]        = 4,
-                                             [MODRM_ADDR_SI]           = 2,
-                                             [MODRM_ADDR_DI]           = 2,
-                                             [MODRM_ADDR_DISP16]       = 0,
-                                             [MODRM_ADDR_BX]           = 2,
-                                             [0x08 ... 0x3f]           = 0,
-                                             [MODRM_ADDR_BX_SI_DISP8]  = 4,
-                                             [MODRM_ADDR_BX_DI_DISP8]  = 5,
-                                             [MODRM_ADDR_BP_SI_DISP8]  = 5,
-                                             [MODRM_ADDR_BP_DI_DISP8]  = 4,
-                                             [MODRM_ADDR_SI_DISP8]     = 2,
-                                             [MODRM_ADDR_DI_DISP8]     = 2,
-                                             [MODRM_ADDR_BP_DISP8]     = 2,
-                                             [MODRM_ADDR_BX_DISP8]     = 2,
-                                             [0x48 ... 0x7f]           = 0,
-                                             [MODRM_ADDR_BX_SI_DISP16] = 4,
-                                             [MODRM_ADDR_BX_DI_DISP16] = 5,
-                                             [MODRM_ADDR_BP_SI_DISP16] = 5,
-                                             [MODRM_ADDR_BP_DI_DISP16] = 4,
-                                             [MODRM_ADDR_SI_DISP16]    = 2,
-                                             [MODRM_ADDR_DI_DISP16]    = 2,
-                                             [MODRM_ADDR_BP_DISP16]    = 2,
-                                             [MODRM_ADDR_BX_DISP16]    = 2,
-                                             [0x88 ... 0xff]           = 0 };
+static uint8_t     modrm_cycs_pre[256]   = {
+    4, 5, 5, 4, 2, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    4, 5, 5, 4, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    4, 5, 5, 4, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
 
-static uint8_t     modrm_cycs_post[256]  = { [MODRM_ADDR_BX_SI]        = 0,
-                                             [MODRM_ADDR_BX_DI]        = 0,
-                                             [MODRM_ADDR_BP_SI]        = 0,
-                                             [MODRM_ADDR_BP_DI]        = 0,
-                                             [MODRM_ADDR_SI]           = 0,
-                                             [MODRM_ADDR_DI]           = 0,
-                                             [MODRM_ADDR_DISP16]       = 1,
-                                             [MODRM_ADDR_BX]           = 0,
-                                             [0x08 ... 0x3f]           = 0,
-                                             [MODRM_ADDR_BX_SI_DISP8]  = 3,
-                                             [MODRM_ADDR_BX_DI_DISP8]  = 3,
-                                             [MODRM_ADDR_BP_SI_DISP8]  = 3,
-                                             [MODRM_ADDR_BP_DI_DISP8]  = 3,
-                                             [MODRM_ADDR_SI_DISP8]     = 3,
-                                             [MODRM_ADDR_DI_DISP8]     = 3,
-                                             [MODRM_ADDR_BP_DISP8]     = 3,
-                                             [MODRM_ADDR_BX_DISP8]     = 3,
-                                             [0x48 ... 0x7f]           = 0,
-                                             [MODRM_ADDR_BX_SI_DISP16] = 2,
-                                             [MODRM_ADDR_BX_DI_DISP16] = 2,
-                                             [MODRM_ADDR_BP_SI_DISP16] = 2,
-                                             [MODRM_ADDR_BP_DI_DISP16] = 2,
-                                             [MODRM_ADDR_SI_DISP16]    = 2,
-                                             [MODRM_ADDR_DI_DISP16]    = 2,
-                                             [MODRM_ADDR_BP_DISP16]    = 2,
-                                             [MODRM_ADDR_BX_DISP16]    = 2,
-                                             [0x88 ... 0xff]           = 0 };
+static uint8_t     modrm_cycs_post[256]  = {
+    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
 
 #ifdef ENABLE_VX0_LOG
 #if 0
@@ -2447,7 +2429,7 @@ execvx0_6x(uint16_t *jump)
             }
             break;
 
-        case 0x66 ... 0x67:    /* FPO2 - NEC FPU instructions. */
+        case 0x66: case 0x67:    /* FPO2 - NEC FPU instructions. */
             /* read_operand16() */
             if (cpu_mod != 3)
                 do_cycles_i(2);    /* load_operand() */
@@ -2848,7 +2830,8 @@ execute_instruction(void)
             aas();
             break;
 
-        case 0x40 ... 0x47: /* INC r16 */
+        case 0x40: case 0x41: case 0x42: case 0x43:
+        case 0x44: case 0x45: case 0x46: case 0x47: /* INC r16 */
             /* read_operand16() */
             cpu_dest = cpu_state.regs[opcode & 7].w;
             cpu_src  = 1;
@@ -2864,7 +2847,8 @@ execute_instruction(void)
             do_cycles_nx(1);
             break;
 
-        case 0x48 ... 0x4f: /* DEC r16 */
+        case 0x48: case 0x49: case 0x4a: case 0x4b:
+        case 0x4c: case 0x4d: case 0x4e: case 0x4f: /* DEC r16 */
             /* read_operand16() */
             cpu_dest = cpu_state.regs[opcode & 7].w;
             cpu_src  = 1;
@@ -2880,18 +2864,27 @@ execute_instruction(void)
             do_cycles_nx(1);
             break;
 
-        case 0x50 ... 0x57: /* PUSH r16 */
+        case 0x50: case 0x51: case 0x52: case 0x53:
+        case 0x54: case 0x55: case 0x56: case 0x57: /* PUSH r16 */
             do_cycles_i(3);
 
             push(&(cpu_state.regs[opcode & 0x07].w));
             break;
 
-        case 0x58 ... 0x5f: /* POP r16 */
+        case 0x58: case 0x59: case 0x5a: case 0x5b:
+        case 0x5c: case 0x5d: case 0x5e: case 0x5f: /* POP r16 */
             cpu_state.regs[opcode & 0x07].w = pop();
             do_cycle_nx_i();
             break;
 
-        case 0x60 ... 0x7f: /* JMP rel8 */
+        case 0x60: case 0x61: case 0x62: case 0x63:
+        case 0x64: case 0x65: case 0x66: case 0x67:
+        case 0x68: case 0x69: case 0x6a: case 0x6b:
+        case 0x6c: case 0x6d: case 0x6e: case 0x6f:
+        case 0x70: case 0x71: case 0x72: case 0x73:
+        case 0x74: case 0x75: case 0x76: case 0x77:
+        case 0x78: case 0x79: case 0x7a: case 0x7b:
+        case 0x7c: case 0x7d: case 0x7e: case 0x7f: /* JMP rel8 */
             switch ((opcode >> 1) & 0x07) {
                 case 0x00:
                     jump = cpu_state.flags & V_FLAG;
@@ -3148,7 +3141,8 @@ execute_instruction(void)
             seteaw(cpu_data);
             break;
 
-        case 0x90 ... 0x97: /* XCHG AX, r */
+        case 0x90: case 0x91: case 0x92: case 0x93:
+        case 0x94: case 0x95: case 0x96: case 0x97: /* XCHG AX, r */
             cpu_data = cpu_state.regs[opcode & 7].w;
             do_cycles_nx_i(2);
             cpu_state.regs[opcode & 7].w = AX;
@@ -3399,7 +3393,8 @@ execute_instruction(void)
             }
             break;
 
-        case 0xb0 ... 0xb7: /* MOV r8, imm8 */
+        case 0xb0: case 0xb1: case 0xb2: case 0xb3:
+        case 0xb4: case 0xb5: case 0xb6: case 0xb7: /* MOV r8, imm8 */
             bits = 8;
             /* read_operand8() */
             tempb = biu_pfq_fetchb();
@@ -3411,7 +3406,8 @@ execute_instruction(void)
             do_cycle_i();
             break;
 
-        case 0xb8 ... 0xbf: /* MOV r16, imm16 */
+        case 0xb8: case 0xb9: case 0xba: case 0xbb:
+        case 0xbc: case 0xbd: case 0xbe: case 0xbf: /* MOV r16, imm16 */
             bits = 16;
             /* read_operand16() */
             tempw = biu_pfq_fetchw();
@@ -3842,7 +3838,8 @@ execute_instruction(void)
             AL = tempb;
             break;
 
-        case 0xd8 ... 0xdf: /* ESC - FPU instructions. */
+        case 0xd8: case 0xd9: case 0xda: case 0xdb:
+        case 0xdc: case 0xdd: case 0xde: case 0xdf: /* ESC - FPU instructions. */
             /* read_operand16() */
             do_cycles_i(2);
             tempw = cpu_state.pc;

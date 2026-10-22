@@ -2691,7 +2691,7 @@ sb_dsp_init(sb_dsp_t *dsp, int type, int subtype, void *parent)
 
     memset(dsp->sb_asp_ram, 0xff, sizeof(dsp->sb_asp_ram));
 
-    dsp->espcm_fifo = fifo64_init();
+    dsp->espcm_fifo = (fifo64_t *) fifo64_init();
     fifo_set_trigger_len(dsp->espcm_fifo, 1);
 }
 

@@ -13,7 +13,9 @@
  *          Copyright 2023-2025 Miran Grca.
  */
 #include <stdarg.h>
+#ifndef __cplusplus
 #include <stdatomic.h>
+#endif
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>

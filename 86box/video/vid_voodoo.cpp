@@ -1200,7 +1200,7 @@ static void *
 voodoo_card_init(const device_t *info)
 {
     int       c;
-    voodoo_t *voodoo = calloc(1, sizeof(voodoo_t));
+    voodoo_t *voodoo = (voodoo_t *) calloc(1, sizeof(voodoo_t));
 
     voodoo_init_relax_settings(voodoo);
     voodoo->bilinear_enabled  = device_get_config_int("bilinear");
@@ -1274,19 +1274,19 @@ voodoo_card_init(const device_t *info)
 
     mem_mapping_add(&voodoo->mapping, 0, 0, NULL, voodoo_readw, voodoo_readl, NULL, voodoo_writew, voodoo_writel, NULL, MEM_MAPPING_EXTERNAL, voodoo);
 
-    voodoo->fb_mem     = calloc(1, 4 * 1024 * 1024);
-    voodoo->tex_mem[0] = calloc(1, voodoo->texture_size * 1024 * 1024);
+    voodoo->fb_mem     = (uint8_t *) calloc(1, 4 * 1024 * 1024);
+    voodoo->tex_mem[0] = (uint8_t *) calloc(1, voodoo->texture_size * 1024 * 1024);
     if (voodoo->dual_tmus)
-        voodoo->tex_mem[1] = calloc(1, voodoo->texture_size * 1024 * 1024);
+        voodoo->tex_mem[1] = (uint8_t *) calloc(1, voodoo->texture_size * 1024 * 1024);
     voodoo->tex_mem_w[0] = (uint16_t *) voodoo->tex_mem[0];
     voodoo->tex_mem_w[1] = (uint16_t *) voodoo->tex_mem[1];
 
     for (c = 0; c < TEX_CACHE_MAX; c++) {
-        voodoo->texture_cache[0][c].data     = calloc(1, (256 * 256 + 256 * 256 + 128 * 128 + 64 * 64 + 32 * 32 + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2) * 4);
+        voodoo->texture_cache[0][c].data     = (uint32_t *) calloc(1, (256 * 256 + 256 * 256 + 128 * 128 + 64 * 64 + 32 * 32 + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2) * 4);
         voodoo->texture_cache[0][c].base     = -1; /*invalid*/
         voodoo->texture_cache[0][c].refcount = 0;
         if (voodoo->dual_tmus) {
-            voodoo->texture_cache[1][c].data     = calloc(1, (256 * 256 + 256 * 256 + 128 * 128 + 64 * 64 + 32 * 32 + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2) * 4);
+            voodoo->texture_cache[1][c].data     = (uint32_t *) calloc(1, (256 * 256 + 256 * 256 + 128 * 128 + 64 * 64 + 32 * 32 + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2) * 4);
             voodoo->texture_cache[1][c].base     = -1; /*invalid*/
             voodoo->texture_cache[1][c].refcount = 0;
         }
@@ -1426,7 +1426,7 @@ void *
 voodoo_2d3d_card_init(int type)
 {
     int       c;
-    voodoo_t *voodoo = calloc(1, sizeof(voodoo_t));
+    voodoo_t *voodoo = (voodoo_t *) calloc(1, sizeof(voodoo_t));
 
     voodoo_init_relax_settings(voodoo);
     voodoo->bilinear_enabled  = device_get_config_int("bilinear");
@@ -1444,11 +1444,11 @@ voodoo_2d3d_card_init(int type)
     voodoo_generate_filter_v2(voodoo);
 
     for (c = 0; c < TEX_CACHE_MAX; c++) {
-        voodoo->texture_cache[0][c].data     = calloc(1, (256 * 256 + 256 * 256 + 128 * 128 + 64 * 64 + 32 * 32 + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2) * 4);
+        voodoo->texture_cache[0][c].data     = (uint32_t *) calloc(1, (256 * 256 + 256 * 256 + 128 * 128 + 64 * 64 + 32 * 32 + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2) * 4);
         voodoo->texture_cache[0][c].base     = -1; /*invalid*/
         voodoo->texture_cache[0][c].refcount = 0;
         if (voodoo->dual_tmus) {
-            voodoo->texture_cache[1][c].data     = calloc(1, (256 * 256 + 256 * 256 + 128 * 128 + 64 * 64 + 32 * 32 + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2) * 4);
+            voodoo->texture_cache[1][c].data     = (uint32_t *) calloc(1, (256 * 256 + 256 * 256 + 128 * 128 + 64 * 64 + 32 * 32 + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2) * 4);
             voodoo->texture_cache[1][c].base     = -1; /*invalid*/
             voodoo->texture_cache[1][c].refcount = 0;
         }
@@ -1587,18 +1587,18 @@ voodoo_2d3d_card_init(int type)
 void *
 voodoo_init(const device_t *info)
 {
-    voodoo_set_t *voodoo_set    = calloc(1, sizeof(voodoo_set_t));
+    voodoo_set_t *voodoo_set    = (voodoo_set_t *) calloc(1, sizeof(voodoo_set_t));
     uint32_t      tmuConfig     = 1;
 
     const int     type          = (int) device_get_bios_local(info, device_get_config_bios("type")) & 0x0f;
 
     voodoo_set->nr_cards        = device_get_config_int("sli") ? 2 : 1;
 
-    voodoo_set->voodoos[0]      = voodoo_card_init(info);
+    voodoo_set->voodoos[0]      = (voodoo_t *) voodoo_card_init(info);
     voodoo_set->voodoos[0]->set = voodoo_set;
 
     if (voodoo_set->nr_cards == 2) {
-        voodoo_set->voodoos[1] = voodoo_card_init(info);
+        voodoo_set->voodoos[1] = (voodoo_t *) voodoo_card_init(info);
 
         voodoo_set->voodoos[1]->set = voodoo_set;
 

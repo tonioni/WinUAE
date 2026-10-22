@@ -5079,7 +5079,7 @@ gd54xx_reset(void *priv)
 static void *
 gd54xx_init(const device_t *info)
 {
-    gd54xx_t   *gd54xx = calloc(1, sizeof(gd54xx_t));
+    gd54xx_t   *gd54xx = (gd54xx_t *) calloc(1, sizeof(gd54xx_t));
     svga_t     *svga   = &gd54xx->svga;
     uint32_t    local  = info->local;
     if (local == CIRRUS_ID_USE_CONFIG_BIOS)
@@ -6189,8 +6189,8 @@ const device_t gd5402_onboard_commodore_device = {
     .available     = NULL,
     .speed_changed = gd54xx_speed_changed,
     .force_redraw  = gd54xx_force_redraw,
-    .machine       = "Commodore",
     .alias         = "ACUMOS AVGA2",
+    .machine       = "Commodore",
     .config        = gd5402_config
 };
 

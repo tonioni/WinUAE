@@ -23,6 +23,10 @@
 #define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/device.h>
+#include <86box/mem.h>
+#include <86box/timer.h>
+#include <86box/video.h>
+#include <86box/vid_svga.h>
 
 typedef struct ics2494_t {
     int type;

@@ -2364,8 +2364,9 @@ sb_ct1745_mixer_read(uint16_t addr, void *priv)
                    I haven't seen this making any difference, but I'm keeping it for now. */
                 /* If QEMU is any indication, then the values are actually 0x20, 0x40, and 0x80. */
                 /* http://the.earth.li/~tfm/oldpage/sb_mixer.html - 0x10, 0x20, 0x80. */
-                const uint8_t temp = ((sb->dsp.sb_irq8) ? 1 : 0) | ((sb->dsp.sb_irq16) ? 2 : 0) |
-                                     ((sb->dsp.sb_irq401) ? 4 : 0);
+                uint8_t temp;
+                temp = ((sb->dsp.sb_irq8) ? 1 : 0) | ((sb->dsp.sb_irq16) ? 2 : 0) |
+                       ((sb->dsp.sb_irq401) ? 4 : 0);
                 if (sb->dsp.sb_type >= SB16_DSP_411)
                     ret = temp | 0x80;
                 else if (sb->dsp.sb_type == SB16_DSP_405)
@@ -2933,7 +2934,7 @@ ess_mixer_write(uint16_t addr, uint8_t val, void *priv)
                                 switch ((mixer->regs[0x40] >> 5) & 0x7) { /* Switch MPU401 IRQ back to what's in mixer reg 40h */
                                     default:
                                         break;
-                                    case 0 ... 1:
+                                    case 0: case 1:
                                         mpu401_setirq(ess->mpu, -1);
                                         break;
                                     case 2:
@@ -2981,7 +2982,7 @@ ess_mixer_write(uint16_t addr, uint8_t val, void *priv)
                                 ess->dsp.sb_irqnum = 11;
                                 mpu401_setirq(ess->mpu, ess->dsp.sb_irqnum);
                                 break;
-                            case 0x06 ... 0x07: /* Reserved */
+                            case 0x06: case 0x07: /* Reserved */
                                 break;
                         }
                         sb_log("ESS ES188x new IRQ mode %sabled, IRQ now %i\n", ess->dsp.es188x_irq_mode ? "En" : "Dis", ess->dsp.sb_irqnum);
@@ -5247,7 +5248,7 @@ sb_init(UNUSED(const device_t *info))
        This mirror may also exist on SB 1.5 & MCV, however I am unable to test this. It shouldn't
        exist on SB 1.0 as the CMS chips are always present there. Syndicate requires this mirror
        for music to play. */
-    sb_t          *sb         = calloc(1, sizeof(sb_t));
+    sb_t          *sb         = (sb_t *) calloc(1, sizeof(sb_t));
     const uint16_t addr       = device_get_config_hex16("base");
     uint8_t        dspver     = SB_DSP_105;
     uint16_t       mixer_addr = 0x0000;
@@ -5349,7 +5350,7 @@ thunderboard_init(UNUSED(const device_t *info))
 {
     /* ThunderBoard port mappings, 210h to 260h in 10h steps
        2x6, 2xA, 2xC, 2xE -> DSP chip */
-    sb_t          *sb   = calloc(1, sizeof(sb_t));
+    sb_t          *sb   = (sb_t *) calloc(1, sizeof(sb_t));
     const uint16_t addr = device_get_config_hex16("base");
 
     sb->opl_enabled = device_get_config_int("opl");
@@ -5404,7 +5405,7 @@ sb_mcv_init(UNUSED(const device_t *info))
     /* SB1/2 port mappings, 210h to 260h in 10h steps
        2x6, 2xA, 2xC, 2xE -> DSP chip
        2x8, 2x9, 388 and 389 FM chip */
-    sb_t *sb = calloc(1, sizeof(sb_t));
+    sb_t *sb = (sb_t *) calloc(1, sizeof(sb_t));
 
     sb->opl_enabled = device_get_config_int("opl");
     if (sb->opl_enabled)
@@ -5469,7 +5470,7 @@ sb_pro_v1_init(UNUSED(const device_t *info))
        2x6, 2xA, 2xC, 2xE -> DSP chip
        2x8, 2x9, 388 and 389 FM chip (9 voices)
        2x0+10 to 2x0+13 CDROM interface. */
-    sb_t          *sb   = calloc(1, sizeof(sb_t));
+    sb_t          *sb   = (sb_t *) calloc(1, sizeof(sb_t));
     const uint16_t addr = device_get_config_hex16("base");
     uint8_t       dspver = device_get_config_int("dspver");
 
@@ -5540,7 +5541,7 @@ sb_pro_v2_init(UNUSED(const device_t *info))
        2x6, 2xA, 2xC, 2xE -> DSP chip
        2x8, 2x9, 388 and 389 FM chip (9 voices)
        2x0+10 to 2x0+13 CDROM interface. */
-    sb_t          *sb   = calloc(1, sizeof(sb_t));
+    sb_t          *sb   = (sb_t *) calloc(1, sizeof(sb_t));
     const uint16_t addr = device_get_config_hex16("base");
     const uint8_t  dspver = sb->opl_enabled = device_get_config_int("dspver");
 
@@ -5601,7 +5602,7 @@ sb_pro_mcv_init(UNUSED(const device_t *info))
        2x4 to 2x5 -> Mixer interface
        2x6, 2xA, 2xC, 2xE -> DSP chip
        2x8, 2x9, 388 and 389 FM chip (9 voices) */
-    sb_t *sb = calloc(1, sizeof(sb_t));
+    sb_t *sb = (sb_t *) calloc(1, sizeof(sb_t));
 
     sb->opl_enabled = 1;
     fm_driver_get_cs(FM_YMF262, &sb->opl);
@@ -5636,7 +5637,7 @@ sb_pro_mcv_init(UNUSED(const device_t *info))
 static void *
 sb_pro_compat_init(UNUSED(const device_t *info))
 {
-    sb_t *sb = calloc(1, sizeof(sb_t));
+    sb_t *sb = (sb_t *) calloc(1, sizeof(sb_t));
 
     /*
        Force Crystal counter behavior - following the typo
@@ -5663,7 +5664,7 @@ sb_pro_compat_init(UNUSED(const device_t *info))
 static void *
 sb_16_init(UNUSED(const device_t *info))
 {
-    sb_t          *sb       = calloc(1, sizeof(sb_t));
+    sb_t          *sb       = (sb_t *) calloc(1, sizeof(sb_t));
     const uint16_t addr     = device_get_config_hex16("base");
     const uint16_t mpu_addr = device_get_config_hex16("base401");
     const uint8_t  dspver = device_get_config_int("dspver");
@@ -5740,7 +5741,7 @@ sb_16_init(UNUSED(const device_t *info))
 static void *
 sb_16_reply_mca_init(UNUSED(const device_t *info))
 {
-    sb_t *sb = calloc(1, sizeof(sb_t));
+    sb_t *sb = (sb_t *) calloc(1, sizeof(sb_t));
 
     sb->opl_enabled = 1;
     fm_driver_get_cs(FM_YMF262, &sb->opl);
@@ -5797,7 +5798,7 @@ sb_16_pnp_ide_available(void)
 static void *
 sb_16_pnp_init(UNUSED(const device_t *info))
 {
-    sb_t *sb = calloc(1, sizeof(sb_t));
+    sb_t *sb = (sb_t *) calloc(1, sizeof(sb_t));
 
     const uint8_t dspver = device_get_config_int("dspver");
 
@@ -5906,7 +5907,7 @@ sb_vibra16xv_available(void)
 static void *
 sb_vibra16_pnp_init(UNUSED(const device_t *info))
 {
-    sb_t *sb = calloc(1, sizeof(sb_t));
+    sb_t *sb = (sb_t *) calloc(1, sizeof(sb_t));
 
     sb->pnp = 1;
 
@@ -6009,7 +6010,7 @@ sb_vibra16_pnp_init(UNUSED(const device_t *info))
 static void *
 sb_16_compat_init(const device_t *info)
 {
-    sb_t *sb = calloc(1, sizeof(sb_t));
+    sb_t *sb = (sb_t *) calloc(1, sizeof(sb_t));
 
     fm_driver_get_cs(FM_YMF262, &sb->opl);
 
@@ -6094,7 +6095,7 @@ sb_awe64_gold_available(void)
 static void *
 sb_awe32_init(UNUSED(const device_t *info))
 {
-    sb_t    *sb          = calloc(1, sizeof(sb_t));
+    sb_t    *sb          = (sb_t *) calloc(1, sizeof(sb_t));
     uint16_t addr        = device_get_config_hex16("base");
     uint16_t mpu_addr    = device_get_config_hex16("base401");
     uint16_t emu_addr    = device_get_config_hex16("emu_base");
@@ -6170,7 +6171,7 @@ sb_awe32_init(UNUSED(const device_t *info))
 static void *
 sb_goldfinch_init(const device_t *info)
 {
-    goldfinch_t *goldfinch   = calloc(1, sizeof(goldfinch_t));
+    goldfinch_t *goldfinch   = (goldfinch_t *) calloc(1, sizeof(goldfinch_t));
     int          onboard_ram = device_get_config_int("onboard_ram");
 
     wavetable_add_handler(sb_get_wavetable_buffer_goldfinch, goldfinch);
@@ -6216,7 +6217,7 @@ sb_goldfinch_init(const device_t *info)
 static void *
 sb_awe32_pnp_init(const device_t *info)
 {
-    sb_t *sb          = calloc(1, sizeof(sb_t));
+    sb_t *sb          = (sb_t *) calloc(1, sizeof(sb_t));
     int   onboard_ram = device_get_config_int("onboard_ram");
     int   cqm         = (info->local != SB_AWE32_PNP);
 
@@ -6358,7 +6359,7 @@ sb_awe32_pnp_init(const device_t *info)
 static void *
 ess_x488_init(UNUSED(const device_t *info))
 {
-    sb_t          *ess      = calloc(sizeof(sb_t), 1);
+    sb_t          *ess      = (sb_t *) calloc(sizeof(sb_t), 1);
     const uint16_t addr     = device_get_config_hex16("base");
 
     fm_driver_get(FM_YM3812, &ess->opl);
@@ -6463,7 +6464,7 @@ ess_x688_ide_boards(UNUSED(const device_t *dev))
 static void *
 ess_x688_init(UNUSED(const device_t *info))
 {
-    sb_t          *ess      = calloc(sizeof(sb_t), 1);
+    sb_t          *ess      = (sb_t *) calloc(sizeof(sb_t), 1);
     const uint16_t addr     = device_get_config_hex16("base");
     const uint16_t ide_ctrl = (const uint16_t) device_get_config_int("ide_ctrl");
     const uint16_t ide_base = ide_ctrl & 0x0fff;
@@ -6607,7 +6608,7 @@ ess_1688_968_pnp_available(void)
 static void *
 ess_x688_pnp_init(UNUSED(const device_t *info))
 {
-    sb_t *ess = calloc(sizeof(sb_t), 1);
+    sb_t *ess = (sb_t *) calloc(sizeof(sb_t), 1);
 
     if (info->local == 3)
         ess->pnp = 3;
@@ -6724,7 +6725,7 @@ ess_x688_pnp_init(UNUSED(const device_t *info))
 static void *
 ess_x688_mca_init(UNUSED(const device_t *info))
 {
-    sb_t *ess = calloc(1, sizeof(sb_t));
+    sb_t *ess = (sb_t *) calloc(1, sizeof(sb_t));
 
     ess->opl_enabled = 1;
     fm_driver_get_cs(info->local ? FM_ESFM : FM_YMF262, &ess->opl);
@@ -6802,7 +6803,7 @@ ess_x688_mca_init(UNUSED(const device_t *info))
 static void *
 ess_1x88_onboard_init(const device_t *info)
 {
-    sb_t          *ess      = calloc(sizeof(sb_t), 1);
+    sb_t          *ess      = (sb_t *) calloc(sizeof(sb_t), 1);
 
     uint8_t type = (info->local & 0x0f);
     uint8_t is_compaq = (info->local >> 4);
@@ -6960,7 +6961,7 @@ ess_1x88_onboard_init(const device_t *info)
 static void *
 ess_186x_init(const device_t *info)
 {
-    sb_t *ess = calloc(sizeof(sb_t), 1);
+    sb_t *ess = (sb_t *) calloc(sizeof(sb_t), 1);
 
     fm_driver_get_cs(FM_ESFM, &ess->opl);
 
@@ -7178,7 +7179,7 @@ extern void sb_doreset(sb_dsp_t *dsp);
 void *
 ess_solo1_legacy_init(void)
 {
-    sb_t *ess = calloc(1, sizeof(sb_t));
+    sb_t *ess = (sb_t *) calloc(1, sizeof(sb_t));
 
 
     ess->opl_enabled = 1;
@@ -9980,8 +9981,8 @@ const device_t sb_awe32_ide_pnp_device = {
     .available     = sb_awe32_ide_pnp_available,
     .speed_changed = sb_speed_changed,
     .force_redraw  = NULL,
-    .config        = sb_awe32_pnp_config,
     .alias         = "Sound Blaster AWE32 IDE PnP Internet Enhanced",
+    .config        = sb_awe32_pnp_config,
     .short_name    = "AWE32",
     .ide_boards    = ide_boards_quaternary
 };

@@ -991,7 +991,14 @@ write_cmd_data_ami(void *priv, uint8_t val)
 
     switch (dev->command) {
         /* 0x40 - 0x5F are aliases for 0x60-0x7F */
-        case 0x40 ... 0x5f:
+        case 0x40: case 0x41: case 0x42: case 0x43:
+        case 0x44: case 0x45: case 0x46: case 0x47:
+        case 0x48: case 0x49: case 0x4a: case 0x4b:
+        case 0x4c: case 0x4d: case 0x4e: case 0x4f:
+        case 0x50: case 0x51: case 0x52: case 0x53:
+        case 0x54: case 0x55: case 0x56: case 0x57:
+        case 0x58: case 0x59: case 0x5a: case 0x5b:
+        case 0x5c: case 0x5d: case 0x5e: case 0x5f:
             kbc_at_log("ATkbc: AMI - alias write to %02X\n", dev->command & 0x1f);
             dev->mem[(dev->command & 0x1f) + 0x20] = val;
             if (dev->command == 0x60)
@@ -1067,13 +1074,27 @@ write_cmd_ami(void *priv, uint8_t val)
         default:
             break;
 
-        case 0x00 ... 0x1f:
+        case 0x00: case 0x01: case 0x02: case 0x03:
+        case 0x04: case 0x05: case 0x06: case 0x07:
+        case 0x08: case 0x09: case 0x0a: case 0x0b:
+        case 0x0c: case 0x0d: case 0x0e: case 0x0f:
+        case 0x10: case 0x11: case 0x12: case 0x13:
+        case 0x14: case 0x15: case 0x16: case 0x17:
+        case 0x18: case 0x19: case 0x1a: case 0x1b:
+        case 0x1c: case 0x1d: case 0x1e: case 0x1f:
             kbc_at_log("ATkbc: AMI - alias read from %08X\n", val);
             kbc_delay_to_ob(dev, dev->mem[val + 0x20], 0, 0x00);
             ret = 0;
             break;
 
-        case 0x40 ... 0x5f:
+        case 0x40: case 0x41: case 0x42: case 0x43:
+        case 0x44: case 0x45: case 0x46: case 0x47:
+        case 0x48: case 0x49: case 0x4a: case 0x4b:
+        case 0x4c: case 0x4d: case 0x4e: case 0x4f:
+        case 0x50: case 0x51: case 0x52: case 0x53:
+        case 0x54: case 0x55: case 0x56: case 0x57:
+        case 0x58: case 0x59: case 0x5a: case 0x5b:
+        case 0x5c: case 0x5d: case 0x5e: case 0x5f:
             kbc_at_log("ATkbc: AMI - alias write to %08X\n", dev->command);
             dev->wantdata = 1;
             dev->state    = STATE_KBC_PARAM;
@@ -1207,7 +1228,7 @@ write_cmd_ami(void *priv, uint8_t val)
             }
             break;
 
-        case 0xb0 ... 0xb3:
+        case 0xb0: case 0xb1: case 0xb2: case 0xb3:
             /* set KBC lines P10-P13 (P1 bits 0-3) low */
             kbc_at_log("ATkbc: set KBC lines P10-P13 (P1 bits 0-3) low\n");
             if (!(dev->flags & DEVICE_PCI) || (val > 0xb1))
@@ -1231,7 +1252,7 @@ write_cmd_ami(void *priv, uint8_t val)
             ret = 0;
             break;
 
-        case 0xb8 ... 0xbb:
+        case 0xb8: case 0xb9: case 0xba: case 0xbb:
             /* set KBC lines P10-P13 (P1 bits 0-3) high */
             kbc_at_log("ATkbc: set KBC lines P10-P13 (P1 bits 0-3) high\n");
             if (!(dev->flags & DEVICE_PCI) || (val > 0xb9)) {
@@ -1350,7 +1371,14 @@ write_cmd_data_sis(void *priv, uint8_t val)
 
     switch (dev->command) {
         /* 0x40 - 0x5F are aliases for 0x60-0x7F */
-        case 0x40 ... 0x5f:
+        case 0x40: case 0x41: case 0x42: case 0x43:
+        case 0x44: case 0x45: case 0x46: case 0x47:
+        case 0x48: case 0x49: case 0x4a: case 0x4b:
+        case 0x4c: case 0x4d: case 0x4e: case 0x4f:
+        case 0x50: case 0x51: case 0x52: case 0x53:
+        case 0x54: case 0x55: case 0x56: case 0x57:
+        case 0x58: case 0x59: case 0x5a: case 0x5b:
+        case 0x5c: case 0x5d: case 0x5e: case 0x5f:
             kbc_at_log("ATkbc: SIS - alias write to %02X\n", dev->command & 0x1f);
             dev->mem[(dev->command & 0x1f) + 0x20] = val;
             if (dev->command == 0x60)
@@ -1388,13 +1416,27 @@ write_cmd_sis(void *priv, uint8_t val)
         default:
             break;
 
-        case 0x00 ... 0x1f:
+        case 0x00: case 0x01: case 0x02: case 0x03:
+        case 0x04: case 0x05: case 0x06: case 0x07:
+        case 0x08: case 0x09: case 0x0a: case 0x0b:
+        case 0x0c: case 0x0d: case 0x0e: case 0x0f:
+        case 0x10: case 0x11: case 0x12: case 0x13:
+        case 0x14: case 0x15: case 0x16: case 0x17:
+        case 0x18: case 0x19: case 0x1a: case 0x1b:
+        case 0x1c: case 0x1d: case 0x1e: case 0x1f:
             kbc_at_log("ATkbc: SIS - alias read from %08X\n", val);
             kbc_delay_to_ob(dev, dev->mem[val + 0x20], 0, 0x00);
             ret = 0;
             break;
 
-        case 0x40 ... 0x5f:
+        case 0x40: case 0x41: case 0x42: case 0x43:
+        case 0x44: case 0x45: case 0x46: case 0x47:
+        case 0x48: case 0x49: case 0x4a: case 0x4b:
+        case 0x4c: case 0x4d: case 0x4e: case 0x4f:
+        case 0x50: case 0x51: case 0x52: case 0x53:
+        case 0x54: case 0x55: case 0x56: case 0x57:
+        case 0x58: case 0x59: case 0x5a: case 0x5b:
+        case 0x5c: case 0x5d: case 0x5e: case 0x5f:
             kbc_at_log("ATkbc: SIS - alias write to %08X\n", dev->command);
             dev->wantdata = 1;
             dev->state    = STATE_KBC_PARAM;
@@ -1461,7 +1503,7 @@ write_cmd_sis(void *priv, uint8_t val)
             }
             break;
 
-        case 0xb0 ... 0xb1:
+        case 0xb0: case 0xb1:
             /* set KBC lines P10-P11 (P1 bits 0-1) low */
             if (!(dev->misc_flags & FLAG_PS2)) {
                 kbc_at_log("ATkbc: set KBC lines P10-P11 (P1 bits 0-3) low\n");
@@ -1472,7 +1514,7 @@ write_cmd_sis(void *priv, uint8_t val)
             }
             break;
 
-        case 0xb8 ... 0xb9:
+        case 0xb8: case 0xb9:
             /* set KBC lines P10-P11 (P1 bits 0-1) high */
             kbc_at_log("ATkbc: set KBC lines P10-P11 (P1 bits 0-3) high\n");
             if (!(dev->misc_flags & FLAG_PS2)) {
@@ -1591,7 +1633,10 @@ write_cmd_award(void *priv, uint8_t val)
         default:
             break;
 
-        case 0x90 ... 0x9f: /* Write low nibble to (Port13-Port10) */
+        case 0x90: case 0x91: case 0x92: case 0x93:
+        case 0x94: case 0x95: case 0x96: case 0x97:
+        case 0x98: case 0x99: case 0x9a: case 0x9b:
+        case 0x9c: case 0x9d: case 0x9e: case 0x9f: /* Write low nibble to (Port13-Port10) */
             kbc_at_log("ATkbc: Award - write low nibble to (Port13-Port10)\n");
             dev->p1 = (dev->p1 & 0xf0) | (val & 0x0f);
             ret = 0;
@@ -1623,7 +1668,7 @@ write_cmd_award(void *priv, uint8_t val)
             ret = 0;
             break;
 
-        case 0xb0 ... 0xb3:
+        case 0xb0: case 0xb1: case 0xb2: case 0xb3:
             /* set KBC lines P10-P13 (P1 bits 0-3) low */
             kbc_at_log("ATkbc: set KBC lines P10-P13 (P1 bits 0-3) low\n");
             dev->p1 &= ~(1 << (val & 0x03));
@@ -1640,7 +1685,7 @@ write_cmd_award(void *priv, uint8_t val)
             ret = 0;
             break;
 
-        case 0xb6 ... 0xb7:
+        case 0xb6: case 0xb7:
             /* set KBC lines P14-P15 (P1 bits 4-5) low */
             kbc_at_log("ATkbc: set KBC lines P14-P15 (P1 bits 4-5) low\n");
             dev->p1 &= ~(0x10 << (val & 0x01));
@@ -1648,7 +1693,7 @@ write_cmd_award(void *priv, uint8_t val)
             ret = 0;
             break;
 
-        case 0xb8 ... 0xbb:
+        case 0xb8: case 0xb9: case 0xba: case 0xbb:
             /* set KBC lines P10-P13 (P1 bits 0-3) high */
             kbc_at_log("ATkbc: set KBC lines P10-P13 (P1 bits 0-3) high\n");
             dev->p1 |= (1 << (val & 0x03));
@@ -1664,7 +1709,7 @@ write_cmd_award(void *priv, uint8_t val)
             ret = 0;
             break;
 
-        case 0xbe ... 0xbf:
+        case 0xbe: case 0xbf:
             /* set KBC lines P14-P15 (P1 bits 4-5) high */
             kbc_at_log("ATkbc: set KBC lines P14-P15 (P1 bits 4-5) high\n");
             dev->p1 |= (0x10 << (val & 0x01));
@@ -1705,7 +1750,10 @@ write_cmd_award(void *priv, uint8_t val)
             ret = 0;
             break;
 
-        case 0xe1 ... 0xef: /* Active output ports */
+        case 0xe1: case 0xe2: case 0xe3: case 0xe4:
+        case 0xe5: case 0xe6: case 0xe7: case 0xe8:
+        case 0xe9: case 0xea: case 0xeb: case 0xec:
+        case 0xed: case 0xee: case 0xef: /* Active output ports */
             kbc_at_log("ATkbc: Award - active output ports\n");
             write_p2(dev, (dev->p2 & 0xf1) | (val & 0x0e));
             ret = 0;
@@ -1897,13 +1945,27 @@ write_cmd_phoenix(void *priv, uint8_t val)
         default:
             break;
 
-        case 0x00 ... 0x1f:
+        case 0x00: case 0x01: case 0x02: case 0x03:
+        case 0x04: case 0x05: case 0x06: case 0x07:
+        case 0x08: case 0x09: case 0x0a: case 0x0b:
+        case 0x0c: case 0x0d: case 0x0e: case 0x0f:
+        case 0x10: case 0x11: case 0x12: case 0x13:
+        case 0x14: case 0x15: case 0x16: case 0x17:
+        case 0x18: case 0x19: case 0x1a: case 0x1b:
+        case 0x1c: case 0x1d: case 0x1e: case 0x1f:
             kbc_at_log("ATkbc: Phoenix - alias read from %08X\n", val);
             kbc_delay_to_ob(dev, dev->mem[val + 0x20], 0, 0x00);
             ret = 0;
             break;
 
-        case 0x40 ... 0x5f:
+        case 0x40: case 0x41: case 0x42: case 0x43:
+        case 0x44: case 0x45: case 0x46: case 0x47:
+        case 0x48: case 0x49: case 0x4a: case 0x4b:
+        case 0x4c: case 0x4d: case 0x4e: case 0x4f:
+        case 0x50: case 0x51: case 0x52: case 0x53:
+        case 0x54: case 0x55: case 0x56: case 0x57:
+        case 0x58: case 0x59: case 0x5a: case 0x5b:
+        case 0x5c: case 0x5d: case 0x5e: case 0x5f:
             kbc_at_log("ATkbc: Phoenix - alias write to %08X\n", dev->command);
             dev->wantdata = 1;
             dev->state    = STATE_KBC_PARAM;
@@ -2050,7 +2112,10 @@ write_cmd_phoenix(void *priv, uint8_t val)
                  MultiKey/42i reference does say a number of features were
                  removed, so these may have been among them, and we have no
                  earlier MultiKey reference to look at. */
-        case 0xe1 ... 0xef: /* Active output ports */
+        case 0xe1: case 0xe2: case 0xe3: case 0xe4:
+        case 0xe5: case 0xe6: case 0xe7: case 0xe8:
+        case 0xe9: case 0xea: case 0xeb: case 0xec:
+        case 0xed: case 0xee: case 0xef: /* Active output ports */
             kbc_at_log("ATkbc: Phoenix - active output ports\n");
             write_p2(dev, (dev->p2 & 0xf1) | (val & 0x0e));
             ret = 0;
@@ -2370,14 +2435,28 @@ kbc_at_process_cmd(void *priv)
                 break;
 
             /* Read data from KBC memory. */
-            case 0x20 ... 0x3f:
+            case 0x20: case 0x21: case 0x22: case 0x23:
+            case 0x24: case 0x25: case 0x26: case 0x27:
+            case 0x28: case 0x29: case 0x2a: case 0x2b:
+            case 0x2c: case 0x2d: case 0x2e: case 0x2f:
+            case 0x30: case 0x31: case 0x32: case 0x33:
+            case 0x34: case 0x35: case 0x36: case 0x37:
+            case 0x38: case 0x39: case 0x3a: case 0x3b:
+            case 0x3c: case 0x3d: case 0x3e: case 0x3f:
                 kbc_delay_to_ob(dev, dev->mem[dev->ib], 0, 0x00);
                 if (dev->ib == 0x20)
                     dev->pending++;
                 break;
 
             /* Write data to KBC memory. */
-            case 0x60 ... 0x7f:
+            case 0x60: case 0x61: case 0x62: case 0x63:
+            case 0x64: case 0x65: case 0x66: case 0x67:
+            case 0x68: case 0x69: case 0x6a: case 0x6b:
+            case 0x6c: case 0x6d: case 0x6e: case 0x6f:
+            case 0x70: case 0x71: case 0x72: case 0x73:
+            case 0x74: case 0x75: case 0x76: case 0x77:
+            case 0x78: case 0x79: case 0x7a: case 0x7b:
+            case 0x7c: case 0x7d: case 0x7e: case 0x7f:
                 dev->wantdata  = 1;
                 dev->state     = STATE_KBC_PARAM;
                 break;
@@ -2584,7 +2663,10 @@ kbc_at_process_cmd(void *priv)
                 kbc_delay_to_ob(dev, 0x00, 0, 0x00);
                 break;
 
-            case 0xf0 ... 0xff: /* pulse P2 */
+            case 0xf0: case 0xf1: case 0xf2: case 0xf3:
+            case 0xf4: case 0xf5: case 0xf6: case 0xf7:
+            case 0xf8: case 0xf9: case 0xfa: case 0xfb:
+            case 0xfc: case 0xfd: case 0xfe: case 0xff: /* pulse P2 */
                 kbc_at_log("ATkbc: pulse %01X\n", dev->ib & 0x0f);
                 /* The 8042 sets the system flag when it receives the 0xFE command,
                    which pulses the CPU reset line. */
@@ -2614,7 +2696,14 @@ kbc_at_process_cmd(void *priv)
                 kbc_at_log("ATkbc: bad controller command %02x data %02x\n", dev->command, dev->ib);
                 break;
 
-            case 0x60 ... 0x7f:
+            case 0x60: case 0x61: case 0x62: case 0x63:
+            case 0x64: case 0x65: case 0x66: case 0x67:
+            case 0x68: case 0x69: case 0x6a: case 0x6b:
+            case 0x6c: case 0x6d: case 0x6e: case 0x6f:
+            case 0x70: case 0x71: case 0x72: case 0x73:
+            case 0x74: case 0x75: case 0x76: case 0x77:
+            case 0x78: case 0x79: case 0x7a: case 0x7b:
+            case 0x7c: case 0x7d: case 0x7e: case 0x7f:
                 dev->mem[(dev->command & 0x1f) + 0x20] = dev->ib;
                 if (dev->command == 0x60)
                     write_cmd(dev, dev->ib);

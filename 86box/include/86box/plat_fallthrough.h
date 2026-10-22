@@ -17,7 +17,9 @@
 
 #ifndef EMU_PLAT_H
 
-#if __has_attribute(fallthrough)
+#ifdef __cplusplus
+# define fallthrough [[fallthrough]]
+#elif __has_attribute(fallthrough)
 # define fallthrough __attribute__((fallthrough))
 #else
 # if __has_attribute(__fallthrough__)

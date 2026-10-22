@@ -5752,7 +5752,7 @@ keyboard_at_write(void *priv)
                         keyboard_at_log("%s: Get scan code set [%02X]\n", dev->name, keyboard_mode);
                         kbc_at_dev_queue_add(dev, keyboard_mode, 0);
                         break;
-                    case 0x01 ... 0x03:
+                    case 0x01: case 0x02: case 0x03:
                     case 0x81:
                     case 0x82:
                     case 0x8a:

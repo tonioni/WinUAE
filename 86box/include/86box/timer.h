@@ -147,11 +147,20 @@ static __inline uint64_t
 timer_get_remaining_us(pc_timer_t *timer)
 {
     if (timer->flags & TIMER_ENABLED) {
+#ifdef UAE
+        /* MSVC's 128-bit integer classes only convert explicitly */
+        int128_t remaining = (int128_t) ((((uint128_t)timer->ts_integer << 32) | timer->ts_frac) - ((uint128_t)tsc << 32));
+
+        if (remaining < 0)
+            return 0;
+        return (uint64_t) (remaining / TIMER_USEC);
+#else
         int128_t remaining = (((uint128_t)timer->ts_integer << 32) | timer->ts_frac) - ((uint128_t)tsc << 32);
 
         if (remaining < 0)
             return 0;
         return remaining / TIMER_USEC;
+#endif
     }
 
     return 0;
@@ -163,11 +172,19 @@ static __inline uint128_t
 timer_get_remaining_u64(pc_timer_t *timer)
 {
     if (timer->flags & TIMER_ENABLED) {
+#ifdef UAE
+        int128_t remaining = (int128_t) ((((uint128_t)timer->ts_integer << 32) | timer->ts_frac) - ((uint128_t)tsc << 32));
+
+        if (remaining < 0)
+            return 0;
+        return (uint128_t) remaining;
+#else
         int128_t remaining = (((uint128_t)timer->ts_integer << 32) | timer->ts_frac) - ((uint128_t)tsc << 32);
 
         if (remaining < 0)
             return 0;
         return remaining;
+#endif
     }
 
     return 0;

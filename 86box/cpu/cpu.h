@@ -613,7 +613,6 @@ extern uint32_t pccache;
 extern uint8_t *pccache2;
 
 extern double   bus_timing;
-extern double   isa_timing;
 extern double   pci_timing;
 extern double   agp_timing;
 extern uint16_t temp_seg_data[4];

@@ -1790,7 +1790,7 @@ pit_common_init(int type, void (*out0)(int new_out, int old_out, void *priv), vo
 
     pit_intf->set_gate(pit_intf->data, 2, 0);
 
-    return pit;
+    return (pit_t *) pit;
 }
 
 pit_t *
@@ -1827,7 +1827,7 @@ pit_ps2_init(int type)
     pit_devs[0].set_out_func(pit_devs[0].data, 0, pit_irq0_timer_ps2);
     ps2_pit->set_out_func(ps2_pit->data, 0, pit_nmi_timer_ps2);
 
-    return pit;
+    return (pit_t *) pit;
 }
 #endif
 

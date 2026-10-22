@@ -98,7 +98,7 @@ opMOV_r_DRx_a16(uint32_t fetchdat)
     }
     fetch_ea_16(fetchdat);
     switch (cpu_reg) {
-        case 0 ... 3:
+        case 0: case 1: case 2: case 3:
             cpu_state.regs[cpu_rm].l = dr[cpu_reg];
             break;
         case 4:
@@ -142,7 +142,7 @@ opMOV_r_DRx_a32(uint32_t fetchdat)
     }
     fetch_ea_32(fetchdat);
     switch (cpu_reg) {
-        case 0 ... 3:
+        case 0: case 1: case 2: case 3:
             cpu_state.regs[cpu_rm].l = dr[cpu_reg];
             break;
         case 4:
@@ -326,7 +326,7 @@ opMOV_DRx_r_a16(uint32_t fetchdat)
     }
     fetch_ea_16(fetchdat);
     switch (cpu_reg) {
-        case 0 ... 3:
+        case 0: case 1: case 2: case 3:
             dr[cpu_reg] = cpu_state.regs[cpu_rm].l;
             break;
         case 4:
@@ -372,7 +372,7 @@ opMOV_DRx_r_a32(uint32_t fetchdat)
     }
     fetch_ea_32(fetchdat);
     switch (cpu_reg) {
-        case 0 ... 3:
+        case 0: case 1: case 2: case 3:
             dr[cpu_reg] = cpu_state.regs[cpu_rm].l;
             break;
         case 4:

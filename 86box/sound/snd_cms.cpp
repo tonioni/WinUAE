@@ -148,7 +148,8 @@ cms_write(uint16_t port, uint8_t val, void *priv)
             const uint8_t reg = cms->ports[chip] & 31;
             cms->regs[chip][cms->ports[chip] & 31] = val;
             switch (reg) {
-                case 0x00 ... 0x05: /*Volume*/
+                case 0x00: case 0x01: case 0x02: case 0x03:
+                case 0x04: case 0x05: /*Volume*/
 #if 0
                     voice                    = cms->ports[chip] & 7;
 #endif
@@ -156,7 +157,8 @@ cms_write(uint16_t port, uint8_t val, void *priv)
                     cms->vol[chip][voice][0] = val & 0x0f;
                     cms->vol[chip][voice][1] = val >> 4;
                     break;
-                case 0x08 ... 0x0D: /*Frequency*/
+                case 0x08: case 0x09: case 0x0a: case 0x0b:
+                case 0x0c: case 0x0d: /*Frequency*/
 #if 0
                     voice                   = cms->ports[chip] & 7;
 #endif
@@ -164,7 +166,7 @@ cms_write(uint16_t port, uint8_t val, void *priv)
                     cms->latch[chip][voice] = (cms->latch[chip][voice] & 0x700) | val;
                     cms->freq[chip][voice]  = (CMS_MASTER_CLOCK / 512 << (cms->latch[chip][voice] >> 8)) / (511 - (cms->latch[chip][voice] & 255));
                     break;
-                case 0x10 ... 0x12: /*Octave*/
+                case 0x10: case 0x11: case 0x12: /*Octave*/
                     voice                       = (reg & 3) << 1;
                     cms->latch[chip][voice]     = (cms->latch[chip][voice] & 0xFF) | ((val & 7) << 8);
                     cms->latch[chip][voice + 1] = (cms->latch[chip][voice + 1] & 0xFF) | ((val & 0x70) << 4);
@@ -225,7 +227,7 @@ cms_read(const uint16_t port, void *priv)
 void *
 cms_init(UNUSED(const device_t *info))
 {
-    cms_t *const cms = calloc(1, sizeof(cms_t));
+    cms_t *const cms = (cms_t *) calloc(1, sizeof(cms_t));
 
     cms_log("cms_init\n");
 

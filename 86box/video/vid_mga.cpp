@@ -19,7 +19,9 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include <math.h>
+#ifndef __cplusplus
 #include <stdatomic.h>
+#endif
 #include <86box/86box.h>
 #include <86box/io.h>
 #include "cpu.h"
@@ -2707,7 +2709,7 @@ mystique_ctrl_write_l(uint32_t addr, uint32_t val, void *priv)
                 Don't attempt busmastering in such cases. This isn't ideal, but there are no more crashes faced in this case. */
             if ((mystique->dma.primend & DMA_ADDR_MASK) < (mystique->dma.primaddress & DMA_ADDR_MASK) && ((mystique->dma.primaddress & DMA_ADDR_MASK) - (mystique->dma.primend & DMA_ADDR_MASK)) == 0x4000)
             {
-                mystique->dma.primaddress = mystique->dma.primend;
+                mystique->dma.primaddress = (uint32_t) mystique->dma.primend;
                 mystique->endprdmasts_pending = 1;
                 mystique->dma.state = MGA_DMA_STATE_IDLE;
             }
@@ -2813,7 +2815,7 @@ mystique_accel_iload_write_l(UNUSED(uint32_t addr), uint32_t val, void *priv)
                     mystique->blitter_submit_dma_refcount++;
                 mystique_accel_ctrl_write_l(reg_addr, val, mystique);
 
-                mystique->dma.iload_header >>= 8;
+                mystique->dma.iload_header = mystique->dma.iload_header >> 8;
                 mystique->dma.iload_state = (mystique->dma.iload_state == 4) ? 0 : (mystique->dma.iload_state + 1);
             }
             break;
@@ -3007,7 +3009,7 @@ run_dma(mystique_t *mystique)
                             mystique->dma.words_expected--;
                         mystique->dma.primaddress += 4;
 
-                        mystique->dma.pri_header >>= 8;
+                        mystique->dma.pri_header = mystique->dma.pri_header >> 8;
                         mystique->dma.pri_state = (mystique->dma.pri_state + 1) & 3;
 
                         if (mystique->dma.state == MGA_DMA_STATE_SEC) {
@@ -3076,7 +3078,7 @@ run_dma(mystique_t *mystique)
 
                         mystique_accel_ctrl_write_l(reg_addr, val, mystique);
                         //pclog("DMA value (secondary): 0x%08X\n", val);
-                        mystique->dma.sec_header >>= 8;
+                        mystique->dma.sec_header = mystique->dma.sec_header >> 8;
                         mystique->dma.sec_state = (mystique->dma.sec_state + 1) & 3;
 
                         words_transferred++;
@@ -5198,6 +5200,10 @@ static uint16_t texture_texel_fetch(mystique_t *mystique, int *tex_r, int *tex_g
     return src;
 }
 
+#ifdef UAE
+/* libstdc++'s C++20 math.h puts std::lerp into the global namespace */
+#define lerp mga_lerp
+#endif
 static double lerp(double v0, double v1, double t) {
   return (1. - t) * v0 + t * v1;
 }
@@ -6788,7 +6794,7 @@ mystique_conv_16to32(svga_t* svga, uint16_t color, uint8_t bpp)
 static void *
 mystique_init(const device_t *info)
 {
-    mystique_t *mystique = calloc(1, sizeof(mystique_t));
+    mystique_t *mystique = (mystique_t *) calloc(1, sizeof(mystique_t));
     const char *romfn = NULL;
 
     mystique->type   = info->local;

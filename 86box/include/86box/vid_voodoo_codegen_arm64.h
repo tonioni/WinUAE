@@ -4545,7 +4545,7 @@ voodoo_get_block(voodoo_t *voodoo, voodoo_params_t *params, voodoo_state_t *stat
 {
     int                  b                 = voodoo->jit_last_block[odd_even];
     int                  base              = odd_even * BLOCK_NUM;
-    voodoo_arm64_data_t *voodoo_arm64_data = voodoo->codegen_data;
+    voodoo_arm64_data_t *voodoo_arm64_data = (voodoo_arm64_data_t *) voodoo->codegen_data;
     voodoo_arm64_data_t *data;
 
     /* --- Cache lookup: linear scan from MRU hint --- */
@@ -4661,11 +4661,11 @@ voodoo_codegen_init(voodoo_t *voodoo)
     if (!voodoo->codegen_data) {
         fatal("ARM64 JIT: failed to allocate codegen metadata buffer\n");
     }
-    voodoo_arm64_data = voodoo->codegen_data;
+    voodoo_arm64_data = (voodoo_arm64_data_t *) voodoo->codegen_data;
     memset(voodoo_arm64_data, 0, sizeof(voodoo_arm64_data_t) * BLOCK_NUM * 4);
 
     for (slot = 0; slot < (uint32_t) (BLOCK_NUM * 4); slot++) {
-        voodoo_arm64_data[slot].code_block = plat_mmap(BLOCK_SIZE, 1, NULL);
+        voodoo_arm64_data[slot].code_block = (uint8_t *) plat_mmap(BLOCK_SIZE, 1, NULL);
         if (!voodoo_arm64_data[slot].code_block) {
             while (slot > 0) {
                 slot--;
@@ -4791,7 +4791,7 @@ voodoo_codegen_init(voodoo_t *voodoo)
 void
 voodoo_codegen_close(voodoo_t *voodoo)
 {
-    voodoo_arm64_data_t *voodoo_arm64_data = voodoo->codegen_data;
+    voodoo_arm64_data_t *voodoo_arm64_data = (voodoo_arm64_data_t *) voodoo->codegen_data;
     uint32_t             slot;
 
     if (!voodoo_arm64_data) {

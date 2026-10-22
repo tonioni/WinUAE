@@ -80,7 +80,12 @@
 // #define CONFIG_ONBOARD    256      /* only avaialble on the on-board variant */
 // #define CONFIG_STANDALONE 257      /* not available on the on-board variant */
 
+#ifdef UAE
+/* DEVICE_PIT doesn't fit an int, MSVC would make the flags negative */
+enum : uint32_t {
+#else
 enum {
+#endif
     DEVICE_CASETTE    = 1,          /* requires a Casette Port */
     DEVICE_SIDECAR    = 2,          /* requires an IBM PCjr */
     DEVICE_ISA        = 4,          /* requires the ISA bus */
