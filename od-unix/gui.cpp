@@ -436,8 +436,6 @@ void gui_display(int shortcut)
         if (action == WINUAE_QT_LAUNCHER_START || action == WINUAE_QT_LAUNCHER_RESET) {
             fixup_prefs(&changed_prefs, true);
             reset_sound();
-            inputdevice_copyconfig(&changed_prefs, &currprefs);
-            inputdevice_config_change_test();
             if (action == WINUAE_QT_LAUNCHER_RESET) {
                 /* Hard reset: apply the whole config to currprefs and force a
                  * memory hardreset, mirroring win32 gui_to_prefs(). Config
@@ -446,6 +444,9 @@ void gui_display(int shortcut)
                 copy_prefs(&changed_prefs, &currprefs);
                 memory_hardreset(2);
             }
+            /* Must run after copy_prefs, which would wipe the input mapping. */
+            inputdevice_copyconfig(&changed_prefs, &currprefs);
+            inputdevice_config_change_test();
             /* filesys hack (mirrors win32 gui_to_prefs): mount changes are not
              * covered by check_prefs_changed_*, so always copy them to currprefs
              * - otherwise a reset re-reads the old mounts via initialize_mountinfo(). */
