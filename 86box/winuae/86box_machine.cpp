@@ -82,19 +82,19 @@ static CPU cpus_286[] = {
 	CPU_END
 };
 static CPU cpus_i386sx[] = {
-	CPU_ENTRY("16", CPU_386SX, fpus_80386, 16000000, 1, 0x2308, 0, 3, 3, 3, 3, 2),
-	CPU_ENTRY("20", CPU_386SX, fpus_80386, 20000000, 1, 0x2308, 0, 4, 4, 3, 3, 3),
-	CPU_ENTRY("25", CPU_386SX, fpus_80386, 25000000, 1, 0x2308, 0, 4, 4, 3, 3, 3),
-	CPU_ENTRY("33", CPU_386SX, fpus_80386, 33333333, 1, 0x2308, 0, 6, 6, 3, 3, 4),
-	CPU_ENTRY("40", CPU_386SX, fpus_80386, 40000000, 1, 0x2308, 0, 7, 7, 3, 3, 5),
+	CPU_ENTRY("16", CPU_386SX, fpus_80386, 16000000, 1, 0x2308, CPU_SUPPORTS_DYNAREC, 3, 3, 3, 3, 2),
+	CPU_ENTRY("20", CPU_386SX, fpus_80386, 20000000, 1, 0x2308, CPU_SUPPORTS_DYNAREC, 4, 4, 3, 3, 3),
+	CPU_ENTRY("25", CPU_386SX, fpus_80386, 25000000, 1, 0x2308, CPU_SUPPORTS_DYNAREC, 4, 4, 3, 3, 3),
+	CPU_ENTRY("33", CPU_386SX, fpus_80386, 33333333, 1, 0x2308, CPU_SUPPORTS_DYNAREC, 6, 6, 3, 3, 4),
+	CPU_ENTRY("40", CPU_386SX, fpus_80386, 40000000, 1, 0x2308, CPU_SUPPORTS_DYNAREC, 7, 7, 3, 3, 5),
 	CPU_END
 };
 static CPU cpus_i386dx[] = {
-	CPU_ENTRY("16", CPU_386DX, fpus_80386, 16000000, 1, 0x0308, 0, 3, 3, 2, 2, 2),
-	CPU_ENTRY("20", CPU_386DX, fpus_80386, 20000000, 1, 0x0308, 0, 4, 4, 2, 2, 3),
-	CPU_ENTRY("25", CPU_386DX, fpus_80386, 25000000, 1, 0x0308, 0, 4, 4, 2, 2, 3),
-	CPU_ENTRY("33", CPU_386DX, fpus_80386, 33333333, 1, 0x0308, 0, 6, 6, 2, 2, 4),
-	CPU_ENTRY("40", CPU_386DX, fpus_80386, 40000000, 1, 0x0308, 0, 7, 7, 2, 2, 5),
+	CPU_ENTRY("16", CPU_386DX, fpus_80386, 16000000, 1, 0x0308, CPU_SUPPORTS_DYNAREC, 3, 3, 2, 2, 2),
+	CPU_ENTRY("20", CPU_386DX, fpus_80386, 20000000, 1, 0x0308, CPU_SUPPORTS_DYNAREC, 4, 4, 2, 2, 3),
+	CPU_ENTRY("25", CPU_386DX, fpus_80386, 25000000, 1, 0x0308, CPU_SUPPORTS_DYNAREC, 4, 4, 2, 2, 3),
+	CPU_ENTRY("33", CPU_386DX, fpus_80386, 33333333, 1, 0x0308, CPU_SUPPORTS_DYNAREC, 6, 6, 2, 2, 4),
+	CPU_ENTRY("40", CPU_386DX, fpus_80386, 40000000, 1, 0x0308, CPU_SUPPORTS_DYNAREC, 7, 7, 2, 2, 5),
 	CPU_END
 };
 static CPU cpus_i486sx[] = {
@@ -284,7 +284,7 @@ static void select_cpu(int family, int index)
 	cpu_f = (cpu_family_t *)&cpu_families[cpu_family];
 	cpu = cpu_index;
 #ifdef USE_DYNAREC
-	/* 86Box recompiles 486 and later CPUs */
+	/* 86Box recompiles 386 and later CPUs (the 386s use its 486 timing) */
 	cpu_use_dynarec = (selected_cpu()->cpu_flags & CPU_SUPPORTS_DYNAREC) != 0;
 #endif
 	apply_throttle();
