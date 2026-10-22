@@ -5197,7 +5197,7 @@ static void check_interlace(void)
 	if (prevlofs[0] == prevlofs[2] && prevlofs[1] == ld && lof_display != prevlofs[0]) {
 		is = 1;
 	} else if (prevlofs[2] != lof_display && prevlofs[1] == lof_display && prevlofs[0] == ld) {
-		nis = 1;
+		nis = interlace_seen;
 	} else {
 		is = 0;
 	}
