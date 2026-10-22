@@ -5062,7 +5062,7 @@ static void m68k_run_1_ce (void)
 static void m68k_run_1_ce (void)
 {
 	struct regstruct *r = &regs;
-	bool first = true;
+	TRY_VOLATILE bool first = true;
 	bool exit = false;
 
 	while (!exit) {
@@ -5858,7 +5858,7 @@ void cpu_halt(int id)
 /* MMU 68060  */
 static void m68k_run_mmu060 (void)
 {
-	struct flag_struct f;
+	TRY_VOLATILE struct flag_struct f;
 	int halt = 0;
 
 	check_halt();
@@ -5912,7 +5912,7 @@ static void m68k_run_mmu060 (void)
 /* Aranym MMU 68040  */
 static void m68k_run_mmu040 (void)
 {
-	struct flag_struct f;
+	TRY_VOLATILE struct flag_struct f;
 	int halt = 0;
 
 	check_halt();
@@ -5967,7 +5967,7 @@ static void m68k_run_mmu040 (void)
 // Previous MMU 68030
 static void m68k_run_mmu030 (void)
 {
-	struct flag_struct f;
+	TRY_VOLATILE struct flag_struct f;
 	int halt = 0;
 
 	mmu030_opcode_stageb = -1;
@@ -6118,7 +6118,7 @@ static void m68k_run_3ce (void)
 {
 	struct regstruct *r = &regs;
 	bool exit = false;
-	int extracycles = 0;
+	TRY_VOLATILE int extracycles = 0;
 
 	while (!exit) {
 		check_debugger();
@@ -6215,7 +6215,7 @@ static void m68k_run_2ce (void)
 {
 	struct regstruct *r = &regs;
 	bool exit = false;
-	bool first = true;
+	TRY_VOLATILE bool first = true;
 
 	while (!exit) {
 		check_debugger();
@@ -6359,7 +6359,7 @@ static void m68k_run_2p (void)
 {
 	struct regstruct *r = &regs;
 	bool exit = false;
-	bool first = true;
+	TRY_VOLATILE bool first = true;
 
 	while (!exit) {
 		check_debugger();

@@ -22,6 +22,7 @@ struct m68k_exception {
 #define THROW_AGAIN(var) throw
 #define ENDTRY
 #define STOPTRY
+#define TRY_VOLATILE
 #else
 /* we are in plain C, just use a stack of long jumps */
 #include <setjmp.h>
@@ -36,6 +37,8 @@ extern int     __exvalue;
 #define THROW_AGAIN(var) if (__is_catched()) longjmp(*__poptry(),__exvalue)
 #define SAVE_EXCEPTION
 #define RESTORE_EXCEPTION
+/* locals modified inside TRY and read after CATCH must survive longjmp() */
+#define TRY_VOLATILE volatile
 jmp_buf* __poptry(void);
 void __pushtry(jmp_buf *j);
 int __is_catched(void);
