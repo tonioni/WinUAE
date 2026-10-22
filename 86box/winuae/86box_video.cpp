@@ -923,7 +923,9 @@ int rtg_device_get_config_int(const char *s)
 		return 1;
 	}
 	if (!strcmp(s, "recompiler")) {
-#if defined(_WIN32) || defined(PCEM_VOODOO_CODEGEN)
+		/* The Voodoo has code generators for these hosts
+		   (vid_voodoo_render.h) */
+#if defined(__amd64__) || defined(_M_X64) || defined(__aarch64__) || defined(_M_ARM64)
 		return 1;
 #else
 		return 0;

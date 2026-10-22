@@ -18,13 +18,6 @@
 #define SUPPORT_LONG_DOUBLE 1
 #endif
 
-#if !defined(ARM64) && !defined(_M_ARM64) && !defined(__aarch64__) && \
-    (defined(__x86_64__) || defined(__amd64__) || defined(_M_X64) || \
-     defined(_M_IX86) || defined(i386) || defined(__i386) || \
-     defined(__i386__) || defined(_X86_))
-#define PCEM_VOODOO_CODEGEN 1
-#endif
-
 #define SUPPORT_THREADS 1
 #define WITH_THREADED_CPU 1
 #define MAX_DPATH 1000
