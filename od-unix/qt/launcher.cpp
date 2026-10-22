@@ -69,6 +69,20 @@
 #define WINUAE_UNIX_VERSION_REVISION 0
 #endif
 
+#ifndef WINUAE_UNIX_WITH_QT_DEFAULT_STYLE
+#define WINUAE_UNIX_WITH_QT_DEFAULT_STYLE 0
+#endif
+
+/* Desktop style (native widget style, palette, fonts and file dialogs) or
+ * the Windows-like look. Fixed once the QApplication exists; the build
+ * option is only the default for the DesktopStyle host setting. */
+static bool desktopStyle = WINUAE_UNIX_WITH_QT_DEFAULT_STYLE;
+
+static bool useDesktopStyle()
+{
+    return desktopStyle;
+}
+
 #ifndef UAE_UNIX_WITH_BSDSOCKET
 #define UAE_UNIX_WITH_BSDSOCKET 0
 #endif
@@ -5359,7 +5373,9 @@ QString winUaeQtInitialConfigPathFromArguments(const QStringList &arguments)
 static int &prepareQtApplicationArguments(int &argc)
 {
 #if defined(__linux__)
-    QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    if (!useDesktopStyle()) {
+        QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    }
 #endif
     return argc;
 }
@@ -5425,10 +5441,22 @@ void shutdownWinUaeQtApplication()
     sharedApplication = nullptr;
 }
 
+void setWinUaeQtDesktopStyle(bool enabled)
+{
+    if (!QApplication::instance()) {
+        desktopStyle = enabled;
+    }
+}
+
 static QApplication &winUaeQtSharedApplication(int argc, char **argv)
 {
     if (QApplication *app = qobject_cast<QApplication *>(QApplication::instance())) {
         return *app;
+    }
+    /* WINUAE_QT_DESKTOP_STYLE=0/1 overrides the setting, e.g. for testing. */
+    const QByteArray styleOverride = qgetenv("WINUAE_QT_DESKTOP_STYLE");
+    if (!styleOverride.isEmpty()) {
+        desktopStyle = styleOverride != "0";
     }
     /* QApplication keeps references to argc/argv, so they must outlive it. */
     static int sharedArgc;
@@ -5470,15 +5498,19 @@ public:
     {
         setWindowTitle(QStringLiteral("WinUAE Properties"));
         setWindowIcon(winUaeWindowIcon());
-        resize(880, 640);
-        setMinimumSize(820, 600);
+        resize(guiBaseSize());
+        setMinimumSize(guiMinimumSize());
 
         navigation = new QTreeWidget;
         navigation->setHeaderHidden(true);
         navigation->setRootIsDecorated(true);
         navigation->setIndentation(12);
         navigation->setIconSize(QSize(16, 16));
-        navigation->setFixedWidth(166);
+        if (useDesktopStyle()) {
+            navigation->setMinimumWidth(200);
+        } else {
+            navigation->setFixedWidth(166);
+        }
 
         pageStack = new QStackedWidget;
         pageStack->setObjectName(QStringLiteral("pageStack"));
@@ -5531,18 +5563,7 @@ public:
             }
         });
 
-        QFrame *outerFrame = new QFrame;
-        outerFrame->setFrameShape(QFrame::Box);
-        outerFrame->setObjectName(QStringLiteral("outerFrame"));
-        QVBoxLayout *frameLayout = new QVBoxLayout(outerFrame);
-        frameLayout->setContentsMargins(4, 4, 4, 4);
-        frameLayout->addWidget(pageStack);
-
-        QHBoxLayout *content = new QHBoxLayout;
-        content->setContentsMargins(0, 0, 0, 0);
-        content->setSpacing(5);
-        content->addWidget(navigation);
-        content->addWidget(outerFrame, 1);
+        QWidget *content = makeContentArea();
 
         runtimeMode = hardwareProvider.pollHostWindowEvents != nullptr;
         QPushButton *reset = new QPushButton(QStringLiteral("Reset"));
@@ -5601,7 +5622,7 @@ public:
         QVBoxLayout *root = new QVBoxLayout(this);
         root->setContentsMargins(6, 6, 6, 6);
         root->setSpacing(5);
-        root->addLayout(content, 1);
+        root->addWidget(content, 1);
         root->addWidget(status);
         root->addLayout(buttons);
 
@@ -6053,6 +6074,7 @@ private:
     QCheckBox *miscGuiResize = nullptr;
     QCheckBox *miscGuiFullscreen = nullptr;
     QCheckBox *miscGuiDarkMode = nullptr;
+    QCheckBox *miscGuiDesktopStyle = nullptr;
     QString miscGuiFontConfig;
     QComboBox *stateFileName = nullptr;
     QCheckBox *stateFileClear = nullptr;
@@ -6088,6 +6110,39 @@ private:
         item->setFont(0, font);
         item->setExpanded(true);
         return item;
+    }
+
+    /* Navigation tree and page stack: a fixed tree beside a framed page
+     * like Windows, or a resizable splitter with the desktop style. */
+    QWidget *makeContentArea()
+    {
+        QFrame *pageFrame = new QFrame;
+        if (!useDesktopStyle()) {
+            pageFrame->setFrameShape(QFrame::Box);
+            pageFrame->setObjectName(QStringLiteral("outerFrame"));
+        }
+        QVBoxLayout *frameLayout = new QVBoxLayout(pageFrame);
+        frameLayout->setContentsMargins(4, 4, 4, 4);
+        frameLayout->addWidget(pageStack);
+
+        if (useDesktopStyle()) {
+            QSplitter *splitter = new QSplitter(Qt::Horizontal);
+            splitter->setChildrenCollapsible(false);
+            splitter->setHandleWidth(5);
+            splitter->addWidget(navigation);
+            splitter->addWidget(pageFrame);
+            splitter->setStretchFactor(0, 0);
+            splitter->setStretchFactor(1, 1);
+            splitter->setSizes({200, 709});
+            return splitter;
+        }
+        QWidget *content = new QWidget;
+        QHBoxLayout *layout = new QHBoxLayout(content);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(5);
+        layout->addWidget(navigation);
+        layout->addWidget(pageFrame, 1);
+        return content;
     }
 
     QTreeWidgetItem *addPage(const QString &title, const QString &icon, QWidget *page, QTreeWidgetItem *parent = nullptr)
@@ -12017,9 +12072,15 @@ private:
         miscGuiFullscreen = new QCheckBox(QStringLiteral("Fullscreen GUI"));
         miscGuiDarkMode = new QCheckBox(QStringLiteral("Dark mode"));
         miscGuiDarkMode->setTristate(true);
+        miscGuiDesktopStyle = new QCheckBox(QStringLiteral("Desktop style (after restart)"));
+        miscGuiDesktopStyle->setToolTip(QStringLiteral("Use the desktop's widget style, colors, fonts and file dialogs instead of the Windows look. Takes effect the next time WinUAE starts."));
         disableUnavailable(osdFont, QStringLiteral("OSD font selection is not implemented yet."));
         disableUnavailable(resetLists, QStringLiteral("List customization storage is not implemented in the Unix Qt frontend yet."));
-        miscGuiDarkMode->setToolTip(QStringLiteral("Matches Windows: unchecked is light, checked is dark, mixed follows the system appearance."));
+        if (useDesktopStyle()) {
+            disableUnavailable(miscGuiDarkMode, QStringLiteral("The desktop style follows the desktop's light or dark appearance."));
+        } else {
+            miscGuiDarkMode->setToolTip(QStringLiteral("Matches Windows: unchecked is light, checked is dark, mixed follows the system appearance."));
+        }
 
         QHBoxLayout *fontRow = new QHBoxLayout;
         fontRow->setContentsMargins(0, 0, 0, 0);
@@ -12040,6 +12101,7 @@ private:
         gui->addWidget(miscGuiResize);
         gui->addWidget(miscGuiFullscreen);
         gui->addWidget(miscGuiDarkMode);
+        gui->addWidget(miscGuiDesktopStyle);
         right->addWidget(groupBox(QStringLiteral("GUI"), gui));
 
         QGridLayout *stateFiles = new QGridLayout;
@@ -12140,13 +12202,23 @@ private:
         return ok && percent >= 60 && percent <= 200 ? percent : 100;
     }
 
+    static QSize guiBaseSize()
+    {
+        return useDesktopStyle() ? QSize(970, 670) : QSize(880, 640);
+    }
+
+    static QSize guiMinimumSize()
+    {
+        return useDesktopStyle() ? QSize(970, 670) : QSize(820, 600);
+    }
+
     void applyGuiResizeMode()
     {
         if (!miscGuiResize || !miscGuiFullscreen) {
             return;
         }
         const bool resizable = miscGuiResize->isChecked() || miscGuiFullscreen->isChecked();
-        setMinimumSize(820, 600);
+        setMinimumSize(guiMinimumSize());
         setMaximumSize(resizable ? QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX) : size());
         if (!resizable) {
             setFixedSize(size());
@@ -12159,8 +12231,8 @@ private:
             return;
         }
         const int percent = guiScalePercent(miscGuiSize->currentText());
-        const QSize baseSize(880, 640);
-        const QSize minSize(820, 600);
+        const QSize baseSize = guiBaseSize();
+        const QSize minSize = guiMinimumSize();
         const QSize scaled(qMax(minSize.width(), baseSize.width() * percent / 100),
             qMax(minSize.height(), baseSize.height() * percent / 100));
         if (miscGuiFullscreen && miscGuiFullscreen->isChecked()) {
@@ -12170,7 +12242,7 @@ private:
             showNormal();
             miscGuiFullscreen->setChecked(false);
         }
-        setMinimumSize(820, 600);
+        setMinimumSize(minSize);
         setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
         resize(scaled);
         applyGuiResizeMode();
@@ -12179,7 +12251,7 @@ private:
     void applyGuiFullscreenMode(bool fullscreen)
     {
         if (fullscreen) {
-            setMinimumSize(820, 600);
+            setMinimumSize(guiMinimumSize());
             setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
             showFullScreen();
         } else {
@@ -12223,7 +12295,7 @@ private:
 
     void applyGuiDarkModeSelection()
     {
-        if (!miscGuiDarkMode || !qApp) {
+        if (useDesktopStyle() || !miscGuiDarkMode || !qApp) {
             return;
         }
         bool dark = false;
@@ -14064,6 +14136,7 @@ private:
         cacheConfigurations->setChecked(true);
         cacheBoxArt->setChecked(false);
         saveImageOriginalPath->setChecked(false);
+        miscGuiDesktopStyle->setChecked(WINUAE_UNIX_WITH_QT_DEFAULT_STYLE);
         relativePaths->setChecked(false);
         portableMode->setChecked(false);
         pathDefaultType->setCurrentText(QStringLiteral("User data directory"));
@@ -14118,6 +14191,7 @@ private:
             { "ConfigurationCache", cacheConfigurations },
             { "ArtCache", cacheBoxArt },
             { "SaveImageOriginalPath", saveImageOriginalPath },
+            { "QtDesktopStyle", miscGuiDesktopStyle },
         };
     }
 
@@ -17885,6 +17959,9 @@ static void applyApplicationColors(QApplication &app, bool dark)
 
 static void setupApplicationStyle(QApplication &app)
 {
+    if (useDesktopStyle()) {
+        return;
+    }
     if (QStyle *style = QStyleFactory::create(QStringLiteral("Windows"))) {
         app.setStyle(style);
     } else if (QStyle *style = QStyleFactory::create(QStringLiteral("Fusion"))) {

@@ -196,3 +196,5 @@ void runWinUaeQtDebuggerConsoleWrite(const QString &text);
 void runWinUaeQtDebuggerUpdateInfo(const QString &text);
 void closeWinUaeQtDebuggerConsole();
 void shutdownWinUaeQtApplication();
+/* Pick the desktop or the Windows-like style; ignored once Qt is running. */
+void setWinUaeQtDesktopStyle(bool enabled);
