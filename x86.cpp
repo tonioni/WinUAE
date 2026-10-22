@@ -2794,6 +2794,7 @@ uint32_t portin32(uint16_t portnum)
 
 static uaecptr get_x86_address(struct x86_bridge *xb, uaecptr addr, int *mode, uae_u8 **base)
 {
+	*base = NULL;
 	addr -= xb->baseaddress;
 	if (!xb->baseaddress || addr >= 0x80000) {
 		*mode = -1;
@@ -2801,6 +2802,13 @@ static uaecptr get_x86_address(struct x86_bridge *xb, uaecptr addr, int *mode, u
 	}
 	*mode = addr >> 17;
 	addr &= 0x1ffff;
+	// The IO registers are only decoded in the IO access window and the
+	// memory windows only in the others. Anything else is ignored, the
+	// callers would use an unset base or index amiga_io out of bounds.
+	if ((addr >= 0x1e000) != (*mode == ACCESS_MODE_IO)) {
+		*mode = -1;
+		return 0;
+	}
 	if (addr < 0x10000) {
 		*base = xb->amiga_buffer + addr;
 		return get_shared_io(xb) + addr;
