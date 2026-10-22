@@ -306,6 +306,15 @@ void host_arm64_ZIP2_V4H(codeblock_t *block, int dst_reg, int src_n_reg, int src
 void host_arm64_ZIP2_V2S(codeblock_t *block, int dst_reg, int src_n_reg, int src_m_reg);
 
 void host_arm64_call(codeblock_t *block, void *dst_addr);
+#ifdef __cplusplus
+/* C++ doesn't convert function pointers to void * implicitly */
+template <typename T>
+static inline void
+host_arm64_call(codeblock_t *block, T *dst_addr)
+{
+    host_arm64_call(block, (void *) dst_addr);
+}
+#endif
 void host_arm64_jump(codeblock_t *block, uintptr_t dst_addr);
 void host_arm64_mov_imm(codeblock_t *block, int reg, uint32_t imm_data);
 

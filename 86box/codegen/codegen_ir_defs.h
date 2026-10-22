@@ -761,6 +761,59 @@ uop_gen_reg_src3_imm_pointer(uint32_t uop_type, ir_data_t *ir, int src_reg_a, in
     uop->p         = p;
 }
 
+#ifdef __cplusplus
+/* C++ doesn't convert function pointers and const pointers to void *
+   implicitly, the uop_* macros pass both */
+template <typename T>
+static inline void
+uop_gen_reg_dst_pointer(uint32_t uop_type, ir_data_t *ir, int dest_reg, T *p)
+{
+    uop_gen_reg_dst_pointer(uop_type, ir, dest_reg, (void *) p);
+}
+
+template <typename T>
+static inline void
+uop_gen_pointer(uint32_t uop_type, ir_data_t *ir, T *p)
+{
+    uop_gen_pointer(uop_type, ir, (void *) p);
+}
+
+template <typename T>
+static inline void
+uop_gen_pointer_imm(uint32_t uop_type, ir_data_t *ir, T *p, uint32_t imm)
+{
+    uop_gen_pointer_imm(uop_type, ir, (void *) p, imm);
+}
+
+template <typename T>
+static inline void
+uop_gen_reg_src_pointer(uint32_t uop_type, ir_data_t *ir, int src_reg_a, T *p)
+{
+    uop_gen_reg_src_pointer(uop_type, ir, src_reg_a, (void *) p);
+}
+
+template <typename T>
+static inline void
+uop_gen_reg_src_pointer_imm(uint32_t uop_type, ir_data_t *ir, int src_reg_a, T *p, uint32_t imm)
+{
+    uop_gen_reg_src_pointer_imm(uop_type, ir, src_reg_a, (void *) p, imm);
+}
+
+template <typename T>
+static inline void
+uop_gen_reg_src2_pointer(uint32_t uop_type, ir_data_t *ir, int src_reg_a, int src_reg_b, T *p)
+{
+    uop_gen_reg_src2_pointer(uop_type, ir, src_reg_a, src_reg_b, (void *) p);
+}
+
+template <typename T>
+static inline void
+uop_gen_reg_src3_imm_pointer(uint32_t uop_type, ir_data_t *ir, int src_reg_a, int src_reg_b, int src_reg_c, uint32_t imm, T *p)
+{
+    uop_gen_reg_src3_imm_pointer(uop_type, ir, src_reg_a, src_reg_b, src_reg_c, imm, (void *) p);
+}
+#endif
+
 extern int codegen_mmx_enter(void);
 extern int codegen_femms(void);
 extern int codegen_mmx_fpu_pending(void);

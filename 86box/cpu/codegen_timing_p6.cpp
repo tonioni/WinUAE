@@ -61,729 +61,880 @@ typedef struct macro_op_t {
 static const macro_op_t alu_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_ALU, .latency = 1}
+    .uop         = { {.type = UOP_ALU, .latency = 1} }
 };
 static const macro_op_t alup0_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_ALUP0, .latency = 1}
+    .uop         = { {.type = UOP_ALUP0, .latency = 1} }
 };
 static const macro_op_t load_alu_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t load_alup0_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,   .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1}
+    }
 };
 static const macro_op_t alu_store_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_ALU,    .latency = 1},
-    .uop[2]      = { .type = UOP_STORED, .latency = 1},
-    .uop[3]      = { .type = UOP_STOREA, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_ALU,    .latency = 1},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1}
+    }
 };
 static const macro_op_t alup0_store_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0,  .latency = 1},
-    .uop[2]      = { .type = UOP_STORED, .latency = 1},
-    .uop[3]      = { .type = UOP_STOREA, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_ALUP0,  .latency = 1},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1}
+    }
 };
 
 static const macro_op_t branch_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_BRANCH, .latency = 2}
+    .uop         = { {.type = UOP_BRANCH, .latency = 2} }
 };
 
 static const macro_op_t fxch_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_FXCH, .latency = 1}
+    .uop         = { {.type = UOP_FXCH, .latency = 1} }
 };
 
 static const macro_op_t load_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1}
+    .uop         = { {.type = UOP_LOAD, .latency = 1} }
 };
 
 static const macro_op_t store_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_STORED,  .latency = 1},
-    .uop[1]      = { .type = UOP_STOREA, .latency = 1}
+    .uop         = {
+        {.type = UOP_STORED,  .latency = 1},
+        { .type = UOP_STOREA, .latency = 1}
+    }
 };
 
 static const macro_op_t bswap_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU,  .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1},
+    .uop         = {
+        {.type = UOP_ALU,  .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    },
 };
 static const macro_op_t leave_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t lods_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t loop_op = {
     .nr_uops     = 5,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU,     .latency = 1},
-    .uop[1]      = { .type = UOP_ALU,    .latency = 1},
-    .uop[2]      = { .type = UOP_ALU,    .latency = 1},
-    .uop[3]      = { .type = UOP_ALU,    .latency = 1},
-    .uop[4]      = { .type = UOP_BRANCH, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,     .latency = 1},
+        { .type = UOP_ALU,    .latency = 1},
+        { .type = UOP_ALU,    .latency = 1},
+        { .type = UOP_ALU,    .latency = 1},
+        { .type = UOP_BRANCH, .latency = 1}
+    }
 };
 static const macro_op_t mov_reg_seg_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
+    .uop         = { {.type = UOP_LOAD, .latency = 1} },
 };
 static const macro_op_t movs_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_STORED, .latency = 1},
-    .uop[2]      = { .type = UOP_STOREA, .latency = 1},
-    .uop[3]      = { .type = UOP_ALU,    .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1},
+        { .type = UOP_ALU,    .latency = 1}
+    }
 };
 static const macro_op_t pop_reg_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t pop_mem_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_STORED, .latency = 1},
-    .uop[2]      = { .type = UOP_STOREA, .latency = 1},
-    .uop[3]      = { .type = UOP_ALU,    .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1},
+        { .type = UOP_ALU,    .latency = 1}
+    }
 };
 static const macro_op_t push_imm_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_STORED,  .latency = 1},
-    .uop[1]      = { .type = UOP_STOREA, .latency = 1},
+    .uop         = {
+        {.type = UOP_STORED,  .latency = 1},
+        { .type = UOP_STOREA, .latency = 1}
+    },
 };
 static const macro_op_t push_mem_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_STORED, .latency = 1},
-    .uop[2]      = { .type = UOP_STOREA, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1}
+    }
 };
 static const macro_op_t push_seg_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_STORED, .latency = 1},
-    .uop[2]      = { .type = UOP_STOREA, .latency = 1},
-    .uop[3]      = { .type = UOP_ALU,    .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1},
+        { .type = UOP_ALU,    .latency = 1}
+    }
 };
 static const macro_op_t stos_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[1]      = {.type = UOP_STORED,  .latency = 1},
-    .uop[2]      = { .type = UOP_STOREA, .latency = 1},
-    .uop[3]      = { .type = UOP_ALU,    .latency = 1}
+    .uop         = {
+        {},
+        {.type = UOP_STORED,  .latency = 1},
+        { .type = UOP_STOREA, .latency = 1},
+        { .type = UOP_ALU,    .latency = 1}
+    }
 };
 static const macro_op_t test_reg_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU, .latency = 1}
+    .uop         = { {.type = UOP_ALU, .latency = 1} }
 };
 static const macro_op_t test_reg_b_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALUP0, .latency = 1}
+    .uop         = { {.type = UOP_ALUP0, .latency = 1} }
 };
 static const macro_op_t test_mem_imm_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t test_mem_imm_b_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,   .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1}
+    }
 };
 static const macro_op_t xchg_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU,  .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,  .latency = 1},
+        { .type = UOP_ALU, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 
 static const macro_op_t mmx_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_MMX, .latency = 1}
+    .uop         = { {.type = UOP_MMX, .latency = 1} }
 };
 static const macro_op_t mmx_mul_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_MMX_MUL, .latency = 1}
+    .uop         = { {.type = UOP_MMX_MUL, .latency = 1} }
 };
 static const macro_op_t mmx_shift_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_MMX_SHIFT, .latency = 1}
+    .uop         = { {.type = UOP_MMX_SHIFT, .latency = 1} }
 };
 static const macro_op_t load_mmx_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 2},
-    .uop[1]      = { .type = UOP_MMX, .latency = 2}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 2},
+        { .type = UOP_MMX, .latency = 2}
+    }
 };
 static const macro_op_t load_mmx_mul_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,     .latency = 2},
-    .uop[1]      = { .type = UOP_MMX_MUL, .latency = 2}
+    .uop         = {
+        {.type = UOP_LOAD,     .latency = 2},
+        { .type = UOP_MMX_MUL, .latency = 2}
+    }
 };
 static const macro_op_t load_mmx_shift_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,       .latency = 2},
-    .uop[1]      = { .type = UOP_MMX_SHIFT, .latency = 2}
+    .uop         = {
+        {.type = UOP_LOAD,       .latency = 2},
+        { .type = UOP_MMX_SHIFT, .latency = 2}
+    }
 };
 static const macro_op_t mload_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_MLOAD, .latency = 1},
+    .uop         = { {.type = UOP_MLOAD, .latency = 1} },
 };
 
 static const macro_op_t mstore_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_MSTORED,  .latency = 1},
-    .uop[1]      = { .type = UOP_MSTOREA, .latency = 1}
+    .uop         = {
+        {.type = UOP_MSTORED,  .latency = 1},
+        { .type = UOP_MSTOREA, .latency = 1}
+    }
 };
 static const macro_op_t pmul_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_MMX_MUL, .latency = 1}
+    .uop         = { {.type = UOP_MMX_MUL, .latency = 1} }
 };
 static const macro_op_t pmul_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,     .latency = 2},
-    .uop[1]      = { .type = UOP_MMX_MUL, .latency = 2}
+    .uop         = {
+        {.type = UOP_LOAD,     .latency = 2},
+        { .type = UOP_MMX_MUL, .latency = 2}
+    }
 };
 static const macro_op_t float_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_FLOAT, .latency = 1}
+    .uop         = { {.type = UOP_FLOAT, .latency = 1} }
 };
 static const macro_op_t fadd_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_FLOAT, .latency = 2}
+    .uop         = { {.type = UOP_FLOAT, .latency = 2} }
 };
 static const macro_op_t fmul_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_ALUP0, .latency = 3}
+    .uop         = { {.type = UOP_ALUP0, .latency = 3} }
 };
 static const macro_op_t float2_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_FLOAT,  .latency = 1},
-    .uop[1]      = { .type = UOP_FLOAT, .latency = 1}
+    .uop         = {
+        {.type = UOP_FLOAT,  .latency = 1},
+        { .type = UOP_FLOAT, .latency = 1}
+    }
 };
 static const macro_op_t fchs_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_FLOAT,  .latency = 2},
-    .uop[1]      = { .type = UOP_FLOAT, .latency = 2},
-    .uop[2]      = { .type = UOP_FLOAT, .latency = 2}
+    .uop         = {
+        {.type = UOP_FLOAT,  .latency = 2},
+        { .type = UOP_FLOAT, .latency = 2},
+        { .type = UOP_FLOAT, .latency = 2}
+    }
 };
 static const macro_op_t load_float_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_FLOAD,  .latency = 1},
-    .uop[1]      = { .type = UOP_FLOAT, .latency = 1}
+    .uop         = {
+        {.type = UOP_FLOAD,  .latency = 1},
+        { .type = UOP_FLOAT, .latency = 1}
+    }
 };
 static const macro_op_t load_fadd_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_FLOAD,  .latency = 1},
-    .uop[1]      = { .type = UOP_FLOAT, .latency = 2}
+    .uop         = {
+        {.type = UOP_FLOAD,  .latency = 1},
+        { .type = UOP_FLOAT, .latency = 2}
+    }
 };
 static const macro_op_t load_fmul_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 4}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU, .latency = 4}
+    }
 };
 static const macro_op_t fstore_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_FSTORED,  .latency = 1},
-    .uop[1]      = { .type = UOP_FSTOREA, .latency = 1},
+    .uop         = {
+        {.type = UOP_FSTORED,  .latency = 1},
+        { .type = UOP_FSTOREA, .latency = 1}
+    },
 };
 static const macro_op_t load_fiadd_op = {
     .nr_uops     = 7,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_FLOAD,  .latency = 1},
-    .uop[1]      = { .type = UOP_FLOAT, .latency = 1},
-    .uop[2]      = { .type = UOP_FLOAT, .latency = 1},
-    .uop[3]      = { .type = UOP_FLOAT, .latency = 1},
-    .uop[4]      = { .type = UOP_FLOAT, .latency = 1},
-    .uop[5]      = { .type = UOP_FLOAT, .latency = 1},
-    .uop[6]      = { .type = UOP_FLOAT, .latency = 1}
+    .uop         = {
+        {.type = UOP_FLOAD,  .latency = 1},
+        { .type = UOP_FLOAT, .latency = 1},
+        { .type = UOP_FLOAT, .latency = 1},
+        { .type = UOP_FLOAT, .latency = 1},
+        { .type = UOP_FLOAT, .latency = 1},
+        { .type = UOP_FLOAT, .latency = 1},
+        { .type = UOP_FLOAT, .latency = 1}
+    }
 };
 static const macro_op_t fdiv_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_FLOAT, .latency = 37}
+    .uop         = { {.type = UOP_FLOAT, .latency = 37} }
 };
 static const macro_op_t fdiv_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_FLOAD,  .latency = 1 },
-    .uop[1]      = { .type = UOP_FLOAT, .latency = 37}
+    .uop         = {
+        {.type = UOP_FLOAD,  .latency = 1 },
+        { .type = UOP_FLOAT, .latency = 37}
+    }
 };
 static const macro_op_t fsin_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_FLOAT, .latency = 62}
+    .uop         = { {.type = UOP_FLOAT, .latency = 62} }
 };
 static const macro_op_t fsqrt_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_FLOAT, .latency = 69}
+    .uop         = { {.type = UOP_FLOAT, .latency = 69} }
 };
 
 static const macro_op_t fldcw_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_FLOAT, .latency = 10}
+    .uop         = { {.type = UOP_FLOAT, .latency = 10} }
 };
 static const macro_op_t complex_float_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_FLOAT, .latency = 1}
+    .uop         = { {.type = UOP_FLOAT, .latency = 1} }
 };
 static const macro_op_t complex_float_l_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_FLOAT, .latency = 50}
+    .uop         = { {.type = UOP_FLOAT, .latency = 50} }
 };
 static const macro_op_t flde_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_FLOAD,  .latency = 1},
-    .uop[1]      = { .type = UOP_FLOAD, .latency = 1},
-    .uop[2]      = { .type = UOP_FLOAT, .latency = 2}
+    .uop         = {
+        {.type = UOP_FLOAD,  .latency = 1},
+        { .type = UOP_FLOAD, .latency = 1},
+        { .type = UOP_FLOAT, .latency = 2}
+    }
 };
 static const macro_op_t fste_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_FLOAT,    .latency = 2},
-    .uop[1]      = { .type = UOP_FSTORED, .latency = 1},
-    .uop[2]      = { .type = UOP_FSTOREA, .latency = 1}
+    .uop         = {
+        {.type = UOP_FLOAT,    .latency = 2},
+        { .type = UOP_FSTORED, .latency = 1},
+        { .type = UOP_FSTOREA, .latency = 1}
+    }
 };
 
 static const macro_op_t complex_alu1_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU, .latency = 1}
+    .uop         = { {.type = UOP_ALU, .latency = 1} }
 };
 static const macro_op_t alu2_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU,  .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,  .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t alu3_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU,  .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,  .latency = 1},
+        { .type = UOP_ALU, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t alu6_op = {
     .nr_uops     = 6,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU,  .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU, .latency = 1},
-    .uop[3]      = { .type = UOP_ALU, .latency = 1},
-    .uop[4]      = { .type = UOP_ALU, .latency = 1},
-    .uop[5]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,  .latency = 1},
+        { .type = UOP_ALU, .latency = 1},
+        { .type = UOP_ALU, .latency = 1},
+        { .type = UOP_ALU, .latency = 1},
+        { .type = UOP_ALU, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t complex_alup0_1_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALUP0, .latency = 1}
+    .uop         = { {.type = UOP_ALUP0, .latency = 1} }
 };
 static const macro_op_t alup0_3_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALUP0,  .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 1},
-    .uop[2]      = { .type = UOP_ALUP0, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUP0,  .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1}
+    }
 };
 static const macro_op_t alup0_6_op = {
     .nr_uops     = 6,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALUP0,  .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 1},
-    .uop[2]      = { .type = UOP_ALUP0, .latency = 1},
-    .uop[3]      = { .type = UOP_ALUP0, .latency = 1},
-    .uop[4]      = { .type = UOP_ALUP0, .latency = 1},
-    .uop[5]      = { .type = UOP_ALUP0, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUP0,  .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1}
+    }
 };
 static const macro_op_t arpl_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU,  .latency = 3},
-    .uop[1]      = { .type = UOP_ALU, .latency = 3}
+    .uop         = {
+        {.type = UOP_ALU,  .latency = 3},
+        { .type = UOP_ALU, .latency = 3}
+    }
 };
 static const macro_op_t bound_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,  .latency = 1},
-    .uop[1]      = { .type = UOP_LOAD, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU,  .latency = 1},
-    .uop[3]      = { .type = UOP_ALU,  .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,  .latency = 1},
+        { .type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU,  .latency = 1},
+        { .type = UOP_ALU,  .latency = 1}
+    }
 };
 static const macro_op_t bsx_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU, .latency = 10}
+    .uop         = { {.type = UOP_ALU, .latency = 10} }
 };
 static const macro_op_t call_far_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU,     .latency = 3},
-    .uop[1]      = { .type = UOP_STORED, .latency = 1},
-    .uop[2]      = { .type = UOP_STOREA, .latency = 1},
-    .uop[3]      = { .type = UOP_BRANCH, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,     .latency = 3},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1},
+        { .type = UOP_BRANCH, .latency = 1}
+    }
 };
 static const macro_op_t cli_sti_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU, .latency = 7}
+    .uop         = { {.type = UOP_ALU, .latency = 7} }
 };
 static const macro_op_t cmps_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t cmpsb_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,   .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU,   .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1},
+        { .type = UOP_ALU,   .latency = 1}
+    }
 };
 static const macro_op_t cmpxchg_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_ALU,    .latency = 1},
-    .uop[2]      = { .type = UOP_STORED, .latency = 1},
-    .uop[3]      = { .type = UOP_STOREA, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_ALU,    .latency = 1},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1}
+    }
 };
 static const macro_op_t cmpxchg_b_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0,  .latency = 1},
-    .uop[2]      = { .type = UOP_STORED, .latency = 1},
-    .uop[3]      = { .type = UOP_STOREA, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_ALUP0,  .latency = 1},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1}
+    }
 };
 static const macro_op_t complex_push_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_STORED,  .latency = 1},
-    .uop[1]      = { .type = UOP_STOREA, .latency = 1}
+    .uop         = {
+        {.type = UOP_STORED,  .latency = 1},
+        { .type = UOP_STOREA, .latency = 1}
+    }
 };
 
 static const macro_op_t cpuid_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU, .latency = 23}
+    .uop         = { {.type = UOP_ALU, .latency = 23} }
 };
 static const macro_op_t div16_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALUP0, .latency = 21}
+    .uop         = { {.type = UOP_ALUP0, .latency = 21} }
 };
 static const macro_op_t div16_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,   .latency = 1 },
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 21}
+    .uop         = {
+        {.type = UOP_LOAD,   .latency = 1 },
+        { .type = UOP_ALUP0, .latency = 21}
+    }
 };
 static const macro_op_t div32_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALUP0, .latency = 37}
+    .uop         = { {.type = UOP_ALUP0, .latency = 37} }
 };
 static const macro_op_t div32_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,   .latency = 1 },
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 37}
+    .uop         = {
+        {.type = UOP_LOAD,   .latency = 1 },
+        { .type = UOP_ALUP0, .latency = 37}
+    }
 };
 static const macro_op_t emms_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU, .latency = 50}
+    .uop         = { {.type = UOP_ALU, .latency = 50} }
 };
 static const macro_op_t enter_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_STORED,  .latency = 1 },
-    .uop[1]      = { .type = UOP_STOREA, .latency = 1 },
-    .uop[2]      = { .type = UOP_ALU,    .latency = 10}
+    .uop         = {
+        {.type = UOP_STORED,  .latency = 1 },
+        { .type = UOP_STOREA, .latency = 1 },
+        { .type = UOP_ALU,    .latency = 10}
+    }
 };
 static const macro_op_t femms_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU, .latency = 6}
+    .uop         = { {.type = UOP_ALU, .latency = 6} }
 };
 static const macro_op_t in_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 18}
+    .uop         = { {.type = UOP_LOAD, .latency = 18} }
 };
 static const macro_op_t ins_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 18},
-    .uop[1]      = { .type = UOP_STORED, .latency = 1 },
-    .uop[2]      = { .type = UOP_STOREA, .latency = 1 },
-    .uop[3]      = { .type = UOP_ALU,    .latency = 1 }
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 18},
+        { .type = UOP_STORED, .latency = 1 },
+        { .type = UOP_STOREA, .latency = 1 },
+        { .type = UOP_ALU,    .latency = 1 }
+    }
 };
 static const macro_op_t int_op = {
     .nr_uops     = 8,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU,     .latency = 20},
-    .uop[1]      = { .type = UOP_STORED, .latency = 1 },
-    .uop[2]      = { .type = UOP_STOREA, .latency = 1 },
-    .uop[3]      = { .type = UOP_STORED, .latency = 1 },
-    .uop[4]      = { .type = UOP_STOREA, .latency = 1 },
-    .uop[5]      = { .type = UOP_STORED, .latency = 1 },
-    .uop[6]      = { .type = UOP_STOREA, .latency = 1 },
-    .uop[7]      = { .type = UOP_BRANCH, .latency = 1 }
+    .uop         = {
+        {.type = UOP_ALU,     .latency = 20},
+        { .type = UOP_STORED, .latency = 1 },
+        { .type = UOP_STOREA, .latency = 1 },
+        { .type = UOP_STORED, .latency = 1 },
+        { .type = UOP_STOREA, .latency = 1 },
+        { .type = UOP_STORED, .latency = 1 },
+        { .type = UOP_STOREA, .latency = 1 },
+        { .type = UOP_BRANCH, .latency = 1 }
+    }
 };
 static const macro_op_t iret_op = {
     .nr_uops     = 5,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 3 },
-    .uop[1]      = { .type = UOP_LOAD,   .latency = 3 },
-    .uop[2]      = { .type = UOP_LOAD,   .latency = 3 },
-    .uop[3]      = { .type = UOP_ALU,    .latency = 20},
-    .uop[4]      = { .type = UOP_BRANCH, .latency = 1 }
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 3 },
+        { .type = UOP_LOAD,   .latency = 3 },
+        { .type = UOP_LOAD,   .latency = 3 },
+        { .type = UOP_ALU,    .latency = 20},
+        { .type = UOP_BRANCH, .latency = 1 }
+    }
 };
 static const macro_op_t invd_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU, .latency = 500}
+    .uop         = { {.type = UOP_ALU, .latency = 500} }
 };
 static const macro_op_t jmp_far_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU,     .latency = 3},
-    .uop[1]      = { .type = UOP_BRANCH, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,     .latency = 3},
+        { .type = UOP_BRANCH, .latency = 1}
+    }
 };
 static const macro_op_t lss_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,  .latency = 1},
-    .uop[1]      = { .type = UOP_LOAD, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU,  .latency = 3}
+    .uop         = {
+        {.type = UOP_LOAD,  .latency = 1},
+        { .type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU,  .latency = 3}
+    }
 };
 static const macro_op_t mov_mem_seg_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_STORED, .latency = 1},
-    .uop[2]      = { .type = UOP_STOREA, .latency = 1},
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1}
+    },
 };
 static const macro_op_t mov_seg_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 3}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU, .latency = 3}
+    }
 };
 static const macro_op_t mov_seg_reg_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU, .latency = 3}
+    .uop         = { {.type = UOP_ALU, .latency = 3} }
 };
 static const macro_op_t mul_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SIMPLE,
-    .uop[0]      = {.type = UOP_ALUP0, .latency = 1}
+    .uop         = { {.type = UOP_ALUP0, .latency = 1} }
 };
 static const macro_op_t mul_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,   .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1}
+    }
 };
 static const macro_op_t mul64_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALUP0,  .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 1},
-    .uop[2]      = { .type = UOP_ALUP0, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUP0,  .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1}
+    }
 };
 static const macro_op_t mul64_mem_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,   .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 1},
-    .uop[2]      = { .type = UOP_ALUP0, .latency = 1},
-    .uop[3]      = { .type = UOP_ALUP0, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1}
+    }
 };
 static const macro_op_t out_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU, .latency = 18}
+    .uop         = { {.type = UOP_ALU, .latency = 18} }
 };
 static const macro_op_t outs_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1 },
-    .uop[1]      = { .type = UOP_ALU, .latency = 18}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1 },
+        { .type = UOP_ALU, .latency = 18}
+    }
 };
 static const macro_op_t pusha_op = {
     .nr_uops     = 8,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_STORED,  .latency = 2},
-    .uop[1]      = { .type = UOP_STOREA, .latency = 2},
-    .uop[2]      = { .type = UOP_STORED, .latency = 2},
-    .uop[3]      = { .type = UOP_STOREA, .latency = 2},
-    .uop[4]      = { .type = UOP_STORED, .latency = 2},
-    .uop[5]      = { .type = UOP_STOREA, .latency = 2},
-    .uop[6]      = { .type = UOP_STORED, .latency = 2},
-    .uop[7]      = { .type = UOP_STOREA, .latency = 2}
+    .uop         = {
+        {.type = UOP_STORED,  .latency = 2},
+        { .type = UOP_STOREA, .latency = 2},
+        { .type = UOP_STORED, .latency = 2},
+        { .type = UOP_STOREA, .latency = 2},
+        { .type = UOP_STORED, .latency = 2},
+        { .type = UOP_STOREA, .latency = 2},
+        { .type = UOP_STORED, .latency = 2},
+        { .type = UOP_STOREA, .latency = 2}
+    }
 };
 static const macro_op_t popa_op = {
     .nr_uops     = 8,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,  .latency = 1},
-    .uop[1]      = { .type = UOP_LOAD, .latency = 1},
-    .uop[2]      = { .type = UOP_LOAD, .latency = 1},
-    .uop[3]      = { .type = UOP_LOAD, .latency = 1},
-    .uop[4]      = { .type = UOP_LOAD, .latency = 1},
-    .uop[5]      = { .type = UOP_LOAD, .latency = 1},
-    .uop[6]      = { .type = UOP_LOAD, .latency = 1},
-    .uop[7]      = { .type = UOP_LOAD, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,  .latency = 1},
+        { .type = UOP_LOAD, .latency = 1},
+        { .type = UOP_LOAD, .latency = 1},
+        { .type = UOP_LOAD, .latency = 1},
+        { .type = UOP_LOAD, .latency = 1},
+        { .type = UOP_LOAD, .latency = 1},
+        { .type = UOP_LOAD, .latency = 1},
+        { .type = UOP_LOAD, .latency = 1}
+    }
 };
 static const macro_op_t popf_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,   .latency = 1 },
-    .uop[1]      = { .type = UOP_ALU,   .latency = 6 },
-    .uop[2]      = { .type = UOP_ALUP0, .latency = 10}
+    .uop         = {
+        {.type = UOP_LOAD,   .latency = 1 },
+        { .type = UOP_ALU,   .latency = 6 },
+        { .type = UOP_ALUP0, .latency = 10}
+    }
 };
 static const macro_op_t pushf_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALUP0,   .latency = 1},
-    .uop[1]      = { .type = UOP_STORED, .latency = 1},
-    .uop[2]      = { .type = UOP_STOREA, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUP0,   .latency = 1},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1}
+    }
 };
 static const macro_op_t ret_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_BRANCH, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_BRANCH, .latency = 1}
+    }
 };
 static const macro_op_t retf_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_ALU,    .latency = 3},
-    .uop[2]      = { .type = UOP_BRANCH, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_ALU,    .latency = 3},
+        { .type = UOP_BRANCH, .latency = 1}
+    }
 };
 static const macro_op_t scas_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t scasb_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t setcc_mem_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALUP0,    .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0,   .latency = 1},
-    .uop[2]      = { .type = UOP_FSTORED, .latency = 1},
-    .uop[3]      = { .type = UOP_FSTOREA, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUP0,    .latency = 1},
+        { .type = UOP_ALUP0,   .latency = 1},
+        { .type = UOP_FSTORED, .latency = 1},
+        { .type = UOP_FSTOREA, .latency = 1}
+    }
 };
 static const macro_op_t setcc_reg_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALUP0,  .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU,   .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUP0,  .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1},
+        { .type = UOP_ALU,   .latency = 1}
+    }
 };
 static const macro_op_t test_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .latency = 1},
+        { .type = UOP_ALU, .latency = 1}
+    }
 };
 static const macro_op_t test_mem_b_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,   .latency = 1},
-    .uop[1]      = { .type = UOP_ALUP0, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .latency = 1},
+        { .type = UOP_ALUP0, .latency = 1}
+    }
 };
 static const macro_op_t xchg_mem_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_LOAD,    .latency = 1},
-    .uop[1]      = { .type = UOP_STORED, .latency = 1},
-    .uop[2]      = { .type = UOP_STOREA, .latency = 1},
-    .uop[3]      = { .type = UOP_ALU,    .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .latency = 1},
+        { .type = UOP_STORED, .latency = 1},
+        { .type = UOP_STOREA, .latency = 1},
+        { .type = UOP_ALU,    .latency = 1}
+    }
 };
 static const macro_op_t xlat_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU,   .latency = 1},
-    .uop[1]      = { .type = UOP_LOAD, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,   .latency = 1},
+        { .type = UOP_LOAD, .latency = 1}
+    }
 };
 static const macro_op_t wbinvd_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_COMPLEX,
-    .uop[0]      = {.type = UOP_ALU, .latency = 10000}
+    .uop         = { {.type = UOP_ALU, .latency = 10000} }
 };
 #define INVALID NULL
 

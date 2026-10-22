@@ -104,7 +104,7 @@ codegen_allocator_init(void)
                     "MEM_BLOCK_NR * MEM_BLOCK_SIZE exceeds this architecture's direct-branch range");
 
     uint8_t large = 0;
-    mem_block_alloc = plat_mmap(MEM_BLOCK_NR * MEM_BLOCK_SIZE, 1, &large);
+    mem_block_alloc = (uint8_t *) plat_mmap(MEM_BLOCK_NR * MEM_BLOCK_SIZE, 1, &large);
 
     if (large)
         pclog("Allocated %u bytes of large pages of recompiled code memory\n", MEM_BLOCK_NR * MEM_BLOCK_SIZE);

@@ -25,7 +25,7 @@
 #include "codegen_timing_common.h"
 
 /*Instruction has different execution time for 16 and 32 bit data. Does not pair */
-#define CYCLES_HAS_MULTI       (1 << 31)
+#define CYCLES_HAS_MULTI       (1u << 31)
 
 #define CYCLES_MULTI(c16, c32) (CYCLES_HAS_MULTI | c16 | (c32 << 8))
 

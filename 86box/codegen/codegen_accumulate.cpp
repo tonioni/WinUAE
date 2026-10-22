@@ -12,7 +12,7 @@ static struct {
     int count;
     int dest_reg;
 } acc_regs[] = {
-    [ACCREG_cycles] = {0, IREG_cycles}
+    /* ACCREG_cycles */ {0, IREG_cycles}
 };
 
 void

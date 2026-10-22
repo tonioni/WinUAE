@@ -637,7 +637,7 @@ rx_mov_ri64(codeblock_t *block, int rm, uint64_t imm)
 static void
 rx_push(codeblock_t *block, int reg)
 {
-    uint8_t b[2] = { 0x41, 0x50 | (reg & 7) };
+    uint8_t b[2] = { 0x41, (uint8_t) (0x50 | (reg & 7)) };
 
     if (reg & 8)
         rx_bytes(block, b, 2);
@@ -647,7 +647,7 @@ rx_push(codeblock_t *block, int reg)
 static void
 rx_pop(codeblock_t *block, int reg)
 {
-    uint8_t b[2] = { 0x41, 0x58 | (reg & 7) };
+    uint8_t b[2] = { 0x41, (uint8_t) (0x58 | (reg & 7)) };
 
     if (reg & 8)
         rx_bytes(block, b, 2);
@@ -667,7 +667,7 @@ rx_pop(codeblock_t *block, int reg)
 static int32_t *
 rx_jcc(codeblock_t *block, int cc)
 {
-    uint8_t b[6] = { 0x0f, 0x80 | cc, 0, 0, 0, 0 };
+    uint8_t b[6] = { 0x0f, (uint8_t) (0x80 | cc), 0, 0, 0, 0 };
 
     rx_bytes(block, b, 6);
     return (int32_t *) &block_write_data[block_pos - 4];
@@ -1517,8 +1517,8 @@ codegen_backend_init(void)
     uint8_t      large_block = 0;
     uint8_t      large_hash = 0;
 
-    codeblock      = plat_mmap(BLOCK_SIZE * sizeof(codeblock_t), 0, &large_block);
-    codeblock_hash = plat_mmap(HASH_SIZE * sizeof(codeblock_t *), 0, &large_hash);
+    codeblock      = (codeblock_t *) plat_mmap(BLOCK_SIZE * sizeof(codeblock_t), 0, &large_block);
+    codeblock_hash = (uint32_t *) plat_mmap(HASH_SIZE * sizeof(codeblock_t *), 0, &large_hash);
 
     if (large_block)
         pclog("Allocated %llu bytes of large pages for codeblock pointers\n", (unsigned long long) (BLOCK_SIZE * sizeof(codeblock_t)));

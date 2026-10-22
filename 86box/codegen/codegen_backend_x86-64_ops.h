@@ -18,6 +18,15 @@ void host_x86_AND16_REG_REG(codeblock_t *block, int dst_reg, int src_reg);
 void host_x86_AND32_REG_REG(codeblock_t *block, int dst_reg, int src_reg);
 
 void host_x86_CALL(codeblock_t *block, void *p);
+#ifdef __cplusplus
+/* C++ doesn't convert function pointers to void * implicitly */
+template <typename T>
+static inline void
+host_x86_CALL(codeblock_t *block, T *p)
+{
+    host_x86_CALL(block, (void *) p);
+}
+#endif
 
 void host_x86_CMP16_REG_IMM(codeblock_t *block, int dst_reg, uint16_t imm_data);
 void host_x86_CMP32_REG_IMM(codeblock_t *block, int dst_reg, uint32_t imm_data);

@@ -61,701 +61,845 @@ typedef struct risc86_instruction_t {
 static const risc86_instruction_t alu_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_ALU, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t alux_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_ALUX, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t load_alu_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t load_alux_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t alu_store_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU,   .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
+        { .type = UOP_ALU,   .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t alux_store_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALUX,  .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
+        { .type = UOP_ALUX,  .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    }
 };
 
 static const risc86_instruction_t branch_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_BRANCH, .throughput = 1, .latency = 1} }
 };
 
 static const risc86_instruction_t limm_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_LIMM, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_LIMM, .throughput = 1, .latency = 1} }
 };
 
 static const risc86_instruction_t load_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2}
+    .uop         = { {.type = UOP_LOAD, .throughput = 1, .latency = 2} }
 };
 
 static const risc86_instruction_t store_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_STORE, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_STORE, .throughput = 1, .latency = 1} }
 };
 
 static const risc86_instruction_t bswap_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_ALU, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t leave_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t lods_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t loop_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_ALU,     .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,     .throughput = 1, .latency = 1},
+        { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t mov_reg_seg_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+    .uop         = { {.type = UOP_LOAD, .throughput = 1, .latency = 2} },
 };
 static const risc86_instruction_t movs_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_STORE, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU,   .throughput = 1, .latency = 1},
-    .uop[3]      = { .type = UOP_ALU,   .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU,   .throughput = 1, .latency = 1},
+        { .type = UOP_ALU,   .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t pop_reg_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t pop_mem_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_STORE, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU,   .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU,   .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t push_imm_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_STORE, .throughput = 1, .latency = 2},
+    .uop         = { {.type = UOP_STORE, .throughput = 1, .latency = 2} },
 };
 static const risc86_instruction_t push_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t push_seg_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t stos_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_LONG,
-    .uop[1]      = {.type = UOP_STORE, .throughput = 1, .latency = 1},
-    .uop[3]      = { .type = UOP_ALU,  .throughput = 1, .latency = 1}
+    .uop         = {
+        {},
+        {.type = UOP_STORE, .throughput = 1, .latency = 1},
+        {},
+        { .type = UOP_ALU,  .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t test_reg_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_ALU, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t test_reg_b_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_ALUX, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t test_mem_imm_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t test_mem_imm_b_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t xchg_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_LONG,
-    .uop[0]      = {.type = UOP_ALU,  .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,  .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 
 static const risc86_instruction_t m3dn_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_MEU_3DN, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_MEU_3DN, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t mmx_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_MEU, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_MEU, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t mmx_mul_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_MEU_MUL, .throughput = 1, .latency = 2}
+    .uop         = { {.type = UOP_MEU_MUL, .throughput = 1, .latency = 2} }
 };
 static const risc86_instruction_t mmx_shift_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_MEU_SHIFT, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_MEU_SHIFT, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t load_3dn_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_LOAD,     .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_MEU_3DN, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,     .throughput = 1, .latency = 2},
+        { .type = UOP_MEU_3DN, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t load_mmx_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_MEU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_MEU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t load_mmx_mul_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_LOAD,     .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_MEU_MUL, .throughput = 1, .latency = 2}
+    .uop         = {
+        {.type = UOP_LOAD,     .throughput = 1, .latency = 2},
+        { .type = UOP_MEU_MUL, .throughput = 1, .latency = 2}
+    }
 };
 static const risc86_instruction_t load_mmx_shift_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_LOAD,       .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_MEU_SHIFT, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,       .throughput = 1, .latency = 2},
+        { .type = UOP_MEU_SHIFT, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t mload_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_MLOAD, .throughput = 1, .latency = 2}
+    .uop         = { {.type = UOP_MLOAD, .throughput = 1, .latency = 2} }
 };
 
 static const risc86_instruction_t mstore_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_MSTORE, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_MSTORE, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t pmul_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_MEU_MUL, .throughput = 1, .latency = 2}
+    .uop         = { {.type = UOP_MEU_MUL, .throughput = 1, .latency = 2} }
 };
 static const risc86_instruction_t pmul_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_LOAD,     .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_MEU_MUL, .throughput = 1, .latency = 2}
+    .uop         = {
+        {.type = UOP_LOAD,     .throughput = 1, .latency = 2},
+        { .type = UOP_MEU_MUL, .throughput = 1, .latency = 2}
+    }
 };
 
 static const risc86_instruction_t float_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_FLOAT, .throughput = 2, .latency = 2}
+    .uop         = { {.type = UOP_FLOAT, .throughput = 2, .latency = 2} }
 };
 static const risc86_instruction_t load_float_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_FLOAD,  .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_FLOAT, .throughput = 2, .latency = 2}
+    .uop         = {
+        {.type = UOP_FLOAD,  .throughput = 1, .latency = 2},
+        { .type = UOP_FLOAT, .throughput = 2, .latency = 2}
+    }
 };
 static const risc86_instruction_t fstore_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_FSTORE, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_FSTORE, .throughput = 1, .latency = 1} }
 };
 
 static const risc86_instruction_t fdiv_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_FLOAT, .throughput = 40, .latency = 40}
+    .uop         = { {.type = UOP_FLOAT, .throughput = 40, .latency = 40} }
 };
 static const risc86_instruction_t fdiv_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_FLOAD,  .throughput = 1,  .latency = 2 },
-    .uop[1]      = { .type = UOP_FLOAT, .throughput = 40, .latency = 40}
+    .uop         = {
+        {.type = UOP_FLOAD,  .throughput = 1,  .latency = 2 },
+        { .type = UOP_FLOAT, .throughput = 40, .latency = 40}
+    }
 };
 static const risc86_instruction_t fsin_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_FLOAT, .throughput = 62, .latency = 62}
+    .uop         = { {.type = UOP_FLOAT, .throughput = 62, .latency = 62} }
 };
 static const risc86_instruction_t fsqrt_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_SHORT,
-    .uop[0]      = {.type = UOP_FLOAT, .throughput = 41, .latency = 41}
+    .uop         = { {.type = UOP_FLOAT, .throughput = 41, .latency = 41} }
 };
 
 static const risc86_instruction_t vector_fldcw_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_FLOAT, .throughput = 8, .latency = 8}
+    .uop         = { {.type = UOP_FLOAT, .throughput = 8, .latency = 8} }
 };
 static const risc86_instruction_t vector_float_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_FLOAT, .throughput = 2, .latency = 2}
+    .uop         = { {.type = UOP_FLOAT, .throughput = 2, .latency = 2} }
 };
 static const risc86_instruction_t vector_float_l_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_FLOAT, .throughput = 50, .latency = 50}
+    .uop         = { {.type = UOP_FLOAT, .throughput = 50, .latency = 50} }
 };
 static const risc86_instruction_t vector_flde_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_FLOAD,  .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_FLOAD, .throughput = 1, .latency = 2},
-    .uop[2]      = { .type = UOP_FLOAT, .throughput = 2, .latency = 2}
+    .uop         = {
+        {.type = UOP_FLOAD,  .throughput = 1, .latency = 2},
+        { .type = UOP_FLOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_FLOAT, .throughput = 2, .latency = 2}
+    }
 };
 static const risc86_instruction_t vector_fste_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_FLOAT,   .throughput = 2, .latency = 2},
-    .uop[1]      = { .type = UOP_FSTORE, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_FSTORE, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_FLOAT,   .throughput = 2, .latency = 2},
+        { .type = UOP_FSTORE, .throughput = 1, .latency = 1},
+        { .type = UOP_FSTORE, .throughput = 1, .latency = 1}
+    }
 };
 
 static const risc86_instruction_t vector_alu1_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_ALU, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t vector_alu2_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU,  .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,  .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_alu3_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU,  .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,  .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_alu6_op = {
     .nr_uops     = 6,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU,  .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU, .throughput = 1, .latency = 1},
-    .uop[3]      = { .type = UOP_ALU, .throughput = 1, .latency = 1},
-    .uop[4]      = { .type = UOP_ALU, .throughput = 1, .latency = 1},
-    .uop[5]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,  .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_alux1_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_ALUX, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t vector_alux3_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALUX,  .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUX,  .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_alux6_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALUX,  .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1},
-    .uop[3]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1},
-    .uop[4]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1},
-    .uop[5]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUX,  .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_alu_store_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU,   .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
+        { .type = UOP_ALU,   .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_alux_store_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALUX,  .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
+        { .type = UOP_ALUX,  .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_arpl_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU,  .throughput = 3, .latency = 3},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 3, .latency = 3}
+    .uop         = {
+        {.type = UOP_ALU,  .throughput = 3, .latency = 3},
+        { .type = UOP_ALU, .throughput = 3, .latency = 3}
+    }
 };
 static const risc86_instruction_t vector_bound_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[2]      = { .type = UOP_ALU,  .throughput = 1, .latency = 1},
-    .uop[3]      = { .type = UOP_ALU,  .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
+        { .type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU,  .throughput = 1, .latency = 1},
+        { .type = UOP_ALU,  .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_bsx_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 10, .latency = 10}
+    .uop         = { {.type = UOP_ALU, .throughput = 10, .latency = 10} }
 };
 static const risc86_instruction_t vector_call_far_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU,     .throughput = 3, .latency = 3},
-    .uop[1]      = { .type = UOP_STORE,  .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,     .throughput = 3, .latency = 3},
+        { .type = UOP_STORE,  .throughput = 1, .latency = 1},
+        { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_cli_sti_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 7, .latency = 7}
+    .uop         = { {.type = UOP_ALU, .throughput = 7, .latency = 7} }
 };
 static const risc86_instruction_t vector_cmps_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_cmpsb_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU,  .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU,  .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_cmpxchg_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU,   .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_STORE, .throughput = 1, .latency = 1},
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
+        { .type = UOP_ALU,   .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    },
 };
 static const risc86_instruction_t vector_cmpxchg_b_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALUX,  .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_STORE, .throughput = 1, .latency = 1},
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
+        { .type = UOP_ALUX,  .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    },
 };
 static const risc86_instruction_t vector_cpuid_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 22, .latency = 22}
+    .uop         = { {.type = UOP_ALU, .throughput = 22, .latency = 22} }
 };
 static const risc86_instruction_t vector_div16_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALUX, .throughput = 10, .latency = 10}
+    .uop         = { {.type = UOP_ALUX, .throughput = 10, .latency = 10} }
 };
 static const risc86_instruction_t vector_div16_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1,  .latency = 2 },
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 10, .latency = 10}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1,  .latency = 2 },
+        { .type = UOP_ALUX, .throughput = 10, .latency = 10}
+    }
 };
 static const risc86_instruction_t vector_div32_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALUX, .throughput = 18, .latency = 18}
+    .uop         = { {.type = UOP_ALUX, .throughput = 18, .latency = 18} }
 };
 static const risc86_instruction_t vector_div32_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1,  .latency = 2 },
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 18, .latency = 18}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1,  .latency = 2 },
+        { .type = UOP_ALUX, .throughput = 18, .latency = 18}
+    }
 };
 static const risc86_instruction_t vector_emms_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 25, .latency = 25}
+    .uop         = { {.type = UOP_ALU, .throughput = 25, .latency = 25} }
 };
 static const risc86_instruction_t vector_enter_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_STORE, .throughput = 1,  .latency = 2 },
-    .uop[1]      = { .type = UOP_ALU,  .throughput = 10, .latency = 10}
+    .uop         = {
+        {.type = UOP_STORE, .throughput = 1,  .latency = 2 },
+        { .type = UOP_ALU,  .throughput = 10, .latency = 10}
+    }
 };
 static const risc86_instruction_t vector_femms_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 6, .latency = 6}
+    .uop         = { {.type = UOP_ALU, .throughput = 6, .latency = 6} }
 };
 static const risc86_instruction_t vector_in_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 10, .latency = 11}
+    .uop         = { {.type = UOP_LOAD, .throughput = 10, .latency = 11} }
 };
 static const risc86_instruction_t vector_ins_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 10, .latency = 11},
-    .uop[1]      = { .type = UOP_STORE, .throughput = 1,  .latency = 1 },
-    .uop[2]      = { .type = UOP_ALU,   .throughput = 1,  .latency = 1 }
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 10, .latency = 11},
+        { .type = UOP_STORE, .throughput = 1,  .latency = 1 },
+        { .type = UOP_ALU,   .throughput = 1,  .latency = 1 }
+    }
 };
 static const risc86_instruction_t vector_int_op = {
     .nr_uops     = 5,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU,     .throughput = 20, .latency = 20},
-    .uop[1]      = { .type = UOP_STORE,  .throughput = 1,  .latency = 1 },
-    .uop[2]      = { .type = UOP_STORE,  .throughput = 1,  .latency = 1 },
-    .uop[3]      = { .type = UOP_STORE,  .throughput = 1,  .latency = 1 },
-    .uop[4]      = { .type = UOP_BRANCH, .throughput = 1,  .latency = 1 }
+    .uop         = {
+        {.type = UOP_ALU,     .throughput = 20, .latency = 20},
+        { .type = UOP_STORE,  .throughput = 1,  .latency = 1 },
+        { .type = UOP_STORE,  .throughput = 1,  .latency = 1 },
+        { .type = UOP_STORE,  .throughput = 1,  .latency = 1 },
+        { .type = UOP_BRANCH, .throughput = 1,  .latency = 1 }
+    }
 };
 static const risc86_instruction_t vector_iret_op = {
     .nr_uops     = 5,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,    .throughput = 1,  .latency = 2 },
-    .uop[1]      = { .type = UOP_LOAD,   .throughput = 1,  .latency = 2 },
-    .uop[2]      = { .type = UOP_LOAD,   .throughput = 1,  .latency = 2 },
-    .uop[3]      = { .type = UOP_ALU,    .throughput = 20, .latency = 20},
-    .uop[4]      = { .type = UOP_BRANCH, .throughput = 1,  .latency = 1 }
+    .uop         = {
+        {.type = UOP_LOAD,    .throughput = 1,  .latency = 2 },
+        { .type = UOP_LOAD,   .throughput = 1,  .latency = 2 },
+        { .type = UOP_LOAD,   .throughput = 1,  .latency = 2 },
+        { .type = UOP_ALU,    .throughput = 20, .latency = 20},
+        { .type = UOP_BRANCH, .throughput = 1,  .latency = 1 }
+    }
 };
 static const risc86_instruction_t vector_invd_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 1000, .latency = 1000}
+    .uop         = { {.type = UOP_ALU, .throughput = 1000, .latency = 1000} }
 };
 static const risc86_instruction_t vector_jmp_far_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU,     .throughput = 3, .latency = 3},
-    .uop[1]      = { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,     .throughput = 3, .latency = 3},
+        { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_load_alu_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_load_alux_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_loop_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU,     .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALU,     .throughput = 1, .latency = 1},
+        { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_lss_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[2]      = { .type = UOP_ALU,  .throughput = 3, .latency = 3}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
+        { .type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU,  .throughput = 3, .latency = 3}
+    }
 };
 static const risc86_instruction_t vector_mov_mem_seg_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 2},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_mov_seg_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 3, .latency = 3}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU, .throughput = 3, .latency = 3}
+    }
 };
 static const risc86_instruction_t vector_mov_seg_reg_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 3, .latency = 3}
+    .uop         = { {.type = UOP_ALU, .throughput = 3, .latency = 3} }
 };
 static const risc86_instruction_t vector_mul_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALUX,  .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUX,  .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_mul_mem_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_mul64_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALUX,  .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUX,  .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_mul64_mem_op = {
     .nr_uops     = 4,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1},
-    .uop[3]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_out_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_STORE, .throughput = 10, .latency = 10}
+    .uop         = { {.type = UOP_STORE, .throughput = 10, .latency = 10} }
 };
 static const risc86_instruction_t vector_outs_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1,  .latency = 1 },
-    .uop[1]      = { .type = UOP_STORE, .throughput = 10, .latency = 10},
-    .uop[2]      = { .type = UOP_ALU,   .throughput = 1,  .latency = 1 }
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1,  .latency = 1 },
+        { .type = UOP_STORE, .throughput = 10, .latency = 10},
+        { .type = UOP_ALU,   .throughput = 1,  .latency = 1 }
+    }
 };
 static const risc86_instruction_t vector_pusha_op = {
     .nr_uops     = 8,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_STORE,  .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_STORE, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_STORE, .throughput = 1, .latency = 1},
-    .uop[3]      = { .type = UOP_STORE, .throughput = 1, .latency = 1},
-    .uop[4]      = { .type = UOP_STORE, .throughput = 1, .latency = 1},
-    .uop[5]      = { .type = UOP_STORE, .throughput = 1, .latency = 1},
-    .uop[6]      = { .type = UOP_STORE, .throughput = 1, .latency = 1},
-    .uop[7]      = { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_STORE,  .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_popa_op = {
     .nr_uops     = 8,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_LOAD, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_LOAD, .throughput = 1, .latency = 1},
-    .uop[3]      = { .type = UOP_LOAD, .throughput = 1, .latency = 1},
-    .uop[4]      = { .type = UOP_LOAD, .throughput = 1, .latency = 1},
-    .uop[5]      = { .type = UOP_LOAD, .throughput = 1, .latency = 1},
-    .uop[6]      = { .type = UOP_LOAD, .throughput = 1, .latency = 1},
-    .uop[7]      = { .type = UOP_LOAD, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1, .latency = 1},
+        { .type = UOP_LOAD, .throughput = 1, .latency = 1},
+        { .type = UOP_LOAD, .throughput = 1, .latency = 1},
+        { .type = UOP_LOAD, .throughput = 1, .latency = 1},
+        { .type = UOP_LOAD, .throughput = 1, .latency = 1},
+        { .type = UOP_LOAD, .throughput = 1, .latency = 1},
+        { .type = UOP_LOAD, .throughput = 1, .latency = 1},
+        { .type = UOP_LOAD, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_popf_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1,  .latency = 2 },
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 17, .latency = 17}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1,  .latency = 2 },
+        { .type = UOP_ALUX, .throughput = 17, .latency = 17}
+    }
 };
 static const risc86_instruction_t vector_push_mem_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_STORE, .throughput = 1, .latency = 1}
+    .uop         = { {.type = UOP_STORE, .throughput = 1, .latency = 1} }
 };
 static const risc86_instruction_t vector_pushf_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALUX,   .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUX,   .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_ret_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,    .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .throughput = 1, .latency = 2},
+        { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_retf_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,    .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU,    .throughput = 3, .latency = 3},
-    .uop[2]      = { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,    .throughput = 1, .latency = 2},
+        { .type = UOP_ALU,    .throughput = 3, .latency = 3},
+        { .type = UOP_BRANCH, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_scas_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_scasb_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_setcc_mem_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALUX,    .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_ALUX,   .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_FSTORE, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUX,    .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX,   .throughput = 1, .latency = 1},
+        { .type = UOP_FSTORE, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_setcc_reg_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALUX,  .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU,  .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_ALUX,  .throughput = 1, .latency = 1},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU,  .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_test_mem_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD, .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD, .throughput = 1, .latency = 2},
+        { .type = UOP_ALU, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_test_mem_b_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
-    .uop[1]      = { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,  .throughput = 1, .latency = 2},
+        { .type = UOP_ALUX, .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_xchg_mem_op = {
     .nr_uops     = 3,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_LOAD,   .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_STORE, .throughput = 1, .latency = 1},
-    .uop[2]      = { .type = UOP_ALU,   .throughput = 1, .latency = 1}
+    .uop         = {
+        {.type = UOP_LOAD,   .throughput = 1, .latency = 1},
+        { .type = UOP_STORE, .throughput = 1, .latency = 1},
+        { .type = UOP_ALU,   .throughput = 1, .latency = 1}
+    }
 };
 static const risc86_instruction_t vector_xlat_op = {
     .nr_uops     = 2,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU,   .throughput = 1, .latency = 1},
-    .uop[1]      = { .type = UOP_LOAD, .throughput = 1, .latency = 2}
+    .uop         = {
+        {.type = UOP_ALU,   .throughput = 1, .latency = 1},
+        { .type = UOP_LOAD, .throughput = 1, .latency = 2}
+    }
 };
 static const risc86_instruction_t vector_wbinvd_op = {
     .nr_uops     = 1,
     .decode_type = DECODE_VECTOR,
-    .uop[0]      = {.type = UOP_ALU, .throughput = 10000, .latency = 10000}
+    .uop         = { {.type = UOP_ALU, .throughput = 10000, .latency = 10000} }
 };
 
 #define INVALID NULL

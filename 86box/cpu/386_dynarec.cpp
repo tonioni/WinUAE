@@ -720,7 +720,7 @@ exec386_dynarec_dyn(void)
     if (valid_block && (block->flags & CODEBLOCK_WAS_RECOMPILED))
     {
 #    ifdef CODEGEN_BACKEND_HAS_BLOCK_LINK
-        codegen_link_slot_t *(*code)(void) = (void *) &block->data[BLOCK_START];
+        codegen_link_slot_t *(*code)(void) = (codegen_link_slot_t *(*)(void)) (void *) &block->data[BLOCK_START];
 
         /* from may predate the reset that turned linking off. */
         if ((from != NULL) && codegen_block_link)
