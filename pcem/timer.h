@@ -1,6 +1,21 @@
 #ifndef _TIMER_H_
 #define _TIMER_H_
 
+/* Until the RTG cards move to 86Box, the remaining PCem video code is
+   linked together with 86Box's x86 emulation. Keep PCem's copies of the
+   globals both have apart. */
+#define cpu_state pcem_cpu_state
+#define tsc pcem_tsc
+#define cpuclock pcem_cpuclock
+#define VGACONST1 pcem_VGACONST1
+#define VGACONST2 pcem_VGACONST2
+#define TIMER_USEC pcem_TIMER_USEC
+#define timer_target pcem_timer_target
+#define pci_burst_time pcem_pci_burst_time
+#define pci_nonburst_time pcem_pci_nonburst_time
+#define dma_bm_read pcem_dma_bm_read
+#define dma_bm_write pcem_dma_bm_write
+
 #include "cpu.h"
 
 /*Timers are based on the CPU Time Stamp Counter. Timer timestamps are in a

@@ -246,6 +246,11 @@
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnabled>false</VcpkgEnabled>
   </PropertyGroup>
+  <!-- The imported 86Box sources use their own include layout. -->
+  <PropertyGroup Label="86Box">
+    <WinUAE86BoxIncludes>..\..\86box\winuae;..\..\86box\winuae\include;..\..\86box\include;..\..\86box\cpu;..\..\86box\cpu\softfloat3e;..\..\86box</WinUAE86BoxIncludes>
+    <WinUAE86BoxGlueIncludes>..\..\86box\winuae;..\..\86box\winuae\include;..\..\86box\include</WinUAE86BoxGlueIncludes>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Midl>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -1008,7 +1013,9 @@
     <ClCompile Include="..\..\archivers\zip\zip.cpp" />
     <ClCompile Include="..\..\aros.rom.cpp" />
     <ClCompile Include="..\..\calc.cpp" />
-    <ClCompile Include="..\..\draco.cpp" />
+    <ClCompile Include="..\..\draco.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxGlueIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="..\..\cd32_fmv_genlock.cpp" />
     <ClCompile Include="..\..\cdtvcr.cpp" />
     <ClCompile Include="..\..\cfgfile.cpp" />
@@ -1060,33 +1067,1316 @@
     <ClCompile Include="..\..\mos6502.cpp" />
     <ClCompile Include="..\..\ncr9x_scsi.cpp" />
     <ClCompile Include="..\..\newcpu_common.cpp" />
-    <ClCompile Include="..\..\pcem\386.cpp" />
-    <ClCompile Include="..\..\pcem\386_common.cpp" />
-    <ClCompile Include="..\..\pcem\386_dynarec.cpp" />
-    <ClCompile Include="..\..\pcem\808x.cpp" />
-    <ClCompile Include="..\..\pcem\cpu.cpp" />
-    <ClCompile Include="..\..\pcem\dma.cpp" />
-    <ClCompile Include="..\..\pcem\dosbox\dbopl.cpp" />
-    <ClCompile Include="..\..\pcem\dosbox\nukedopl.cpp" />
-    <ClCompile Include="..\..\pcem\keyboard.cpp" />
-    <ClCompile Include="..\..\pcem\keyboard_at.cpp" />
-    <ClCompile Include="..\..\pcem\keyboard_at_draco.cpp" />
-    <ClCompile Include="..\..\pcem\mem.cpp" />
-    <ClCompile Include="..\..\pcem\mouse_ps2.cpp" />
-    <ClCompile Include="..\..\pcem\mouse_serial.cpp" />
-    <ClCompile Include="..\..\pcem\nvr.cpp" />
+    <ClCompile Include="..\..\86box\cpu\386_common.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\386_dynarec.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\386.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\808x_common.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\808x_marty_86box.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\808x.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\cache_as_ram.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\cpu.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\fpu.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\i8080.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\consts.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_addsub.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_class.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_compare.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_div.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_extract.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_mul.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_rem.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_roundToInt.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_scale.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_sqrt.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_f128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_f16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_f32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_f64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_i32_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_i32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_i64_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_i64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_ui32_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_ui32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_ui64_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_ui64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_addsub.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_div.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_mul.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_mulAdd.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_roundToInt.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_extF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_f32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_f64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_i32_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_i32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_i64_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_i64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_ui32_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_ui32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_ui64_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_ui64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_addsub.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_class.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_compare.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_div.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_getExp.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_getMant.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_minmax.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_mul.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_mulAdd.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_range.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_roundToInt.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_sqrt.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_extF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_f32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_f64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_i32_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_i32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_i64_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_i64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_ui32_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_ui32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_ui64_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_ui64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f2xm1.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_addsub.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_class.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_compare.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_div.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_frc.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_getExp.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_getMant.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_minmax.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_mul.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_mulAdd.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_range.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_roundToInt.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_scalef.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_sqrt.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_extF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_f128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_f16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_f64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_i32_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_i32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_i64_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_i64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_ui32_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_ui32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_ui64_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_ui64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_addsub.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_class.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_compare.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_div.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_frc.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_getExp.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_getMant.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_minmax.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_mul.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_mulAdd.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_range.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_roundToInt.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_scalef.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_sqrt.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_extF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_f128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_f16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_f32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_i32_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_i32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_i64_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_i64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_ui32_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_ui32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_ui64_r_minMag.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_ui64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\fpatan.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\fprem.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\fsincos.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\fyl2x.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i32_to_extF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i32_to_f128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i32_to_f16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i32_to_f32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i32_to_f64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i64_to_extF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i64_to_f128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i64_to_f16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i64_to_f32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i64_to_f64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\isNaN.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\isSignalingNaN.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\poly.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\primitives.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_add128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_add256M.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_addMagsExtF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_addMagsF128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_addMagsF16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_addMagsF32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_addMagsF64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_approxRecip_1Ks.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_approxRecipSqrt_1Ks.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_approxRecipSqrt32_1.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_commonNaNToExtF80UI.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_commonNaNToF128UI.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_commonNaNToF16UI.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_commonNaNToF32UI.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_commonNaNToF64UI.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_countLeadingZeros16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_countLeadingZeros32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_countLeadingZeros64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_countLeadingZeros8.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_eq128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_le128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_lt128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_mul128By32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_mul128To256M.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_mul64ByShifted32To128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_mul64To128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normRoundPackToExtF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normRoundPackToF128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normRoundPackToF16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normRoundPackToF32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normRoundPackToF64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normSubnormalExtF80Sig.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normSubnormalF128Sig.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normSubnormalF16Sig.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normSubnormalF32Sig.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normSubnormalF64Sig.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_packToExtF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_propagateNaNExtF80UI.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_propagateNaNF128UI.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_propagateNaNF16UI.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_propagateNaNF32UI.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_propagateNaNF64UI.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundPackToExtF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundPackToF128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundPackToF16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundPackToF32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundPackToF64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundToI32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundToI64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundToUI32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundToUI64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam128Extra.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam256M.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam64Extra.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shortShiftLeft128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shortShiftRight128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shortShiftRightJam64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shortShiftRightJam64Extra.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_sub128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_sub256M.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_subMagsExtF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_subMagsF128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_subMagsF16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_subMagsF32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_subMagsF64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\softfloat-specialize.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui32_to_extF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui32_to_f128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui32_to_f16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui32_to_f32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui32_to_f64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui64_to_extF80.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui64_to_f128.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui64_to_f16.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui64_to_f32.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui64_to_f64.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\vx0_biu.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\vx0.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x86_ops_mmx.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x86.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x86seg_2386.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x86seg_common.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x86seg.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x87_ferr.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x87_timings.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x87.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\kbc_at_dev.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\kbc_at.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\keyboard_at.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\keyboard.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\mouse_ps2.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\mouse_serial.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\serial.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\dma.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\mem\mem.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\mem\mmu_2386.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\mem\smram.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\nmi.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\nvr_at.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\nvr.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\pic.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\pit_fast.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\pit.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\port_6x.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\ppi.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_cms.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_mpu401.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_opl2_nuked.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_opl3_nuked.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_sb_dsp.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_sb.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_speaker.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\timer.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\utils\fifo.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>86box_msvc.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ObjectFileName>$(IntDir)86box\</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\86box_glue.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxGlueIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\86box_machine.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxGlueIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\keyboard_at_draco.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxGlueIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="..\..\pcem\pcemglue.cpp" />
-    <ClCompile Include="..\..\pcem\pcemrtc.cpp" />
-    <ClCompile Include="..\..\pcem\pic.cpp" />
-    <ClCompile Include="..\..\pcem\pit.cpp" />
-    <ClCompile Include="..\..\pcem\serial.cpp" />
-    <ClCompile Include="..\..\pcem\sound_cms.cpp" />
-    <ClCompile Include="..\..\pcem\sound_dbopl.cpp" />
-    <ClCompile Include="..\..\pcem\sound_mpu401_uart.cpp" />
-    <ClCompile Include="..\..\pcem\sound_opl.cpp" />
-    <ClCompile Include="..\..\pcem\sound_sb.cpp" />
-    <ClCompile Include="..\..\pcem\sound_sb_dsp.cpp" />
-    <ClCompile Include="..\..\pcem\sound_speaker.cpp" />
     <ClCompile Include="..\..\pcem\timer.cpp" />
     <ClCompile Include="..\..\pcem\vid_bt482_ramdac.cpp" />
     <ClCompile Include="..\..\pcem\vid_cl5429.cpp" />
@@ -1114,9 +2404,6 @@
     <ClCompile Include="..\..\pcem\vid_voodoo_render.cpp" />
     <ClCompile Include="..\..\pcem\vid_voodoo_setup.cpp" />
     <ClCompile Include="..\..\pcem\vid_voodoo_texture.cpp" />
-    <ClCompile Include="..\..\pcem\x86seg.cpp" />
-    <ClCompile Include="..\..\pcem\x87.cpp" />
-    <ClCompile Include="..\..\pcem\x87_timings.cpp" />
     <ClCompile Include="..\..\pci.cpp" />
     <ClCompile Include="..\..\ppc\ppc.cpp" />
     <ClCompile Include="..\..\ppc\ppcd.cpp" />
@@ -1163,8 +2450,12 @@
     <ClCompile Include="..\..\tinyxml2.cpp" />
     <ClCompile Include="..\..\uaenative.cpp" />
     <ClCompile Include="..\..\vm.cpp" />
-    <ClCompile Include="..\..\x86.cpp" />
-    <ClCompile Include="..\..\atonce.cpp" />
+    <ClCompile Include="..\..\x86.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxGlueIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="..\..\atonce.cpp">
+      <AdditionalIncludeDirectories>$(WinUAE86BoxGlueIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="..\ahidsound_dsonly.cpp" />
     <ClCompile Include="..\ahidsound_new.cpp" />
     <ClCompile Include="..\avioutput.cpp" />

@@ -655,44 +655,282 @@ set(WINUAE_UNIX_PCEM_VIDEO_SOURCES
     qemuvga/vga.cpp
 )
 
-set(WINUAE_UNIX_PCEM_X86_SOURCES
-    pcem/386.cpp
-    pcem/386_common.cpp
-    pcem/386_dynarec.cpp
-    pcem/808x.cpp
-    pcem/cpu.cpp
-    pcem/dma.cpp
-    pcem/dosbox/dbopl.cpp
-    pcem/dosbox/nukedopl.cpp
-    pcem/keyboard.cpp
-    pcem/keyboard_at.cpp
-    pcem/mem.cpp
-    pcem/mouse_ps2.cpp
-    pcem/mouse_serial.cpp
-    pcem/nvr.cpp
-    pcem/pcemrtc.cpp
-    pcem/pic.cpp
-    pcem/pit.cpp
-    pcem/serial.cpp
-    pcem/sound_cms.cpp
-    pcem/sound_dbopl.cpp
-    pcem/sound_mpu401_uart.cpp
-    pcem/sound_opl.cpp
-    pcem/sound_sb.cpp
-    pcem/sound_sb_dsp.cpp
-    pcem/sound_speaker.cpp
-    pcem/x86seg.cpp
-    pcem/x87.cpp
-    pcem/x87_timings.cpp
+# 86Box x86 CPU, PC chipset, keyboard, mouse, serial and ISA sound for the
+# bridgeboards, ATonce and DraCo. Built by winuae_86box with 86Box's own
+# include paths; the WinUAE glue is built with the core.
+set(WINUAE_UNIX_86BOX_X86_SOURCES
+    86box/cpu/386_common.cpp
+    86box/cpu/386_dynarec.cpp
+    86box/cpu/386.cpp
+    86box/cpu/808x_common.cpp
+    86box/cpu/808x_marty_86box.cpp
+    86box/cpu/808x.cpp
+    86box/cpu/cache_as_ram.cpp
+    86box/cpu/cpu.cpp
+    86box/cpu/fpu.cpp
+    86box/cpu/i8080.cpp
+    86box/cpu/softfloat3e/consts.cpp
+    86box/cpu/softfloat3e/extF80_addsub.cpp
+    86box/cpu/softfloat3e/extF80_class.cpp
+    86box/cpu/softfloat3e/extF80_compare.cpp
+    86box/cpu/softfloat3e/extF80_div.cpp
+    86box/cpu/softfloat3e/extF80_extract.cpp
+    86box/cpu/softfloat3e/extF80_mul.cpp
+    86box/cpu/softfloat3e/extF80_rem.cpp
+    86box/cpu/softfloat3e/extF80_roundToInt.cpp
+    86box/cpu/softfloat3e/extF80_scale.cpp
+    86box/cpu/softfloat3e/extF80_sqrt.cpp
+    86box/cpu/softfloat3e/extF80_to_f128.cpp
+    86box/cpu/softfloat3e/extF80_to_f16.cpp
+    86box/cpu/softfloat3e/extF80_to_f32.cpp
+    86box/cpu/softfloat3e/extF80_to_f64.cpp
+    86box/cpu/softfloat3e/extF80_to_i32_r_minMag.cpp
+    86box/cpu/softfloat3e/extF80_to_i32.cpp
+    86box/cpu/softfloat3e/extF80_to_i64_r_minMag.cpp
+    86box/cpu/softfloat3e/extF80_to_i64.cpp
+    86box/cpu/softfloat3e/extF80_to_ui32_r_minMag.cpp
+    86box/cpu/softfloat3e/extF80_to_ui32.cpp
+    86box/cpu/softfloat3e/extF80_to_ui64_r_minMag.cpp
+    86box/cpu/softfloat3e/extF80_to_ui64.cpp
+    86box/cpu/softfloat3e/f128_addsub.cpp
+    86box/cpu/softfloat3e/f128_div.cpp
+    86box/cpu/softfloat3e/f128_mul.cpp
+    86box/cpu/softfloat3e/f128_mulAdd.cpp
+    86box/cpu/softfloat3e/f128_roundToInt.cpp
+    86box/cpu/softfloat3e/f128_to_extF80.cpp
+    86box/cpu/softfloat3e/f128_to_f32.cpp
+    86box/cpu/softfloat3e/f128_to_f64.cpp
+    86box/cpu/softfloat3e/f128_to_i32_r_minMag.cpp
+    86box/cpu/softfloat3e/f128_to_i32.cpp
+    86box/cpu/softfloat3e/f128_to_i64_r_minMag.cpp
+    86box/cpu/softfloat3e/f128_to_i64.cpp
+    86box/cpu/softfloat3e/f128_to_ui32_r_minMag.cpp
+    86box/cpu/softfloat3e/f128_to_ui32.cpp
+    86box/cpu/softfloat3e/f128_to_ui64_r_minMag.cpp
+    86box/cpu/softfloat3e/f128_to_ui64.cpp
+    86box/cpu/softfloat3e/f16_addsub.cpp
+    86box/cpu/softfloat3e/f16_class.cpp
+    86box/cpu/softfloat3e/f16_compare.cpp
+    86box/cpu/softfloat3e/f16_div.cpp
+    86box/cpu/softfloat3e/f16_getExp.cpp
+    86box/cpu/softfloat3e/f16_getMant.cpp
+    86box/cpu/softfloat3e/f16_minmax.cpp
+    86box/cpu/softfloat3e/f16_mul.cpp
+    86box/cpu/softfloat3e/f16_mulAdd.cpp
+    86box/cpu/softfloat3e/f16_range.cpp
+    86box/cpu/softfloat3e/f16_roundToInt.cpp
+    86box/cpu/softfloat3e/f16_sqrt.cpp
+    86box/cpu/softfloat3e/f16_to_extF80.cpp
+    86box/cpu/softfloat3e/f16_to_f32.cpp
+    86box/cpu/softfloat3e/f16_to_f64.cpp
+    86box/cpu/softfloat3e/f16_to_i32_r_minMag.cpp
+    86box/cpu/softfloat3e/f16_to_i32.cpp
+    86box/cpu/softfloat3e/f16_to_i64_r_minMag.cpp
+    86box/cpu/softfloat3e/f16_to_i64.cpp
+    86box/cpu/softfloat3e/f16_to_ui32_r_minMag.cpp
+    86box/cpu/softfloat3e/f16_to_ui32.cpp
+    86box/cpu/softfloat3e/f16_to_ui64_r_minMag.cpp
+    86box/cpu/softfloat3e/f16_to_ui64.cpp
+    86box/cpu/softfloat3e/f2xm1.cpp
+    86box/cpu/softfloat3e/f32_addsub.cpp
+    86box/cpu/softfloat3e/f32_class.cpp
+    86box/cpu/softfloat3e/f32_compare.cpp
+    86box/cpu/softfloat3e/f32_div.cpp
+    86box/cpu/softfloat3e/f32_frc.cpp
+    86box/cpu/softfloat3e/f32_getExp.cpp
+    86box/cpu/softfloat3e/f32_getMant.cpp
+    86box/cpu/softfloat3e/f32_minmax.cpp
+    86box/cpu/softfloat3e/f32_mul.cpp
+    86box/cpu/softfloat3e/f32_mulAdd.cpp
+    86box/cpu/softfloat3e/f32_range.cpp
+    86box/cpu/softfloat3e/f32_roundToInt.cpp
+    86box/cpu/softfloat3e/f32_scalef.cpp
+    86box/cpu/softfloat3e/f32_sqrt.cpp
+    86box/cpu/softfloat3e/f32_to_extF80.cpp
+    86box/cpu/softfloat3e/f32_to_f128.cpp
+    86box/cpu/softfloat3e/f32_to_f16.cpp
+    86box/cpu/softfloat3e/f32_to_f64.cpp
+    86box/cpu/softfloat3e/f32_to_i32_r_minMag.cpp
+    86box/cpu/softfloat3e/f32_to_i32.cpp
+    86box/cpu/softfloat3e/f32_to_i64_r_minMag.cpp
+    86box/cpu/softfloat3e/f32_to_i64.cpp
+    86box/cpu/softfloat3e/f32_to_ui32_r_minMag.cpp
+    86box/cpu/softfloat3e/f32_to_ui32.cpp
+    86box/cpu/softfloat3e/f32_to_ui64_r_minMag.cpp
+    86box/cpu/softfloat3e/f32_to_ui64.cpp
+    86box/cpu/softfloat3e/f64_addsub.cpp
+    86box/cpu/softfloat3e/f64_class.cpp
+    86box/cpu/softfloat3e/f64_compare.cpp
+    86box/cpu/softfloat3e/f64_div.cpp
+    86box/cpu/softfloat3e/f64_frc.cpp
+    86box/cpu/softfloat3e/f64_getExp.cpp
+    86box/cpu/softfloat3e/f64_getMant.cpp
+    86box/cpu/softfloat3e/f64_minmax.cpp
+    86box/cpu/softfloat3e/f64_mul.cpp
+    86box/cpu/softfloat3e/f64_mulAdd.cpp
+    86box/cpu/softfloat3e/f64_range.cpp
+    86box/cpu/softfloat3e/f64_roundToInt.cpp
+    86box/cpu/softfloat3e/f64_scalef.cpp
+    86box/cpu/softfloat3e/f64_sqrt.cpp
+    86box/cpu/softfloat3e/f64_to_extF80.cpp
+    86box/cpu/softfloat3e/f64_to_f128.cpp
+    86box/cpu/softfloat3e/f64_to_f16.cpp
+    86box/cpu/softfloat3e/f64_to_f32.cpp
+    86box/cpu/softfloat3e/f64_to_i32_r_minMag.cpp
+    86box/cpu/softfloat3e/f64_to_i32.cpp
+    86box/cpu/softfloat3e/f64_to_i64_r_minMag.cpp
+    86box/cpu/softfloat3e/f64_to_i64.cpp
+    86box/cpu/softfloat3e/f64_to_ui32_r_minMag.cpp
+    86box/cpu/softfloat3e/f64_to_ui32.cpp
+    86box/cpu/softfloat3e/f64_to_ui64_r_minMag.cpp
+    86box/cpu/softfloat3e/f64_to_ui64.cpp
+    86box/cpu/softfloat3e/fpatan.cpp
+    86box/cpu/softfloat3e/fprem.cpp
+    86box/cpu/softfloat3e/fsincos.cpp
+    86box/cpu/softfloat3e/fyl2x.cpp
+    86box/cpu/softfloat3e/i32_to_extF80.cpp
+    86box/cpu/softfloat3e/i32_to_f128.cpp
+    86box/cpu/softfloat3e/i32_to_f16.cpp
+    86box/cpu/softfloat3e/i32_to_f32.cpp
+    86box/cpu/softfloat3e/i32_to_f64.cpp
+    86box/cpu/softfloat3e/i64_to_extF80.cpp
+    86box/cpu/softfloat3e/i64_to_f128.cpp
+    86box/cpu/softfloat3e/i64_to_f16.cpp
+    86box/cpu/softfloat3e/i64_to_f32.cpp
+    86box/cpu/softfloat3e/i64_to_f64.cpp
+    86box/cpu/softfloat3e/isNaN.cpp
+    86box/cpu/softfloat3e/isSignalingNaN.cpp
+    86box/cpu/softfloat3e/poly.cpp
+    86box/cpu/softfloat3e/primitives.cpp
+    86box/cpu/softfloat3e/s_add128.cpp
+    86box/cpu/softfloat3e/s_add256M.cpp
+    86box/cpu/softfloat3e/s_addMagsExtF80.cpp
+    86box/cpu/softfloat3e/s_addMagsF128.cpp
+    86box/cpu/softfloat3e/s_addMagsF16.cpp
+    86box/cpu/softfloat3e/s_addMagsF32.cpp
+    86box/cpu/softfloat3e/s_addMagsF64.cpp
+    86box/cpu/softfloat3e/s_approxRecip_1Ks.cpp
+    86box/cpu/softfloat3e/s_approxRecipSqrt_1Ks.cpp
+    86box/cpu/softfloat3e/s_approxRecipSqrt32_1.cpp
+    86box/cpu/softfloat3e/s_commonNaNToExtF80UI.cpp
+    86box/cpu/softfloat3e/s_commonNaNToF128UI.cpp
+    86box/cpu/softfloat3e/s_commonNaNToF16UI.cpp
+    86box/cpu/softfloat3e/s_commonNaNToF32UI.cpp
+    86box/cpu/softfloat3e/s_commonNaNToF64UI.cpp
+    86box/cpu/softfloat3e/s_countLeadingZeros16.cpp
+    86box/cpu/softfloat3e/s_countLeadingZeros32.cpp
+    86box/cpu/softfloat3e/s_countLeadingZeros64.cpp
+    86box/cpu/softfloat3e/s_countLeadingZeros8.cpp
+    86box/cpu/softfloat3e/s_eq128.cpp
+    86box/cpu/softfloat3e/s_le128.cpp
+    86box/cpu/softfloat3e/s_lt128.cpp
+    86box/cpu/softfloat3e/s_mul128By32.cpp
+    86box/cpu/softfloat3e/s_mul128To256M.cpp
+    86box/cpu/softfloat3e/s_mul64ByShifted32To128.cpp
+    86box/cpu/softfloat3e/s_mul64To128.cpp
+    86box/cpu/softfloat3e/s_normRoundPackToExtF80.cpp
+    86box/cpu/softfloat3e/s_normRoundPackToF128.cpp
+    86box/cpu/softfloat3e/s_normRoundPackToF16.cpp
+    86box/cpu/softfloat3e/s_normRoundPackToF32.cpp
+    86box/cpu/softfloat3e/s_normRoundPackToF64.cpp
+    86box/cpu/softfloat3e/s_normSubnormalExtF80Sig.cpp
+    86box/cpu/softfloat3e/s_normSubnormalF128Sig.cpp
+    86box/cpu/softfloat3e/s_normSubnormalF16Sig.cpp
+    86box/cpu/softfloat3e/s_normSubnormalF32Sig.cpp
+    86box/cpu/softfloat3e/s_normSubnormalF64Sig.cpp
+    86box/cpu/softfloat3e/s_packToExtF80.cpp
+    86box/cpu/softfloat3e/s_propagateNaNExtF80UI.cpp
+    86box/cpu/softfloat3e/s_propagateNaNF128UI.cpp
+    86box/cpu/softfloat3e/s_propagateNaNF16UI.cpp
+    86box/cpu/softfloat3e/s_propagateNaNF32UI.cpp
+    86box/cpu/softfloat3e/s_propagateNaNF64UI.cpp
+    86box/cpu/softfloat3e/s_roundPackToExtF80.cpp
+    86box/cpu/softfloat3e/s_roundPackToF128.cpp
+    86box/cpu/softfloat3e/s_roundPackToF16.cpp
+    86box/cpu/softfloat3e/s_roundPackToF32.cpp
+    86box/cpu/softfloat3e/s_roundPackToF64.cpp
+    86box/cpu/softfloat3e/s_roundToI32.cpp
+    86box/cpu/softfloat3e/s_roundToI64.cpp
+    86box/cpu/softfloat3e/s_roundToUI32.cpp
+    86box/cpu/softfloat3e/s_roundToUI64.cpp
+    86box/cpu/softfloat3e/s_shiftRightJam128.cpp
+    86box/cpu/softfloat3e/s_shiftRightJam128Extra.cpp
+    86box/cpu/softfloat3e/s_shiftRightJam256M.cpp
+    86box/cpu/softfloat3e/s_shiftRightJam32.cpp
+    86box/cpu/softfloat3e/s_shiftRightJam64.cpp
+    86box/cpu/softfloat3e/s_shiftRightJam64Extra.cpp
+    86box/cpu/softfloat3e/s_shortShiftLeft128.cpp
+    86box/cpu/softfloat3e/s_shortShiftRight128.cpp
+    86box/cpu/softfloat3e/s_shortShiftRightJam64.cpp
+    86box/cpu/softfloat3e/s_shortShiftRightJam64Extra.cpp
+    86box/cpu/softfloat3e/s_sub128.cpp
+    86box/cpu/softfloat3e/s_sub256M.cpp
+    86box/cpu/softfloat3e/s_subMagsExtF80.cpp
+    86box/cpu/softfloat3e/s_subMagsF128.cpp
+    86box/cpu/softfloat3e/s_subMagsF16.cpp
+    86box/cpu/softfloat3e/s_subMagsF32.cpp
+    86box/cpu/softfloat3e/s_subMagsF64.cpp
+    86box/cpu/softfloat3e/softfloat-specialize.cpp
+    86box/cpu/softfloat3e/ui32_to_extF80.cpp
+    86box/cpu/softfloat3e/ui32_to_f128.cpp
+    86box/cpu/softfloat3e/ui32_to_f16.cpp
+    86box/cpu/softfloat3e/ui32_to_f32.cpp
+    86box/cpu/softfloat3e/ui32_to_f64.cpp
+    86box/cpu/softfloat3e/ui64_to_extF80.cpp
+    86box/cpu/softfloat3e/ui64_to_f128.cpp
+    86box/cpu/softfloat3e/ui64_to_f16.cpp
+    86box/cpu/softfloat3e/ui64_to_f32.cpp
+    86box/cpu/softfloat3e/ui64_to_f64.cpp
+    86box/cpu/vx0_biu.cpp
+    86box/cpu/vx0.cpp
+    86box/cpu/x86_ops_mmx.cpp
+    86box/cpu/x86.cpp
+    86box/cpu/x86seg_2386.cpp
+    86box/cpu/x86seg_common.cpp
+    86box/cpu/x86seg.cpp
+    86box/cpu/x87_ferr.cpp
+    86box/cpu/x87_timings.cpp
+    86box/cpu/x87.cpp
+    86box/device/kbc_at_dev.cpp
+    86box/device/kbc_at.cpp
+    86box/device/keyboard_at.cpp
+    86box/device/keyboard.cpp
+    86box/device/mouse_ps2.cpp
+    86box/device/mouse_serial.cpp
+    86box/device/serial.cpp
+    86box/dma.cpp
+    86box/mem/mem.cpp
+    86box/mem/mmu_2386.cpp
+    86box/mem/smram.cpp
+    86box/nmi.cpp
+    86box/nvr_at.cpp
+    86box/nvr.cpp
+    86box/pic.cpp
+    86box/pit_fast.cpp
+    86box/pit.cpp
+    86box/port_6x.cpp
+    86box/ppi.cpp
+    86box/sound/snd_cms.cpp
+    86box/sound/snd_mpu401.cpp
+    86box/sound/snd_opl2_nuked.cpp
+    86box/sound/snd_opl3_nuked.cpp
+    86box/sound/snd_sb_dsp.cpp
+    86box/sound/snd_sb.cpp
+    86box/sound/snd_speaker.cpp
+    86box/timer.cpp
+    86box/utils/fifo.cpp
 )
 
-set(WINUAE_UNIX_PCEM_DRACO_SOURCES
-    pcem/keyboard.cpp
-    pcem/keyboard_at.cpp
-    pcem/keyboard_at_draco.cpp
-    pcem/mouse_serial.cpp
-    pcem/serial.cpp
+set(WINUAE_UNIX_86BOX_GLUE_SOURCES
+    86box/winuae/86box_glue.cpp
+    86box/winuae/86box_machine.cpp
 )
+
+set(WINUAE_UNIX_86BOX_DRACO_SOURCES
+    86box/winuae/keyboard_at_draco.cpp
+)
+
+set(WINUAE_UNIX_86BOX_SOURCES)
 
 set(WINUAE_UNIX_USE_LIBPNG OFF)
 if(WINUAE_UNIX_WITH_LIBPNG AND PNG_FOUND)
@@ -1145,23 +1383,47 @@ list(APPEND WINUAE_UNIX_EXTRA_SOURCES
 )
 
 set(WINUAE_UNIX_ENABLE_X86 ON)
-set(WINUAE_UNIX_ENABLE_PCEM ON)
 target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_X86=1)
 list(APPEND WINUAE_UNIX_EXTRA_SOURCES
     atonce.cpp
     x86.cpp
-    ${WINUAE_UNIX_PCEM_COMMON_SOURCES}
-    ${WINUAE_UNIX_PCEM_X86_SOURCES}
+    ${WINUAE_UNIX_86BOX_GLUE_SOURCES}
 )
+list(APPEND WINUAE_UNIX_86BOX_SOURCES ${WINUAE_UNIX_86BOX_X86_SOURCES})
 
 set(WINUAE_UNIX_ENABLE_DRACO ON)
-set(WINUAE_UNIX_ENABLE_PCEM ON)
 target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_DRACO=1)
 list(APPEND WINUAE_UNIX_EXTRA_SOURCES
     draco.cpp
-    ${WINUAE_UNIX_PCEM_COMMON_SOURCES}
-    ${WINUAE_UNIX_PCEM_DRACO_SOURCES}
+    ${WINUAE_UNIX_86BOX_GLUE_SOURCES}
+    ${WINUAE_UNIX_86BOX_DRACO_SOURCES}
 )
+list(APPEND WINUAE_UNIX_86BOX_SOURCES ${WINUAE_UNIX_86BOX_X86_SOURCES})
+
+# The imported 86Box sources. They are third-party code, built as C++20 with
+# 86Box's include layout and without WinUAE's headers. UAE enables the few
+# WinUAE hooks in them.
+list(REMOVE_DUPLICATES WINUAE_UNIX_86BOX_SOURCES)
+if(WINUAE_UNIX_86BOX_SOURCES)
+    add_library(winuae_86box OBJECT ${WINUAE_UNIX_86BOX_SOURCES})
+    set_target_properties(winuae_86box PROPERTIES CXX_STANDARD 20 CXX_EXTENSIONS ON)
+    target_include_directories(winuae_86box PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/86box/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/86box/cpu"
+        "${CMAKE_CURRENT_SOURCE_DIR}/86box/cpu/softfloat3e"
+        "${CMAKE_CURRENT_SOURCE_DIR}/86box"
+    )
+    target_compile_definitions(winuae_86box PRIVATE UAE=)
+    # C11's _Static_assert, which older GCCs don't take in C++
+    target_compile_definitions(winuae_86box PRIVATE $<$<CXX_COMPILER_ID:GNU>:_Static_assert=static_assert>)
+    target_compile_options(winuae_86box PRIVATE -w)
+    # The glue and the WinUAE files that drive the PC include 86Box headers
+    # by their 86box/... path.
+    set_source_files_properties(${WINUAE_UNIX_86BOX_GLUE_SOURCES} ${WINUAE_UNIX_86BOX_DRACO_SOURCES} atonce.cpp x86.cpp draco.cpp
+        PROPERTIES INCLUDE_DIRECTORIES
+            "${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae;${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae/include;${CMAKE_CURRENT_SOURCE_DIR}/86box/include")
+endif()
 
 if(WINUAE_UNIX_ENABLE_PCEM)
     target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_PCEM=1)
@@ -1859,6 +2121,9 @@ target_sources(winuae_core PRIVATE ${WINUAE_CORE_SOURCES})
 
 if(WINUAE_UNIX_BUILD_EXECUTABLE)
     add_executable(winuae_unix $<TARGET_OBJECTS:winuae_core>)
+    if(TARGET winuae_86box)
+        target_sources(winuae_unix PRIVATE $<TARGET_OBJECTS:winuae_86box>)
+    endif()
     # Keep the developer-facing target name stable; the produced binary is
     # named winuae to match the installed name, the .desktop files, the
     # WinUAE.app bundle, and winuae.exe on Windows.

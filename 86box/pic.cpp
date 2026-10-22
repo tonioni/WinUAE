@@ -543,6 +543,14 @@ pic_action(pic_t *dev, uint8_t irq, uint8_t eoi, uint8_t rotate)
 
     if (irq != 0xff) {
         if (eoi) {
+#ifdef UAE
+            /* Bridgeboard: the EOI of the keyboard interrupt tells the Amiga
+               side that the PC has taken the key. */
+            if ((dev == &pic) && (irq == 1) && (dev->isr & b)) {
+                extern void x86_ack_keyboard(void);
+                x86_ack_keyboard();
+            }
+#endif
             dev->isr &= ~b;
 #ifdef USE_VFIO
             /* Nothing samples an edge-triggered input's level, so let VFIO
@@ -1230,6 +1238,17 @@ int
 picinterrupt(void)
 {
     int ret = -1;
+
+#ifdef UAE
+    /* ATonce: the LCA supplies INTR vectors directly, there is no 8259 */
+    extern int atonce_intr_vector;
+    if (atonce_intr_vector >= 0) {
+        ret = atonce_intr_vector;
+        atonce_intr_vector = -1;
+        pic.int_pending = 0;
+        return ret;
+    }
+#endif
 
     if (pic.int_pending) {
         if (pic_slave_on(&pic, pic.interrupt)) {

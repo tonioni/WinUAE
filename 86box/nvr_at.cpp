@@ -698,6 +698,12 @@ nvr_write(uint16_t addr, uint8_t val, void *priv)
             /* Needed for OPTi 82C601/82C602 and NSC PC87306. */
             if (local->flags & FLAG_MULTI_BANK)
                 local->addr[addr_id] |= (0x80 * local->bank[addr_id]);
+#ifdef UAE
+            /* A2386SX: registers 64-127 of the second bank are at 128-191 */
+            extern int x86_cmos_bank;
+            if (x86_cmos_bank && (local->addr[addr_id] >= 64))
+                local->addr[addr_id] += 64;
+#endif
         } else if ((addr_id == 0x1) && (local->flags & FLAG_PIIX4))
             local->addr[addr_id] = (local->addr[addr_id] & 0x7f) | 0x80;
         if (local->bank[addr_id] > 0)
@@ -1184,7 +1190,13 @@ nvr_at_init(const device_t *info)
     local->cent         = (info->local >> 16) & 0xff;
     local->default_addr = (info->local >> 24) & 0xffff;
     local->def          = (local->flags & FLAG_ZERO_DEFAULT) ? 0x00 : 0xff;
+#ifdef UAE
+    /* The IRQ doesn't fit the parameters of a 32-bit host, all the
+       bridgeboards use the AT's IRQ 8 */
+    nvr->irq            = (sizeof(info->local) >= 8) ? (int) (((uint64_t) info->local >> 40) & 0xff) : 8;
+#else
     nvr->irq            = (info->local >> 40) & 0xff;
+#endif
 
     if (nvr->irq == 0x7f)
         nvr->irq = -1;

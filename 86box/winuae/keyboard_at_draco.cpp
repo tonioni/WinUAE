@@ -23,16 +23,16 @@
 
  /* Global keyboard mode:
     Bits 0 - 1 = scan code set. */
-uint8_t keyboard_mode = 0x02;
+static uint8_t keyboard_mode = 0x02;
 
 extern void write_log(const char *, ...);
 
 void draco_kdb_queue_add(void *d, uint8_t val, int state);
 
-void kbc_at_dev_reset(void *d, int r)
+static void kbc_at_dev_reset(void *d, int r)
 {
 }
-void keyboard_at_log(const char *txt, ...)
+static void keyboard_at_log(const char *txt, ...)
 {
     char buffer[256];
     va_list parms;
@@ -41,7 +41,7 @@ void keyboard_at_log(const char *txt, ...)
     write_log(buffer);
     va_end(parms);
 }
-void fatalx(const char *txt, ...)
+static void fatalx(const char *txt, ...)
 {
 }
 
@@ -203,7 +203,7 @@ static void kbc_at_dev_queue_add(void *d, uint8_t val, int state)
 }
 
 
-void
+static void
 keyboard_set_table(const scancode *ptr)
 {
     scan_table = (scancode *)ptr;
@@ -230,9 +230,9 @@ const uint8_t id_bytes[16][4] = { { 0x00, 0x00, 0x00, 0x00 },    /* AT 84-key */
 
 /* Global keyboard flags for scan code set 3:
    bit 0 = repeat, bit 1 = makes break code? */
-uint8_t keyboard_set3_flags[512];
-uint8_t keyboard_set3_all_repeat;
-uint8_t keyboard_set3_all_break;
+static uint8_t keyboard_set3_flags[512];
+static uint8_t keyboard_set3_all_repeat;
+static uint8_t keyboard_set3_all_break;
 
 static uint8_t     inv_cmd_response = 0xfa;
 
@@ -821,7 +821,7 @@ add_data_kbd(uint16_t val)
     }
 }
 
-void
+static void
 keyboard_at_clear_data(void *priv)
 {
     atkbc_dev_t *dev = (atkbc_dev_t *)priv;
@@ -862,7 +862,7 @@ keyboard_at_invalid_cmd(atkbc_dev_t *dev)
 }
 
 
-void keyboard_at_write(uint8_t val, void *priv)
+void draco_keyboard_write(uint8_t val, void *priv)
 {
     atkbc_dev_t *dev = (atkbc_dev_t *)priv;
     //uint8_t val;

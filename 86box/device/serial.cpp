@@ -126,6 +126,15 @@ serial_transmit_period(serial_t *dev)
 void
 serial_do_irq(serial_t *dev, int set)
 {
+#ifdef UAE
+    /* DraCo: the UART interrupts go to the DraCo, not to a PC PIC */
+    extern void (*serial_irq_hook)(int irq, int set);
+    if (serial_irq_hook) {
+        if (dev->irq != 0xff)
+            serial_irq_hook(dev->irq, set);
+        return;
+    }
+#endif
     if (dev->irq != 0xff) {
         if (set || (dev->irq_state != !!set))
             picint_common(1 << dev->irq, !!(dev->type >= SERIAL_16450), set, &dev->irq_state);

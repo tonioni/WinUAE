@@ -3,14 +3,10 @@
 
 #include "uae.h"
 #include "ibm.h"
-#include "pit.h"
-#include "pic.h"
 #include "cpu.h"
 #include "device.h"
-#include "model.h"
+#include "mem.h"
 #include "x86.h"
-#include "x86_ops.h"
-#include "codegen.h"
 #include "timer.h"
 #include "sound.h"
 #include "rom.h"
@@ -18,10 +14,6 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#endif
-
-#ifdef WITH_MIDI
-#include "midi.h"
 #endif
 
 #include "pcemglue.h"
@@ -33,57 +25,18 @@
 
 #include "video.h"
 #include "vid_svga.h"
+#include "86box/winuae/86box_glue.h"
 
+// PCem CPU and PIT state the video code reads; the x86 emulation is 86Box's
 CPU_STATE cpu_state;
+uint64_t tsc;
+float cpuclock;
+uint64_t VGACONST1, VGACONST2;
+int has_vlb;
+int MCA;
+struct svga_t *mb_vga;
+int pci_burst_time, pci_nonburst_time;
 
-PIT pit, pit2;
-PIC pic, pic2;
-dma_t dma[8];
-int AT;
-
-int ppispeakon;
-int gated, speakval, speakon;
-
-PPI ppi;
-
-int codegen_flags_changed;
-uint32_t codegen_endpc;
-int codegen_in_recompile;
-int codegen_flat_ds, codegen_flat_ss;
-uint32_t recomp_page;
-uint16_t *codeblock_hash;
-codeblock_t *codeblock;
-
-void codegen_reset(void)
-{
-}
-void codegen_block_init(unsigned int)
-{
-}
-void codegen_block_remove()
-{
-}
-void codegen_block_start_recompile(struct codeblock_t *)
-{
-}
-void codegen_block_end_recompile(struct codeblock_t *)
-{
-}
-void codegen_block_end()
-{
-}
-void codegen_generate_call(uint8_t opcode, OpFn op, uint32_t fetchdat, uint32_t new_pc, uint32_t old_pc)
-{
-}
-void codegen_check_flush(struct page_t *page, uint64_t mask, uint32_t phys_addr)
-{
-}
-void codegen_flush(void)
-{
-}
-void codegen_init(void)
-{
-}
 
 void pclog(char const *format, ...)
 {
@@ -120,274 +73,12 @@ void device_speed_changed(void)
 	write_log(_T("device_speed_changed\n"));
 }
 
-int model;
-int cpuspeed;
-int insc;
-int hasfpu;
-int romset;
-int nmi_mask;
-uint32_t rammask;
-uintptr_t *readlookup2;
-uintptr_t *writelookup2;
-uint16_t flags, eflags;
-int writelookup[256], writelookupp[256];
-int readlookup[256], readlookupp[256];
-int readlnext;
-int writelnext;
-uint32_t olddslimit, oldsslimit, olddslimitw, oldsslimitw;
-int pci_burst_time, pci_nonburst_time;
-uint32_t oxpc;
-char logs_path[512];
-uint32_t ealimit, ealimitw;
-int MCA;
-struct svga_t *mb_vga;
 
-uint32_t x87_pc_off, x87_op_off;
-uint16_t x87_pc_seg, x87_op_seg;
-
-int xi8088_bios_128kb(void)
-{
-	return 0;
-}
-
-uint8_t portin(uint16_t portnum);
-uint8_t inb(uint16_t port)
-{
-	return portin(port);
-}
-
-void portout(uint16_t, uint8_t);
-void outb(uint16_t port, uint8_t v)
-{
-	portout(port, v);
-}
-uint16_t portin16(uint16_t portnum);
-uint16_t inw(uint16_t port)
-{
-	return portin16(port);
-}
-void portout16(uint16_t portnum, uint16_t value);
-void outw(uint16_t port, uint16_t val)
-{
-	portout16(port, val);
-}
-uint32_t portin32(uint16_t portnum);
-uint32_t inl(uint16_t port)
-{
-	return portin32(port);
-}
-void portout32(uint16_t portnum, uint32_t value);
-void outl(uint16_t port, uint32_t val)
-{
-	portout32(port, val);
-}
-
-
-static void model_init(void)
-{
-
-}
-
-int AMSTRAD;
-int TANDY;
-int keybsenddelay;
-int mouse_buttons;
-int mouse_type;
-uint8_t pcem_key[272];
-
-int mouse_get_type(int mouse_type)
-{
-	return 0;
-}
-
-void t3100e_notify_set(unsigned char v)
-{
-
-}
-void t3100e_display_set(unsigned char v)
-{
-
-}
-void t3100e_turbo_set(unsigned char v)
-{
-
-}
-void t3100e_mono_set(unsigned char v)
-{
-
-}
-uint8_t t3100e_display_get()
-{
-	return 0;
-}
-uint8_t t3100e_config_get()
-{
-	return 0;
-}
-uint8_t t3100e_mono_get()
-{
-	return 0;
-}
-void xi8088_turbo_set(unsigned char v)
-{
-
-}
-uint8_t xi8088_turbo_get()
-{
-	return 0;
-}
-
-void ps2_cache_clean(void)
-{
-
-}
 
 int video_is_mda()
 {
 	return 0;
 }
-
-static FPU fpus_none[] =
-{
-	{ "None", "none", FPU_NONE },
-	{ NULL, NULL, 0 }
-};
-static FPU fpus_8088[] =
-{
-	{ "None", "none", FPU_NONE },
-	{ "8087", "8087", FPU_8087 },
-	{ NULL, NULL, 0 }
-};
-static FPU fpus_80286[] =
-{
-	{ "None", "none", FPU_NONE },
-	{ "287", "287", FPU_287 },
-	{ "287XL", "287xl", FPU_287XL },
-	{ NULL, NULL, 0 }
-};
-static FPU fpus_80386[] =
-{
-	{ "None", "none", FPU_NONE },
-	{ "387", "387", FPU_387 },
-	{ NULL, NULL, 0 }
-};
-static FPU fpus_builtin[] =
-{
-	{ "Built-in", "builtin", FPU_BUILTIN },
-	{ NULL, NULL, 0 }
-};
-
-static CPU cpus_8088[] =
-{
-	/*8088 standard*/
-	{ "8088/4.77", CPU_8088, fpus_8088, 0, 4772728, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
-	{ "8088/7.16", CPU_8088, fpus_8088, 1, 14318184 / 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
-	{ "8088/8", CPU_8088, fpus_8088, 1, 8000000, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
-	{ "8088/10", CPU_8088, fpus_8088, 2, 10000000, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
-	{ "8088/12", CPU_8088, fpus_8088, 3, 12000000, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
-	{ "8088/16", CPU_8088, fpus_8088, 4, 16000000, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
-	{ "", -1, 0, 0, 0, 0 }
-};
-
-static CPU cpus_286[] =
-{
-	/*286*/
-	{ "286/6", CPU_286, fpus_80286, 0, 6000000, 1, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1 },
-	{ "286/8", CPU_286, fpus_80286, 1, 8000000, 1, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1 },
-	{ "286/10", CPU_286, fpus_80286, 2, 10000000, 1, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1 },
-	{ "286/12", CPU_286, fpus_80286, 3, 12000000, 1, 0, 0, 0, 0, 0, 3, 3, 3, 3, 2 },
-	{ "286/16", CPU_286, fpus_80286, 4, 16000000, 1, 0, 0, 0, 0, 0, 3, 3, 3, 3, 2 },
-	{ "286/20", CPU_286, fpus_80286, 5, 20000000, 1, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3 },
-	{ "286/25", CPU_286, fpus_80286, 6, 25000000, 1, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3 },
-	{ "", -1, 0, 0, 0, 0 }
-};
-
-static CPU cpus_i386SX[] =
-{
-	/*i386SX*/
-	{ "i386SX/16", CPU_386SX, fpus_80386, 0, 16000000, 1, 0, 0x2308, 0, 0, 0, 3, 3, 3, 3, 2 },
-	{ "i386SX/20", CPU_386SX, fpus_80386, 1, 20000000, 1, 0, 0x2308, 0, 0, 0, 4, 4, 3, 3, 3 },
-	{ "i386SX/25", CPU_386SX, fpus_80386, 2, 25000000, 1, 0, 0x2308, 0, 0, 0, 4, 4, 3, 3, 3 },
-	{ "i386SX/33", CPU_386SX, fpus_80386, 3, 33333333, 1, 0, 0x2308, 0, 0, 0, 6, 6, 3, 3, 4 },
-	{ "", -1, 0, 0, 0 }
-};
-
-static CPU cpus_i386DX[] =
-{
-	/*i386DX*/
-	{ "i386DX/16", CPU_386DX, fpus_80386, 0, 16000000, 1, 0, 0x0308, 0, 0, 0, 3, 3, 3, 3, 2 },
-	{ "i386DX/20", CPU_386DX, fpus_80386, 1, 20000000, 1, 0, 0x0308, 0, 0, 0, 4, 4, 3, 3, 3 },
-	{ "i386DX/25", CPU_386DX, fpus_80386, 2, 25000000, 1, 0, 0x0308, 0, 0, 0, 4, 4, 3, 3, 3 },
-	{ "i386DX/33", CPU_386DX, fpus_80386, 3, 33333333, 1, 0, 0x0308, 0, 0, 0, 6, 6, 3, 3, 4 },
-	{ "", -1, 0, 0, 0 }
-};
-
-static CPU cpus_i486[] =
-{
-	/*i486*/
-	{ "i486SX/16", CPU_i486SX, fpus_none, 0, 16000000, 1, 16000000, 0x42a, 0, 0, CPU_SUPPORTS_DYNAREC, 3, 3, 3, 3, 2 },
-	{ "i486SX/20", CPU_i486SX, fpus_none, 1, 20000000, 1, 20000000, 0x42a, 0, 0, CPU_SUPPORTS_DYNAREC, 4, 4, 3, 3, 3 },
-	{ "i486SX/25", CPU_i486SX, fpus_none, 2, 25000000, 1, 25000000, 0x42a, 0, 0, CPU_SUPPORTS_DYNAREC, 4, 4, 3, 3, 3 },
-	{ "i486SX/33", CPU_i486SX, fpus_none, 3, 33333333, 1, 33333333, 0x42a, 0, 0, CPU_SUPPORTS_DYNAREC, 6, 6, 3, 3, 4 },
-	{ "i486SX2/50", CPU_i486SX, fpus_none, 5, 50000000, 2, 25000000, 0x45b, 0, 0, CPU_SUPPORTS_DYNAREC, 8, 8, 6, 6, 2 * 3 },
-	{ "i486DX/25", CPU_i486DX, fpus_builtin, 2, 25000000, 1, 25000000, 0x404, 0, 0, CPU_SUPPORTS_DYNAREC, 4, 4, 3, 3, 3 },
-	{ "i486DX/33", CPU_i486DX, fpus_builtin, 3, 33333333, 1, 33333333, 0x404, 0, 0, CPU_SUPPORTS_DYNAREC, 6, 6, 3, 3, 4 },
-	{ "i486DX/50", CPU_i486DX, fpus_builtin, 5, 50000000, 1, 25000000, 0x404, 0, 0, CPU_SUPPORTS_DYNAREC, 8, 8, 4, 4, 6 },
-	{ "i486DX2/40", CPU_i486DX, fpus_builtin, 4, 40000000, 2, 20000000, 0x430, 0, 0, CPU_SUPPORTS_DYNAREC, 8, 8, 6, 6, 2 * 3 },
-	{ "i486DX2/50", CPU_i486DX, fpus_builtin, 5, 50000000, 2, 25000000, 0x430, 0, 0, CPU_SUPPORTS_DYNAREC, 8, 8, 6, 6, 2 * 3 },
-	{ "i486DX2/66", CPU_i486DX, fpus_builtin, 6, 66666666, 2, 33333333, 0x430, 0, 0, CPU_SUPPORTS_DYNAREC, 12, 12, 6, 6, 2 * 4 },
-	{ "", -1, 0, 0, 0 }
-};
-
-
-MODEL models[] =
-{
-	{ "[8088] Generic XT clone", ROM_GENXT, "genxt", { { "", cpus_8088 }, { "", NULL }, { "", NULL } }, MODEL_GFX_NONE, 32, 704, 16, model_init, NULL },
-	{ "[286] AMI 286 clone", ROM_AMI286, "ami286", { { "", cpus_286 }, { "", NULL }, { "", NULL } }, MODEL_GFX_NONE | MODEL_AT | MODEL_HAS_IDE, 512, 16384, 128, model_init, NULL },
-	{ "[386SX] AMI 386SX clone", ROM_AMI386SX, "ami386", { { "386SX", cpus_i386SX }, { "386DX", cpus_i386DX }, { "486", cpus_i486 } }, MODEL_GFX_NONE | MODEL_AT | MODEL_HAS_IDE, 512, 16384, 128, model_init, NULL },
-};
-
-int rom_present(const char *s)
-{
-	return 0;
-}
-static int midi_open;
-
-void midi_write(uint8_t v)
-{
-#ifdef WITH_MIDI
-	if (!midi_open) {
-		midi_open = Midi_Open();
-	}
-	BYTE b = (BYTE)v;
-	Midi_Parse(midi_output, &b);
-#endif
-}
-
-void pcem_close(void)
-{
-#ifdef WITH_MIDI
-	if (midi_open)
-		Midi_Close();
-#endif
-	midi_open = 0;
-}
-
-#ifdef CPU_i386
-void codegen_set_rounding_mode(int mode)
-{
-	/*SSE*/
-	cpu_state.new_fp_control = (cpu_state.old_fp_control & ~0x6000) | (mode << 13);
-	/*x87 - used for double -> i64 conversions*/
-	cpu_state.new_fp_control2 = (cpu_state.old_fp_control2 & ~0x0c00) | (mode << 10);
-}
-#else
-void codegen_set_rounding_mode(int mode)
-{
-	/*SSE*/
-	cpu_state.new_fp_control = (cpu_state.old_fp_control & ~0x6000) | (mode << 13);
-}
-#endif
 
 // VIDEO STUFF
 
@@ -1313,4 +1004,16 @@ dma_bm_write(uint32_t PhysAddress, const uint8_t *DataWrite, uint32_t TotalSize,
 
 void video_force_resize_set_monitor(uint8_t res, int monitor_index)
 {
+}
+
+// The PCem versions of these went with PCem's x86 emulation
+int device_get_config_int(const char *s)
+{
+	int v;
+	return x86_device_config(NULL, s, &v) ? v : 0;
+}
+
+void mem_mapping_enable(mem_mapping_t *mapping)
+{
+	mem_mapping_enablex(mapping);
 }
