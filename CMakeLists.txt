@@ -602,7 +602,6 @@ set(WINUAE_UNIX_ENABLE_PCI OFF)
 set(WINUAE_UNIX_ENABLE_GFXBOARD OFF)
 set(WINUAE_UNIX_ENABLE_X86 OFF)
 set(WINUAE_UNIX_ENABLE_DRACO OFF)
-set(WINUAE_UNIX_ENABLE_PCEM OFF)
 set(WINUAE_UNIX_ENABLE_JIT OFF)
 set(WINUAE_UNIX_ENABLE_AVIOUTPUT OFF)
 set(WINUAE_UNIX_ENABLE_VIDEOGRAB OFF)
@@ -1382,7 +1381,6 @@ list(APPEND WINUAE_UNIX_EXTRA_SOURCES
 
 set(WINUAE_UNIX_ENABLE_GFXBOARD ON)
 target_compile_definitions(winuae_unix_core_defs INTERFACE GFXBOARD=1)
-set(WINUAE_UNIX_ENABLE_PCEM ON)
 list(APPEND WINUAE_UNIX_EXTRA_SOURCES
     gfxboard.cpp
     pci.cpp
@@ -1457,14 +1455,6 @@ if(WINUAE_UNIX_ENABLE_GFXBOARD)
     target_compile_definitions(winuae_86box_video PRIVATE $<$<CXX_COMPILER_ID:GNU>:_Static_assert=static_assert>)
     target_compile_options(winuae_86box_video PRIVATE -w
         -include "${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae/86box_video_redirect.h")
-endif()
-
-if(WINUAE_UNIX_ENABLE_PCEM)
-    target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_PCEM=1)
-    target_compile_options(winuae_core PRIVATE
-        $<$<COMPILE_LANGUAGE:CXX>:-include>
-        $<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/od-unix/pcem_wincompat.h>
-    )
 endif()
 
 if(WINUAE_UNIX_ENABLE_PPC OR WINUAE_UNIX_ENABLE_GFXBOARD OR WINUAE_UNIX_ENABLE_X86 OR WINUAE_UNIX_ENABLE_DRACO)

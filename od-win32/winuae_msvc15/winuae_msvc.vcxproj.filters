@@ -67,9 +67,6 @@
     <Filter Include="nasm">
       <UniqueIdentifier>{9d6d0e7b-76b0-4b28-a9ef-0b69a02528c7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="pcem">
-      <UniqueIdentifier>{c9a4aeea-c63c-40e4-9da2-371acd5ea8fe}</UniqueIdentifier>
-    </Filter>
     <Filter Include="86box">
       <UniqueIdentifier>{7c3b8f12-86b0-4c1e-9a2f-86b0c0de0086}</UniqueIdentifier>
     </Filter>
@@ -722,7 +719,7 @@
       <Filter>mame</Filter>
     </ClCompile>
     <ClCompile Include="..\..\x86.cpp">
-      <Filter>pcem</Filter>
+      <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\vm.cpp">
       <Filter>common</Filter>
