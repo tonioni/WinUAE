@@ -16,6 +16,9 @@
 #else
 #include <sys/mman.h>
 #endif
+#if defined(__APPLE__) && defined(__aarch64__)
+#include <pthread.h>
+#endif
 
 #include "86box_glue.h"
 
@@ -53,6 +56,9 @@
 #include <86box/m_ibm5140.h>
 #include <86box/nv/vid_nv_rivatimer.h>
 #include "86box/cpu/cpu.h"
+#ifdef USE_DYNAREC
+#include "86box/cpu/codegen_public.h"
+#endif
 
 #ifdef WITH_MIDI
 #include "midi.h"
@@ -243,6 +249,30 @@ static pc_timer_t keepalive_timer;
 static void keepalive_timer_poll(void *priv)
 {
 	timer_advance_u64(&keepalive_timer, TIMER_USEC * 1000000);
+}
+
+void x86pc_codegen_init(void)
+{
+#ifdef USE_DYNAREC
+	static bool initialized;
+	if (!cpu_use_dynarec || initialized) {
+		return;
+	}
+	/* The code buffers are allocated once, codegen_reset() clears them */
+	initialized = true;
+#if defined(__APPLE__) && defined(__aarch64__)
+	if (__builtin_available(macOS 11.0, *)) {
+		pthread_jit_write_protect_np(0);
+	}
+#endif
+	codegen_init();
+#if defined(__APPLE__) && defined(__aarch64__)
+	if (__builtin_available(macOS 11.0, *)) {
+		pthread_jit_write_protect_np(1);
+	}
+#endif
+	write_log(_T("86Box: x86 recompiler enabled\n"));
+#endif
 }
 
 void x86pc_timer_init(void)

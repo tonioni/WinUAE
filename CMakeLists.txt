@@ -409,6 +409,28 @@ endforeach()
 set(WINUAE_UNIX_WITH_JIT_DEFAULT ${WINUAE_UNIX_JIT_TARGET_SUPPORTED})
 option(WINUAE_UNIX_WITH_JIT "Build JIT support for Unix targets where a backend is available" ${WINUAE_UNIX_WITH_JIT_DEFAULT})
 
+# 86Box's x86 recompiler for the bridgeboard PCs. It has one backend per
+# binary, so multi-architecture builds keep the interpreter.
+set(WINUAE_UNIX_X86_DYNAREC_BACKEND "")
+list(LENGTH WINUAE_UNIX_TARGET_ARCHES WINUAE_UNIX_TARGET_ARCH_COUNT)
+if(WINUAE_UNIX_TARGET_ARCH_COUNT EQUAL 1)
+    if(WINUAE_UNIX_TARGET_ARCHES MATCHES "^(aarch64|arm64)$")
+        set(WINUAE_UNIX_X86_DYNAREC_BACKEND arm64)
+    elseif(WINUAE_UNIX_TARGET_ARCHES MATCHES "^(x86_64|amd64|AMD64)$")
+        set(WINUAE_UNIX_X86_DYNAREC_BACKEND x86-64)
+    endif()
+endif()
+if(WINUAE_UNIX_X86_DYNAREC_BACKEND)
+    set(WINUAE_UNIX_WITH_X86_DYNAREC_DEFAULT ON)
+else()
+    set(WINUAE_UNIX_WITH_X86_DYNAREC_DEFAULT OFF)
+endif()
+option(WINUAE_UNIX_WITH_X86_DYNAREC "Build the x86 recompiler for the bridgeboard PCs" ${WINUAE_UNIX_WITH_X86_DYNAREC_DEFAULT})
+if(WINUAE_UNIX_WITH_X86_DYNAREC AND NOT WINUAE_UNIX_X86_DYNAREC_BACKEND)
+    message(STATUS "The x86 recompiler has no backend for ${WINUAE_UNIX_TARGET_ARCHES}; the bridgeboards use the interpreter")
+    set(WINUAE_UNIX_WITH_X86_DYNAREC OFF)
+endif()
+
 set(WINUAE_UNIX_VERSION_MAJOR 0)
 set(WINUAE_UNIX_VERSION_MINOR 0)
 set(WINUAE_UNIX_VERSION_REVISION 0)
@@ -877,6 +899,61 @@ set(WINUAE_UNIX_86BOX_X86_SOURCES
     86box/sound/snd_speaker.cpp
     86box/timer.cpp
     86box/utils/fifo.cpp
+)
+
+# The x86 recompiler, common part and backends
+set(WINUAE_UNIX_86BOX_DYNAREC_SOURCES
+    86box/codegen/codegen.cpp
+    86box/codegen/codegen_accumulate.cpp
+    86box/codegen/codegen_allocator.cpp
+    86box/codegen/codegen_block.cpp
+    86box/codegen/codegen_ir.cpp
+    86box/codegen/codegen_ops.cpp
+    86box/codegen/codegen_ops_3dnow.cpp
+    86box/codegen/codegen_ops_arith.cpp
+    86box/codegen/codegen_ops_branch.cpp
+    86box/codegen/codegen_ops_fpu_arith.cpp
+    86box/codegen/codegen_ops_fpu_constant.cpp
+    86box/codegen/codegen_ops_fpu_loadstore.cpp
+    86box/codegen/codegen_ops_fpu_misc.cpp
+    86box/codegen/codegen_ops_helpers.cpp
+    86box/codegen/codegen_ops_jump.cpp
+    86box/codegen/codegen_ops_logic.cpp
+    86box/codegen/codegen_ops_misc.cpp
+    86box/codegen/codegen_ops_mmx_arith.cpp
+    86box/codegen/codegen_ops_mmx_cmp.cpp
+    86box/codegen/codegen_ops_mmx_loadstore.cpp
+    86box/codegen/codegen_ops_mmx_logic.cpp
+    86box/codegen/codegen_ops_mmx_pack.cpp
+    86box/codegen/codegen_ops_mmx_shift.cpp
+    86box/codegen/codegen_ops_mov.cpp
+    86box/codegen/codegen_ops_rep.cpp
+    86box/codegen/codegen_ops_shift.cpp
+    86box/codegen/codegen_ops_stack.cpp
+    86box/codegen/codegen_reg.cpp
+    86box/cpu/386_dynarec_ops.cpp
+    86box/cpu/codegen_timing_486.cpp
+    86box/cpu/codegen_timing_686.cpp
+    86box/cpu/codegen_timing_common.cpp
+    86box/cpu/codegen_timing_k6.cpp
+    86box/cpu/codegen_timing_p6.cpp
+    86box/cpu/codegen_timing_pentium.cpp
+    86box/cpu/codegen_timing_winchip.cpp
+    86box/cpu/codegen_timing_winchip2.cpp
+)
+
+set(WINUAE_UNIX_86BOX_DYNAREC_ARM64_SOURCES
+    86box/codegen/codegen_backend_arm64.cpp
+    86box/codegen/codegen_backend_arm64_imm.cpp
+    86box/codegen/codegen_backend_arm64_ops.cpp
+    86box/codegen/codegen_backend_arm64_uops.cpp
+)
+
+set(WINUAE_UNIX_86BOX_DYNAREC_X86_64_SOURCES
+    86box/codegen/codegen_backend_x86-64.cpp
+    86box/codegen/codegen_backend_x86-64_ops.cpp
+    86box/codegen/codegen_backend_x86-64_ops_sse.cpp
+    86box/codegen/codegen_backend_x86-64_uops.cpp
 )
 
 set(WINUAE_UNIX_86BOX_GLUE_SOURCES
@@ -1413,6 +1490,19 @@ list(APPEND WINUAE_UNIX_EXTRA_SOURCES
 )
 list(APPEND WINUAE_UNIX_86BOX_SOURCES ${WINUAE_UNIX_86BOX_X86_SOURCES})
 
+# USE_DYNAREC changes 86Box's CPU state, so it applies to every file that
+# includes 86Box's cpu.h.
+set(WINUAE_UNIX_86BOX_DEFINITIONS UAE=)
+if(WINUAE_UNIX_86BOX_SOURCES AND WINUAE_UNIX_WITH_X86_DYNAREC)
+    list(APPEND WINUAE_UNIX_86BOX_SOURCES ${WINUAE_UNIX_86BOX_DYNAREC_SOURCES})
+    if(WINUAE_UNIX_X86_DYNAREC_BACKEND STREQUAL "arm64")
+        list(APPEND WINUAE_UNIX_86BOX_SOURCES ${WINUAE_UNIX_86BOX_DYNAREC_ARM64_SOURCES})
+    else()
+        list(APPEND WINUAE_UNIX_86BOX_SOURCES ${WINUAE_UNIX_86BOX_DYNAREC_X86_64_SOURCES})
+    endif()
+    list(APPEND WINUAE_UNIX_86BOX_DEFINITIONS USE_DYNAREC)
+endif()
+
 # The imported 86Box sources. They are third-party code, built as C++20 with
 # 86Box's include layout and without WinUAE's headers. UAE enables the few
 # WinUAE hooks in them.
@@ -1425,9 +1515,10 @@ if(WINUAE_UNIX_86BOX_SOURCES)
         "${CMAKE_CURRENT_SOURCE_DIR}/86box/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/86box/cpu"
         "${CMAKE_CURRENT_SOURCE_DIR}/86box/cpu/softfloat3e"
+        "${CMAKE_CURRENT_SOURCE_DIR}/86box/codegen"
         "${CMAKE_CURRENT_SOURCE_DIR}/86box"
     )
-    target_compile_definitions(winuae_86box PRIVATE UAE=)
+    target_compile_definitions(winuae_86box PRIVATE ${WINUAE_UNIX_86BOX_DEFINITIONS})
     # C11's _Static_assert, which older GCCs don't take in C++
     target_compile_definitions(winuae_86box PRIVATE $<$<CXX_COMPILER_ID:GNU>:_Static_assert=static_assert>)
     target_compile_options(winuae_86box PRIVATE -w)
@@ -1436,7 +1527,8 @@ if(WINUAE_UNIX_86BOX_SOURCES)
     set_source_files_properties(${WINUAE_UNIX_86BOX_GLUE_SOURCES} ${WINUAE_UNIX_86BOX_DRACO_SOURCES} atonce.cpp x86.cpp draco.cpp
         ${WINUAE_UNIX_86BOX_VIDEO_GLUE_SOURCES}
         PROPERTIES INCLUDE_DIRECTORIES
-            "${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae;${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae/include;${CMAKE_CURRENT_SOURCE_DIR}/86box/include")
+            "${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae;${CMAKE_CURRENT_SOURCE_DIR}/86box/winuae/include;${CMAKE_CURRENT_SOURCE_DIR}/86box/include"
+        COMPILE_DEFINITIONS "${WINUAE_UNIX_86BOX_DEFINITIONS}")
 endif()
 
 # The video cards get their memory, I/O, timer and device calls renamed to
@@ -1450,7 +1542,7 @@ if(WINUAE_UNIX_ENABLE_GFXBOARD)
         "${CMAKE_CURRENT_SOURCE_DIR}/86box/cpu"
         "${CMAKE_CURRENT_SOURCE_DIR}/86box"
     )
-    target_compile_definitions(winuae_86box_video PRIVATE UAE=)
+    target_compile_definitions(winuae_86box_video PRIVATE ${WINUAE_UNIX_86BOX_DEFINITIONS})
     # C11's _Static_assert, which older GCCs don't take in C++
     target_compile_definitions(winuae_86box_video PRIVATE $<$<CXX_COMPILER_ID:GNU>:_Static_assert=static_assert>)
     target_compile_options(winuae_86box_video PRIVATE -w

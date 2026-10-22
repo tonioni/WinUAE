@@ -283,6 +283,10 @@ static void select_cpu(int family, int index)
 	cpu_base_speed = selected_cpu()->rspeed;
 	cpu_f = (cpu_family_t *)&cpu_families[cpu_family];
 	cpu = cpu_index;
+#ifdef USE_DYNAREC
+	/* 86Box recompiles 486 and later CPUs */
+	cpu_use_dynarec = (selected_cpu()->cpu_flags & CPU_SUPPORTS_DYNAREC) != 0;
+#endif
 	apply_throttle();
 }
 

@@ -526,6 +526,12 @@ codegen_reset(void)
 {
     int c;
 
+#ifdef UAE
+    /* WinUAE only sets up the recompiler for the bridgeboard CPUs that use
+       it, the CPU reset of the others must not touch it */
+    if (!codeblock)
+        return;
+#endif
     for (c = 1; c < BLOCK_SIZE; c++) {
         codeblock_t *block = &codeblock[c];
 

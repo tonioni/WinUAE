@@ -46,6 +46,9 @@ void pit_irq0_timer(int new_out, int old_out, void *priv);
 /* Start 86Box's timers. */
 void x86pc_timer_init(void);
 
+/* Set up the x86 recompiler if the selected CPU uses it, after mem_init(). */
+void x86pc_codegen_init(void);
+
 /* Remove and close all devices added through device_add(). */
 void x86pc_close_devices(void);
 

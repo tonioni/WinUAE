@@ -809,7 +809,8 @@ svga_recalctimings(svga_t *svga)
     int              old_monitor_overscan_y = svga->monitor->mon_overscan_y;
 
     if (svga->adv_flags & FLAG_PRECISETIME) {
-#ifdef USE_DYNAREC
+#if defined(USE_DYNAREC) && !defined(UAE)
+        /* Under UAE the x86 CPU is the bridgeboard's, not this card's */
         if (cpu_use_dynarec)
             update_tsc();
 #endif

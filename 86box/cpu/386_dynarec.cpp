@@ -1005,7 +1005,14 @@ exec386_dynarec_common(int32_t cycs, const int dbg)
     uint64_t oldtsc;
     uint64_t delta;
 
+#ifdef UAE
+    /* WinUAE runs scanline sized slices, not 86Box's 1 or 10 ms */
+    int32_t cyc_period = cpu_s->rspeed / 200000; /*5us*/
+    if (cyc_period < 1)
+        cyc_period = 1;
+#else
     int32_t cyc_period = cycs / (force_10ms ? 2000 : 200); /*5us*/
+#endif
 
     cycles_main += cycs;
     while (cycles_main > 0) {

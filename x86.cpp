@@ -1646,6 +1646,18 @@ static uae_u8 get0x3da(struct x86_bridge *xb)
 #define EMS_BANK 0x4000
 #define EMS_MASK 0x3fff
 
+// Memory the PC can execute from that is written past 86Box's RAM
+// handlers (shadow RAM, EMS, the shared Amiga buffers): drop the
+// recompiler's translations of it.
+static void x86_code_written(uint32_t addr, int size)
+{
+#ifdef USE_DYNAREC
+	if (cpu_use_dynarec && (addr >> 12) < pages_sz && pages[addr >> 12].code_present_mask) {
+		mem_invalidate_range(addr, addr + size - 1);
+	}
+#endif
+}
+
 static uint8_t mem_read_emsb(uint32_t addr, void *priv)
 {
 	uint8_t *p = (uint8_t*)priv;
@@ -1665,16 +1677,19 @@ static void mem_write_emsb(uint32_t addr, uint8_t val, void *priv)
 {
 	uint8_t *p = (uint8_t*)priv;
 	p[addr & EMS_MASK] = val;
+	x86_code_written(addr, 1);
 }
 static void mem_write_emsw(uint32_t addr, uint16_t val, void *priv)
 {
 	uint8_t *p = (uint8_t*)priv;
 	((uint16_t*)&p[addr & EMS_MASK])[0] = val;
+	x86_code_written(addr, 2);
 }
 static void mem_write_emsl(uint32_t addr, uint32_t val, void *priv)
 {
 	uint8_t *p = (uint8_t*)priv;
 	((uint32_t*)&p[addr & EMS_MASK])[0] = val;
+	x86_code_written(addr, 4);
 }
 
 static uint8_t mem_read_shadowb(uint32_t addr, void *priv)
@@ -1696,16 +1711,19 @@ static void mem_write_shadowb(uint32_t addr, uint8_t val, void *priv)
 {
 	struct scamp_shadow *m = (struct scamp_shadow*)priv;
 	ram[addr] = val;
+	x86_code_written(addr, 1);
 }
 static void mem_write_shadoww(uint32_t addr, uint16_t val, void *priv)
 {
 	struct scamp_shadow *m = (struct scamp_shadow*)priv;
 	((uint16_t*)&ram[addr])[0] = val;
+	x86_code_written(addr, 2);
 }
 static void mem_write_shadowl(uint32_t addr, uint32_t val, void *priv)
 {
 	struct scamp_shadow *m = (struct scamp_shadow*)priv;
 	((uint32_t*)&ram[addr])[0] = val;
+	x86_code_written(addr, 4);
 }
 
 static const uae_u32 shadow_bases[] = { 0xa0000, 0xc0000, 0xd0000, 0xe0000 };
@@ -1769,6 +1787,7 @@ static void vlsi_set_ems(struct x86_bridge *xb, bool all)
 			mem_mapping_set_p(m, paddr);
 			mem_mapping_set_addr(m, baseaddr, EMS_BANK);
 			mem_mapping_set_exec(m, paddr);
+			x86_code_written(baseaddr, EMS_BANK);
 		}	else {
 #if EMS_DEBUG
 			if (m->enable)
@@ -3093,6 +3112,7 @@ static void REGPARAM2 x86_bridge_wput(uaecptr addr, uae_u32 b)
 		case ACCESS_MODE_WORD:
 		base[0] = b;
 		base[1] = b >> 8;
+		x86_code_written(a, 2);
 		break;
 		case ACCESS_MODE_GFX:
 		// does not seem to be used
@@ -3101,6 +3121,7 @@ static void REGPARAM2 x86_bridge_wput(uaecptr addr, uae_u32 b)
 		default:
 		base[1] = b;
 		base[0] = b >> 8;
+		x86_code_written(a, 2);
 		break;
 	}
 }
@@ -3151,6 +3172,7 @@ static void REGPARAM2 x86_bridge_bput(uaecptr addr, uae_u32 b)
 		break;
 		case ACCESS_MODE_WORD:
 		base[(a ^ 1) & 1] = b;
+		x86_code_written(a, 1);
 		break;
 		case ACCESS_MODE_GFX:
 		// does not seem to be used
@@ -3158,6 +3180,7 @@ static void REGPARAM2 x86_bridge_bput(uaecptr addr, uae_u32 b)
 		break;
 		default:
 		base[0] = b;
+		x86_code_written(a, 1);
 		break;
 	}
 }
@@ -3191,18 +3214,21 @@ static void mem_write_sharedb(uint32_t addr, uint8_t val, void *priv)
 	struct membase *mb = (struct membase*)priv;
 	set_pc_address_access(bridges[0], addr);
 	mb->base[addr & mb->mask] = val;
+	x86_code_written(addr, 1);
 }
 static void mem_write_sharedw(uint32_t addr, uint16_t val, void *priv)
 {
 	struct membase *mb = (struct membase*)priv;
 	set_pc_address_access(bridges[0], addr);
 	((uae_u16*)(mb->base + (addr & mb->mask)))[0] = val;
+	x86_code_written(addr, 2);
 }
 static void mem_write_sharedl(uint32_t addr, uint32_t val, void *priv)
 {
 	struct membase *mb = (struct membase*)priv;
 	set_pc_address_access(bridges[0], addr);
 	((uae_u32*)(mb->base + (addr & mb->mask)))[0] = val;
+	x86_code_written(addr, 4);
 }
 
 static uint8_t vga_readb(uint32_t addr, void *priv)
@@ -4052,6 +4078,7 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 	mem_size /= 1024;
 	mem_init();
 	mem_reset();
+	x86pc_codegen_init();
 	xb->pc_ram = ram;
 
 	bridge_reset(xb);
