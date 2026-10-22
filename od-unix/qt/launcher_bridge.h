@@ -28,3 +28,5 @@ void winUaeQtDebuggerProcessEvents(int debugger_active);
 void runWinUaeQtDebuggerConsoleWrite(const char *text);
 void runWinUaeQtDebuggerUpdateInfo(const char *text);
 void runWinUaeQtDebuggerConsoleClose(void);
+/* Destroy the Qt application once the emulator has finished. */
+void winUaeQtShutdown(void);

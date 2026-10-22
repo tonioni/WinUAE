@@ -1346,6 +1346,7 @@ int main (int argc, TCHAR **argv)
 	if (early_exit >= 0)
 		return early_exit;
 	real_main (argc, argv);
+	target_main_exit();
 	return 0;
 }
 #endif

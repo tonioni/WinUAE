@@ -195,3 +195,4 @@ void runWinUaeQtDebuggerProcessEvents(bool debuggerActive);
 void runWinUaeQtDebuggerConsoleWrite(const QString &text);
 void runWinUaeQtDebuggerUpdateInfo(const QString &text);
 void closeWinUaeQtDebuggerConsole();
+void shutdownWinUaeQtApplication();

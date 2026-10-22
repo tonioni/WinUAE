@@ -980,3 +980,8 @@ void runWinUaeQtDebuggerConsoleClose(void)
 {
     closeWinUaeQtDebuggerConsole();
 }
+
+void winUaeQtShutdown(void)
+{
+    shutdownWinUaeQtApplication();
+}

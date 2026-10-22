@@ -10,4 +10,8 @@ static inline int target_main_handle_early(int, TCHAR **)
 	return -1;
 }
 
+static inline void target_main_exit(void)
+{
+}
+
 #endif /* UAE_TARGET_MAIN_H */

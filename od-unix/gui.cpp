@@ -1,6 +1,10 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#ifdef UAE_UNIX_WITH_SDL3
+#include <SDL3/SDL.h>
+#endif
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -96,11 +100,23 @@ void target_main_set_args(int argc, TCHAR **argv)
 {
     unix_gui_argc = argc;
     unix_gui_argv = argv;
+#ifdef UAE_UNIX_WITH_SDL3
+    /* The identifier becomes the Wayland app_id / X11 WM_CLASS; it must match
+     * net.winuae.WinUAE.desktop so the desktop shows the WinUAE icon. */
+    SDL_SetAppMetadata("WinUAE", nullptr, "net.winuae.WinUAE");
+#endif
 }
 
 int target_main_handle_early(int argc, TCHAR **argv)
 {
     return -1;
+}
+
+void target_main_exit(void)
+{
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    winUaeQtShutdown();
+#endif
 }
 
 int gui_init(void)
