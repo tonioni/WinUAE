@@ -1697,6 +1697,18 @@ uint8_t s3_accel_read(uint32_t addr, void *p)
         return 0;
 }
 
+/* Word and long reads of the registers, e.g. the GP_STAT polling of the
+   Picasso96 S3Trio64 driver */
+static uint16_t s3_accel_read_w(uint32_t addr, void *p)
+{
+        return s3_accel_read(addr, p) | (s3_accel_read(addr + 1, p) << 8);
+}
+
+static uint32_t s3_accel_read_l(uint32_t addr, void *p)
+{
+        return s3_accel_read_w(addr, p) | (s3_accel_read_w(addr + 2, p) << 16);
+}
+
 static void polygon_setup(s3_t *s3)
 {
         if (s3->accel.point_1_updated)
@@ -2831,7 +2843,7 @@ static void *s3_init(char *bios_fn, int chip)
                 mem_mapping_disablex(&s3->bios_rom.mapping);
 
         mem_mapping_addx(&s3->linear_mapping, 0,       0,       svga_read_linear, svga_readw_linear, svga_readl_linear, svga_write_linear, svga_writew_linear, svga_writel_linear, NULL, MEM_MAPPING_EXTERNAL, &s3->svga);
-        mem_mapping_addx(&s3->mmio_mapping,   0xa0000, 0x10000, s3_accel_read, NULL, NULL, s3_accel_write, s3_accel_write_w, s3_accel_write_l, NULL, MEM_MAPPING_EXTERNAL, s3);
+        mem_mapping_addx(&s3->mmio_mapping,   0xa0000, 0x10000, s3_accel_read, s3_accel_read_w, s3_accel_read_l, s3_accel_write, s3_accel_write_w, s3_accel_write_l, NULL, MEM_MAPPING_EXTERNAL, s3);
         mem_mapping_disablex(&s3->mmio_mapping);
 
         svga_init(NULL, &s3->svga, s3, vram_size, /*4mb - 864 supports 8mb but buggy VESA driver reports 0mb*/
