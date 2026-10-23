@@ -59,6 +59,11 @@ sc1502x_ramdac_bpp(sc1502x_ramdac_t *ramdac, svga_t *svga)
         } else
             svga->bpp = 8;
     }
+#ifdef UAE
+    /* Command register bit 0 selects RGB instead of BGR order in the 24/32
+       bpp modes; the oMniBus Picasso96 driver offers both. */
+    svga->swaprb = (svga->bpp >= 24) && (ramdac->ctrl & 0x01);
+#endif
     //pclog("SVGA BPP=%d.\n", svga->bpp);
     if (oldbpp != svga->bpp)
         svga_recalctimings(svga);
