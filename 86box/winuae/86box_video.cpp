@@ -134,8 +134,16 @@ static uint32_t calc_16to32(int c, bool swapped)
 	return swapped ? (hi | (g << 8) | (lo << 16)) : (lo | (g << 8) | (hi << 16));
 }
 
+/* The RAMDACs call this on each mode register write, rebuild only when the
+   red/blue order changes */
+static int video_rbswapped = -1;
+
 void pcemvideorbswap(bool swapped)
 {
+	if (video_rbswapped == swapped) {
+		return;
+	}
+	video_rbswapped = swapped;
 	for (int c = 0; c < 65536; c++) {
 		video_15to32[c] = calc_15to32(c & 0x7fff, swapped);
 		video_16to32[c] = calc_16to32(c, swapped);
