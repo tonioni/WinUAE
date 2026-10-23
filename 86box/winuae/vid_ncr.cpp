@@ -1086,10 +1086,12 @@ static void ncr_updatebanking(ncr_t *ncr)
 			ncr->bankr[3] = banksecondary + 0x18000;
 		} else if (mode == 6) {
 			// Reads/writes Primary on A0, Secondary on A8.
+			// Both banks address the whole 64k window: the secondary bank
+			// shows its second half at A8 (P96 Retina.card relies on it).
 			ncr->bankr[0] = bankprimary;
-			ncr->bankr[1] = banksecondary;
+			ncr->bankr[1] = banksecondary + 0x8000;
 			ncr->bankr[2] = bankprimary + 0x8000;
-			ncr->bankr[3] = banksecondary + 0x8000;
+			ncr->bankr[3] = banksecondary + 0x10000;
 		}
 	}
 	if (!rwsep) {
