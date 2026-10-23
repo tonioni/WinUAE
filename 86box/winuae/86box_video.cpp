@@ -228,8 +228,9 @@ uint8_t *getpcembuffer32(int x, int y, int yy)
 }
 
 /* svga_doblit() for WinUAE: the frame at x, y of the target buffer is
-   w x h pixels, doubled horizontally here for svga_t horizontal_linedbl. */
-void svga_doblit_uae(svga_t *svga, int x, int y, int w, int h)
+   w x h pixels, doubled horizontally here for svga_t horizontal_linedbl.
+   Lines y1 to y2 - 1 of it changed since the last frame. */
+void svga_doblit_uae(svga_t *svga, int x, int y, int w, int h, int y1, int y2)
 {
 	int hmult = svga->horizontal_linedbl ? 2 : 1;
 	int vmult = svga->linedbl ? 2 : 1;
@@ -243,6 +244,11 @@ void svga_doblit_uae(svga_t *svga, int x, int y, int w, int h)
 		blit_hmult = hmult;
 		blit_vmult = vmult;
 		gfxboard_resize(w * hmult, h, hmult, vmult, gfxboard_priv);
+		y1 = 0;
+		y2 = h;
+	}
+	if (y2 > h) {
+		y2 = h;
 	}
 	svga->monitor->mon_xsize = w;
 	svga->monitor->mon_ysize = h;
@@ -251,7 +257,7 @@ void svga_doblit_uae(svga_t *svga, int x, int y, int w, int h)
 		if (x + w * 2 > TARGET_WIDTH) {
 			w = (TARGET_WIDTH - x) / 2;
 		}
-		for (int yy = 0; yy < h && y + yy < TARGET_HEIGHT; yy++) {
+		for (int yy = y1; yy < y2 && y + yy < TARGET_HEIGHT; yy++) {
 			uint32_t *s = target_bitmap->line[y + yy] + x;
 			uint32_t *d = double_bitmap->line[y + yy] + x;
 			for (int xx = 0; xx < w; xx++) {
@@ -261,7 +267,7 @@ void svga_doblit_uae(svga_t *svga, int x, int y, int w, int h)
 		}
 		blit_bitmap = double_bitmap;
 	}
-	video_blit_memtoscreen(x, y, 0, h, w * hmult, h);
+	video_blit_memtoscreen(x, y, y1, y2, w * hmult, h);
 }
 
 void video_blit_memtoscreen_monitor(int x, int y, int w, int h, int monitor_index)

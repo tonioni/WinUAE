@@ -371,7 +371,7 @@ typedef struct svga_t {
 #ifdef UAE
 /* In WinUAE: the board's VRAM and showing the frame (86box_video.cpp) */
 extern void *pcem_getvram(int size);
-extern void  svga_doblit_uae(svga_t *svga, int x, int y, int w, int h);
+extern void  svga_doblit_uae(svga_t *svga, int x, int y, int w, int h, int y1, int y2);
 
 #define svga_swap_rb(c) ((((c) >> 16) & 0xff) | (((c) & 0xff) << 16) | ((c) & 0xff00ff00))
 #endif

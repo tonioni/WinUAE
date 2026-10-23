@@ -2367,7 +2367,16 @@ svga_doblit(int wx, int wy, svga_t *svga)
     ys_temp = wy + 1;
     if (svga->vertical_linedbl)
         ys_temp++;
-    svga_doblit_uae(svga, svga->left_overscan, svga->vertical_linedbl ? (svga->y_add << 1) : svga->y_add, wx, ys_temp);
+    /* Copy only the lines the renderers redrew, as WinUAE did with PCem */
+    y_start = 0;
+    bottom  = ys_temp;
+    if (!svga->vertical_linedbl && !svga->interlace) {
+        y_start = svga->firstline_draw;
+        bottom  = svga->lastline_draw + 1;
+        if (y_start >= bottom)
+            y_start = bottom = 0;
+    }
+    svga_doblit_uae(svga, svga->left_overscan, svga->vertical_linedbl ? (svga->y_add << 1) : svga->y_add, wx, ys_temp, y_start, bottom);
     return;
 #endif
 
