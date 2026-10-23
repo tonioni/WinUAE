@@ -144,11 +144,8 @@ void inmos_recalctimings(svga_t *svga)
         svga->htotal = inmos->regs[0x123] * 4;
         svga->rowoffset = 2048 + (svga->htotal << bs) - (len << bs);
 
-        int row = inmos->regs[0x180] / 0x2000;
-        int col = inmos->regs[0x180] % 0x2000;
-        int width = svga->rowoffset / (4 * 4);
-
-        svga->ma_latch = col * width + row;
+        // Top of screen counts 512 byte VRAM rows
+        svga->ma_latch = inmos->regs[0x180] * (512 / 4);
 
         svga->rowoffset >>= 3;
 
@@ -218,12 +215,10 @@ void inmos_recalctimings(svga_t *svga)
         svga->htotal = inmos->regs[0x023] * 4;
         svga->rowoffset = 2048 + (svga->htotal << bs) - (len << bs);
 
-        uint32_t start = inmos->regs[0x080];
-        int row = start / 0x2000;
-        int col = start % 0x2000;
-        int width = svga->rowoffset / (4 * 4);
+        // Top of screen and line start count 2048 byte VRAM rows
+        uint32_t start = inmos->regs[0x080] + inmos->regs[0x02c];
 
-        svga->ma_latch = start * 2;
+        svga->ma_latch = start * (2048 / 4);
         svga->rowoffset >>= 3;
         inmos->syncdelay = ((control >> 15) & 7) * ((bpp + 7) >> 3);
         svga->vtotal = (inmos->regs[0x02a] + inmos->regs[0x029] * 3 + inmos->regs[0x26]) / 2;
