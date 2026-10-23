@@ -2794,6 +2794,7 @@ uint32_t portin32(uint16_t portnum)
 
 static uaecptr get_x86_address(struct x86_bridge *xb, uaecptr addr, int *mode, uae_u8 **base)
 {
+	*base = NULL;
 	addr -= xb->baseaddress;
 	if (!xb->baseaddress || addr >= 0x80000) {
 		*mode = -1;
@@ -2801,6 +2802,13 @@ static uaecptr get_x86_address(struct x86_bridge *xb, uaecptr addr, int *mode, u
 	}
 	*mode = addr >> 17;
 	addr &= 0x1ffff;
+	// The IO registers are only decoded in the IO access window and the
+	// memory windows only in the others. Anything else is ignored, the
+	// callers would use an unset base or index amiga_io out of bounds.
+	if ((addr >= 0x1e000) != (*mode == ACCESS_MODE_IO)) {
+		*mode = -1;
+		return 0;
+	}
 	if (addr < 0x10000) {
 		*base = xb->amiga_buffer + addr;
 		return get_shared_io(xb) + addr;
@@ -3362,6 +3370,17 @@ static void x86_cpu_execute(int cycs)
 	check_floppy_delay();
 }
 
+// Time between two PC sound samples. Without sound output the sound clock
+// isn't calculated (x86_update_sound() isn't called), use the chipset's.
+static int x86_audio_event_time(void)
+{
+	float clk = x86_base_event_clock;
+	if (clk <= 0) {
+		clk = (float)maxhpos * maxvpos * vblank_hz;
+	}
+	return (int)(clk * CYCLE_UNIT / currprefs.sound_freq + 1);
+}
+
 static bool audio_state_sndboard_x86(int streamid, void *param)
 {
 	static int smp[2] = { 0, 0 };
@@ -3415,7 +3434,7 @@ static void x86_bridge_vsync(void)
 	if (rc) {
 		xb->mouse_port = (rc->device_settings & 3) + 1;
 	}
-	xb->audeventtime = (int)(x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1);
+	xb->audeventtime = x86_audio_event_time();
 }
 
 static void x86_bridge_hsync(void)
@@ -3430,7 +3449,7 @@ static void x86_bridge_hsync(void)
 		xb->sound_initialized = true;
 		if (xb->sound_emu) {
 			write_log(_T("x86 sound init\n"));
-			xb->audeventtime = (int)(x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1);
+			xb->audeventtime = x86_audio_event_time();
 			timer_add(&sound_poll_timer, sound_poll, NULL, 0);
 			xb->audstream = audio_enable_stream(true, -1, 2, audio_state_sndboard_x86, NULL);
 			sound_speed_changed(true);
@@ -4307,7 +4326,7 @@ void x86_update_sound(float clk)
 	struct x86_bridge *xb = bridges[0];
 	x86_base_event_clock = clk;
 	if (xb) {
-		xb->audeventtime = (int)(x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1);
+		xb->audeventtime = x86_audio_event_time();
 		sound_speed_changed(false);
 	}
 }
