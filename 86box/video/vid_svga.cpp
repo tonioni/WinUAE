@@ -1093,11 +1093,20 @@ svga_recalctimings(svga_t *svga)
             adj_dot++;
         }
 
+#ifdef UAE
+        /* Show the whole display area the Amiga driver set up, not only the
+           part a monitor would leave unblanked: P96 drivers often start the
+           blanking on the last displayed character or let it wrap into the
+           next line, which would cut or shift the picture. */
+        svga->hblank_sub = 0;
+#endif
         const uint32_t hd = svga->hdisp;
         svga->hdisp -= (svga->hblank_sub * svga->dots_per_clock);
 
+#ifndef UAE
         const uint32_t non_blanked = (svga->hblankstart + 1 - svga->hblank_sub) * svga->dots_per_clock;
         svga->hdisp = MIN(svga->hdisp, non_blanked);
+#endif
 
         svga->left_overscan = svga->x_add = (int) ((uint32_t) svga->htotal - adj_dot - hadj - 1) * svga->dots_per_clock;
         svga->monitor->mon_overscan_x = (int) ((uint32_t) svga->x_add + ((uint32_t) svga->hblankstart * (uint32_t) svga->dots_per_clock) - hd + (uint32_t) svga->dots_per_clock);
