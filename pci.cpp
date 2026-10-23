@@ -394,10 +394,20 @@ static struct pci_board_state *get_pci_board_state(struct pci_bridge *pcib, uaec
 	if (io && addr2 < 0x400) {
 		for (int i = 0; i < MAX_PCI_BOARDS; i++) {
 			struct pci_board_state *pcibs = &pcib->boards[i];
-			if (pcibs->board && pcibs->board->bars[MAX_PCI_BARS].bget) {
+			if (pcibs->board && pcibs->board->bars[PCI_LEGACY_IO].bget) {
 				stored_board = i;
-				stored_bar = MAX_PCI_BARS;
+				stored_bar = PCI_LEGACY_IO;
 				*bar = stored_bar;
+				return pcibs;
+			}
+		}
+	}
+	// VGA cards also decode the legacy VGA memory window without a BAR
+	if (!io && addr2 >= 0xa0000 && addr2 < 0xc0000) {
+		for (int i = 0; i < MAX_PCI_BOARDS; i++) {
+			struct pci_board_state *pcibs = &pcib->boards[i];
+			if (pcibs->board && pcibs->board->bars[PCI_LEGACY_VGA].bget && pcibs->memory_map_active) {
+				*bar = PCI_LEGACY_VGA;
 				return pcibs;
 			}
 		}
