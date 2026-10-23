@@ -1344,28 +1344,35 @@ static bool unix_gl_upload_frame(const struct unix_video_frame *frame)
 
     glBindTexture(GL_TEXTURE_2D, s_gl_texture);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    if (frame->rowbytes == frame->width * frame->pixbytes) {
-        if (frame->pixbytes == 2) {
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height,
-                GL_RGB, GL_UNSIGNED_SHORT_5_6_5, frame->pixels);
+    const uae_u8 *pixels = frame->pixels;
+    int rowlength = 0;
+    if (frame->rowbytes != frame->width * frame->pixbytes) {
+        if (frame->rowbytes % frame->pixbytes == 0) {
+            // Let GL skip the padding at the end of each row.
+            rowlength = frame->rowbytes / frame->pixbytes;
         } else {
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height,
-                GL_BGRA, GL_UNSIGNED_BYTE, frame->pixels);
+            static std::vector<uae_u8> packed;
+            size_t linebytes = (size_t)frame->width * (size_t)frame->pixbytes;
+            packed.resize(linebytes * (size_t)frame->height);
+            for (int y = 0; y < frame->height; y++) {
+                memcpy(packed.data() + (size_t)y * linebytes,
+                    frame->pixels + (size_t)y * (size_t)frame->rowbytes, linebytes);
+            }
+            pixels = packed.data();
         }
+    }
+    if (rowlength) {
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, rowlength);
+    }
+    if (frame->pixbytes == 2) {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height,
+            GL_RGB, GL_UNSIGNED_SHORT_5_6_5, pixels);
     } else {
-        std::vector<uae_u8> packed((size_t)frame->width * (size_t)frame->height * (size_t)frame->pixbytes);
-        for (int y = 0; y < frame->height; y++) {
-            memcpy(packed.data() + (size_t)y * (size_t)frame->width * (size_t)frame->pixbytes,
-                frame->pixels + (size_t)y * (size_t)frame->rowbytes,
-                (size_t)frame->width * (size_t)frame->pixbytes);
-        }
-        if (frame->pixbytes == 2) {
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height,
-                GL_RGB, GL_UNSIGNED_SHORT_5_6_5, packed.data());
-        } else {
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height,
-                GL_BGRA, GL_UNSIGNED_BYTE, packed.data());
-        }
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height,
+            GL_BGRA, GL_UNSIGNED_BYTE, pixels);
+    }
+    if (rowlength) {
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     }
     return true;
 }
