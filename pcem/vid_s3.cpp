@@ -1264,6 +1264,10 @@ void s3_recalctimings(svga_t *svga)
 {
         s3_t *s3 = (s3_t *)svga->priv;
         svga->hdisp = svga->hdisp_old;
+        /* CR43 bit 7 doubles all the horizontal parameters, the display width
+           too. The Picasso96 S3Trio64 driver uses it in the 15/16 bpp modes. */
+        if (!(svga->crtc[0x33] & 0x20) && (svga->crtc[0x43] & 0x80))
+                svga->hdisp <<= 1;
         int clk_sel = (svga->miscout >> 2) & 3;
 
         if (clk_sel == 3 && s3->chip == S3_VISION864)
