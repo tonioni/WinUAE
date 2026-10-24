@@ -2,14 +2,14 @@
  Name    : RetroPlatformIPC.h
  Project : RetroPlatform Player
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2025 Cloanto Corporation - All rights reserved. This
+ Legal   : Copyright 2007-2026 Cloanto Corporation - All rights reserved. This
          : file is multi-licensed under the terms of the Mozilla Public License
          : version 2.0 as published by Mozilla Corporation and the GNU General
          : Public License, version 2 or later, as published by the Free
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2025-06-28 17:42:21
+ Updated : 2026-10-17 14:23:10
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -18,9 +18,9 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "11.2"
+#define RETROPLATFORM_API_VER       "11.4"
 #define RETROPLATFORM_API_VER_MAJOR  11
-#define RETROPLATFORM_API_VER_MINOR  2
+#define RETROPLATFORM_API_VER_MINOR  4
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -84,6 +84,8 @@
 #define	RP_IPC_TO_HOST_TOPWINDOW			(WM_APP + 54) // introduced in RetroPlatform API 10.3
 #define	RP_IPC_TO_HOST_PRIVATE_PRINTERATTR	(WM_APP + 55) // introduced in RetroPlatform API 11.1
 #define	RP_IPC_TO_HOST_STATUS				(WM_APP + 56) // introduced in RetroPlatform API 11.2
+#define	RP_IPC_TO_HOST_CURRENTDISPLAY       (WM_APP + 57) // introduced in RetroPlatform API 11.3
+#define	RP_IPC_TO_HOST_OUTPUTDISPLAY        (WM_APP + 58) // introduced in RetroPlatform API 11.3
 
 // ****************************************************************************
 //  Host-to-Guest Messages
@@ -139,6 +141,7 @@
 #define	RP_IPC_TO_GUEST_PRIVATE_FRAMEWINDOW  (WM_APP + 251) // introduced in RetroPlatform API 10.3
 #define	RP_IPC_TO_GUEST_PRIVATE_TYPETEXT     (WM_APP + 252) // introduced in RetroPlatform API 10.4
 #define	RP_IPC_TO_GUEST_PRIVATE_DEVICECOMMAND (WM_APP + 253) // introduced in RetroPlatform API 11.0
+#define RP_IPC_TO_GUEST_SCREEN1X             (WM_APP + 254) // introduced in RetroPlatform API 11.4
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -210,7 +213,7 @@ typedef struct RPScreenMode
 #define RP_SCREENMODE_DISPLAY(m)			(((m) & RP_SCREENMODE_DISPLAYMASK) >> 8) // returns the display number (1-255) or 0 if full screen is not active
 
 // Fullscreen Type: Hardware (Exclusive) vs. Software (Shared) Fullscreen (both are only used with RP_SCREENMODE_DISPLAY_FULLSCREEN_x)
-#define RP_SCREENMODE_FULLSCREEN_EXCLUSIVE	0x00000000 // use display card video modes (aka "real fullscreen", may change resolution/frequency); must have RP_SCREENMODE_DISPLAY_FULLSCREEN_n and RP_SCREENMODE_SCALE_MAX set
+#define RP_SCREENMODE_FULLSCREEN_EXCLUSIVE	0x00000000 // use graphics card video modes (aka "real fullscreen", may change resolution/frequency); must have RP_SCREENMODE_DISPLAY_FULLSCREEN_n and RP_SCREENMODE_SCALE_MAX set
 #define RP_SCREENMODE_FULLSCREEN_SHARED		0x00010000 // use "full window" (desktop size) when in fullscreen (no gfx card fullscreen); must have RP_SCREENMODE_DISPLAY_FULLSCREEN_n and RP_SCREENMODE_SCALE_MAX set
 #define RP_SCREENMODE_FULLSCREENMASK       	0x00010000
 #define RP_SCREENMODE_FULLSCREEN(m)       	((m) & RP_SCREENMODE_FULLSCREENMASK) // returns RP_SCREENMODE_FULLSCREEN_EXCLUSIVE or RP_SCREENMODE_FULLSCREEN_SHARED
@@ -680,9 +683,16 @@ typedef struct RPTypeText
 } RPTYPETEXT;
 
 
-// RP_IPC_TO_GUEST_PRIVATE_DEVICECOMMAND
+// RP_IPC_TO_GUEST_PRIVATE_DEVICECOMMAND - RP_DEVICECATEGORY_PRINTER
 #define RP_PDCMD_SHOW_PREVIEW	1
 #define RP_PDCMD_PRINT_LIST		2
+// RP_IPC_TO_GUEST_PRIVATE_DEVICECOMMAND - RP_DEVICECATEGORY_KEYBOARD
+#define RP_PDCMD_UPDATE_KIDATA	1
+#define RP_PDCMD_GET_STATE		2
+// RP_PDCMD_PRINT_LIST option
+#define RP_PDCMD_PRINT_LIST_AUTOMATIC	0
+#define RP_PDCMD_PRINT_LIST_GRAPHICS	1
+#define RP_PDCMD_PRINT_LIST_BUSINESS	2
 
 #define PRIVATEDEVICECOMMAND_NOTIMPL     PRIVATETYPETEXT_NOTIMPL
 #define PRIVATEDEVICECOMMAND_FAILED      PRIVATETYPETEXT_FAILED
@@ -706,7 +716,7 @@ typedef struct RPPrinterAttribute
 {
 	DWORD cbSize;           // the size of this structure, in bytes
 	WCHAR szPort[100];      // printer port
-    DWORD dwUnit;           // printer unit
+    int   nUnit;            // printer unit, or -1
 	WCHAR szAttribute[100]; // attribute name
 	WCHAR szValue[100];     // attribute value
 } RPPRINTERATTRIBUTE;
