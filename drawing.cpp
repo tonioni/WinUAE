@@ -1329,6 +1329,17 @@ void init_row_map(void)
 		abort();
 	}
 
+	int linedbld = currprefs.gfx_vresolution;
+	linedbl = linedbld;
+	if (doublescan > 0 && interlace_seen > 0) {
+		linedbl *= 2;
+	}
+	int maxl = (MAXVPOS + 1) << linedbld;
+	max_drawn_amiga_line = -1;
+
+	vidinfo->xchange = 1 << (RES_MAX - currprefs.gfx_resolution);
+	vidinfo->ychange = linedbl ? 1 : 2;
+
 	if (oldheight_alloc == vb->height_allocated &&
 		oldheight == vb->outheight &&
 		oldpitch == vb->rowbytes &&
@@ -1351,17 +1362,6 @@ void init_row_map(void)
 	oldpitch = vb->rowbytes;
 	oldgenlock = init_genlock_data;
 	oldburst = row_map_color_burst_buffer ? 1 : 0;
-
-	int linedbld = currprefs.gfx_vresolution;
-	linedbl = linedbld;
-	if (doublescan > 0 && interlace_seen > 0) {
-		linedbl *= 2;
-	}
-	int maxl = (MAXVPOS + 1) << linedbld;
-	max_drawn_amiga_line = -1;
-
-	vidinfo->xchange = 1 << (RES_MAX - currprefs.gfx_resolution);
-	vidinfo->ychange = linedbl ? 1 : 2;
 
 	visible_left_start = 0;
 	visible_right_stop = MAX_STOP;
