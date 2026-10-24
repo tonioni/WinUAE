@@ -7371,6 +7371,11 @@ void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, st
 	uae_u32 *buf2p = buf2 != buf1 ? buf2 : NULL;
 	uae_u8 *gbufp = gbuf;
 
+	buf1t = buf1;
+	buf2t = buf2;
+	bufdt = buf_d;
+	bufg = gbuf;
+
 	int rshift = hresolution_inv;
 
 	bool ecsena = ecs_denise && (ls->bplcon0 & 1) != 0;
@@ -7422,6 +7427,8 @@ void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, st
 		if (full_line_draw) {
 			draw_blank_end();
 		}
+
+		edgeblanking(ls->hbstrt_offset, ls->hbstop_offset, ls->internal_pixel_start_cnt, ls->strlong_seen, ls->lol, ls->lol_shift_prev);
 
 		if (need_genlock_data && gbuf && total > 0) {
 			int max = addrdiff(xlinebuffer_genlock_end, gbufp);
@@ -7486,8 +7493,11 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 
 	uae_u32 *buf1p = buf1;
 	uae_u32 *buf2p = buf2 != buf1 ? buf2 : NULL;
+
 	buf1t = buf1;
 	buf2t = buf2;
+	bufdt = buf_d;
+	bufg = gbuf;
 
 	int planecnt = GET_PLANES(ls->bplcon0);
 	int res = GET_RES_DENISE(ls->bplcon0);
