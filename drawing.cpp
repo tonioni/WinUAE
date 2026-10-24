@@ -7763,11 +7763,13 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	// clear some more bytes to clear possible lightpen cursor graphics
 	if (need_genlock_data && gbuf) {
 		int max = addrdiff(xlinebuffer_genlock_end, gbuf);
+		if (max > 0) {
 		int total = GENLOCK_EXTRA_CLEAR;
 		if (total > max) {
 			total = max;
 		}
 		memset(gbuf, 0, total);
+	}
 	}
 
 	if (ls->hstop_offset > diwlastword_total && ls->bpl1dat_trigger_offset >= 0) {
