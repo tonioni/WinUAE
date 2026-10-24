@@ -53,6 +53,9 @@
 #ifdef WITH_SPECIALMONITORS
 #include "specialmonitors.h"
 #endif
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #define VPOSW_DISABLED 0
 #define VPOSW_DEBUG 0
@@ -2098,6 +2101,10 @@ static void init_beamcon0(void)
 	resetfulllinestate();
 	updatehwhpostable();
 	init_beamcon_delay = -1;
+
+#ifdef RETROPLATFORM
+	rp_screenmode_changed();
+#endif
 }
 
 static void init_hz_reset(void)
