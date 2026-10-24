@@ -3037,10 +3037,10 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	else if (hdbl == 4)
 		hdbl_shift = 2;
 
-	int ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
+	int ystart = (isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL) - LINES_AFTER_VSYNC;
 	int ystartcopro = ystart + 4;
 	int yimgstart = ystart + 6;
-	int yend = (isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL) + 1;
+	int yend = (isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL) - LINES_AFTER_VSYNC + 1;
 	int wrappos = -1;
 
 	if (yline < 0 || yline == ystart) {
@@ -3070,11 +3070,11 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		uae_u8 *dstline = NULL;
 		int ydisp = -1;
 
-		int yoff = (((y * 2 - oddlines) - src->yoffset) / vdbl);
+		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
 		if (yoff >= 0 && yoff < src->inheight) {
 			line = src->bufmem + yoff * src->rowbytes;
 			line_genlock = get_row_genlock(0, yoff);
-			dstline = dst->bufmem + (((y * 2 - oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
+			dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
 			if (y >= yimgstart) {
 				ydisp = y - yimgstart;
 			}
@@ -3130,6 +3130,8 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		// behavior not fully known
 #if 0
 		if ((!opal->auto_field && opal->bank_field) || (opal->auto_field && oddlines)) {
+			;
+		}
 #endif
 		opal->bank_field = opal->loaded_bank_field;
 		if (opal->bank_field) {
@@ -3148,7 +3150,7 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		int xoffset = 8;
 		int ax = xoffset;
 
-		for (x = 0; x < src->inwidth - xoffset; x++, ax++) {
+		for (x = 0; x < src->inwidth; x++, ax++) {
 			uae_u8 *sa = line + ((x << 1) >> hdbl_shift) * src->pixbytes;
 			uae_u8 newval = FIRGB(src, sa);
 			uae_u8 val = prev | newval;
