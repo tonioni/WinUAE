@@ -14312,6 +14312,11 @@ private:
         miscGuiDarkMode->setCheckState(Qt::PartiallyChecked);
         applyGuiDarkModeSelection();
         miscGuiFontConfig.clear();
+        if (useDesktopStyle()) {
+            /* The shared application may still have the previous config's
+             * font override. Restore the desktop font before loading one. */
+            applyGuiFont(QFontDatabase::systemFont(QFontDatabase::GeneralFont), QString());
+        }
         applyGuiResizeMode();
         updateLogPathText();
         updateOutputControlState();

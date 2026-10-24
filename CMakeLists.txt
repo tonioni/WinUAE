@@ -2491,6 +2491,28 @@ if(WINUAE_UNIX_WITH_QT_UI)
         target_link_libraries(winuae_unix_qt_drive_sound_sets_test PRIVATE ${WINUAE_UNIX_QT_WIDGETS_TARGET})
         winuae_unix_register_test(winuae_unix_qt_drive_sound_sets_test)
 
+        add_executable(winuae_unix_qt_gui_font_test EXCLUDE_FROM_ALL
+            od-unix/qt/config.cpp
+            od-unix/qt/drive_sound_sets.cpp
+            od-unix/qt/launcher.cpp
+            od-unix/qt/mount_config.cpp
+            od-unix/qt/path_utils.cpp
+            od-unix/qt/gui_font_test.cpp
+        )
+        target_include_directories(winuae_unix_qt_gui_font_test PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+            "${CMAKE_CURRENT_SOURCE_DIR}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        )
+        target_link_libraries(winuae_unix_qt_gui_font_test PRIVATE ${WINUAE_UNIX_QT_WIDGETS_TARGET})
+        winuae_unix_register_test(winuae_unix_qt_gui_font_test)
+        if(BUILD_TESTING)
+            set_tests_properties(winuae_unix_qt_gui_font_test PROPERTIES
+                ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+                TIMEOUT 30
+            )
+        endif()
+
         if(WINUAE_UNIX_WITH_INTEGRATED_QT_UI)
             target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_INTEGRATED_QT_UI=1)
             if(TARGET winuae_unix)
