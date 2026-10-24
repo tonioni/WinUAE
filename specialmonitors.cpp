@@ -1879,9 +1879,9 @@ void specialmonitor_gaudio(bool gaudio, int vpos)
 static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 {
 	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
-	int y, x;
+	int y;
 	int ystart, yend, isntsc;
-	int xstart, xend;
+	int xstart;
 	uae_u8 *srcbuf, *srcend;
 	uae_u8 *dstbuf, *dstbufend;
 	bool command, hires, found;
@@ -1905,24 +1905,27 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 
 	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
 	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+
 	if (src->yoffset >= (ystart << VRES_MAX))
 		ystart = src->yoffset >> VRES_MAX;
 
 	xadd = avidinfo->xchange == 1 ? src->pixbytes * 2 : src->pixbytes;
 	xpixadd = avidinfo->xchange == 1 ? 4 : 2;
 
-	xstart = 0x1c * 2 + 1;
-	xend = 0xf0 * 2 + 1;
+	xstart = 0x1c * 2 + 2;
 	if (!(currprefs.chipset_mask & CSMASK_AGA)) {
 		xstart++;
-		xend++;
 	}
 	if ((xstart << RES_MAX) < src->xoffset)
 		return false;
 
-	srcbuf = src->bufmem + (((ystart << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes + (((xstart << RES_MAX) - src->xoffset) / avidinfo->xchange) * src->pixbytes;
-
-	srcbuf = src->bufmem;
+	int sy = (((ystart << VRES_MAX) - src->yoffset) / avidinfo->ychange);
+	int ssx = (xstart << RES_MAX) - src->xoffset;
+	if (ssx < 0) {
+		ssx = 0;
+	}
+	int sx = (ssx / avidinfo->xchange) * src->pixbytes;
+	srcbuf = src->bufmem + sy * src->rowbytes + sx;
 
 	srcend = src->bufmem + (((yend << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes;
 	extrapix = 0;
@@ -1933,23 +1936,12 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 	y = 0;
 	while (srcend > srcbuf && dstbufend > dstbuf) {
 		uae_u8 *srcp = srcbuf + extrapix;
+		uae_u8 *srclineend = srcp + (src->inwidth - (xstart >> RES_MAX)) * src->pixbytes;
 		uae_u8 *dstp = dstbuf;
+		bool erase = false;
 
-		x = xstart;
-		bool first = true;
-		while (x < xend) {
+		while (srcp < srclineend) {
 			
-			if (command && first) {
-				if (FR(src, srcp) || FG(src, srcp) || FB(src, srcp) || FI(src, srcp)) {
-					first = false;
-				} else {
-					x += xpixadd;
-					srcp += xadd;
-					dstp += dst->pixbytes * xpixadd;
-					continue;
-				}
-			}
-
 			uae_u8 mask = 0x80;
 			uae_u8 chunky[4] = { 0, 0, 0, 0 };
 			while (mask) {
@@ -2009,13 +2001,11 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 					}
 				}
 
-				memset(dstp, 0, dst->pixbytes * 4 * 2);
-				dstp += dst->pixbytes * 4 * 2;
+				erase = true;
 
 			} else if (waitline) {
 			
-				memset(dstp, 0, dst->pixbytes * 4 * 2);
-				dstp += dst->pixbytes * 4 * 2;
+				erase = true;
 			
 			} else {
 
@@ -2041,7 +2031,14 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 
 			}
 
-			x += xpixadd;
+			if (erase) {
+				int edbl = avidinfo->xchange == 1 && !hires ? 1 : 0;
+				memset(dstp, 0, dst->pixbytes * (8 << edbl));
+				if (dbl) {
+					memset(dstp + dst->rowbytes, 0, dst->pixbytes * (8 << edbl));
+				}
+				dstp += dst->pixbytes * (8 << edbl);
+			}
 		}
 
 		y++;

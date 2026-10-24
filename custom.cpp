@@ -3659,10 +3659,6 @@ static void BPLCON0(uae_u16 v)
 		return;
 	}
 
-#ifdef WITH_SPECIALMONITORS
-	specialmonitor_gaudio((v & 0x0100) != 0, vpos);
-#endif
-
 	// UHRES, BYPASS
 	if (va & (0x0080 | 0x0020)) {
 		not_safe_mode |= 1;
@@ -6647,6 +6643,10 @@ static void hsync_handler(bool vs)
 
 	}
 	hsync_handler_post(vs);
+
+#ifdef WITH_SPECIALMONITORS
+	specialmonitor_gaudio((bplcon0 & 0x0100) != 0, vpos);
+#endif
 }
 
 static void audio_evhandler2(void)
