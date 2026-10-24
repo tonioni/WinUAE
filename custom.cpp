@@ -10809,9 +10809,16 @@ static bool checkprevfieldlinestateequal(void)
 
 					if (doflickerfix_active()) {
 
-						bool borderline = scandoubled_vdiw[lvpos][0] || scandoubled_vdiw[lvpos][1] || scandoubled_vdiw[lvpos + 1][lof_display];
-						if (borderline) {
+						int borderline = scandoubled_vdiw[lvpos][0] || scandoubled_vdiw[lvpos][1] || scandoubled_vdiw[lvpos + 1][lof_display];
+						// make sure first odd/even line is blanked
+						if (vb_fast || vb_fast_prev) {
+							borderline = -1;
+						}
+
+						if (borderline > 0) {
 							draw_border_fast(lvpos);
+						} else if (borderline < 0)  {
+							draw_blank_fast(lvpos);
 						} else {
 							r = draw_line_fast(lvpos, bplpt, true);
 						}
@@ -10825,14 +10832,20 @@ static bool checkprevfieldlinestateequal(void)
 									uaecptr bplptx[MAX_PLANES];
 									bool skip = getbplptx(bplptx, planes, lvpos2, lof_store, true);
 									bool borderline = scandoubled_vdiw[lvpos2][0] || scandoubled_vdiw[lvpos2][1] || scandoubled_vdiw[lvpos2 + 1][lof_display];
-									if (skip || borderline) {
+									if (borderline < 0) {
+										draw_blank_fast(lvpos2);
+									} else if (skip || borderline) {
 										draw_border_fast(lvpos2);
 									} else {
 										draw_line_fast(lvpos2, bplptx, false);
 									}
 								}
 							} else {
-								draw_border_fast(lvpos2);
+								if (borderline < 0) {
+									draw_blank_fast(lvpos2);
+								} else {
+									draw_border_fast(lvpos2);
+								}
 							}
 							lof_display ^= 1;
 						}
@@ -10913,11 +10926,16 @@ static void do_draw_line(void)
 					lof_display ^= 1;
 
 					// make sure last odd/even line is blanked
-					if (borderline < 0 && !vb_fast_prev) {
-						if (lof_display && linear_vpos_start_prev < MAX_SCANDOUBLED_LINES - 1) {
+					if (vb_fast && !vb_fast_prev) {
+						if (lof_display) {
 							lvpos = linear_vpos_start_prev;
 						}
 						draw_blank_fast(lvpos);
+						if (lof_display) {
+							lof_display ^= 1;
+							draw_blank_fast(lvpos);
+							lof_display ^= 1;
+						}
 					}
 
 				} else {
