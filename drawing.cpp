@@ -5567,13 +5567,6 @@ static void set_pixtotal_max(void)
 		if (xshift > 0) {
 			denise_pixtotal_max -= xshift * 2;
 		}
-
-		if (denise_strlong_seen) {
-			if (aga_mode && currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
-				denise_pixtotal_max -= 1;
-			}
-		}
-
 	} else {
 		denise_pixtotal_max = -0x7fffffff;
 	}
@@ -6281,6 +6274,20 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 
 		if (currprefs.display_calibration && xlinebuffer) {
 			emulate_black_level_calibration(buf1t, buf2t, bufdt, denise_endcycle, calib_start, calib_len);
+		}
+	}
+
+	static int overflow_warned = 100;
+	if (overflow_warned) {
+		if ((uae_u8*)buf1 > xlinebuffer_end) {
+			write_log("*** Render overflow1 %d\n", buf1 - (uae_u32 *)xlinebuffer_start);
+			overflow_warned--;
+		}
+		if (buf2) {
+			if ((uae_u8*)buf2 > xlinebuffer2_end) {
+				write_log("*** Render overflow2 %d\n", buf2 - (uae_u32*)xlinebuffer2_start);
+				overflow_warned--;
+			}
 		}
 	}
 
