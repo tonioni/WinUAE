@@ -224,8 +224,8 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 				int minh = currprefs.screenshot_min_height << currprefs.gfx_vresolution;
 				if (minw > (maxhpos_display + 1) << currprefs.gfx_resolution)
 					minw = (maxhpos_display + 1) << currprefs.gfx_resolution;
-				if (minh > (maxvsize_display + 1) << currprefs.gfx_resolution)
-					minh = (maxvsize_display + 1) << currprefs.gfx_resolution;
+				if (minh > (maxvsize_display + 1) << currprefs.gfx_vresolution)
+					minh = (maxvsize_display + 1) << currprefs.gfx_vresolution;
 				if (maxw < minw)
 					maxw = minw;
 				if (maxh < minh)
