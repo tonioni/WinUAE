@@ -81,10 +81,18 @@ static const int opal_video_debug = 0;
 static bool automatic;
 static int monitor;
 
-extern uae_u16 bplcon0;
-
 static uae_u8 graffiti_palette[256 * 4];
 static bool graffiti_gaudio;
+
+#define MAX_SM_DATA_LINES 313
+static uae_u16 sm_data[MAX_SM_DATA_LINES];
+static uae_u16 get_sm_data(int y)
+{
+	if (y < 0 || y >= MAX_SM_DATA_LINES) {
+		return 0;
+	}
+	return sm_data[y];
+}
 
 static bool specialmonitor_setresolution(struct vidbuffer *src, struct vidbuffer *dst, int width, int height, bool nativeposition)
 {
@@ -1668,8 +1676,8 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 	xaddpix = (1 << 1) / hdbl;
 	xadd = ((1 << 1) / hdbl) * src->pixbytes;
 
-	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
-	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+	ystart = (isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL) - LINES_AFTER_VSYNC;
+	yend = (isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL) - LINES_AFTER_VSYNC + 1;
 
 	uae_u8 r, g, b;
 	/* or is an alternative operator and cannot be used as an identifier */
@@ -1682,7 +1690,7 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 	bool cookie_line = false;
 	int cookiestartx = 10000;
 	for (y = ystart; y < yend; y++) {
-		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
+		int yoff = ((y * 2 + oddlines) - src->yoffset) / vdbl;
 		if (yoff < 0)
 			continue;
 		if (yoff >= src->inheight)
@@ -1704,8 +1712,10 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 			uae_u8 newval = FIRGB(src, s);
 			uae_u8 val = prev | newval;
 
-			if (s_genlock[0])
+			uae_u16 dat = get_sm_data(y);
+			if (dat & 0x8000) {
 				zeroline = false;
+			}
 
 			if (val == ham_e_magic_cookie[0] && x + sizeof ham_e_magic_cookie + 1 < src->inwidth) {
 				int i;
@@ -1724,12 +1734,14 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 						cookie_line = true;
 					}
 				}
-				if (i == sizeof ham_e_magic_cookie + 1)
+				if (i == sizeof ham_e_magic_cookie + 1) {
 					continue;
+				}
 			}
 
-			if (!cookie_line && x == cookiestartx)
+			if (!cookie_line && x == cookiestartx) {
 				oddeven = 0;
+			}
 
 			if (oddeven) {
 				if (getpalette) {
@@ -1822,8 +1834,9 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 		}
 
 		cookie_line = false;
-		if (mode_active)
+		if (mode_active) {
 			was_active = mode_active;
+		}
 		if (zeroline) {
 			if (prevzeroline) {
 				mode_active = 0;
@@ -1834,7 +1847,6 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 		} else {
 			prevzeroline = false;
 		}
-
 	}
 
 	if (was_active) {
@@ -1871,9 +1883,13 @@ static bool do_hame(struct vidbuffer *src, struct vidbuffer *dst)
 	return v;
 }
 
-void specialmonitor_gaudio(bool gaudio, int vpos)
+void specialmonitor_data(uae_u16 bplcon0, int vpos)
 {
-	graffiti_gaudio |= gaudio;
+	if (vpos < 0 || vpos >= MAX_SM_DATA_LINES) {
+		return;	
+	}
+	sm_data[vpos] = bplcon0;
+	graffiti_gaudio |= (bplcon0 & 0x0100) != 0;
 }
 
 static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
@@ -1939,6 +1955,9 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 		uae_u8 *srclineend = srcp + (src->inwidth - (xstart >> RES_MAX)) * src->pixbytes;
 		uae_u8 *dstp = dstbuf;
 		bool erase = false;
+
+		uae_u16 dat = get_sm_data(ystart + (y >> 1));
+		bool active = (dat & 0x0100) != 0;
 
 		while (srcp < srclineend) {
 			
@@ -2007,7 +2026,7 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 			
 				erase = true;
 			
-			} else {
+			} else if (active) {
 
 				for (int pix = 0; pix < 4; pix++) {
 					uae_u8 r, g, b, c;
@@ -2675,7 +2694,7 @@ skip:
 		for (x = 0; x < src->inwidth; x++) {
 			uae_u8 *s2 = s + src->rowbytes;
 			uae_u8 *d2 = d + dst->rowbytes;
-			if (*s_genlock == 0xffff) {
+			if (*s_genlock == 0xff) {
 				PUT_PRGBA(d, d2, dst, 0, 0, 0, 0, 0, doublelines, false);
 			} else if ((!zclken && is_transparent(*s_genlock)) || (zclken && ztoggle)) {
 				a = amix2;

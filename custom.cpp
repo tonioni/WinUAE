@@ -6645,7 +6645,7 @@ static void hsync_handler(bool vs)
 	hsync_handler_post(vs);
 
 #ifdef WITH_SPECIALMONITORS
-	specialmonitor_gaudio((bplcon0 & 0x0100) != 0, vpos);
+	specialmonitor_data(bplcon0, linear_vpos_start);
 #endif
 }
 
@@ -10831,7 +10831,7 @@ static bool checkprevfieldlinestateequal(void)
 								if (l2->drawmode) {
 									uaecptr bplptx[MAX_PLANES];
 									bool skip = getbplptx(bplptx, planes, lvpos2, lof_store, true);
-									bool borderline = scandoubled_vdiw[lvpos2][0] || scandoubled_vdiw[lvpos2][1] || scandoubled_vdiw[lvpos2 + 1][lof_display];
+									uae_s8 borderline = scandoubled_vdiw[lvpos2][0] || scandoubled_vdiw[lvpos2][1] || scandoubled_vdiw[lvpos2 + 1][lof_display];
 									if (borderline < 0) {
 										draw_blank_fast(lvpos2);
 									} else if (skip || borderline) {

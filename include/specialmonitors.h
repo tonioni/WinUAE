@@ -15,7 +15,7 @@ bool specialmonitor_linebased(void);
 void genlock_infotext(uae_u8*, struct vidbuffer*);
 
 void specialmonitor_store_fmode(int vpos, int hpos, uae_u16 fmode);
-void specialmonitor_gaudio(bool, int);
+void specialmonitor_data(uae_u16, int);
 
 extern const TCHAR *specialmonitorfriendlynames[];
 extern const TCHAR *specialmonitormanufacturernames[];
