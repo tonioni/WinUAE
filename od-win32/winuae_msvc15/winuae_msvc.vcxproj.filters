@@ -67,8 +67,8 @@
     <Filter Include="nasm">
       <UniqueIdentifier>{9d6d0e7b-76b0-4b28-a9ef-0b69a02528c7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="pcem">
-      <UniqueIdentifier>{c9a4aeea-c63c-40e4-9da2-371acd5ea8fe}</UniqueIdentifier>
+    <Filter Include="86box">
+      <UniqueIdentifier>{7c3b8f12-86b0-4c1e-9a2f-86b0c0de0086}</UniqueIdentifier>
     </Filter>
     <Filter Include="win32\Resource Files">
       <UniqueIdentifier>{5c4c971a-37b6-4c1e-82f1-d225ebb12808}</UniqueIdentifier>
@@ -719,7 +719,7 @@
       <Filter>mame</Filter>
     </ClCompile>
     <ClCompile Include="..\..\x86.cpp">
-      <Filter>pcem</Filter>
+      <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\vm.cpp">
       <Filter>common</Filter>
@@ -835,86 +835,1058 @@
     <ClCompile Include="..\machdep\m68k.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\386.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\386_common.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\808x.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\386_dynarec.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\cpu.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\386.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\keyboard.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\808x_common.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\keyboard_at.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\808x_marty_86box.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\mem.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\808x.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\pcemglue.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\cache_as_ram.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\pcemrtc.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\cpu.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\pic.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\fpu.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\pit.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\i8080.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\timer.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\consts.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\x86seg.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_addsub.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\x87.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_class.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\sound_speaker.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_compare.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\dma.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_div.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\sound_sb.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_extract.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\sound_sb_dsp.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_mul.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\sound_opl.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_rem.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\sound_dbopl.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_roundToInt.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\dosbox\dbopl.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_scale.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\dosbox\nukedopl.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_sqrt.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\sound_cms.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_f128.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\sound_mpu401_uart.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_f16.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\mouse_serial.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_f32.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\serial.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_f64.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\386_dynarec.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_i32_r_minMag.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\mouse_ps2.cpp">
-      <Filter>pcem</Filter>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_i32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_i64_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_i64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_ui32_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_ui32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_ui64_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\extF80_to_ui64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_addsub.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_div.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_mul.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_mulAdd.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_roundToInt.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_extF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_f32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_f64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_i32_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_i32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_i64_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_i64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_ui32_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_ui32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_ui64_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f128_to_ui64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_addsub.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_class.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_compare.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_div.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_getExp.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_getMant.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_minmax.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_mul.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_mulAdd.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_range.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_roundToInt.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_sqrt.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_extF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_f32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_f64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_i32_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_i32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_i64_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_i64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_ui32_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_ui32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_ui64_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f16_to_ui64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f2xm1.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_addsub.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_class.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_compare.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_div.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_frc.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_getExp.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_getMant.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_minmax.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_mul.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_mulAdd.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_range.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_roundToInt.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_scalef.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_sqrt.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_extF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_f128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_f16.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_f64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_i32_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_i32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_i64_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_i64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_ui32_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_ui32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_ui64_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f32_to_ui64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_addsub.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_class.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_compare.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_div.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_frc.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_getExp.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_getMant.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_minmax.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_mul.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_mulAdd.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_range.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_roundToInt.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_scalef.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_sqrt.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_extF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_f128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_f16.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_f32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_i32_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_i32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_i64_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_i64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_ui32_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_ui32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_ui64_r_minMag.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\f64_to_ui64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\fpatan.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\fprem.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\fsincos.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\fyl2x.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i32_to_extF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i32_to_f128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i32_to_f16.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i32_to_f32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i32_to_f64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i64_to_extF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i64_to_f128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i64_to_f16.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i64_to_f32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\i64_to_f64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\isNaN.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\isSignalingNaN.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\poly.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\primitives.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_add128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_add256M.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_addMagsExtF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_addMagsF128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_addMagsF16.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_addMagsF32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_addMagsF64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_approxRecip_1Ks.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_approxRecipSqrt_1Ks.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_approxRecipSqrt32_1.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_commonNaNToExtF80UI.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_commonNaNToF128UI.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_commonNaNToF16UI.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_commonNaNToF32UI.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_commonNaNToF64UI.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_countLeadingZeros16.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_countLeadingZeros32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_countLeadingZeros64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_countLeadingZeros8.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_eq128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_le128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_lt128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_mul128By32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_mul128To256M.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_mul64ByShifted32To128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_mul64To128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normRoundPackToExtF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normRoundPackToF128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normRoundPackToF16.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normRoundPackToF32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normRoundPackToF64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normSubnormalExtF80Sig.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normSubnormalF128Sig.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normSubnormalF16Sig.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normSubnormalF32Sig.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_normSubnormalF64Sig.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_packToExtF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_propagateNaNExtF80UI.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_propagateNaNF128UI.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_propagateNaNF16UI.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_propagateNaNF32UI.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_propagateNaNF64UI.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundPackToExtF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundPackToF128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundPackToF16.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundPackToF32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundPackToF64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundToI32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundToI64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundToUI32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_roundToUI64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam128Extra.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam256M.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shiftRightJam64Extra.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shortShiftLeft128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shortShiftRight128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shortShiftRightJam64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_shortShiftRightJam64Extra.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_sub128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_sub256M.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_subMagsExtF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_subMagsF128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_subMagsF16.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_subMagsF32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\s_subMagsF64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\softfloat-specialize.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui32_to_extF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui32_to_f128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui32_to_f16.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui32_to_f32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui32_to_f64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui64_to_extF80.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui64_to_f128.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui64_to_f16.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui64_to_f32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\softfloat3e\ui64_to_f64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\vx0_biu.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\vx0.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x86_ops_mmx.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x86.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x86seg_2386.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x86seg_common.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x86seg.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x87_ferr.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x87_timings.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\x87.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\kbc_at_dev.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\kbc_at.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\keyboard_at.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\keyboard.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\mouse_ps2.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\mouse_serial.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\serial.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\dma.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\mem\mem.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\mem\mmu_2386.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\mem\smram.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\nmi.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\nvr_at.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\nvr.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\pic.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\pit_fast.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\pit.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\port_6x.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\ppi.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_cms.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_mpu401.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_opl2_nuked.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_opl3_nuked.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_sb_dsp.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_sb.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\sound\snd_speaker.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\timer.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\utils\fifo.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\i2c.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\device\i2c_gpio.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\mem\i2c_eeprom.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\mem\nmc93cxx.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\clockgen\vid_clockgen_av9194.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\clockgen\vid_clockgen_ch9204.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\clockgen\vid_clockgen_icd2061.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\clockgen\vid_clockgen_ics2494.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_att20c49x.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_att2xc498.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_bt48x.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_ibm_rgb528.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_mu9c1880.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_sc1148x.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_sc1502x.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_sdac.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_stg1702.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\ramdac\vid_ramdac_tvp3026.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_cl54xx.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_ddc.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_et4000.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_et4000w32.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_mga.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_s3.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_s3_virge.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_svga.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_svga_render.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_banshee.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_banshee_blitter.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_blitter.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_display.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_fb.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_fifo.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_reg.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_render.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_setup.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\video\vid_voodoo_texture.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\vid_inmos.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\vid_ncr.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\vid_permedia2.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\vid_ramdac_bt482.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\86box_video.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_accumulate.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_allocator.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_block.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ir.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_3dnow.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_arith.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_branch.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_fpu_arith.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_fpu_constant.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_fpu_loadstore.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_fpu_misc.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_helpers.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_jump.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_logic.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_misc.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_arith.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_cmp.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_loadstore.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_logic.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_pack.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mmx_shift.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_mov.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_rep.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_shift.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_ops_stack.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_reg.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\386_dynarec_ops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_486.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_686.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_common.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_k6.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_p6.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_pentium.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_winchip.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\cpu\codegen_timing_winchip2.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_arm64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_arm64_imm.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_arm64_ops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_arm64_uops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_x86-64.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_x86-64_ops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_x86-64_ops_sse.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\codegen\codegen_backend_x86-64_uops.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\86box_glue.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\86box_machine.cpp">
+      <Filter>86box</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\86box\winuae\keyboard_at_draco.cpp">
+      <Filter>86box</Filter>
     </ClCompile>
     <ClCompile Include="..\..\disasm.cpp">
       <Filter>common</Filter>
@@ -925,68 +1897,8 @@
     <ClCompile Include="..\..\cfgfile.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\386_common.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\nvr.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\x87_timings.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_s3_virge.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_svga.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_svga_render.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_s3.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_sdac_ramdac.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\tinyxml2.cpp">
       <Filter>common</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_cl5429.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_voodoo_banshee.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_voodoo_banshee_blitter.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_voodoo_display.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_voodoo_fifo.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_voodoo_render.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_voodoo_fb.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_voodoo_reg.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_voodoo_setup.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_voodoo_blitter.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_voodoo_texture.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_voodoo.cpp">
-      <Filter>pcem</Filter>
     </ClCompile>
     <ClCompile Include="..\..\floppybridge\floppybridge_lib.cpp">
       <Filter>common</Filter>
@@ -1005,27 +1917,6 @@
     </ClCompile>
     <ClCompile Include="..\..\dsp3210\dsp_glue.cpp">
       <Filter>dsp3210</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_ncr.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_permedia2.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_inmos.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_et4000.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_sc1502x_ramdac.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_et4000w32.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_bt482_ramdac.cpp">
-      <Filter>pcem</Filter>
     </ClCompile>
     <ClCompile Include="..\..\kbmcu\keyboard_mcu_6500_1.cpp">
       <Filter>kbmcu</Filter>
@@ -1048,17 +1939,8 @@
     <ClCompile Include="..\..\mos6502.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_mga.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_tvp3026_ramdac.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
     <ClCompile Include="..\hq2x_d3d.cpp">
       <Filter>win32</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcem\keyboard_at_draco.cpp">
-      <Filter>pcem</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
