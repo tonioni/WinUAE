@@ -82,10 +82,20 @@ enum {
 #define FREQ_96000  96000
 
 #define SOUND_FREQ   FREQ_48000
+#ifdef UAE
+/* x86.cpp mixes the PC sound in chunks of SOUNDBUFLEN samples, and
+   advances music_pos_global with sound_pos_global */
+#define SOUNDBUFLEN  8192
+#else
 #define SOUNDBUFLEN  (SOUND_FREQ / 50)
+#endif
 
 #define MUSIC_FREQ   FREQ_49716
+#ifdef UAE
+#define MUSICBUFLEN  SOUNDBUFLEN
+#else
 #define MUSICBUFLEN  (MUSIC_FREQ / 36)
+#endif
 
 #define YM2151_FREQ  FREQ_55930
 #define YM2151BUFLEN (YM2151_FREQ / 70)
