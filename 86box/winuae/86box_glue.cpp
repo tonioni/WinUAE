@@ -107,7 +107,8 @@ int video_fullscreen;
 int fullscreen_ui_visible;
 int dump_missing;
 int kbd_req_capture;
-int mouse_capture;
+/* WinUAE only passes mouse input on while the PC side has the mouse */
+int mouse_capture = 1;
 int mouse_automation;
 int other_ide_present;
 int inboard386_present;
