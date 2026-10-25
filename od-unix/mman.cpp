@@ -395,6 +395,11 @@ void protect_roms(bool protect)
             currprefs.comptrustword || currprefs.comptrustlong) {
             return;
         }
+        // ROM writes are allowed (ks_write_enabled or a board that
+        // enables them), so the pages must stay writable.
+        if (currprefs.rom_readwrite || rom_write_enabled) {
+            return;
+        }
     }
 
     for (int i = 0; i < MAX_SHMID; i++) {
