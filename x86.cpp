@@ -127,9 +127,8 @@ static uae_u8 *xtiderom;
 static uae_u8 *rt1000rom;
 
 int sound_pos_global;
-#define X86_SOUNDBUFLEN 8192
-static int32_t outbuffer1[X86_SOUNDBUFLEN * 2];
-static int32_t outbuffer2[X86_SOUNDBUFLEN * 2];
+static int32_t outbuffer1[SOUNDBUFLEN * 2];
+static int32_t outbuffer2[SOUNDBUFLEN * 2];
 static int x86_sndbuffer_index;
 static int32_t *x86_sndbuffer[2];
 static bool x86_sndbuffer_filled[2];
@@ -3522,7 +3521,7 @@ static bool audio_state_sndboard_x86(int streamid, void *param)
 		if (r > 32767)
 			r = 32767;
 		x86_sndbuffer_playpos++;
-		if (x86_sndbuffer_playpos == X86_SOUNDBUFLEN) {
+		if (x86_sndbuffer_playpos == SOUNDBUFLEN) {
 			x86_sndbuffer_filled[x86_sndbuffer_playindex] = false;
 			x86_sndbuffer_playindex ^= 1;
 			x86_sndbuffer_playpos = 0;
@@ -4404,12 +4403,12 @@ void sound_poll(void *priv)
 
 	sound_pos_global++;
 	music_pos_global++;
-	if (sound_pos_global == X86_SOUNDBUFLEN) {
+	if (sound_pos_global == SOUNDBUFLEN) {
 		int32_t *p = x86_sndbuffer[x86_sndbuffer_index];
-		memset(p, 0, X86_SOUNDBUFLEN * sizeof(int32_t) * 2);
+		memset(p, 0, SOUNDBUFLEN * sizeof(int32_t) * 2);
 		for (int c = 0; c < sound_handlers_num; c++) {
 			if (c > 0 || (c == 0 && xb->pc_speaker)) {
-				sound_handlers[c].get_buffer(p, X86_SOUNDBUFLEN, sound_handlers[c].priv);
+				sound_handlers[c].get_buffer(p, SOUNDBUFLEN, sound_handlers[c].priv);
 			}
 		}
 		x86_sndbuffer_filled[x86_sndbuffer_index] = true;
