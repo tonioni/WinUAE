@@ -1865,9 +1865,21 @@ void compute_framesync(void)
 	write_log(_T("\n"));
 }
 
+static bool need_forced_hardwired_mode(void)
+{
+	// VIDEO DAC 18 sets invalid programmed HSYNC and uses CSYNC output.
+	if (currprefs.monitoremu == MONITOREMU_VIDEODAC18) {
+		return true;
+	}
+	return false;
+}
+
 // do not switch to H/V sync cable mode if required programmed mode registers are uninitialized
 static bool valid_programmed_mode(void)
 {
+	if (need_forced_hardwired_mode()) {
+		return false;
+	}
 	if (beamcon0 & (BEAMCON0_VARHSYEN | BEAMCON0_VARCSYEN)) {
 		if (!programmed_register_accessed_h) {
 			return false;

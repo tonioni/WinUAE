@@ -1553,17 +1553,10 @@ static bool videodac18(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	int ystart, yend, isntsc;
 	int xadd, xaddpix;
 	uae_u16 hsstrt, hsstop, vsstrt, vsstop;
-	int xstart, xstop;
 
 	if ((beamcon0 & (0x80 | 0x100 | 0x200 | 0x10)) != 0x300)
 		return false;
 	getsyncregisters(&hsstrt, &hsstop, &vsstrt, &vsstop);
-
-	if (hsstop < hsstrt) {
-		hsstop += maxhpos + 1;
-	}
-	xstart = (hsstrt << RES_MAX) - src->xoffset;
-	xstop = (hsstop << RES_MAX) - src->xoffset;
 
 	isntsc = (beamcon0 & 0x20) ? 0 : 1;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
@@ -1585,12 +1578,12 @@ static bool videodac18(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
 		if (yoff < 0)
 			continue;
-		if (yoff >= src->inheight)
+		if (yoff >= src->inheight - 1)
 			continue;
 		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
 		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
 		r = g = b = 0;
-		for (x = 0; x < src->inwidth; x++) {
+		for (x = 8; x < src->inwidth - 16; x++) {
 			uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
 			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes;
 			uae_u8 *s2 = s + src->rowbytes;
@@ -1611,7 +1604,7 @@ static bool videodac18(struct vidbuffer *src, struct vidbuffer *dst, bool double
 				} else {
 					g = data;
 				}
-				if (y >= vsstrt && y < vsstop && x >= xstart && x < xstop) {
+				if (y >= vsstrt && y < vsstop) {
 					PUT_PRGB(d, d2, dst, r, g, b, xaddpix, doublelines, true);
 				} else {
 					PUT_AMIGARGB(d, s, d2, s2, dst, xaddpix, doublelines, true);
