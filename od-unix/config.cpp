@@ -808,11 +808,10 @@ const TCHAR **uaenative_get_library_dirs(void)
 
 void stripslashes(TCHAR *p)
 {
-    while (*p) {
-        if (*p == '\\') {
-            *p = '/';
-        }
-        p++;
+    // Remove trailing path separators, but keep a bare root "/".
+    size_t len = _tcslen(p);
+    while (len > 1 && (p[len - 1] == '/' || p[len - 1] == '\\')) {
+        p[--len] = 0;
     }
 }
 
