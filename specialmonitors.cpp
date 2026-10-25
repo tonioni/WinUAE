@@ -1283,7 +1283,7 @@ static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doubleline
 		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
 		if (yoff < 0)
 			continue;
-		if (yoff >= src->inheight)
+		if (yoff >= src->inheight - 1)
 			continue;
 		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
 		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
@@ -1296,7 +1296,7 @@ static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doubleline
 				vramline += SM_VRAM_WIDTH * SM_VRAM_BYTES;
 		}
 
-		for (x = 0; x < src->inwidth; x++) {
+		for (x = 2; x < src->inwidth - 4; x++) {
 			uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
 			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes;
 			uae_u8 *vramptr = vramline + ((x << 1) / hdbl) * SM_VRAM_BYTES;
