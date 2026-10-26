@@ -1843,11 +1843,12 @@ static void vlsi_init_mapping(struct x86_bridge *xb)
 			mem_mapping_add(&m->r_map, b, s,
 				mem_read_shadowb, mem_read_shadoww, mem_read_shadowl,
 				NULL, NULL, NULL,
-				ram + b, MEM_READ_INTERNAL, m);
+				ram + b, MEM_MAPPING_EXTERNAL, m);
+			// Writes to shadow RAM must leave instruction fetches on the ROM.
 			mem_mapping_add(&m->w_map, b, s,
 				NULL, NULL, NULL,
 				mem_write_shadowb, mem_write_shadoww, mem_write_shadowl,
-				ram + b, MEM_WRITE_INTERNAL, m);
+				NULL, MEM_MAPPING_EXTERNAL, m);
 			mem_mapping_disable(&m->r_map);
 			mem_mapping_disable(&m->w_map);
 			b += s;
@@ -1860,7 +1861,7 @@ static void vlsi_init_mapping(struct x86_bridge *xb)
 		mem_mapping_add(&xb->ems[i], addr, EMS_BANK,
 			mem_read_emsb, mem_read_emsw, mem_read_emsl,
 			mem_write_emsb, mem_write_emsw, mem_write_emsl,
-			ram + addr, MEM_READ_INTERNAL | MEM_WRITE_INTERNAL, NULL);
+			ram + addr, MEM_MAPPING_EXTERNAL, NULL);
 		mem_mapping_disable(&xb->ems[i]);
 	}
 	// EMS backfill
@@ -1869,7 +1870,7 @@ static void vlsi_init_mapping(struct x86_bridge *xb)
 		mem_mapping_add(&xb->ems[i], addr, EMS_BANK,
 			mem_read_emsb, mem_read_emsw, mem_read_emsl,
 			mem_write_emsb, mem_write_emsw, mem_write_emsl,
-			ram + addr, MEM_READ_INTERNAL | MEM_WRITE_INTERNAL, NULL);
+			ram + addr, MEM_MAPPING_EXTERNAL, NULL);
 		mem_mapping_disable(&xb->ems[i]);
 	}
 	xb->vlsi_regs[2] = 0xff;
