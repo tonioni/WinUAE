@@ -1419,7 +1419,6 @@ endif()
 if(WINUAE_UNIX_WITH_CPUBOARD)
     set(WINUAE_UNIX_ENABLE_CPUBOARD ON)
     target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_CPUBOARD=1)
-    list(APPEND WINUAE_UNIX_EXTRA_SOURCES cpuboard.cpp)
 endif()
 
 if(WINUAE_UNIX_WITH_PPC_QEMU)
@@ -1787,7 +1786,6 @@ endif()
 if(WINUAE_UNIX_WITH_UAESCSI)
     set(WINUAE_UNIX_ENABLE_UAESCSI ON)
     target_compile_definitions(winuae_unix_core_defs INTERFACE SCSIEMU=1)
-    list(APPEND WINUAE_UNIX_EXTRA_SOURCES scsiemul.cpp)
 endif()
 
 if(WINUAE_UNIX_WITH_NATIVE_CD)
@@ -2106,6 +2104,7 @@ set(WINUAE_CORE_SOURCES
     cfgfile.cpp
     cia.cpp
     consolehook.cpp
+    cpuboard.cpp
     cpudefs.cpp
     cpustbl.cpp
     cpuemu_0.cpp
@@ -2189,6 +2188,7 @@ set(WINUAE_CORE_SOURCES
     savestate.cpp
     scp.cpp
     scsi.cpp
+    scsiemul.cpp
     scsitape.cpp
     specialmonitors.cpp
     statusline.cpp
