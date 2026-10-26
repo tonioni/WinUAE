@@ -17056,7 +17056,7 @@ private:
         }
         moveQuickstartBeforeOverrides(loaded);
         for (const WinUaeQtConfig::Setting &setting : loaded.orderedSettings()) {
-            applySetting(setting.key, setting.value);
+            applySetting(hostSettingKey(setting.key), setting.value);
         }
         for (int i = 0; i < 4; i++)
             selectLoadedFloppyBridgeProfile(i);
@@ -17105,6 +17105,22 @@ private:
         }
         const QString path = configPath->text().trimmed();
         return path.isEmpty() ? QString() : expandedPathText(path);
+    }
+
+    // A config saved by WinUAE for Windows stores host settings as win32.*.
+    // Show the ones that mean the same here. Like the core parser, the later
+    // of a win32.* and a unix.* line for the same setting wins.
+    static QString hostSettingKey(const QString &key)
+    {
+        const QString compatPrefix = QStringLiteral("win32.");
+        if (!key.startsWith(compatPrefix)) {
+            return key;
+        }
+        const QString option = key.mid(compatPrefix.size());
+        if (!unix_config_is_compat_option(option.toUtf8().constData())) {
+            return key;
+        }
+        return QStringLiteral("unix.") + option;
     }
 
     void applySetting(const QString &key, const QString &value)

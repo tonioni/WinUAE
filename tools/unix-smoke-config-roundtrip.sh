@@ -216,4 +216,23 @@ if [ "$(config_value gfx_filter_blanking "$output")" != "1" ] ||
     exit 1
 fi
 
+# A config saved by WinUAE for Windows: win32.* settings that mean the same
+# here are shown as unix.*, host device settings are not, and the win32.*
+# lines are kept for Windows.
+cat > "$WORK/win32-keys.uae" <<EOF
+config_description=Roundtrip win32 keys
+win32.rtg_vblank=50
+win32.soundcard=3
+EOF
+
+run_case win32-keys "$WORK/win32-keys.uae" \
+    "win32.rtg_vblank win32.soundcard"
+output="$WORK/win32-keys-out.uae"
+if [ "$(config_value unix.rtg_vblank "$output")" != "50" ] ||
+    [ "$(config_value unix.soundcard "$output")" = "3" ]; then
+    echo "FAIL: win32-keys: win32.* settings were not mapped as expected" >&2
+    cat "$output" >&2
+    exit 1
+fi
+
 echo "winuae config roundtrip smoke passed"
