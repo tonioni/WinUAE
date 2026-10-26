@@ -858,6 +858,7 @@ export WINUAE_SMOKE_LOG=/tmp/winuae_unix_smoke.log
 -DWINUAE_UNIX_WITH_PROWIZARD=ON
 -DWINUAE_UNIX_WITH_QT_UI=ON
 -DWINUAE_UNIX_WITH_INTEGRATED_QT_UI=ON
+-DWINUAE_UNIX_WITH_QT_DEFAULT_STYLE=OFF
 ```
 
 `WINUAE_UNIX_WITH_SDL3` is enabled by default. If SDL3 is not found through CMake package discovery or pkg-config, the build currently falls back to the null video presenter.
@@ -878,3 +879,4 @@ export WINUAE_SMOKE_LOG=/tmp/winuae_unix_smoke.log
 `WINUAE_UNIX_WITH_PROWIZARD` is enabled by default and builds the same Pro Wizard source set used by the Windows project.
 `WINUAE_UNIX_WITH_QT_UI` is enabled by default, but Qt UI targets are skipped when Qt Widgets is not installed.
 `WINUAE_UNIX_WITH_INTEGRATED_QT_UI` is enabled by default. When Qt Widgets is not installed, the build continues without the integrated UI.
+`WINUAE_UNIX_WITH_QT_DEFAULT_STYLE` is disabled by default. It only sets the default of the Qt UI "Desktop style" setting (Miscellaneous page, stored as the `QtDesktopStyle` host setting, applied the next time WinUAE starts). Without it the Qt UI keeps the Windows-like look; with it the Qt UI follows the desktop style (for example Breeze on KDE Plasma, Adwaita on GNOME, or the native macOS style) with its colors, fonts and native file dialogs, uses a slightly larger default settings window, and leaves light/dark mode to the desktop. `WINUAE_QT_DESKTOP_STYLE=0` or `=1` in the environment overrides the setting.

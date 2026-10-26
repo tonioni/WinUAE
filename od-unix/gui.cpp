@@ -1,6 +1,10 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#ifdef UAE_UNIX_WITH_SDL3
+#include <SDL3/SDL.h>
+#endif
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -96,11 +100,23 @@ void target_main_set_args(int argc, TCHAR **argv)
 {
     unix_gui_argc = argc;
     unix_gui_argv = argv;
+#ifdef UAE_UNIX_WITH_SDL3
+    /* The identifier becomes the Wayland app_id / X11 WM_CLASS; it must match
+     * net.winuae.WinUAE.desktop so the desktop shows the WinUAE icon. */
+    SDL_SetAppMetadata("WinUAE", nullptr, "net.winuae.WinUAE");
+#endif
 }
 
 int target_main_handle_early(int argc, TCHAR **argv)
 {
     return -1;
+}
+
+void target_main_exit(void)
+{
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    winUaeQtShutdown();
+#endif
 }
 
 int gui_init(void)
@@ -420,8 +436,6 @@ void gui_display(int shortcut)
         if (action == WINUAE_QT_LAUNCHER_START || action == WINUAE_QT_LAUNCHER_RESET) {
             fixup_prefs(&changed_prefs, true);
             reset_sound();
-            inputdevice_copyconfig(&changed_prefs, &currprefs);
-            inputdevice_config_change_test();
             if (action == WINUAE_QT_LAUNCHER_RESET) {
                 /* Hard reset: apply the whole config to currprefs and force a
                  * memory hardreset, mirroring win32 gui_to_prefs(). Config
@@ -430,6 +444,9 @@ void gui_display(int shortcut)
                 copy_prefs(&changed_prefs, &currprefs);
                 memory_hardreset(2);
             }
+            /* Must run after copy_prefs, which would wipe the input mapping. */
+            inputdevice_copyconfig(&changed_prefs, &currprefs);
+            inputdevice_config_change_test();
             /* filesys hack (mirrors win32 gui_to_prefs): mount changes are not
              * covered by check_prefs_changed_*, so always copy them to currprefs
              * - otherwise a reset re-reads the old mounts via initialize_mountinfo(). */

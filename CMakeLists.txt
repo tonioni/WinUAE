@@ -305,6 +305,7 @@ option(WINUAE_UNIX_WITH_UAENET_PCAP "Build native libpcap and TAP/TUN packet net
 option(WINUAE_UNIX_WITH_PROWIZARD "Build Pro-Wizard module ripper support" ON)
 option(WINUAE_UNIX_WITH_QT_UI "Build the optional Unix Qt configuration UI" ON)
 option(WINUAE_UNIX_WITH_INTEGRATED_QT_UI "Allow winuae_unix to host the Unix Qt frontend" ON)
+option(WINUAE_UNIX_WITH_QT_DEFAULT_STYLE "Default for the Qt UI desktop style setting (desktop widget style, colors, fonts, and native file dialogs)" OFF)
 option(WINUAE_UNIX_WITH_LIBPNG "Build optional PNG screenshot support when libpng is available" ON)
 option(WINUAE_UNIX_WITH_PRINTER_EMULATION "Build Epson matrix printer emulation" ON)
 option(WINUAE_FREETYPE_FETCH "Fetch FreeType for portable macOS builds" ON)
@@ -2399,6 +2400,7 @@ if(WINUAE_UNIX_WITH_QT_UI)
             WINUAE_UNIX_VERSION_MAJOR=${WINUAE_UNIX_VERSION_MAJOR}
             WINUAE_UNIX_VERSION_MINOR=${WINUAE_UNIX_VERSION_MINOR}
             WINUAE_UNIX_VERSION_REVISION=${WINUAE_UNIX_VERSION_REVISION}
+            WINUAE_UNIX_WITH_QT_DEFAULT_STYLE=$<BOOL:${WINUAE_UNIX_WITH_QT_DEFAULT_STYLE}>
             UAE_UNIX_WITH_SANA2=$<BOOL:${WINUAE_UNIX_ENABLE_SANA2}>
             UAE_UNIX_WITH_UAENET_PCAP=$<BOOL:${WINUAE_UNIX_ENABLE_UAENET_PCAP}>
             UAE_UNIX_WITH_BSDSOCKET=$<BOOL:${WINUAE_UNIX_ENABLE_BSDSOCKET}>
@@ -2488,6 +2490,28 @@ if(WINUAE_UNIX_WITH_QT_UI)
         )
         target_link_libraries(winuae_unix_qt_drive_sound_sets_test PRIVATE ${WINUAE_UNIX_QT_WIDGETS_TARGET})
         winuae_unix_register_test(winuae_unix_qt_drive_sound_sets_test)
+
+        add_executable(winuae_unix_qt_gui_font_test EXCLUDE_FROM_ALL
+            od-unix/qt/config.cpp
+            od-unix/qt/drive_sound_sets.cpp
+            od-unix/qt/launcher.cpp
+            od-unix/qt/mount_config.cpp
+            od-unix/qt/path_utils.cpp
+            od-unix/qt/gui_font_test.cpp
+        )
+        target_include_directories(winuae_unix_qt_gui_font_test PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+            "${CMAKE_CURRENT_SOURCE_DIR}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        )
+        target_link_libraries(winuae_unix_qt_gui_font_test PRIVATE ${WINUAE_UNIX_QT_WIDGETS_TARGET})
+        winuae_unix_register_test(winuae_unix_qt_gui_font_test)
+        if(BUILD_TESTING)
+            set_tests_properties(winuae_unix_qt_gui_font_test PROPERTIES
+                ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+                TIMEOUT 30
+            )
+        endif()
 
         if(WINUAE_UNIX_WITH_INTEGRATED_QT_UI)
             target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_INTEGRATED_QT_UI=1)

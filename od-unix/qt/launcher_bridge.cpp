@@ -535,6 +535,16 @@ static void bridgeHostSettingsFlush(void *)
     registry_flush();
 }
 
+/* The Qt style is fixed when the QApplication is created, so read the
+ * setting before any entry point can create it. */
+static void bridgeApplyStyleSetting()
+{
+    char value[16];
+    if (bridgeHostSettingGet(nullptr, "QtDesktopStyle", value, sizeof value)) {
+        setWinUaeQtDesktopStyle(atoi(value) != 0);
+    }
+}
+
 static uae_u32 bridgeRomTypeMask(int kind)
 {
     switch (kind) {
@@ -836,6 +846,7 @@ int runWinUaeQtLauncherForPrefsWithConfigPaths(
     const QString displayPath = displayConfigPath && displayConfigPath[0]
         ? QString::fromLocal8Bit(displayConfigPath)
         : QString();
+    bridgeApplyStyleSetting();
     WinUaeQtLauncherResult result = runWinUaeQtLauncherForConfig(
         argc,
         argv,
@@ -871,6 +882,7 @@ int runWinUaeQtLauncherForPrefsWithConfigSnapshot(
     const QString displayPath = displayConfigPath && displayConfigPath[0]
         ? QString::fromLocal8Bit(displayConfigPath)
         : QString();
+    bridgeApplyStyleSetting();
     WinUaeQtLauncherResult result = runWinUaeQtLauncherForConfig(
         argc,
         argv,
@@ -893,6 +905,7 @@ int runWinUaeQtRuntimeFileDialog(int argc, char **argv, int shortcut, const char
     const QString initial = initialPath && initialPath[0]
         ? QString::fromLocal8Bit(initialPath)
         : QString();
+    bridgeApplyStyleSetting();
     const WinUaeQtRuntimeFileDialogResult result = runWinUaeQtRuntimeFileDialog(argc, argv, shortcut, initial);
     if (!result.accepted) {
         if (exitCode) {
@@ -918,6 +931,7 @@ int runWinUaeQtRuntimeFileDialog(int argc, char **argv, int shortcut, const char
 
 int runWinUaeQtMessageBox(int argc, char **argv, int flags, const char *message, int *exitCode)
 {
+    bridgeApplyStyleSetting();
     const int result = runWinUaeQtMessageBox(
         argc,
         argv,
@@ -935,6 +949,7 @@ int runWinUaeQtDebuggerConsoleGetInput(int argc, char **argv, char *out, size_t 
         out[0] = 0;
     }
     QString command;
+    bridgeApplyStyleSetting();
     const int result = runWinUaeQtDebuggerConsoleGetInput(
         argc,
         argv,
@@ -979,4 +994,9 @@ void runWinUaeQtDebuggerUpdateInfo(const char *text)
 void runWinUaeQtDebuggerConsoleClose(void)
 {
     closeWinUaeQtDebuggerConsole();
+}
+
+void winUaeQtShutdown(void)
+{
+    shutdownWinUaeQtApplication();
 }

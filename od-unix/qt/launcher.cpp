@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <functional>
 #include <memory>
+#include <vector>
 #if defined(__APPLE__) || defined(__linux__)
 #include <fcntl.h>
 #include <unistd.h>
@@ -67,6 +68,20 @@
 #ifndef WINUAE_UNIX_VERSION_REVISION
 #define WINUAE_UNIX_VERSION_REVISION 0
 #endif
+
+#ifndef WINUAE_UNIX_WITH_QT_DEFAULT_STYLE
+#define WINUAE_UNIX_WITH_QT_DEFAULT_STYLE 0
+#endif
+
+/* Desktop style (native widget style, palette, fonts and file dialogs) or
+ * the Windows-like look. Fixed once the QApplication exists; the build
+ * option is only the default for the DesktopStyle host setting. */
+static bool desktopStyle = WINUAE_UNIX_WITH_QT_DEFAULT_STYLE;
+
+static bool useDesktopStyle()
+{
+    return desktopStyle;
+}
 
 #ifndef UAE_UNIX_WITH_BSDSOCKET
 #define UAE_UNIX_WITH_BSDSOCKET 0
@@ -2658,6 +2673,14 @@ static QIcon resourceIcon(const QString &name)
 {
     const QString path = resourceFile(QStringLiteral("od-win32/resources/") + name);
     return QFileInfo::exists(path) ? QIcon(path) : QIcon();
+}
+
+/* The desktop/launcher icon (installed as winuae.png). winuae.ico is not used
+ * for windows: Qt keeps its first frame per size, the 16-colour ones. */
+static QIcon winUaeWindowIcon()
+{
+    const QIcon icon = resourceIcon(QStringLiteral("amiga.png"));
+    return icon.isNull() ? resourceIcon(QStringLiteral("winuae.ico")) : icon;
 }
 
 static QLabel *label(const QString &text)
@@ -5350,7 +5373,9 @@ QString winUaeQtInitialConfigPathFromArguments(const QStringList &arguments)
 static int &prepareQtApplicationArguments(int &argc)
 {
 #if defined(__linux__)
-    QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    if (!useDesktopStyle()) {
+        QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    }
 #endif
     return argc;
 }
@@ -5400,6 +5425,73 @@ private:
     ConfigOpenHandler configOpenHandler;
 };
 
+/* One QApplication for the whole process: recreating it crashes popups
+ * (KF6 WindowSystem keeps state bound to the first instance).
+ * Destroyed only after the emulator has finished, by
+ * shutdownWinUaeQtApplication(). */
+static WinUaeQtApplication *sharedApplication;
+
+/* Called from main() once real_main() returns, not from atexit(): Qt's own
+ * globals created later would already be destroyed by then, and leaving the
+ * Wayland/EGL connection open makes libEGL's cleanup abort at exit. */
+void shutdownWinUaeQtApplication()
+{
+    closeWinUaeQtDebuggerConsole();
+    delete sharedApplication;
+    sharedApplication = nullptr;
+}
+
+void setWinUaeQtDesktopStyle(bool enabled)
+{
+    if (!QApplication::instance()) {
+        desktopStyle = enabled;
+    }
+}
+
+static QApplication &winUaeQtSharedApplication(int argc, char **argv)
+{
+    if (QApplication *app = qobject_cast<QApplication *>(QApplication::instance())) {
+        return *app;
+    }
+    /* WINUAE_QT_DESKTOP_STYLE=0/1 overrides the setting, e.g. for testing. */
+    const QByteArray styleOverride = qgetenv("WINUAE_QT_DESKTOP_STYLE");
+    if (!styleOverride.isEmpty()) {
+        desktopStyle = styleOverride != "0";
+    }
+    /* QApplication keeps references to argc/argv, so they must outlive it. */
+    static int sharedArgc;
+    static std::vector<QByteArray> sharedArgStorage;
+    static std::vector<char *> sharedArgv;
+    sharedArgStorage.clear();
+    sharedArgv.clear();
+    if (argc <= 0 || !argv) {
+        sharedArgStorage.emplace_back("winuae");
+    } else {
+        for (int i = 0; i < argc && argv[i]; i++) {
+            sharedArgStorage.emplace_back(argv[i]);
+        }
+    }
+    for (QByteArray &arg : sharedArgStorage) {
+        sharedArgv.push_back(arg.data());
+    }
+    sharedArgv.push_back(nullptr);
+    sharedArgc = static_cast<int>(sharedArgStorage.size());
+    sharedApplication = new WinUaeQtApplication(sharedArgc, sharedArgv.data());
+    /* Wayland app_id: must match net.winuae.WinUAE.desktop for the icon. */
+    QGuiApplication::setDesktopFileName(QStringLiteral("net.winuae.WinUAE"));
+    QGuiApplication::setWindowIcon(winUaeWindowIcon());
+    return *sharedApplication;
+}
+
+/* Settings page selected when the dialog was last open, so reopening it
+ * during the same session (e.g. to swap floppies) returns to that page. */
+static int lastNavigationPageIndex = -1;
+
+/* Dropdown history of image/file path fields, keyed by field group. Each
+ * dialog only knows the paths of the config it was opened with, so the
+ * history is carried over to the next dialog opened in the same session. */
+static QHash<QString, QStringList> sessionPathHistory;
+
 class WinUaeQtDialog final : public QDialog {
 public:
     explicit WinUaeQtDialog(
@@ -5414,16 +5506,20 @@ public:
               : WinUaeQtBoardCatalog())
     {
         setWindowTitle(QStringLiteral("WinUAE Properties"));
-        setWindowIcon(resourceIcon(QStringLiteral("winuae.ico")));
-        resize(880, 640);
-        setMinimumSize(820, 600);
+        setWindowIcon(winUaeWindowIcon());
+        resize(guiBaseSize());
+        setMinimumSize(guiMinimumSize());
 
         navigation = new QTreeWidget;
         navigation->setHeaderHidden(true);
         navigation->setRootIsDecorated(true);
         navigation->setIndentation(12);
         navigation->setIconSize(QSize(16, 16));
-        navigation->setFixedWidth(166);
+        if (useDesktopStyle()) {
+            navigation->setMinimumWidth(200);
+        } else {
+            navigation->setFixedWidth(166);
+        }
 
         pageStack = new QStackedWidget;
         pageStack->setObjectName(QStringLiteral("pageStack"));
@@ -5469,6 +5565,7 @@ public:
                 return;
             }
             pageStack->setCurrentIndex(pageIndex.toInt());
+            lastNavigationPageIndex = pageIndex.toInt();
             if (item->text(0) == QStringLiteral("Hardware info")) {
                 refreshHardwareInfoPage();
             } else if (item->text(0) == QStringLiteral("Frontend")) {
@@ -5476,18 +5573,7 @@ public:
             }
         });
 
-        QFrame *outerFrame = new QFrame;
-        outerFrame->setFrameShape(QFrame::Box);
-        outerFrame->setObjectName(QStringLiteral("outerFrame"));
-        QVBoxLayout *frameLayout = new QVBoxLayout(outerFrame);
-        frameLayout->setContentsMargins(4, 4, 4, 4);
-        frameLayout->addWidget(pageStack);
-
-        QHBoxLayout *content = new QHBoxLayout;
-        content->setContentsMargins(0, 0, 0, 0);
-        content->setSpacing(5);
-        content->addWidget(navigation);
-        content->addWidget(outerFrame, 1);
+        QWidget *content = makeContentArea();
 
         runtimeMode = hardwareProvider.pollHostWindowEvents != nullptr;
         QPushButton *reset = new QPushButton(QStringLiteral("Reset"));
@@ -5546,12 +5632,12 @@ public:
         QVBoxLayout *root = new QVBoxLayout(this);
         root->setContentsMargins(6, 6, 6, 6);
         root->setSpacing(5);
-        root->addLayout(content, 1);
+        root->addWidget(content, 1);
         root->addWidget(status);
         root->addLayout(buttons);
 
         resetDefaults();
-        navigation->setCurrentItem(quickstartPage);
+        navigation->setCurrentItem(navigationItemForPage(lastNavigationPageIndex, quickstartPage));
         if (!initialConfigPath.isEmpty()) {
             if (loadConfig(initialConfigPath)) {
                 setLoadedConfigDisplayPath(displayConfigPath);
@@ -5776,6 +5862,7 @@ private:
     QCheckBox *dfEnable[4] = {};
     QComboBox *dfType[4] = {};
     QComboBox *dfPath[4] = {};
+    QString floppyPathsAtOpen[4];
     QCheckBox *dfWriteProtect[4] = {};
     int dfBridgeSubtype[4] = {};
     QString dfBridgeSubtypeId[4];
@@ -5998,6 +6085,7 @@ private:
     QCheckBox *miscGuiResize = nullptr;
     QCheckBox *miscGuiFullscreen = nullptr;
     QCheckBox *miscGuiDarkMode = nullptr;
+    QCheckBox *miscGuiDesktopStyle = nullptr;
     QString miscGuiFontConfig;
     QComboBox *stateFileName = nullptr;
     QCheckBox *stateFileClear = nullptr;
@@ -6033,6 +6121,53 @@ private:
         item->setFont(0, font);
         item->setExpanded(true);
         return item;
+    }
+
+    /* Navigation tree and page stack: a fixed tree beside a framed page
+     * like Windows, or a resizable splitter with the desktop style. */
+    QWidget *makeContentArea()
+    {
+        QFrame *pageFrame = new QFrame;
+        if (!useDesktopStyle()) {
+            pageFrame->setFrameShape(QFrame::Box);
+            pageFrame->setObjectName(QStringLiteral("outerFrame"));
+        }
+        QVBoxLayout *frameLayout = new QVBoxLayout(pageFrame);
+        frameLayout->setContentsMargins(4, 4, 4, 4);
+        frameLayout->addWidget(pageStack);
+
+        if (useDesktopStyle()) {
+            QSplitter *splitter = new QSplitter(Qt::Horizontal);
+            splitter->setChildrenCollapsible(false);
+            splitter->setHandleWidth(5);
+            splitter->addWidget(navigation);
+            splitter->addWidget(pageFrame);
+            splitter->setStretchFactor(0, 0);
+            splitter->setStretchFactor(1, 1);
+            splitter->setSizes({200, 709});
+            return splitter;
+        }
+        QWidget *content = new QWidget;
+        QHBoxLayout *layout = new QHBoxLayout(content);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(5);
+        layout->addWidget(navigation);
+        layout->addWidget(pageFrame, 1);
+        return content;
+    }
+
+    QTreeWidgetItem *navigationItemForPage(int pageIndex, QTreeWidgetItem *fallback) const
+    {
+        if (pageIndex < 0) {
+            return fallback;
+        }
+        for (QTreeWidgetItemIterator it(navigation); *it; ++it) {
+            const QVariant itemPage = (*it)->data(0, Qt::UserRole);
+            if (itemPage.isValid() && itemPage.toInt() == pageIndex) {
+                return *it;
+            }
+        }
+        return fallback;
     }
 
     QTreeWidgetItem *addPage(const QString &title, const QString &icon, QWidget *page, QTreeWidgetItem *parent = nullptr)
@@ -7619,6 +7754,21 @@ private:
                 browseDiskSwapperImage(row);
             }
         });
+        /* Like Windows: left click on the Drive column inserts/cycles the
+         * image through the drives, right click ejects it. */
+        connect(diskSwapperList, &QTableWidget::cellClicked, this, [this](int row, int column) {
+            if (column == 2) {
+                swapDiskSwapperEntry(row, false);
+            }
+        });
+        diskSwapperList->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(diskSwapperList, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
+            const QModelIndex index = diskSwapperList->indexAt(pos);
+            if (index.isValid() && index.column() == 2) {
+                diskSwapperList->selectRow(index.row());
+                swapDiskSwapperEntry(index.row(), true);
+            }
+        });
         connect(browse, &QPushButton::clicked, this, [this]() {
             browseDiskSwapperImage(selectedDiskSwapperSlot());
         });
@@ -7711,6 +7861,64 @@ private:
             }
             drive->setText(driveText);
         }
+    }
+
+    bool floppyDriveEnabled(int drive) const
+    {
+        return dfEnable[drive] && dfEnable[drive]->isChecked() && dfType[drive]
+            && floppyTypeConfigValue(dfType[drive]->currentText()) >= 0;
+    }
+
+    /* Port of win32gui.cpp disk_swap(). */
+    void swapDiskSwapperEntry(int entry, bool eject)
+    {
+        const QString image = diskSwapperPathAt(entry);
+        if (image.isEmpty()) {
+            return;
+        }
+        bool hasSwapperDisk[4] = {};
+        int imageDrive = -1;
+        for (int drive = 0; drive < 4; drive++) {
+            const QString inserted = dfPath[drive] ? dfPath[drive]->currentText() : QString();
+            if (inserted.isEmpty()) {
+                continue;
+            }
+            for (int slot = 0; slot < MaxDiskSwapperSlots; slot++) {
+                if (diskSwapperPathAt(slot) == inserted) {
+                    hasSwapperDisk[drive] = true;
+                    break;
+                }
+            }
+            if (imageDrive < 0 && inserted == image) {
+                imageDrive = drive;
+            }
+        }
+        if (imageDrive >= 0) {
+            if (eject) {
+                setPathComboText(dfPath[imageDrive], QString());
+                return;
+            }
+            /* Changed in this dialog: revert to the running disk, else eject. */
+            const QString atOpen = floppyPathsAtOpen[imageDrive];
+            setPathComboText(dfPath[imageDrive], dfPath[imageDrive]->currentText() != atOpen ? atOpen : QString());
+            if (!hasSwapperDisk[0] || !hasSwapperDisk[1] || !hasSwapperDisk[2] || !hasSwapperDisk[3]) {
+                int next = imageDrive + 1;
+                while (next < 4 && hasSwapperDisk[next]) {
+                    next++;
+                }
+                if (next < 4 && floppyDriveEnabled(next)) {
+                    setPathComboText(dfPath[next], image);
+                }
+            }
+            return;
+        }
+        for (int drive = 0; drive < 4; drive++) {
+            if (!hasSwapperDisk[drive] && floppyDriveEnabled(drive)) {
+                setPathComboText(dfPath[drive], image);
+                return;
+            }
+        }
+        setPathComboText(dfPath[0], image);
     }
 
     void browseDiskSwapperImage(int slot)
@@ -11605,8 +11813,70 @@ private:
         field->setCurrentText(current);
     }
 
+    QList<QPair<QString, QComboBox *>> historyPathCombos() const
+    {
+        /* All floppy fields share one history, like the Windows disk MRU. */
+        QList<QPair<QString, QComboBox *>> combos;
+        for (int i = 0; i < 4; i++) {
+            combos.append({ QStringLiteral("floppy"), dfPath[i] });
+        }
+        for (int i = 0; i < 2; i++) {
+            combos.append({ QStringLiteral("floppy"), quickDfPath[i] });
+        }
+        combos.append({ QStringLiteral("diskswapper"), diskSwapperPath });
+        combos.append({ QStringLiteral("cdslot"), cdSlotPath });
+        combos.append({ QStringLiteral("statefile"), stateFileName });
+        combos.append({ QStringLiteral("genlock"), genlockFile });
+        return combos;
+    }
+
+public:
+    void rememberFloppyPathsAtOpen()
+    {
+        for (int drive = 0; drive < 4; drive++) {
+            floppyPathsAtOpen[drive] = dfPath[drive] ? dfPath[drive]->currentText() : QString();
+        }
+    }
+
+    void restoreSessionPathHistory()
+    {
+        for (const auto &[group, field] : historyPathCombos()) {
+            if (!field) {
+                continue;
+            }
+            const QSignalBlocker blocker(field);
+            const QString current = field->currentText();
+            for (const QString &path : sessionPathHistory.value(group)) {
+                if (field->findText(path) < 0) {
+                    field->addItem(path);
+                }
+            }
+            field->setCurrentText(current);
+        }
+    }
+
+    void saveSessionPathHistory() const
+    {
+        QHash<QString, QStringList> history;
+        for (const auto &[group, field] : historyPathCombos()) {
+            if (!field) {
+                continue;
+            }
+            QStringList &paths = history[group];
+            for (int i = 0; i < field->count(); i++) {
+                const QString path = field->itemText(i);
+                if (!path.isEmpty() && !paths.contains(path)) {
+                    paths.append(path);
+                }
+            }
+        }
+        sessionPathHistory = history;
+    }
+
+private:
     void clearDiskHistoryCombos()
     {
+        sessionPathHistory.clear();
         for (int i = 0; i < 4; i++) {
             clearPathComboHistory(dfPath[i]);
         }
@@ -11962,9 +12232,15 @@ private:
         miscGuiFullscreen = new QCheckBox(QStringLiteral("Fullscreen GUI"));
         miscGuiDarkMode = new QCheckBox(QStringLiteral("Dark mode"));
         miscGuiDarkMode->setTristate(true);
+        miscGuiDesktopStyle = new QCheckBox(QStringLiteral("Desktop style (after restart)"));
+        miscGuiDesktopStyle->setToolTip(QStringLiteral("Use the desktop's widget style, colors, fonts and file dialogs instead of the Windows look. Takes effect the next time WinUAE starts."));
         disableUnavailable(osdFont, QStringLiteral("OSD font selection is not implemented yet."));
         disableUnavailable(resetLists, QStringLiteral("List customization storage is not implemented in the Unix Qt frontend yet."));
-        miscGuiDarkMode->setToolTip(QStringLiteral("Matches Windows: unchecked is light, checked is dark, mixed follows the system appearance."));
+        if (useDesktopStyle()) {
+            disableUnavailable(miscGuiDarkMode, QStringLiteral("The desktop style follows the desktop's light or dark appearance."));
+        } else {
+            miscGuiDarkMode->setToolTip(QStringLiteral("Matches Windows: unchecked is light, checked is dark, mixed follows the system appearance."));
+        }
 
         QHBoxLayout *fontRow = new QHBoxLayout;
         fontRow->setContentsMargins(0, 0, 0, 0);
@@ -11985,6 +12261,7 @@ private:
         gui->addWidget(miscGuiResize);
         gui->addWidget(miscGuiFullscreen);
         gui->addWidget(miscGuiDarkMode);
+        gui->addWidget(miscGuiDesktopStyle);
         right->addWidget(groupBox(QStringLiteral("GUI"), gui));
 
         QGridLayout *stateFiles = new QGridLayout;
@@ -12085,13 +12362,23 @@ private:
         return ok && percent >= 60 && percent <= 200 ? percent : 100;
     }
 
+    static QSize guiBaseSize()
+    {
+        return useDesktopStyle() ? QSize(970, 670) : QSize(880, 640);
+    }
+
+    static QSize guiMinimumSize()
+    {
+        return useDesktopStyle() ? QSize(970, 670) : QSize(820, 600);
+    }
+
     void applyGuiResizeMode()
     {
         if (!miscGuiResize || !miscGuiFullscreen) {
             return;
         }
         const bool resizable = miscGuiResize->isChecked() || miscGuiFullscreen->isChecked();
-        setMinimumSize(820, 600);
+        setMinimumSize(guiMinimumSize());
         setMaximumSize(resizable ? QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX) : size());
         if (!resizable) {
             setFixedSize(size());
@@ -12104,8 +12391,8 @@ private:
             return;
         }
         const int percent = guiScalePercent(miscGuiSize->currentText());
-        const QSize baseSize(880, 640);
-        const QSize minSize(820, 600);
+        const QSize baseSize = guiBaseSize();
+        const QSize minSize = guiMinimumSize();
         const QSize scaled(qMax(minSize.width(), baseSize.width() * percent / 100),
             qMax(minSize.height(), baseSize.height() * percent / 100));
         if (miscGuiFullscreen && miscGuiFullscreen->isChecked()) {
@@ -12115,7 +12402,7 @@ private:
             showNormal();
             miscGuiFullscreen->setChecked(false);
         }
-        setMinimumSize(820, 600);
+        setMinimumSize(minSize);
         setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
         resize(scaled);
         applyGuiResizeMode();
@@ -12124,7 +12411,7 @@ private:
     void applyGuiFullscreenMode(bool fullscreen)
     {
         if (fullscreen) {
-            setMinimumSize(820, 600);
+            setMinimumSize(guiMinimumSize());
             setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
             showFullScreen();
         } else {
@@ -12168,7 +12455,7 @@ private:
 
     void applyGuiDarkModeSelection()
     {
-        if (!miscGuiDarkMode || !qApp) {
+        if (useDesktopStyle() || !miscGuiDarkMode || !qApp) {
             return;
         }
         bool dark = false;
@@ -14009,6 +14296,7 @@ private:
         cacheConfigurations->setChecked(true);
         cacheBoxArt->setChecked(false);
         saveImageOriginalPath->setChecked(false);
+        miscGuiDesktopStyle->setChecked(WINUAE_UNIX_WITH_QT_DEFAULT_STYLE);
         relativePaths->setChecked(false);
         portableMode->setChecked(false);
         pathDefaultType->setCurrentText(QStringLiteral("User data directory"));
@@ -14024,6 +14312,11 @@ private:
         miscGuiDarkMode->setCheckState(Qt::PartiallyChecked);
         applyGuiDarkModeSelection();
         miscGuiFontConfig.clear();
+        if (useDesktopStyle()) {
+            /* The shared application may still have the previous config's
+             * font override. Restore the desktop font before loading one. */
+            applyGuiFont(QFontDatabase::systemFont(QFontDatabase::GeneralFont), QString());
+        }
         applyGuiResizeMode();
         updateLogPathText();
         updateOutputControlState();
@@ -14063,6 +14356,7 @@ private:
             { "ConfigurationCache", cacheConfigurations },
             { "ArtCache", cacheBoxArt },
             { "SaveImageOriginalPath", saveImageOriginalPath },
+            { "QtDesktopStyle", miscGuiDesktopStyle },
         };
     }
 
@@ -16872,8 +17166,12 @@ private:
         } else if (key == QStringLiteral("unix.ui.log_window")) {
             logWindow->setChecked(configBoolValue(value));
         } else if (key == QStringLiteral("unix.ui.gui_scale")) {
+            /* "Select..." means no scale was chosen: keep the current size. */
+            const QSignalBlocker blocker(miscGuiSize);
             miscGuiSize->setCurrentText(value);
-            applyGuiScaleSelection(false);
+            if (value.trimmed() != QStringLiteral("Select...")) {
+                applyGuiScaleSelection(false);
+            }
         } else if (key == QStringLiteral("unix.ui.gui_resize")) {
             miscGuiResize->setChecked(configBoolValue(value));
             applyGuiResizeMode();
@@ -17830,6 +18128,9 @@ static void applyApplicationColors(QApplication &app, bool dark)
 
 static void setupApplicationStyle(QApplication &app)
 {
+    if (useDesktopStyle()) {
+        return;
+    }
     if (QStyle *style = QStyleFactory::create(QStringLiteral("Windows"))) {
         app.setStyle(style);
     } else if (QStyle *style = QStyleFactory::create(QStringLiteral("Fusion"))) {
@@ -17881,11 +18182,22 @@ bool winUaeQtArgumentsSpecifyConfig(const QStringList &arguments)
 
 static WinUaeQtLauncherResult runWinUaeQtLauncherDialog(QApplication &app, WinUaeQtDialog &dialog)
 {
-    if (WinUaeQtApplication *qtApp = dynamic_cast<WinUaeQtApplication *>(&app)) {
+    WinUaeQtApplication *qtApp = dynamic_cast<WinUaeQtApplication *>(&app);
+    if (qtApp) {
         qtApp->setConfigOpenHandler([&dialog](const QString &path) {
             dialog.openConfigFile(path);
         });
     }
+    /* The application outlives the dialog, so drop the handler on return. */
+    struct ConfigOpenHandlerReset {
+        WinUaeQtApplication *app;
+        ~ConfigOpenHandlerReset()
+        {
+            if (app) {
+                app->setConfigOpenHandler({});
+            }
+        }
+    } configOpenHandlerReset { qtApp };
     /* Test hook: load the initial config, immediately export the merged
      * config, and exit. Lets the smoke tests verify that configuration
      * values survive the trip through the UI widgets. */
@@ -17946,7 +18258,11 @@ static WinUaeQtLauncherResult runWinUaeQtLauncherDialog(QApplication &app, WinUa
         return roundtripResult;
     }
     armQtSmokeExit(dialog);
-    if (dialog.exec() == QDialog::Accepted) {
+    dialog.restoreSessionPathHistory();
+    dialog.rememberFloppyPathsAtOpen();
+    const int dialogResult = dialog.exec();
+    dialog.saveSessionPathHistory();
+    if (dialogResult == QDialog::Accepted) {
         return dialog.launcherResult();
     }
 
@@ -18006,14 +18322,12 @@ WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const
 
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const QString &initialConfigPath, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
 {
-    WinUaeQtApplication app(argc, argv);
-    return runWinUaeQtLauncherForConfig(app, initialConfigPath, displayConfigPath, hardwareProvider);
+    return runWinUaeQtLauncherForConfig(winUaeQtSharedApplication(argc, argv), initialConfigPath, displayConfigPath, hardwareProvider);
 }
 
 WinUaeQtLauncherResult runWinUaeQtLauncherForConfig(int argc, char **argv, const WinUaeQtConfig &initialConfig, const QString &displayConfigPath, const WinUaeQtHardwareInfoProvider &hardwareProvider)
 {
-    WinUaeQtApplication app(argc, argv);
-    return runWinUaeQtLauncherForConfig(app, initialConfig, displayConfigPath, hardwareProvider);
+    return runWinUaeQtLauncherForConfig(winUaeQtSharedApplication(argc, argv), initialConfig, displayConfigPath, hardwareProvider);
 }
 
 class WinUaeQtDebuggerConsole final : public QDialog {
@@ -18158,27 +18472,12 @@ private:
     bool debuggerActive = true;
 };
 
-static std::unique_ptr<WinUaeQtApplication> debuggerOwnedApp;
 static WinUaeQtDebuggerConsole *debuggerConsole;
 static QString debuggerPendingOutput;
 static QString debuggerPendingState;
-static int debuggerArgcFallback = 1;
-static char debuggerArg0Fallback[] = "winuae";
-static char *debuggerArgvFallback[] = { debuggerArg0Fallback, nullptr };
-
 static QApplication *debuggerApplication(int argc, char **argv)
 {
-    if (QApplication *app = qobject_cast<QApplication *>(QApplication::instance())) {
-        return app;
-    }
-    if (!debuggerOwnedApp) {
-        if (argc <= 0 || !argv) {
-            argv = debuggerArgvFallback;
-            argc = debuggerArgcFallback;
-        }
-        debuggerOwnedApp = std::make_unique<WinUaeQtApplication>(argc, argv);
-    }
-    return debuggerOwnedApp.get();
+    return &winUaeQtSharedApplication(argc, argv);
 }
 
 static WinUaeQtDebuggerConsole *ensureDebuggerConsole(QApplication &app)
@@ -18342,8 +18641,7 @@ WinUaeQtRuntimeFileDialogResult runWinUaeQtRuntimeFileDialog(QApplication &app, 
 
 WinUaeQtRuntimeFileDialogResult runWinUaeQtRuntimeFileDialog(int argc, char **argv, int shortcut, const QString &initialPath)
 {
-    WinUaeQtApplication app(argc, argv);
-    return runWinUaeQtRuntimeFileDialog(app, shortcut, initialPath);
+    return runWinUaeQtRuntimeFileDialog(winUaeQtSharedApplication(argc, argv), shortcut, initialPath);
 }
 
 static int showMessageBox(int flags, const QString &message)
@@ -18400,10 +18698,5 @@ int runWinUaeQtMessageBox(QApplication &app, int flags, const QString &message)
 
 int runWinUaeQtMessageBox(int argc, char **argv, int flags, const QString &message)
 {
-    if (QApplication *app = qobject_cast<QApplication *>(QApplication::instance())) {
-        return runWinUaeQtMessageBox(*app, flags, message);
-    }
-
-    WinUaeQtApplication app(argc, argv);
-    return runWinUaeQtMessageBox(app, flags, message);
+    return runWinUaeQtMessageBox(winUaeQtSharedApplication(argc, argv), flags, message);
 }
