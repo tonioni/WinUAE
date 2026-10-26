@@ -2,6 +2,10 @@
 #define WINUAE_OD_UNIX_TARGET_H
 
 #define TARGET_NAME _T("unix")
+// Also read the settings that WinUAE for Windows saves as win32.*.
+#define TARGET_NAME_COMPAT _T("win32")
+// True when a win32.* option means the same on Unix (without the prefix).
+bool unix_config_is_compat_option(const TCHAR *option);
 #define OPTIONSFILENAME _T("default.uae")
 
 #include "winuae_version.h"
