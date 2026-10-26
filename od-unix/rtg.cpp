@@ -53,9 +53,14 @@ static int REGPARAM3 gfxmem4_check(uaecptr, uae_u32) REGPARAM;
 static uae_u8 *REGPARAM3 gfxmem4_xlate(uaecptr) REGPARAM;
 static void unix_picasso_mark_dirty_offset(int index, uae_u32 offset, uae_u32 size);
 
+/* CPU accesses take their offset from the bank's real (autoconfig) start, as the display, blit and
+ * dirty-tracking code do (addr - start). Masking alone is wrong when the board is not aligned to its
+ * size: a 4 MB Zorro II board at $200000 put every CPU access 2 MB off. (startaccessmask is not usable
+ * here: it keeps the temporary pre-autoconfig label.) */
 #define UNIX_RTG_MEMORY_FUNCTIONS(prefix, bank, index) \
 static uae_u32 REGPARAM2 prefix ## _lget(uaecptr addr) \
 { \
+    addr -= bank.start; \
     addr &= bank.mask; \
     if (!bank.baseaddr || addr + 4 > bank.allocated_size) { \
         return 0; \
@@ -64,6 +69,7 @@ static uae_u32 REGPARAM2 prefix ## _lget(uaecptr addr) \
 } \
 static uae_u32 REGPARAM2 prefix ## _wget(uaecptr addr) \
 { \
+    addr -= bank.start; \
     addr &= bank.mask; \
     if (!bank.baseaddr || addr + 2 > bank.allocated_size) { \
         return 0; \
@@ -72,6 +78,7 @@ static uae_u32 REGPARAM2 prefix ## _wget(uaecptr addr) \
 } \
 static uae_u32 REGPARAM2 prefix ## _bget(uaecptr addr) \
 { \
+    addr -= bank.start; \
     addr &= bank.mask; \
     if (!bank.baseaddr || addr >= bank.allocated_size) { \
         return 0; \
@@ -80,6 +87,7 @@ static uae_u32 REGPARAM2 prefix ## _bget(uaecptr addr) \
 } \
 static void REGPARAM2 prefix ## _lput(uaecptr addr, uae_u32 value) \
 { \
+    addr -= bank.start; \
     addr &= bank.mask; \
     if (!bank.baseaddr || addr + 4 > bank.allocated_size) { \
         return; \
@@ -89,6 +97,7 @@ static void REGPARAM2 prefix ## _lput(uaecptr addr, uae_u32 value) \
 } \
 static void REGPARAM2 prefix ## _wput(uaecptr addr, uae_u32 value) \
 { \
+    addr -= bank.start; \
     addr &= bank.mask; \
     if (!bank.baseaddr || addr + 2 > bank.allocated_size) { \
         return; \
@@ -98,6 +107,7 @@ static void REGPARAM2 prefix ## _wput(uaecptr addr, uae_u32 value) \
 } \
 static void REGPARAM2 prefix ## _bput(uaecptr addr, uae_u32 value) \
 { \
+    addr -= bank.start; \
     addr &= bank.mask; \
     if (!bank.baseaddr || addr >= bank.allocated_size) { \
         return; \
@@ -107,11 +117,13 @@ static void REGPARAM2 prefix ## _bput(uaecptr addr, uae_u32 value) \
 } \
 static int REGPARAM2 prefix ## _check(uaecptr addr, uae_u32 size) \
 { \
+    addr -= bank.start; \
     addr &= bank.mask; \
     return bank.baseaddr && addr + size <= bank.allocated_size; \
 } \
 static uae_u8 *REGPARAM2 prefix ## _xlate(uaecptr addr) \
 { \
+    addr -= bank.start; \
     addr &= bank.mask; \
     if (!bank.baseaddr || addr >= bank.allocated_size) { \
         return NULL; \
