@@ -540,7 +540,7 @@ static int denise_y_start, denise_y_end;
 static int denise_pixtotal, denise_pixtotalv, denise_linecnt, denise_startpos, denise_cck, denise_endcycle;
 static int denise_pixtotalskip_start, denise_pixtotalskip_end, denise_hdelay;
 static int denise_pixtotal_max, denise_pixtotal_totalmax;
-static uae_u32 *denise_pixtotal_max_buf;
+static uae_u32 *denise_pixtotal_max_buf_1x, *denise_pixtotal_max_buf_2x, *denise_pixtotal_max_buf_4x;
 static uae_u32 *buf1, *buf2, *buf_d;
 static uae_u8 *gbuf;
 static uae_u8 pixx0, pixx1, pixx2, pixx3;
@@ -5569,10 +5569,13 @@ static void set_pixtotal_max(void)
 		if (xshift > 0) {
 			denise_pixtotal_max -= xshift * 2;
 		}
-		denise_pixtotal_max_buf = ((uae_u32*)xlinebuffer) + (denise_pixtotal_max << lts_hres_shift);
-		if (denise_pixtotal_max_buf > (uae_u32*)xlinebuffer_end) {
-			denise_pixtotal_max_buf = (uae_u32*)xlinebuffer_end;
+		denise_pixtotal_max_buf_1x = ((uae_u32*)xlinebuffer) + (denise_pixtotal_max << lts_hres_shift);
+		if (denise_pixtotal_max_buf_1x > (uae_u32*)xlinebuffer_end) {
+			denise_pixtotal_max_buf_1x = (uae_u32*)xlinebuffer_end;
 		}
+		denise_pixtotal_max_buf_2x = denise_pixtotal_max_buf_1x - 1;
+		denise_pixtotal_max_buf_4x = denise_pixtotal_max_buf_1x - 3;
+
 	} else {
 		denise_pixtotal_max = -0x7fffffff;
 	}
@@ -5805,7 +5808,9 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 	xlinebuffer = NULL;
 	xlinebuffer2 = NULL;
 	xlinebuffer_genlock = NULL;
-	denise_pixtotal_max_buf = NULL;
+	denise_pixtotal_max_buf_1x = NULL;
+	denise_pixtotal_max_buf_2x = NULL;
+	denise_pixtotal_max_buf_4x = NULL;
 	buf1 = NULL;
 	buf2 = NULL;
 
@@ -6814,7 +6819,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 
 		// bitplane and sprite merge & output
 		int dpixcnt_add = hresolution_add << xshift;
-		if (buf1 && denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf) {
+		if (buf1 && denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 
 			uae_u32 t = 0;
 			if (currprefs.gfx_lores_mode && dpixcnt_add == 2) {
@@ -7026,7 +7031,7 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 		dtgbuf[h][ipix] = gpix;
 
 		// bitplane and sprite merge & output
-		if (buf1 && denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf) {
+		if (buf1 && denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 
 			if (currprefs.gfx_lores_mode && hresolution_inv == 2) {
 				if (ipix == 1 || ipix == 3) {
