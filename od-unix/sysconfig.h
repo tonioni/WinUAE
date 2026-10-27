@@ -24,8 +24,9 @@
 #define MAX_AMIGAMONITORS 4
 #define MAX_AMIGADISPLAYS 4
 #define NATMEM_OFFSET natmem_offset
-/* The JIT handles direct access faults on ARM64 and x86-64 hosts only. */
-#if !defined(__aarch64__) && !defined(__x86_64__)
+/* JIT direct is tested on ARM64 only (macOS and Linux). The x86-64 fault
+ * handler builds but hasn't been run on a Unix x86-64 host yet. */
+#if !defined(__aarch64__)
 #define NATMEM_NO_JIT_DIRECT 1
 #endif
 #define PACKAGE_STRING "WinUAE Unix"
