@@ -387,8 +387,6 @@ static void log_unhandled_access(uae_u8 *fault_pc)
 	}
 }
 
-#ifdef WIN32
-
 static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 {
 	uae_u8 *fault_pc = (uae_u8 *) CONTEXT_PC(context);
@@ -516,160 +514,6 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 	return 1;
 }
 
-#else
-
-/*
- * Try to handle faulted memory access in compiled code
- *
- * Returns 1 if handled, 0 otherwise
- */
-static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
-{
-	uae_u8 *fault_pc = (uae_u8 *) CONTEXT_PC(context);
-#ifdef CPU_64_BIT
-	/* Compute the Amiga address first. The host fault address can exceed
-	 * 32 bits when natmem_offset + amiga_addr is above 4GB. */
-	uintptr_t amiga_addr_wide = fault_addr - (uintptr_t)NATMEM_OFFSET;
-	if (amiga_addr_wide > (uintptr_t)0xffffffff) {
-		if (amiga_addr_wide < 0x200000000ULL) {
-			/* Single 32-bit wrap from JIT address computation. */
-		} else {
-			return 0;
-		}
-	}
-#endif
-
-#ifdef DEBUG_ACCESS
-	write_log(_T("JIT: Fault address is 0x%lx at PC=%p\n"), fault_addr, fault_pc);
-#endif
-	if (!canbang || !currprefs.cachesize)
-		return 0;
-
-	if (in_handler)
-		write_log(_T("JIT: Argh --- Am already in a handler. Shouldn't happen!\n"));
-
-	if (fault_pc < compiled_code || fault_pc > current_compile_p) {
-		return 0;
-	}
-
-	int r = -1, size = 4, dir = -1, len = 0, rex = 0;
-	decode_instruction(fault_pc, &r, &dir, &size, &len, &rex);
-	if (r == -1) {
-		log_unhandled_access(fault_pc);
-		return 0;
-	}
-
-#ifdef DEBUG_ACCESS
-	write_log (_T("JIT: Register was %d, direction was %d, size was %d\n"),
-			   r, dir, size);
-#endif
-
-	void *pr = get_pr_from_context(context, r, size, rex);
-	if (pr == NULL) {
-		log_unhandled_access(fault_pc);
-		return 0;
-	}
-
-	uae_u32 addr = (uae_u32)(fault_addr - (uintptr_t)NATMEM_OFFSET);
-	addrbank *ab = &get_mem_bank(addr);
-#ifdef DEBUG_ACCESS
-	if (addr >= 0x80000000) {
-			write_log (_T("JIT: Suspicious address 0x%x in SEGV handler.\n"), addr);
-	}
-	if (ab)
-		write_log(_T("JIT: Address bank: %s, address %08x\n"), ab->name ? ab->name : _T("NONE"), addr);
-#endif
-
-	/* dummy_bank can call hardware_exception2() through Gary bus-error
-	 * emulation. Do not throw from this native exception handler; emulate
-	 * unmapped direct JIT accesses locally. */
-	if (ab == &dummy_bank) {
-		if (dir == SIG_READ) {
-			uae_u32 v = dummy_get_safe(addr,
-				size == 1 ? sz_byte : size == 2 ? sz_word : sz_long,
-				false, currprefs.cs_unmapped_space == 2 ? 0xffffffff : 0);
-			switch (size) {
-			case 1: *((uae_u8*)pr) = (uae_u8)v; break;
-			case 2: *((uae_u16*)pr) = do_byteswap_16((uae_u16)v); break;
-			case 4: *((uae_u32*)pr) = do_byteswap_32(v); break;
-			default: break;
-			}
-		}
-		CONTEXT_PC(context) += len;
-		if (delete_trigger(active, fault_pc))
-			return 1;
-		if (delete_trigger(dormant, fault_pc))
-			return 1;
-		set_special(0);
-		return 1;
-	}
-
-	uae_u8 *original_target = target;
-	target = (uae_u8*) CONTEXT_PC(context);
-
-	uae_u8 vecbuf[5];
-	for (int i = 0; i < sizeof(vecbuf); i++) {
-		vecbuf[i] = target[i];
-	}
-	raw_jmp(uae_p32(veccode));
-
-#ifdef DEBUG_ACCESS
-	write_log(_T("JIT: Create jump to %p\n"), veccode);
-#endif
-
-	target = veccode;
-	if (dir == SIG_READ) {
-		switch (size) {
-		case 1:
-			raw_mov_b_ri(r, get_byte(addr));
-			break;
-		case 2:
-			raw_mov_w_ri(r, do_byteswap_16(get_word(addr)));
-			break;
-		case 4:
-			raw_mov_l_ri(r, do_byteswap_32(get_long(addr)));
-			break;
-		default:
-			abort();
-		}
-	} else {
-		switch (size) {
-		case 1:
-			put_byte(addr, *((uae_u8 *) pr));
-			break;
-		case 2:
-			put_word(addr, do_byteswap_16(*((uae_u16 *) pr)));
-			break;
-		case 4:
-			put_long(addr, do_byteswap_32(*((uae_u32 *) pr)));
-			break;
-		default: abort();
-		}
-	}
-	for (int i = 0; i < sizeof(vecbuf); i++) {
-		raw_mov_b_mi(JITPTR CONTEXT_PC(context) + i, vecbuf[i]);
-	}
-	raw_mov_l_mi(uae_p32(&in_handler), 0);
-	raw_jmp(uae_p32(CONTEXT_PC(context)) + len);
-
-	in_handler = 1;
-	target = original_target;
-	if (delete_trigger(active, fault_pc)) {
-		return 1;
-	}
-	/* Not found in the active list. Might be a rom routine that
-	 * is in the dormant list */
-	if (delete_trigger(dormant, fault_pc)) {
-		return 1;
-	}
-#ifdef DEBUG_ACCESS
-	write_log (_T("JIT: Huh? Could not find trigger!\n"));
-#endif
-	set_special(0);
-	return 1;
-}
-#endif
-
 #endif /* CONTEXT_T */
 
 #ifdef _WIN32
@@ -716,7 +560,8 @@ static void sigsegv_handler(int signum, siginfo_t *info, void *context)
 		write_log ("Caught illegal access to %08lx at eip=%p\n", address, i);
 	}
 
-	exit (EXIT_FAILURE);
+	/* Not a JIT direct access: crash with the default action. */
+	signal (signum, SIG_DFL);
 }
 
 #endif
