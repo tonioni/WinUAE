@@ -559,7 +559,7 @@ static bool dctv(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines,
 			write_log(_T("\n"));
 #endif
 
-		for (x = 0; x < src->inwidth; x++) {
+		for (x = 2; x < src->inwidth - 4; x++) {
 			uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
 			uae_u8 *d = dstline + ((x << 1) / hdbl) * dst->pixbytes + zigzagoffset;
 			uae_u8 *s2 = s + src->rowbytes;
@@ -829,7 +829,7 @@ static bool firecracker24(struct vidbuffer *src, struct vidbuffer *dst, bool dou
 		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) / vdbl) * dst->rowbytes;
 		uae_u8 *vramline = sm_frame_buffer + (fc24_y + oddlines) * SM_VRAM_WIDTH * SM_VRAM_BYTES + bufferoffset;
 		fc24_x = 0;
-		for (x = 0; x < src->inwidth; x++) {
+		for (x = 2; x < src->inwidth - 4; x++) {
 			uae_u8 r = 0, g = 0, b = 0;
 			uae_u8 *s = line + ((x << 1) / hdbl) * src->pixbytes;
 			uae_u8 *s_genlock = line_genlock + ((x << 1) / hdbl);
