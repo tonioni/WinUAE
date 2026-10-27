@@ -54,12 +54,9 @@ static void premsg (void)
 
 #define SHOW_CONSOLE 0
 
-static int nodatestamps = 0;
-
 int consoleopen = 0;
 static int realconsole;
 static HANDLE stdinput,stdoutput;
-static int bootlogmode;
 static CRITICAL_SECTION cs;
 static int cs_init;
 static bool logtostdoutput;
@@ -68,7 +65,6 @@ FILE *debugfile = NULL;
 int console_logging = 0;
 static int debugger_type = -1;
 extern BOOL debuggerinitializing;
-extern bool lof_store;
 static int console_input_linemode = -1;
 int always_flush_log = 0;
 TCHAR *conlogfile = NULL;
@@ -545,42 +541,6 @@ void console_flush (void)
 
 static int lfdetected = 1;
 
-TCHAR *write_log_get_ts(void)
-{
-	struct tm *t;
-	struct _timeb tb;
-	static TCHAR out[100];
-	TCHAR *p;
-	static TCHAR lastts[100];
-	TCHAR curts[100];
-
-	if (bootlogmode)
-		return NULL;
-	if (nodatestamps)
-		return NULL;
-	if (!vsync_counter)
-		return NULL;
-	_ftime (&tb);
-	t = localtime (&tb.time);
-	_tcsftime (curts, sizeof curts / sizeof (TCHAR), _T("%Y-%m-%d %H:%M:%S\n"), t);
-	p = out;
-	*p = 0;
-	if (_tcsncmp (curts, lastts, _tcslen (curts) - 3)) { // "xx\n"
-		_tcscat (p, curts);
-		p += _tcslen (p);
-		_tcscpy (lastts, curts);
-	}
-	_tcsftime (p, sizeof out / sizeof (TCHAR) - (p - out) , _T("%S-"), t);
-	p += _tcslen (p);
-	_stprintf (p, _T("%03d"), tb.millitm);
-	p += _tcslen (p);
-	if (vsync_counter != 0xffffffff) {
-		_stprintf (p, _T(" [%d %03d%s%03d/%03d]"), vsync_counter, current_hpos_safe(), lof_store ? _T("-") : _T("="), vpos, linear_vpos_start);
-	}
-	_tcscat (p, _T(": "));
-	return out;
-}
-
 void write_dlog (const TCHAR *format, ...)
 {
 	int count;
@@ -866,7 +826,7 @@ FILE *log_open (const TCHAR *name, int append, int bootlog, TCHAR *outpath)
 			}
 		}
 	}
-	bootlogmode = bootlog;
+	log_nodatestamps = bootlog;
 	return f;
 }
 

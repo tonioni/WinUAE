@@ -51,13 +51,25 @@ static void capture_log_bytes(const char *text, size_t len)
     log_capture.append(text, len);
 }
 
-static void capture_log_format(const char *format, va_list ap)
+static std::mutex log_write_mutex;
+static bool log_line_start = true;
+
+static void log_write_text(const char *text, size_t len)
+{
+    fwrite(text, 1, len, stderr);
+    if (debugfile) {
+        fwrite(text, 1, len, debugfile);
+    }
+    capture_log_bytes(text, len);
+}
+
+static void vlog_write(const char *format, va_list ap, bool timestamp)
 {
     va_list size_args;
     va_copy(size_args, ap);
     const int needed = vsnprintf(NULL, 0, format, size_args);
     va_end(size_args);
-    if (needed <= 0) {
+    if (needed < 0) {
         return;
     }
 
@@ -66,28 +78,21 @@ static void capture_log_format(const char *format, va_list ap)
     va_copy(format_args, ap);
     vsnprintf(buffer.data(), buffer.size(), format, format_args);
     va_end(format_args);
-    capture_log_bytes(buffer.data(), size_t(needed));
-}
 
-static void vlog_write(const char *format, va_list ap)
-{
-    va_list stderr_args;
-    va_copy(stderr_args, ap);
-    vfprintf(stderr, format, stderr_args);
-    va_end(stderr_args);
-    fflush(stderr);
-
-    if (debugfile) {
-        va_list file_args;
-        va_copy(file_args, ap);
-        vfprintf(debugfile, format, file_args);
-        va_end(file_args);
-        if (always_flush_log) {
-            fflush(debugfile);
+    std::lock_guard<std::mutex> lock(log_write_mutex);
+    // Like Windows, prefix each new line with the host time and beam position.
+    if (timestamp && log_line_start) {
+        const TCHAR *ts = write_log_get_ts();
+        if (ts) {
+            log_write_text(ts, strlen(ts));
         }
     }
-
-    capture_log_format(format, ap);
+    log_write_text(buffer.data(), size_t(needed));
+    log_line_start = needed > 0 && buffer[needed - 1] == '\n';
+    fflush(stderr);
+    if (debugfile && always_flush_log) {
+        fflush(debugfile);
+    }
 }
 
 static bool terminal_console_available(void)
@@ -186,7 +191,7 @@ void write_log(const char *format, ...)
 {
     va_list ap;
     va_start(ap, format);
-    vlog_write(format, ap);
+    vlog_write(format, ap, true);
     va_end(ap);
 }
 
@@ -194,7 +199,7 @@ void write_logx(const TCHAR *format, ...)
 {
     va_list ap;
     va_start(ap, format);
-    vlog_write(format, ap);
+    vlog_write(format, ap, false);
     va_end(ap);
 }
 
@@ -202,7 +207,7 @@ void write_dlog(const TCHAR *format, ...)
 {
     va_list ap;
     va_start(ap, format);
-    vlog_write(format, ap);
+    vlog_write(format, ap, false);
     va_end(ap);
 }
 
@@ -459,7 +464,7 @@ void f_out(void *, const TCHAR *format, ...)
 {
     va_list ap;
     va_start(ap, format);
-    vlog_write(format, ap);
+    vlog_write(format, ap, false);
     va_end(ap);
 }
 TCHAR* buf_out(TCHAR *buffer, int *bufsize, const TCHAR *format, ...)
@@ -473,9 +478,4 @@ TCHAR* buf_out(TCHAR *buffer, int *bufsize, const TCHAR *format, ...)
         return buffer + n;
     }
     return buffer;
-}
-TCHAR *write_log_get_ts(void)
-{
-    static TCHAR ts[1] = { 0 };
-    return ts;
 }
