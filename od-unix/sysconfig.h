@@ -24,6 +24,9 @@
 #define MAX_AMIGAMONITORS 4
 #define MAX_AMIGADISPLAYS 4
 #define NATMEM_OFFSET natmem_offset
+/* JIT direct access faults are not handled on every Unix CPU yet, so
+ * od-generic/mman.cpp keeps JIT direct off. */
+#define NATMEM_NO_JIT_DIRECT 1
 #define PACKAGE_STRING "WinUAE Unix"
 #if defined(UAE_HOST_DARWIN)
 #define WINUAE_UNIX_WINDOW_TITLE "WinUAE for macOS"

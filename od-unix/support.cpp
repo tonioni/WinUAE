@@ -15,10 +15,6 @@
 #include <signal.h>
 #include <string.h>
 
-uae_u8 *natmem_offset;
-uae_u8 *natmem_reserved;
-size_t natmem_reserved_size;
-
 static volatile sig_atomic_t unix_signal_quit_requested;
 static volatile sig_atomic_t unix_exit_signal;
 static bool unix_signal_quit_dispatched;

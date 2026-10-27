@@ -109,6 +109,11 @@ void target_main_set_args(int argc, TCHAR **argv)
 
 int target_main_handle_early(int argc, TCHAR **argv)
 {
+    /* Reserve natmem before the GUI and config checks use its limits, as
+     * Windows does in WinMain. */
+    if (!preinit_shm()) {
+        return 1;
+    }
     return -1;
 }
 

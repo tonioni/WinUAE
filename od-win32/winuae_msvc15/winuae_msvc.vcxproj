@@ -1066,6 +1066,7 @@
     <ClCompile Include="..\..\kbmcu\m6805\m68emu.cpp" />
     <ClCompile Include="..\..\kbmcu\m6805\m68_ops.cpp" />
     <ClCompile Include="..\..\logging.cpp" />
+    <ClCompile Include="..\..\od-generic\mman.cpp" />
     <ClCompile Include="..\..\luascript.cpp" />
     <ClCompile Include="..\..\mame\a2410.cpp" />
     <ClCompile Include="..\..\mame\tm34010\tms34010.cpp" />
@@ -3296,7 +3297,7 @@
     <ClCompile Include="..\lcd.cpp" />
     <ClCompile Include="..\machdep\m68k.cpp" />
     <ClCompile Include="..\midi.cpp" />
-    <ClCompile Include="..\mman.cpp" />
+    <ClCompile Include="..\mman_win32.cpp" />
     <ClCompile Include="..\mp3decoder.cpp" />
     <ClCompile Include="..\parser.cpp" />
     <ClCompile Include="..\picasso96_win.cpp" />
