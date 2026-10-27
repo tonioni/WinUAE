@@ -139,7 +139,7 @@
     <ClCompile Include="..\midi.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\mman.cpp">
+    <ClCompile Include="..\mman_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
     <ClCompile Include="..\parser.cpp">
@@ -668,6 +668,9 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\logging.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\od-generic\mman.cpp">
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\cdtvcr.cpp">
