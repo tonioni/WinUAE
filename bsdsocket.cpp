@@ -2016,4 +2016,13 @@ void bsdlib_install (void)
 	write_log (_T("bsdsocket.library installed\n"));
 }
 
+#else
+
+volatile int bsd_int_requested;
+
+void bsdsock_fake_int_handler(void)
+{
+	bsd_int_requested = 0;
+}
+
 #endif /* ! BSDSOCKET */
