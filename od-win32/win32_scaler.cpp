@@ -12,6 +12,9 @@
 #include "render.h"
 #include "drawing.h"
 #include "direct3d.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #define AUTORESIZE_FRAME_DELAY 4
 
@@ -564,8 +567,9 @@ void getfilterdata(int monid, struct displayscale *ds)
 
 				lastresize--;
 				if (lastresize > 0) {
-					if (cw != lcw || ch != lch || cx != lcx || cy != lcy)
+					if (cw != lcw || ch != lch || cx != lcx || cy != lcy) {
 						lastresize = AUTORESIZE_FRAME_DELAY;
+					}
 					useold = 1;
 				} else if (lastdelay == 0) {
 					lastdelay = 2;
@@ -629,6 +633,9 @@ void getfilterdata(int monid, struct displayscale *ds)
 					fixup_prefs_dimensions (&changed_prefs);
 					if (oldwinw != gmh->gfx_size_win.width || oldwinh != gmh->gfx_size_win.height) {
 						set_config_changed ();
+#ifdef RETROPLATFORM
+						rp_screenmode_changed();
+#endif
 					}
 				}
 				ds->xoffset += -(gmh->gfx_size_win.width - ww + 1) / 2;

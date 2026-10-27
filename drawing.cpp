@@ -38,6 +38,9 @@
 #endif
 #include "devices.h"
 #include "gfxboard.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #define ENABLE_MULTITHREADED_DENISE 1
 
@@ -1144,6 +1147,11 @@ int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh, int *hr
 #endif
 	center_reset = 1;
 	resetfulllinestate();
+
+#ifdef RETROPLATFORM
+	rp_screenmode_changed();
+#endif
+
 	return 1;
 }
 
@@ -6293,19 +6301,19 @@ static void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, in
 	if (buf1) {
 		if ((uae_u8*)buf1 > xlinebuffer_end) {
 			if (overflow_warned >= 0) {
-			write_log("*** Render overflow1 %d\n", buf1 - (uae_u32 *)xlinebuffer_start);
+				write_log("*** Render overflow1 %d\n", buf1 - (uae_u32 *)xlinebuffer_start);
 			}
 			overflow_warned--;
 		}
 	}
-		if (buf2) {
-			if ((uae_u8*)buf2 > xlinebuffer2_end) {
+	if (buf2) {
+		if ((uae_u8*)buf2 > xlinebuffer2_end) {
 			if (overflow_warned >= 0) {
 				write_log("*** Render overflow2 %d\n", buf2 - (uae_u32*)xlinebuffer2_start);
 			}
-				overflow_warned--;
-			}
+			overflow_warned--;
 		}
+	}
 
 	if (ls) {
 		ls->hstrt_offset = hstrt_offset;
@@ -7780,12 +7788,12 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	if (need_genlock_data && gbuf) {
 		int max = addrdiff(xlinebuffer_genlock_end, gbuf);
 		if (max > 0) {
-		int total = GENLOCK_EXTRA_CLEAR;
-		if (total > max) {
-			total = max;
+			int total = GENLOCK_EXTRA_CLEAR;
+			if (total > max) {
+				total = max;
+			}
+			memset(gbuf, 0, total);
 		}
-		memset(gbuf, 0, total);
-	}
 	}
 
 	if (ls->hstop_offset > diwlastword_total && ls->bpl1dat_trigger_offset >= 0) {

@@ -796,8 +796,8 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 		full = p->gfx_apmode[1].gfx_fullscreen;
 		sm->lClipTop = -1;
 		sm->lClipLeft = -1;
-		sm->lClipWidth = picasso96_state[mon->monitor_id].Width;
-		sm->lClipHeight = picasso96_state[mon->monitor_id].Height;
+		sm->lClipWidth = -1;
+		sm->lClipHeight = -1;
 
 		for (int i = RP_SCREENMODE_SCALE_MAX_X; i >= RP_SCREENMODE_SCALE_2X; i--) {
 			if (hmult >= (float)i + 0.5) {
@@ -1657,7 +1657,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			if (w > 0 && h > 0) {
 				return MAKELONG(w, h);
 			}
-			return MAKELONG(0, 0);
+			return MAKELONG(-1, -1);
 		}
 	case RP_IPC_TO_GUEST_GUESTAPIVERSION:
 		{
