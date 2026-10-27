@@ -111,6 +111,8 @@ struct atonce_s {
 	int refresh_due;         // a video refresh is owed (set per frame, serviced
 	                         // at the next safe point: idle hsync or 286 resume)
 	int fake_active;         // a synthetic CRTC refresh trap is in flight
+	int video_set;           // the 286 has programmed the video hardware since
+	                         // its last reset (see atonce_video_port)
 	int err287;
 	// MEMMODE shift register, stages AH/BH/CH/DH (AH = last shifted bit)
 	int mm_a, mm_b, mm_c, mm_d;
@@ -709,6 +711,16 @@ static int atonce_disk_bypass(uint16_t port)
 	}
 }
 
+// The 286 programs the video hardware through the CRTC and mode registers, or
+// through the Vortex "set video mode" service (0xBE) - the driver sets up its
+// screen from these. The synthetic refresh is a CRTC write, so it must not
+// reach the driver before the 286's own video setup has.
+static int atonce_video_port(uae_u16 p)
+{
+	return p == 0x3b4 || p == 0x3b5 || p == 0x3b8 ||
+		p == 0x3d4 || p == 0x3d5 || p == 0x3d8 || p == 0x0be;
+}
+
 // Entry point from x86.cpp's portin/portout. The 286's IN/OUT opcodes go
 // through outb()/inb() -> portout()/portin() in x86.cpp, which are the *bridge-
 // board* dispatchers and dereference bridges[0] (NULL for the ATonce). Those
@@ -732,6 +744,9 @@ uint32_t atonce_x86_io(uint16_t port, int dir, uint32_t val, int size)
 		// HDD bypass: serve drive >= 0x80 from the host VHD and skip the 68k trap.
 		if ((port == 0xb0 || port == 0xb9) && atonce_disk_bypass(port))
 			return 0;
+		if (atonce_video_port(port & 0x3ff)) {
+			xb->video_set = 1;
+		}
 		atonce_io_shadow(port & 0x3ff, val, size);
 		atonce_trap(xb, port, dir);
 		return 0;
@@ -790,6 +805,8 @@ static void atonce_porta_write(struct atonce_s *xb, uae_u8 v)
 	// triggered so the per-poll mode-byte write does not reset every time.
 	if (xb->configured && (v & PORTA_DIN) && !(old & PORTA_DIN)) {
 		xb->in_reset = 1;
+		xb->video_set = 0;
+		xb->refresh_due = 0;
 		resetx86();     // 286 restarts at FFFF0
 	}
 }
@@ -895,6 +912,8 @@ static void atonce_portb_write(struct atonce_s *xb, uae_u16 v)
 	// the board becomes live and the 286 starts at its reset vector (FFFF0).
 	if (!xb->configured) {
 		xb->configured = 1;
+		xb->video_set = 0;
+		xb->refresh_due = 0;
 		atonce_rebuild_map(xb);
 		resetx86();
 		// resetx86() resets 86Box's _mem_state (back to INTERNAL), which drops our
@@ -1089,7 +1108,12 @@ static void atonce_hsync(void)
 	// 286's key traps / show the new text). Fix: only refresh when the 286's text
 	// page ACTUALLY changed (cheap FNV hash once per frame), plus a slow ~2Hz
 	// heartbeat so the blinking cursor still shows. Idle = no render -> 68k free.
-	if (++xb->refresh_div >= maxvpos) {
+	//
+	// Nothing is owed until the 286 has programmed the video hardware. The v3.00
+	// driver has no screen before that, and a CRTC trap sends its main loop down
+	// the no-screen path with a stale PORT_A pointer (address error on the next
+	// resume).
+	if (xb->video_set && ++xb->refresh_div >= maxvpos) {
 		xb->refresh_div = 0;
 		uae_u32 h = atonce_text_hash();
 		xb->refresh_heartbeat++;
