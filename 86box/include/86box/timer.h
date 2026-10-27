@@ -80,6 +80,10 @@ extern uint64_t TIMER_USEC;
 /*True if 32 bit integer timestamp a expires before 32 bit integer timestamp b*/
 #define TIMER_VAL_LESS_THAN_VAL(a, b) ((int64_t) ((a) - (b)) <= 0)
 
+#ifdef __cplusplus
+}
+#endif
+
 #ifndef printf
 #include <stdio.h>
 #endif
@@ -203,6 +207,10 @@ timer_set_p(pc_timer_t *timer, void *priv)
 {
     timer->priv = priv;
 }
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* The API for big timer periods starts here. */
 extern void timer_stop(pc_timer_t *timer);
