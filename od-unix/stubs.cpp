@@ -37,9 +37,6 @@ int p96syncrate = 312;
 int p96refresh_active;
 int max_uae_width = 8192;
 int max_uae_height = 8192;
-#ifndef BSDSOCKET
-volatile int bsd_int_requested;
-#endif
 
 void machdep_free(void) {}
 #ifndef WINUAE_UNIX_WITH_VIDEOGRAB
@@ -64,9 +61,6 @@ int audio_pull_buffer(void) { return 0; }
 bool audio_finish_pull(void) { return false; }
 void save_log_open(void) {}
 void statusline_updated(int) {}
-#ifndef BSDSOCKET
-void bsdsock_fake_int_handler(void) { bsd_int_requested = 0; }
-#endif
 
 #ifdef DEBUGGER
 extern void unix_gui_debugger_update_info(const TCHAR *text);
@@ -196,43 +190,6 @@ void update_debug_info(void)
 void update_debug_info(void) {}
 #endif
 
-#ifndef GFXBOARD
-void gfxboard_vsync_handler(bool, bool) {}
-#endif
-
-#ifndef WITH_CPUBOARD
-bool cpuboard_autoconfig_init(struct autoconfig_info *) { return false; }
-bool cpuboard_maprom(void) { return false; }
-void cpuboard_map(void) {}
-void cpuboard_reset(int) {}
-void cpuboard_rethink(void) {}
-void cpuboard_cleanup(void) {}
-void cpuboard_init(void) {}
-void cpuboard_clear(void) {}
-int cpuboard_memorytype(struct uae_prefs *) { return 0; }
-int cpuboard_maxmemory(struct uae_prefs *) { return 0; }
-bool cpuboard_32bit(struct uae_prefs *) { return false; }
-bool cpuboard_io_special(int, uae_u32 *, int, bool) { return false; }
-void cpuboard_overlay_override(void) {}
-uaecptr cpuboard_get_reset_pc(uaecptr *) { return 0; }
-void cpuboard_set_flash_unlocked(bool) {}
-bool cpuboard_forced_hardreset(void) { return false; }
-bool cpuboard_fc_check(uaecptr, uae_u32 *, int, bool) { return false; }
-void cpuboard_gvpmaprom(int) {}
-#endif
-#ifndef WITH_CPUBOARD
-void cyberstorm_scsi_ram_put(uaecptr, uae_u32) {}
-uae_u32 cyberstorm_scsi_ram_get(uaecptr) { return 0; }
-int REGPARAM2 cyberstorm_scsi_ram_check(uaecptr, uae_u32) { return 0; }
-uae_u8 *REGPARAM2 cyberstorm_scsi_ram_xlate(uaecptr) { return NULL; }
-void cyberstorm_mk3_ppc_irq(int, int) {}
-void blizzardppc_irq(int, int) {}
-void cyberstorm_mk3_ppc_irq_setonly(int, int) {}
-#endif
-#ifndef WITH_PCI
-void wildfire_ncr815_irq(int, int) {}
-#endif
-
 struct netdriverdata **target_ethernet_enumerate(void)
 {
 #if defined(WITH_SLIRP) || defined(WITH_UAENET_PCAP)
@@ -249,14 +206,6 @@ struct netdriverdata **target_ethernet_enumerate(void)
 #ifndef WITH_UAENET_PCAP
 void ethernet_pause(int) {}
 void ethernet_reset(void) {}
-#endif
-
-#ifndef WITH_PCI
-bool ariadne2_init(struct autoconfig_info *) { return false; }
-bool hydra_init(struct autoconfig_info *) { return false; }
-bool lanrover_init(struct autoconfig_info *) { return false; }
-bool xsurf_init(struct autoconfig_info *) { return false; }
-bool xsurf100_init(struct autoconfig_info *) { return false; }
 #endif
 
 #ifndef WINUAE_UNIX_WITH_ARCHIVES
@@ -287,15 +236,6 @@ struct zfile *archive_unpackzfile(struct zfile *zf) { return zf; }
 struct zfile *archive_access_lha(struct znode *) { return NULL; }
 struct zfile *archive_getzfile(struct znode *, unsigned int, int) { return NULL; }
 int isfat(uae_u8 *) { return 0; }
-#endif
-
-#ifndef SCSIEMU
-int scsi_do_disk_change(int, int, int *pollmode) { if (pollmode) *pollmode = 0; return 0; }
-uae_u32 scsi_get_cd_drive_mask(void) { return 0; }
-uae_u32 scsi_get_cd_drive_media_mask(void) { return 0; }
-int scsi_add_tape(struct uaedev_config_info *) { return -1; }
-uae_u8 *save_scsidev(int, size_t *len, uae_u8 *dst) { if (len) *len = 0; return dst; }
-uae_u8 *restore_scsidev(uae_u8 *src) { return src; }
 #endif
 
 a_inode *custom_fsdb_lookup_aino_aname(a_inode *, const TCHAR *) { return NULL; }

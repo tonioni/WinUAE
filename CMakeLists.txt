@@ -1419,7 +1419,6 @@ endif()
 if(WINUAE_UNIX_WITH_CPUBOARD)
     set(WINUAE_UNIX_ENABLE_CPUBOARD ON)
     target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_CPUBOARD=1)
-    list(APPEND WINUAE_UNIX_EXTRA_SOURCES cpuboard.cpp)
 endif()
 
 if(WINUAE_UNIX_WITH_PPC_QEMU)
@@ -1787,7 +1786,6 @@ endif()
 if(WINUAE_UNIX_WITH_UAESCSI)
     set(WINUAE_UNIX_ENABLE_UAESCSI ON)
     target_compile_definitions(winuae_unix_core_defs INTERFACE SCSIEMU=1)
-    list(APPEND WINUAE_UNIX_EXTRA_SOURCES scsiemul.cpp)
 endif()
 
 if(WINUAE_UNIX_WITH_NATIVE_CD)
@@ -2106,6 +2104,7 @@ set(WINUAE_CORE_SOURCES
     cfgfile.cpp
     cia.cpp
     consolehook.cpp
+    cpuboard.cpp
     cpudefs.cpp
     cpustbl.cpp
     cpuemu_0.cpp
@@ -2189,6 +2188,7 @@ set(WINUAE_CORE_SOURCES
     savestate.cpp
     scp.cpp
     scsi.cpp
+    scsiemul.cpp
     scsitape.cpp
     specialmonitors.cpp
     statusline.cpp
@@ -2205,9 +2205,11 @@ set(WINUAE_CORE_SOURCES
     softfloat/softfloat.cpp
     softfloat/softfloat_decimal.cpp
     softfloat/softfloat_fpsp.cpp
+    od-generic/mman.cpp
     od-unix/charset.cpp
     od-unix/clipboard.cpp
     od-unix/config.cpp
+    od-unix/config_compat.cpp
     od-unix/driveclick.cpp
     od-unix/dlopen.cpp
     od-unix/filesys_host.cpp
@@ -2492,6 +2494,7 @@ if(WINUAE_UNIX_WITH_QT_UI)
         winuae_unix_register_test(winuae_unix_qt_drive_sound_sets_test)
 
         add_executable(winuae_unix_qt_gui_font_test EXCLUDE_FROM_ALL
+            od-unix/config_compat.cpp
             od-unix/qt/config.cpp
             od-unix/qt/drive_sound_sets.cpp
             od-unix/qt/launcher.cpp

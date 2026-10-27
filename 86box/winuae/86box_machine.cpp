@@ -218,11 +218,10 @@ uint8_t machine_get_p1(uint8_t kbc_p1)
 
 void pit_irq0_timer(int new_out, int old_out, void *priv)
 {
-	if (new_out && !old_out) {
-		picint(1);
-	}
-	if (!new_out) {
-		picintc(1);
+	if (new_out != old_out) {
+		// Track the PIT output wire so PIC initialization sees it held high.
+		uint8_t irq_state = old_out != 0;
+		picint_common(1, PIC_IRQ_LEVEL, new_out != 0, &irq_state);
 	}
 }
 
