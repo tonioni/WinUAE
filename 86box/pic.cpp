@@ -327,21 +327,14 @@ pic_update_pending_at(void)
     if (!(pic.interrupt & 0x20)) {
         pic2.int_pending = (find_best_interrupt(&pic2) != -1);
 
-        /* The slave's INT output is hard-wired to the master's IR2 (see
-           pic.slaves[2]), regardless of the cascade ID programmed into the
-           slave's ICW3 - firmware that never initializes the slave (eg. the
-           Tandy VIS) would otherwise have its IRQ 0 cleared here. */
-        if (machines[machine].init == machine_at_tandy_vis_init) {
-            if (pic2.int_pending)
-                pic.irr |= 0x04;
-            else
-                pic.irr &= ~0x04;
-        } else {
-            if (pic2.int_pending)
-                pic.irr |= (1 << pic2.icw3);
-            else
-                pic.irr &= ~(1 << pic2.icw3);
-        }
+        /* The slave's INT output is wired to the master's IR2 (see
+           pic.slaves[2]). ICW3 selects the cascade identity for INTA, not
+           the wired input. Before the slave is initialized, its ICW3 is
+           zero; using it here clears IRQ 0 during the master PIC test. */
+        if (pic2.int_pending)
+            pic.irr |= 0x04;
+        else
+            pic.irr &= ~0x04;
 
         pic.int_pending = (find_best_interrupt(&pic) != -1);
         pic_intr_report();
