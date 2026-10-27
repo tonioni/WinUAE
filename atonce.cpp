@@ -345,6 +345,29 @@ static const struct { uae_u32 xbase, size, chipoff; } atonce_win_map[] = {
 #define ATONCE_NWIN (sizeof(atonce_win_map) / sizeof(atonce_win_map[0]))
 static mem_mapping_t atonce_win[ATONCE_NWIN];
 
+// The LCA's EXT term (~P67) only covers 1MB-8MB. Every 1MB block from 0x800000
+// up is decoded like the low megabyte, whatever A20 and MEMMODE say, so its
+// bank xF is the BIOS window (chip 0x30000) too. The 286 comes out of reset at
+// FFFFF0 (EFFFF0 while A20 is gated off), so those banks must reach the BIOS.
+// They are added after the extended memory mapping, which they override.
+#define ATONCE_NBIOSALIAS 8
+static mem_mapping_t atonce_bios_alias[ATONCE_NBIOSALIAS];
+
+static void atonce_map_bios_alias(void)
+{
+	uae_u8 *chip = chipmem_bank.baseaddr;
+	if (!chip || chipmem_bank.allocated_size < 0x40000) {
+		return;
+	}
+	for (int i = 0; i < ATONCE_NBIOSALIAS; i++) {
+		uae_u32 xbase = 0x8f0000 + i * 0x100000;
+		mem_mapping_add(&atonce_bios_alias[i], xbase, 0x10000,
+			atonce_chip_readb, atonce_chip_readw, atonce_chip_readl,
+			atonce_chip_writeb, atonce_chip_writew, atonce_chip_writel,
+			chip + 0x30000, MEM_MAPPING_EXTERNAL, chip + 0x30000 - xbase);
+	}
+}
+
 static void atonce_map_windows(void)
 {
 	uae_u8 *chip = chipmem_bank.baseaddr;
@@ -1208,6 +1231,7 @@ bool atonce_init(struct autoconfig_info *aci)
 	mem_set_mem_state(0x100000, 0x1000000 - 0x100000,
 		MEM_READ_EXTERNAL | MEM_WRITE_EXTERNAL);
 #endif
+	atonce_map_bios_alias();
 
 	atonce_reset(1);
 
