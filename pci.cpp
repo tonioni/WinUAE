@@ -1257,13 +1257,13 @@ static void mediator_set_window_offset_window(struct pci_bridge *pcib, int windo
 
 static void mediator_set_window_offset(struct pci_bridge *pcib, uae_u16 v)
 {
-	v = do_byteswap_16(v);
 	if (pcib->bank_2_zorro == 3) {
-		// 4000
+		// 4000: the byte register selects PCI address bits 31..28.
 		pcib->window[0] = v & 0xf0;
-		pcib->memory_start_offset[0] = pcib->window[0] << 18;
+		pcib->memory_start_offset[0] = pcib->baseaddress - ((uae_u32)pcib->window[0] << 24);
 	} else {
-		// 1200
+		// 1200: window selection is a little-endian word register.
+		v = do_byteswap_16(v);
 		if (pcib->multiwindow) {
 			// TX has 2x4M banks
 			if (v & 0x0010) {
