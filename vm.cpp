@@ -1,462 +1,580 @@
 /*
- * Multi-platform virtual memory functions for UAE.
- * Copyright (C) 2015 Frode Solheim
+ * UAE virtual-memory implementation (see uae/vm.h).
  *
- * Licensed under the terms of the GNU General Public License version 2.
- * See the file 'COPYING' for full license text.
+ * POSIX path: private anonymous mmap everywhere. Reservations are mapped
+ * PROT_NONE and committed lazily by raising the protection; commit never
+ * zeroes pages because fresh anonymous mappings are already zero-filled.
+ * Decommit replaces the range in place with a new PROT_NONE mapping, which
+ * both discards the old pages and re-zeroes the next commit.
+ *
+ * Windows path: VirtualAlloc/VirtualFree with proper reserve/commit
+ * separation; uae_vm_free releases the whole allocation and ignores `size`.
+ *
+ * Copyright (C) 2026 Dimitris Panokostas
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Clean-room implementation written from a functional description of the
+ * UAE portability interface.
  */
 
 #include "sysconfig.h"
 #include "sysdeps.h"
-#include "uae/vm.h"
-#include "uae/log.h"
+
 #include "options.h"
 #include "memory.h"
+#include "uae/vm.h"
+#include "uae/log.h"
+
 #ifdef _WIN32
 
-#else
+/* Win32 memory APIs are already visible through sysdeps.h (<winsock.h>). */
+
+#else /* POSIX */
+
 #include <sys/mman.h>
-#endif
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-#if defined(__APPLE__)
-#include <sys/sysctl.h>
-#if defined(CPU_AARCH64)
+#include <unistd.h>
+#include <cerrno>
+#include <cstring>
+
+#if defined(__APPLE__) && defined(CPU_AARCH64)
 #include <pthread.h>
 #endif
+
 #endif
 
-//#if defined(LINUX) && defined(CPU_x86_64)
-#if defined(CPU_x86_64) && !defined(__APPLE__) && !defined(_WIN32)
-#define HAVE_MAP_32BIT 1
-#endif
+/* natmem_reserved: the big natmem reservation made by preinit_shm()
+ * (od-generic/mman.cpp). Low-memory (32-bit) allocations must stay below
+ * it so they never overlap the Amiga address space. It is null until
+ * natmem is reserved. */
+extern uae_u8 *natmem_reserved;
 
-// #define CLEAR_MEMORY_ON_COMMIT
+/* ------------------------------------------------------------------ */
+/* Protection translation                                             */
+/* ------------------------------------------------------------------ */
+#ifndef _WIN32
 
-// #define LOG_ALLOCATIONS
-// #define TRACK_ALLOCATIONS
-
-#ifdef TRACK_ALLOCATIONS
-
-struct alloc_size {
-	void *address;
-	size_t size;
-};
-
-#define MAX_ALLOCATIONS 2048
-/* A bit inefficient, but good enough for few and rare allocs. Storing
- * the size at the start of the allocated memory would be better, but this
- * could be awkward if/when you want to allocate page-aligned memory. */
-static struct alloc_size alloc_sizes[MAX_ALLOCATIONS];
-
-static void add_allocation(void *address, size_t size)
+static int vm_prot_posix(int protect)
 {
-	uae_log("VM: add_allocation %p (%zu)\n", address, size);
-	for (int i = 0; i < MAX_ALLOCATIONS; i++) {
-		if (alloc_sizes[i].address == NULL) {
-			alloc_sizes[i].address = address;
-			alloc_sizes[i].size = size;
-			return;
-		}
-	}
-	abort();
-}
-
-static size_t find_allocation(void *address)
-{
-	for (int i = 0; i < MAX_ALLOCATIONS; i++) {
-		if (alloc_sizes[i].address == address) {
-			return alloc_sizes[i].size;
-		}
-	}
-	abort();
-}
-
-static size_t remove_allocation(void *address)
-{
-	for (int i = 0; i < MAX_ALLOCATIONS; i++) {
-		if (alloc_sizes[i].address == address) {
-			alloc_sizes[i].address = NULL;
-			size_t size = alloc_sizes[i].size;
-			alloc_sizes[i].size = 0;
-			return size;
-		}
-	}
-	abort();
-}
-
-#endif /* TRACK_ALLOCATIONS */
-
-static int protect_to_native(int protect)
-{
-#ifdef _WIN32
-	if (protect == UAE_VM_NO_ACCESS) return PAGE_NOACCESS;
-	if (protect == UAE_VM_READ) return PAGE_READONLY;
-	if (protect == UAE_VM_READ_WRITE) return PAGE_READWRITE;
-	if (protect == UAE_VM_READ_EXECUTE) return PAGE_EXECUTE_READ;
-	if (protect == UAE_VM_READ_WRITE_EXECUTE) return PAGE_EXECUTE_READWRITE;
-	uae_log("VM: Invalid protect value %d\n", protect);
-	return PAGE_NOACCESS;
-#else
-	if (protect == UAE_VM_NO_ACCESS) return PROT_NONE;
-	if (protect == UAE_VM_READ) return PROT_READ;
-	if (protect == UAE_VM_READ_WRITE) return PROT_READ | PROT_WRITE;
-	if (protect == UAE_VM_READ_EXECUTE) return PROT_READ | PROT_EXEC;
-	if (protect == UAE_VM_READ_WRITE_EXECUTE) {
+	switch (protect) {
+	case UAE_VM_NO_ACCESS:
+		return PROT_NONE;
+	case UAE_VM_READ:
+		return PROT_READ;
+	case UAE_VM_READ_WRITE:
+		return PROT_READ | PROT_WRITE;
+	case UAE_VM_READ_EXECUTE:
+		return PROT_READ | PROT_EXEC;
+	case UAE_VM_READ_WRITE_EXECUTE:
 		return PROT_READ | PROT_WRITE | PROT_EXEC;
+	default:
+		write_log("VM: invalid protect value %d\n", protect);
+		return PROT_NONE;
 	}
-	uae_log("VM: Invalid protect value %d\n", protect);
-	return PROT_NONE;
-#endif
 }
 
-static const char *protect_description(int protect)
+/* Extra mmap flags implied by the allocation flags. Only Apple arm64 has
+ * MAP_JIT; everywhere else (including macOS x86-64 and Windows ARM64)
+ * UAE_VM_JIT is ignored. */
+static int vm_map_flags(int flags)
 {
-	if (protect == UAE_VM_NO_ACCESS) return "NO_ACCESS";
-	if (protect == UAE_VM_READ) return "READ";
-	if (protect == UAE_VM_READ_WRITE) return "READ_WRITE";
-	if (protect == UAE_VM_READ_EXECUTE) return "READ_EXECUTE";
-	if (protect == UAE_VM_READ_WRITE_EXECUTE) return "READ_WRITE_EXECUTE";
-	return "UNKNOWN";
-}
-
-int uae_vm_page_size(void)
-{
-	static int page_size = 0;
-	if (page_size == 0) {
-#ifdef _WIN32
-		SYSTEM_INFO si;
-		GetSystemInfo(&si);
-		page_size = si.dwPageSize;
-#else
-		page_size = sysconf(_SC_PAGESIZE);
-#endif
-	}
-	return page_size;
-}
-
-static void *uae_vm_alloc_with_flags(size_t size, int flags, int protect)
-{
-	void *address = NULL;
-	static bool first_allocation = true;
-	if (first_allocation) {
-		/* FIXME: log contents of /proc/self/maps on Linux */
-		/* FIXME: use VirtualQuery function on Windows? */
-		first_allocation = false;
-	}
-#ifdef LOG_ALLOCATIONS
-	uae_log("VM: Allocate 0x%-8zx bytes [%d] (%s)\n",
-			size, flags, protect_description(protect));
-#endif
-
-#ifdef _WIN32
-	int va_type = MEM_COMMIT | MEM_RESERVE;
-	if (flags & UAE_VM_WRITE_WATCH) {
-		va_type |= MEM_WRITE_WATCH;
-	}
-	int va_protect = protect_to_native(protect);
-#else
-	int mmap_flags = MAP_PRIVATE | MAP_ANON;
-	int mmap_prot = protect_to_native(protect);
+	int map_flags = MAP_PRIVATE | MAP_ANONYMOUS;
 #if defined(__APPLE__) && defined(CPU_AARCH64)
 	if (flags & UAE_VM_JIT) {
 #ifdef MAP_JIT
-		mmap_flags |= MAP_JIT;
+		map_flags |= MAP_JIT;
 #else
-		uae_log("VM: UAE_VM_JIT requested but MAP_JIT is unavailable on this SDK\n");
+		write_log("VM: MAP_JIT not available, allocating without it\n");
 #endif
 	}
 #endif
-#endif
-
-#if !defined(CPU_64_BIT) || defined(__APPLE__)
-	flags &= ~UAE_VM_32BIT;
-#endif
-	if (flags & UAE_VM_32BIT) {
-		/* Stupid algorithm to find available space, but should
-		 * work well enough when there is not a lot of allocations. */
-		int step = uae_vm_page_size();
-		uae_u8 *p = (uae_u8 *) 0x40000000;
-		uae_u8 *p_end = natmem_reserved - size;
-		if (size > 1024 * 1024) {
-			/* Reserve some space for smaller allocations */
-			p += 32 * 1024 * 1024;
-			step = 1024 * 1024;
-		}
-#ifdef HAVE_MAP_32BIT
-		address = mmap(0, size, mmap_prot, mmap_flags | MAP_32BIT, -1, 0);
-		if (address == MAP_FAILED) {
-			address = NULL;
-		}
-#endif
-		while (address == NULL) {
-			if (p > p_end) {
-				break;
-			}
-#ifdef _WIN32
-			address = VirtualAlloc(p, size, va_type, va_protect);
-#else
-			address = mmap(p, size, mmap_prot, mmap_flags, -1, 0);
-			// write_log("VM: trying %p step is 0x%x = %p\n", p, step, address);
-			if (address == MAP_FAILED) {
-				address = NULL;
-			} else if (((uintptr_t) address) + size > (uintptr_t) 0xffffffff) {
-				munmap(address, size);
-				address = NULL;
-			}
-#endif
-			p += step;
-		}
-	} else {
-#ifdef _WIN32
-		address = VirtualAlloc(NULL, size, va_type, va_protect);
-#else
-		address = mmap(0, size, mmap_prot, mmap_flags, -1, 0);
-		if (address == MAP_FAILED) {
-			address = NULL;
-		}
-#endif
-	}
-
-	if (address == NULL) {
-		uae_log("VM: uae_vm_alloc(%zu, %d, %d) mmap failed (%d)\n",
-		    size, flags, protect, errno);
-	    return NULL;
-	}
-#ifdef TRACK_ALLOCATIONS
-	add_allocation(address, size);
-#endif
-#ifdef LOG_ALLOCATIONS
-	uae_log("VM: %p\n", address);
-#endif
-	return address;
+	return map_flags;
 }
+
+#else /* _WIN32 */
+
+static DWORD vm_prot_win(int protect)
+{
+	switch (protect) {
+	case UAE_VM_NO_ACCESS:
+		return PAGE_NOACCESS;
+	case UAE_VM_READ:
+		return PAGE_READONLY;
+	case UAE_VM_READ_WRITE:
+		return PAGE_READWRITE;
+	case UAE_VM_READ_EXECUTE:
+		return PAGE_EXECUTE_READ;
+	case UAE_VM_READ_WRITE_EXECUTE:
+		return PAGE_EXECUTE_READWRITE;
+	default:
+		write_log("VM: invalid protect value %d\n", protect);
+		return PAGE_NOACCESS;
+	}
+}
+
+#endif /* _WIN32 */
+
+
+/* ------------------------------------------------------------------ */
+/* Page size                                                          */
+/* ------------------------------------------------------------------ */
+
+int uae_vm_page_size(void)
+{
+	/* Function-local static initialisation is thread-safe (C++11) and
+	 * makes concurrent first calls return the same cached value. */
+	static const int page_size = [] {
+#ifdef _WIN32
+		/* dwPageSize (4 KiB), not the 64 KiB allocation granularity. */
+		SYSTEM_INFO system_info;
+		GetSystemInfo(&system_info);
+		return static_cast<int>(system_info.dwPageSize);
+#else
+		return static_cast<int>(sysconf(_SC_PAGESIZE));
+#endif
+	}();
+	return page_size;
+}
+
+/* ------------------------------------------------------------------ */
+/* Allocation                                                         */
+/* ------------------------------------------------------------------ */
+
+/* Try to place a below-4-GiB allocation by hinting candidate base
+ * addresses (non-fixed: the kernel may place the mapping elsewhere, in
+ * which case it is kept only if it still ends below 4 GiB). */
+#ifndef _WIN32
+static void *vm_alloc_32bit_posix(size_t size, int flags, int protect)
+{
+	const int prot = vm_prot_posix(protect);
+	const int map_flags = vm_map_flags(flags);
+
+#ifdef MAP_32BIT
+	/* x86-64 Linux: ask the kernel directly for a mapping below 2 GiB
+	 * (absolute addressing in the x86 JIT needs it). Some kernels
+	 * (Rosetta's linux/amd64 emulation, for example) ignore the flag, so
+	 * the promise is verified rather than trusted. */
+	void *address = mmap(nullptr, size, prot, map_flags | MAP_32BIT, -1, 0);
+	if (address != MAP_FAILED) {
+		if (reinterpret_cast<uintptr_t>(address) + size <= 0xFFFFFFFFULL) {
+			return address;
+		}
+		munmap(address, size);
+	}
+#endif
+
+	const uintptr_t page = static_cast<uintptr_t>(uae_vm_page_size());
+	const uintptr_t megabyte = 1024 * 1024;
+	/* Large blocks start higher and step by 1 MiB so the scan cannot take
+	 * millions of iterations; small blocks step by one page. */
+	const uintptr_t step = size > megabyte ? megabyte : page;
+	const uintptr_t base = size > megabyte ? 0x42000000 : 0x40000000;
+	/* Never return anything that ends above 4 GiB, even when natmem is
+	 * not reserved (or reserved above 4 GiB) yet. */
+	uintptr_t limit = 0x100000000ULL - size;
+	if (natmem_reserved != nullptr) {
+		const uintptr_t natmem_limit = reinterpret_cast<uintptr_t>(natmem_reserved) - size;
+		if (natmem_limit < limit && natmem_limit >= base) {
+			limit = natmem_limit;
+		}
+	}
+
+	for (uintptr_t hint = base; hint <= limit; hint += step) {
+		void *address = mmap(reinterpret_cast<void *>(hint), size, prot, map_flags, -1, 0);
+		if (address == MAP_FAILED) {
+			continue;
+		}
+		if (reinterpret_cast<uintptr_t>(address) + size <= 0xFFFFFFFFULL) {
+			return address;
+		}
+		munmap(address, size);
+	}
+	return nullptr;
+}
+#endif
+
+
+#if defined(_WIN32) && defined(CPU_64_BIT)
+/* Windows twin of the probing allocator: VirtualAlloc with a non-null
+ * base is an exact-address request, so a failed candidate is simply
+ * followed by the next one. The scan stays below natmem and below 4 GiB;
+ * if that leaves no room above the start address, nothing is tried. */
+static void *vm_alloc_32bit_windows(size_t size, int flags, int protect)
+{
+	const DWORD prot = vm_prot_win(protect);
+	int allocation_type = MEM_COMMIT | MEM_RESERVE;
+	if (flags & UAE_VM_WRITE_WATCH) {
+		allocation_type |= MEM_WRITE_WATCH;
+	}
+	const uintptr_t four_gib = 0x100000000ULL;
+	const uintptr_t page = static_cast<uintptr_t>(uae_vm_page_size());
+	const uintptr_t megabyte = 1024 * 1024;
+	const uintptr_t step = size > megabyte ? megabyte : page;
+	const uintptr_t base = size > megabyte ? 0x42000000 : 0x40000000;
+	if (size > four_gib - base) {
+		write_log("VM: 32-bit alloc size=%zu cannot fit below 4 GiB\n", size);
+		return nullptr;
+	}
+	uintptr_t limit = four_gib - size;
+	if (natmem_reserved != nullptr) {
+		const uintptr_t natmem = reinterpret_cast<uintptr_t>(natmem_reserved);
+		const uintptr_t natmem_limit = natmem >= size ? natmem - size : 0;
+		if (natmem_limit < limit) {
+			limit = natmem_limit;
+		}
+	}
+	if (limit < base) {
+		write_log("VM: 32-bit alloc size=%zu has no room below natmem %p\n",
+			size, static_cast<void *>(natmem_reserved));
+		return nullptr;
+	}
+	for (uintptr_t candidate = base; candidate <= limit; candidate += step) {
+		void *address = VirtualAlloc(reinterpret_cast<void *>(candidate), size, allocation_type, prot);
+		if (address != nullptr) {
+			return address;
+		}
+	}
+	return nullptr;
+}
+#endif
 
 void *uae_vm_alloc(size_t size, int flags, int protect)
 {
-	return uae_vm_alloc_with_flags(size, flags, protect);
+	/* The 32-bit placement request is meaningless (and impossible to
+	 * honour) on 32-bit hosts. macOS keeps the whole low 4 GiB reserved,
+	 * so there it is dropped as well and the allocation is placed by the
+	 * OS. */
+#if !defined(CPU_64_BIT) || defined(__APPLE__)
+	flags &= ~UAE_VM_32BIT;
+#endif
+
+#ifdef _WIN32
+
+#ifdef CPU_64_BIT
+	if (flags & UAE_VM_32BIT) {
+		void *address = vm_alloc_32bit_windows(size, flags, protect);
+		if (address != nullptr) {
+			return address;
+		}
+		write_log("VM: 32-bit alloc failed size=%zu flags=%d protect=%d error=%lu\n",
+			size, flags, protect, GetLastError());
+		return nullptr;
+	}
+#endif
+
+	int allocation_type = MEM_COMMIT | MEM_RESERVE;
+	if (flags & UAE_VM_WRITE_WATCH) {
+		allocation_type |= MEM_WRITE_WATCH;
+	}
+	void *address = VirtualAlloc(nullptr, size, allocation_type, vm_prot_win(protect));
+	if (address == nullptr) {
+		write_log("VM: alloc failed size=%zu flags=%d protect=%d error=%lu\n",
+			size, flags, protect, GetLastError());
+#if defined(CPU_AARCH64)
+		if (protect == UAE_VM_READ_WRITE_EXECUTE) {
+			write_log("VM: RWX allocation failed; VBS/HVCI or Arbitrary Code Guard may block executable memory\n");
+		}
+#endif
+		return nullptr;
+	}
+	return address;
+
+#else /* POSIX */
+
+	int map_flags = vm_map_flags(flags);
+
+#if defined(CPU_64_BIT)
+	if (flags & UAE_VM_32BIT) {
+		void *address = vm_alloc_32bit_posix(size, flags, protect);
+		if (address != nullptr) {
+			return address;
+		}
+		write_log("VM: 32-bit alloc failed size=%zu flags=%d protect=%d errno=%d\n",
+			size, flags, protect, errno);
+		return nullptr;
+	}
+#endif
+
+	void *address = mmap(nullptr, size, vm_prot_posix(protect), map_flags, -1, 0);
+	if (address == MAP_FAILED) {
+		write_log("VM: alloc failed size=%zu flags=%d protect=%d errno=%d\n",
+			size, flags, protect, errno);
+#if defined(__APPLE__) && defined(CPU_AARCH64)
+		if ((flags & UAE_VM_JIT) && (errno == EPERM || errno == EINVAL)) {
+			write_log("VM: MAP_JIT allocation failed; check that MAP_JIT is available and the com.apple.security.cs.allow-jit entitlement is enabled\n");
+		}
+#endif
+		return nullptr;
+	}
+	return address;
+
+#endif
 }
 
-static bool do_protect(void *address, size_t size, int protect)
-{
-#ifdef TRACK_ALLOCATIONS
-	size_t allocated_size = find_allocation(address);
-	assert(allocated_size == size);
-#endif
-#ifdef _WIN32
-	DWORD old;
-	if (VirtualProtect(address, size, protect_to_native(protect), &old) == 0) {
-		uae_log("VM: uae_vm_protect(%p, %zu, %d) VirtualProtect failed (%lu)\n",
-				address, size, protect, GetLastError());
-		return false;
-	}
-#else
-	if (mprotect(address, size, protect_to_native(protect)) != 0) {
-		uae_log("VM: uae_vm_protect(%p, %zu, %d) mprotect failed (%d)\n",
-				address, size, protect, errno);
-		return false;
-	}
-#endif
-	return true;
-}
+/* ------------------------------------------------------------------ */
+/* Protection / free                                                  */
+/* ------------------------------------------------------------------ */
 
 bool uae_vm_protect(void *address, size_t size, int protect)
 {
-	return do_protect(address, size, protect);
-}
-
-static bool do_free(void *address, size_t size)
-{
-#ifdef TRACK_ALLOCATIONS
-	size_t allocated_size = remove_allocation(address);
-	assert(allocated_size == size);
-#endif
 #ifdef _WIN32
-	return VirtualFree(address, 0, MEM_RELEASE) != 0;
-#else
-	if (munmap(address, size) != 0) {
-		uae_log("VM: uae_vm_free(%p, %zu) munmap failed (%d)\n",
-				address, size, errno);
-		return false;
+	DWORD old_protect;
+	if (VirtualProtect(address, size, vm_prot_win(protect), &old_protect)) {
+		return true;
 	}
+	write_log("VM: protect failed address=%p size=%zu protect=%d error=%lu\n",
+		address, size, protect, GetLastError());
+	return false;
+#else
+	if (mprotect(address, size, vm_prot_posix(protect)) == 0) {
+		return true;
+	}
+	write_log("VM: protect failed address=%p size=%zu protect=%d errno=%d\n",
+		address, size, protect, errno);
+	return false;
 #endif
-	return true;
 }
 
 bool uae_vm_free(void *address, size_t size)
 {
-	uae_log("VM: Free     0x%-8zx bytes at %p\n", size, address);
-	return do_free(address, size);
-}
-
-void uae_vm_jit_write_protect(bool enable_execute_mode)
-{
-#if defined(__APPLE__) && defined(CPU_AARCH64)
-	pthread_jit_write_protect_np(enable_execute_mode ? 1 : 0);
+	if (address == nullptr) {
+		return false;
+	}
+#ifdef _WIN32
+	/* MEM_RELEASE frees the whole reservation; the size must be 0. */
+	if (VirtualFree(address, 0, MEM_RELEASE)) {
+		return true;
+	}
+	write_log("VM: free failed address=%p error=%lu\n", address, GetLastError());
+	return false;
 #else
-	(void)enable_execute_mode;
+	if (munmap(address, size) == 0) {
+		return true;
+	}
+	write_log("VM: free failed address=%p size=%zu errno=%d\n", address, size, errno);
+	return false;
 #endif
 }
 
-static void *try_reserve(uintptr_t try_addr, size_t size, int flags)
+/* ------------------------------------------------------------------ */
+/* Reservation                                                        */
+/* ------------------------------------------------------------------ */
+
+/* Undo a reservation made by vm_reserve_at. */
+static void vm_release_reservation(void *address, size_t size)
 {
-	void *address = NULL;
-	if (try_addr) {
-		uae_log("VM: Reserve  0x%-8zx bytes, try address 0x%llx\n",
-				size, (uae_u64) try_addr);
-	} else {
-		uae_log("VM: Reserve  0x%-8zx bytes\n", size);
-	}
 #ifdef _WIN32
-	int va_type = MEM_RESERVE;
+	(void)size;
+	VirtualFree(address, 0, MEM_RELEASE);
+#else
+	munmap(address, size);
+#endif
+}
+
+/* Single-attempt reservation primitive. `candidate` is the requested base
+ * (0 lets the OS choose); the mapping is a non-fixed hint on POSIX and an
+ * exact-address request on Windows. On 64-bit hosts a UAE_VM_32BIT
+ * reservation that ends above 4 GiB is released and counts as a failure. */
+static void *vm_reserve_at(void *candidate, size_t size, int flags)
+{
+#ifdef _WIN32
+
+	int allocation_type = MEM_RESERVE;
 	if (flags & UAE_VM_WRITE_WATCH) {
-		va_type |= MEM_WRITE_WATCH;
+		allocation_type |= MEM_WRITE_WATCH;
 	}
-	int va_protect = protect_to_native(UAE_VM_NO_ACCESS);
-	address = VirtualAlloc((void *) try_addr, size, va_type, va_protect);
-	if (address == NULL) {
-		return NULL;
+	void *address = VirtualAlloc(candidate, size, allocation_type, PAGE_NOACCESS);
+	if (address == nullptr) {
+		return nullptr;
 	}
-#else
-	int mmap_flags = MAP_PRIVATE | MAP_ANON;
-#if defined(__APPLE__) && defined(CPU_AARCH64)
-	if (flags & UAE_VM_JIT) {
-#ifdef MAP_JIT
-		mmap_flags |= MAP_JIT;
-#else
-		uae_log("VM: UAE_VM_JIT reserve requested but MAP_JIT is unavailable on this SDK\n");
-#endif
-	}
-#endif
-	address = mmap((void *) try_addr, size, PROT_NONE, mmap_flags, -1, 0);
+
+#else /* POSIX */
+
+	void *address = mmap(candidate, size, PROT_NONE, vm_map_flags(flags), -1, 0);
 	if (address == MAP_FAILED) {
-		return NULL;
+		return nullptr;
 	}
+
 #endif
+
 #ifdef CPU_64_BIT
-	if (flags & UAE_VM_32BIT) {
-		uintptr_t end = (uintptr_t) address + size;
-		if (address && end > (uintptr_t) 0x100000000ULL) {
-			uae_log("VM: Reserve  0x%-8zx bytes, got address 0x%llx (> 32-bit)\n",
-					size, (uae_u64) (uintptr_t) address);
+	if ((flags & UAE_VM_32BIT)
+		&& reinterpret_cast<uintptr_t>(address) + size > 0x100000000ULL) {
+		write_log("VM: reserve at %p (size %zu) ends above 4 GiB, rejected\n", address, size);
+		vm_release_reservation(address, size);
+		/* No OS call failed: report a meaningful code to the caller's log. */
 #ifdef _WIN32
-			VirtualFree(address, 0, MEM_RELEASE);
+		SetLastError(ERROR_INVALID_ADDRESS);
 #else
-			munmap(address, size);
+		errno = ENOMEM;
 #endif
-			return NULL;
-		}
+		return nullptr;
 	}
 #endif
 	return address;
 }
+
+/* Probe candidate bases downwards from 2 GiB in 64 MiB steps. Used for
+ * 32-bit placements on POSIX. */
+#ifndef _WIN32
+static void *vm_reserve_probe_downward(size_t size, int flags)
+{
+	for (uintptr_t base = 0x80000000; base >= 0x20000000; base -= 0x04000000) {
+		void *address = vm_reserve_at(reinterpret_cast<void *>(base), size, flags);
+		if (address != nullptr) {
+			return address;
+		}
+	}
+	return nullptr;
+}
+#endif
 
 void *uae_vm_reserve(size_t size, int flags)
 {
-	void *address = NULL;
+	/* UAE_VM_32BIT is honoured as passed on every host: with it set, the
+	 * OS-chosen fallback is never tried, so the caller's own fallback
+	 * chain decides what happens next. */
+	void *address = nullptr;
+
 #ifdef _WIN32
+
+	const bool want_32bit = (flags & UAE_VM_32BIT) != 0;
 #if defined(CPU_AARCH64)
-	if ((flags & UAE_VM_32BIT) == 0) {
-		address = try_reserve(0x100000000ULL, size, flags);
-	}
-	if (address == NULL) {
-		address = try_reserve(0x80000000, size, flags);
-	}
-#else
-	address = try_reserve(0x80000000, size, flags);
-#endif
-	if (address == NULL && (flags & UAE_VM_32BIT)) {
-		if (size <= 768 * 1024 * 1024) {
-			address = try_reserve(0x78000000 - size, size, flags);
+	if (!want_32bit) {
+		/* Above 4 GiB, so bit 31 of the low 32 bits of natmem pointers is
+		 * clear: the layout the arm64 JIT expects, matching macOS arm64. */
+		address = vm_reserve_at(reinterpret_cast<void *>(0x100000000ULL), size, flags);
+		if (address != nullptr) {
+			write_log("VM: reserved %p (size %zu, flags %d)\n", address, size, flags);
+			return address;
 		}
 	}
-	if (address == NULL && (flags & UAE_VM_32BIT) == 0) {
-		address = try_reserve(0, size, flags);
+#endif
+	address = vm_reserve_at(reinterpret_cast<void *>(static_cast<uintptr_t>(0x80000000)), size, flags);
+	if (address == nullptr && want_32bit && size <= 768 * 1024 * 1024) {
+		address = vm_reserve_at(reinterpret_cast<void *>(0x78000000 - size), size, flags);
 	}
-#else
+	if (address == nullptr && !want_32bit) {
+		address = vm_reserve_at(nullptr, size, flags);
+	}
+
+	if (address == nullptr) {
+		write_log("VM: reserve failed size=%zu flags=%d error=%lu\n", size, flags, GetLastError());
+		return nullptr;
+	}
+
+#else /* POSIX */
+
 #ifdef CPU_64_BIT
 	if (flags & UAE_VM_32BIT) {
-#else
-	if (true) {
-#endif
-		uintptr_t try_addr = 0x80000000;
-		while (address == NULL) {
-			address = try_reserve(try_addr, size, flags);
-			if (address == NULL) {
-				try_addr -= 0x4000000;
-				if (try_addr < 0x20000000) {
-					break;
-				}
-				continue;
-			}
-		}
-	}
-	if (address == NULL && (flags & UAE_VM_32BIT) == 0) {
-		address = try_reserve(0, size, flags);
-	}
-#endif
-	if (address) {
-		uae_log("VM: Reserve  0x%-8zx bytes, got address 0x%llx\n",
-				size, (uae_u64) (uintptr_t) address);
+		address = vm_reserve_probe_downward(size, flags);
 	} else {
-		uae_log("VM: Reserve  0x%-8zx bytes failed!\n", size);
+		address = vm_reserve_at(nullptr, size, flags);
 	}
+#else
+	/* 32-bit host: the downward probe normally lands on the first hint;
+	 * fall back to an OS-chosen placement only when 32-bit placement was
+	 * not explicitly requested. */
+	address = vm_reserve_probe_downward(size, flags);
+	if (address == nullptr && !(flags & UAE_VM_32BIT)) {
+		address = vm_reserve_at(nullptr, size, flags);
+	}
+#endif
+
+	if (address == nullptr) {
+		write_log("VM: reserve failed size=%zu flags=%d errno=%d\n", size, flags, errno);
+		return nullptr;
+	}
+
+#endif
+
+	write_log("VM: reserved %p (size %zu, flags %d)\n", address, size, flags);
 	return address;
 }
 
-void *uae_vm_reserve_fixed(void *want_addr, size_t size, int flags)
+void *uae_vm_reserve_fixed(void *address, size_t size, int flags)
 {
-	void *address = NULL;
-	uae_log("VM: Reserve  0x%-8zx bytes at %p (fixed)\n", size, want_addr);
-	address = try_reserve((uintptr_t) want_addr, size, flags);
-	if (address == NULL) {
-		uae_log("VM: Reserve  0x%-8zx bytes at %p failed!\n", size, want_addr);
-		return NULL;
+	void *result = vm_reserve_at(address, size, flags);
+	if (result == nullptr) {
+#ifdef _WIN32
+		write_log("VM: fixed reserve failed at %p size=%zu flags=%d error=%lu\n",
+			address, size, flags, GetLastError());
+#else
+		write_log("VM: fixed reserve failed at %p size=%zu flags=%d errno=%d\n",
+			address, size, flags, errno);
+#endif
+		return nullptr;
 	}
-	if (address != want_addr) {
-		do_free(address, size);
-		return NULL;
+	if (result != address) {
+		/* The kernel placed the hinted mapping elsewhere. */
+		write_log("VM: fixed reserve at %p got %p instead, rejected\n", address, result);
+		vm_release_reservation(result, size);
+		return nullptr;
 	}
-	uae_log("VM: Reserve  0x%-8zx bytes, got address 0x%llx\n",
-			size, (uae_u64) (uintptr_t) address);
-	return address;
+	write_log("VM: reserved %p (size %zu, flags %d)\n", result, size, flags);
+	return result;
 }
+
+/* ------------------------------------------------------------------ */
+/* Commit / decommit                                                  */
+/* ------------------------------------------------------------------ */
 
 void *uae_vm_commit(void *address, size_t size, int protect)
 {
-	uae_log("VM: Commit   0x%-8zx bytes at %p (%s)\n",
-			size, address, protect_description(protect));
 #ifdef _WIN32
-	int va_type = MEM_COMMIT ;
-	int va_protect = protect_to_native(protect);
-	address = VirtualAlloc(address, size, va_type, va_protect);
+	/* Committing inside the reservation keeps its MEM_WRITE_WATCH. */
+	void *result = VirtualAlloc(address, size, MEM_COMMIT, vm_prot_win(protect));
+	if (result == nullptr) {
+		write_log("VM: commit failed address=%p size=%zu protect=%d error=%lu\n",
+			address, size, protect, GetLastError());
+	}
+	return result;
 #else
-#ifdef CLEAR_MEMORY_ON_COMMIT
-	do_protect(address, size, UAE_VM_READ_WRITE);
-	memset(address, 0, size);
-#endif
-	do_protect(address, size, protect);
-#endif
+	/* The pages exist since reserve time (PROT_NONE); committing is just
+	 * making them accessible. Fresh anonymous pages are already zero. */
+	if (mprotect(address, size, vm_prot_posix(protect)) != 0) {
+		write_log("VM: commit failed address=%p size=%zu protect=%d errno=%d (ignored)\n",
+			address, size, protect, errno);
+	}
 	return address;
+#endif
 }
 
 bool uae_vm_decommit(void *address, size_t size)
 {
-	uae_log("VM: Decommit 0x%-8zx bytes at %p\n", size, address);
 #ifdef _WIN32
-	return VirtualFree (address, size, MEM_DECOMMIT) != 0;
+	if (VirtualFree(address, size, MEM_DECOMMIT)) {
+		return true;
+	}
+	write_log("VM: decommit failed address=%p size=%zu error=%lu\n",
+		address, size, GetLastError());
+	return false;
 #else
-    /* Re-map the memory so we get fresh unused pages (and the old ones can be
-     * released and physical memory reclaimed). We also assume that the new
-     * pages will be zero-initialized (tested on Linux and OS X). */
-    void *result = mmap(address, size, PROT_NONE,
-                        MAP_ANON | MAP_PRIVATE | MAP_FIXED, -1, 0);
-    if (result == MAP_FAILED) {
-        uae_log("VM: Warning - could not re-map with MAP_FIXED at %p\n",
-                address);
-        do_protect(address, size, UAE_VM_NO_ACCESS);
-    }
-    return result != MAP_FAILED;
+	/* Replace the range in place with a fresh zero-filled PROT_NONE
+	 * mapping, discarding the old pages. */
+	void *result = mmap(address, size, PROT_NONE,
+		MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	if (result == MAP_FAILED) {
+		write_log("VM: decommit remap failed address=%p size=%zu errno=%d\n",
+			address, size, errno);
+		mprotect(address, size, PROT_NONE);
+		return false;
+	}
+	return true;
+#endif
+}
+
+/* ------------------------------------------------------------------ */
+/* JIT write protection (Apple arm64 W^X)                             */
+/* ------------------------------------------------------------------ */
+
+void uae_vm_jit_write_protect(bool enable_execute_mode)
+{
+#if defined(__APPLE__) && defined(CPU_AARCH64)
+	/* Per-thread MAP_JIT toggle: execute-only when true, write-only when
+	 * false. Cheap and safe to call repeatedly, even with no MAP_JIT
+	 * memory allocated. */
+	pthread_jit_write_protect_np(enable_execute_mode ? 1 : 0);
+#else
+	(void)enable_execute_mode;
 #endif
 }
