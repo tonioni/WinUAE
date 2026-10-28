@@ -256,15 +256,30 @@ void graphics_reset(bool) {}
 
 bool handle_events(void)
 {
+    static int was_paused;
+
     gdb_server_poll();
     handle_msgpump(false);
     if (pause_emulation) {
+        if (was_paused == 0) {
+            // Pause sound and devices however the pause was requested
+            // (hotkey, statusbar, focus), like od-win32 handle_events().
+            setpaused(pause_emulation);
+            was_paused = pause_emulation;
+            return true;
+        }
         // Drain queued AKS_* actions (e.g. a second press of the pause
         // hotkey) while paused. Without this, unpausing never happens
         // since the caller's while (handle_events()) loop is the only
         // thing running and nothing else drains the queue; see
         // od-win32/win32.cpp's handle_events() for the same call.
         inputdevice_handle_inputcode();
+    }
+    if (was_paused && (!pause_emulation || quit_program)) {
+        pause_emulation = was_paused;
+        resumepaused(was_paused);
+        sound_closed = 0;
+        was_paused = 0;
     }
     return pause_emulation != 0;
 }
