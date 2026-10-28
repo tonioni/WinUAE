@@ -1794,7 +1794,6 @@ if(WINUAE_UNIX_WITH_NATIVE_CD)
         target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_SCSI_IOCTL=1)
         list(APPEND WINUAE_UNIX_EXTRA_SOURCES
             od-unix/blkdev_unix_ioctl.cpp
-            od-unix/cda_play.cpp
         )
         if(APPLE)
             list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES
@@ -2098,6 +2097,7 @@ set(WINUAE_CORE_SOURCES
     calc.cpp
     cd32_fmv.cpp
     cd32_fmv_genlock.cpp
+    cda_play.cpp
     cdrom.cpp
     cdtv.cpp
     cdtvcr.cpp
