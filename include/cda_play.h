@@ -1,7 +1,5 @@
-
-#ifdef _WIN32
-#include <dsound.h>
-#endif
+#ifndef UAE_CDA_PLAY_H
+#define UAE_CDA_PLAY_H
 
 #include "audio.h"
 #include "blkdev.h"
@@ -34,7 +32,6 @@ struct cda_play
 {
 	int unitnum;
 	int cdda_volume[2];
-	HWAVEOUT cdda_wavehandle;
 	int cd_last_pos;
 	int cdda_play;
 	int cdda_play_finished;
@@ -59,3 +56,5 @@ struct cda_play
 void ciw_cdda_play(void *ciw);
 void ciw_cdda_stop(struct cda_play *ciw);
 int ciw_cdda_setstate(struct cda_play *ciw, int state, int playpos);
+
+#endif /* UAE_CDA_PLAY_H */
