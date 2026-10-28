@@ -670,6 +670,9 @@
     <ClCompile Include="..\..\logging.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\focus.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\od-generic\mman.cpp">
       <Filter>common</Filter>
     </ClCompile>
