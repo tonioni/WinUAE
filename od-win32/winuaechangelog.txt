@@ -1,4 +1,23 @@
 
+Beta 20:
+
+- NTSC long/short vertical sync/end position LOF was inverted (old bug)
+- "Always stretch PAL as NTSC" only worked if "Always stretch NTSC mode" was also ticked.
+- "Always stretch PAL as NTSC" internal pre-scaled display height is now same as normal NTSC mode (b19 height was 2 lines shorter)
+- b19 filter border blanking should be also enabled by default in Default, Fullscreen (TV) and Fullscreen (Max) modes.
+- Fast mode border drawing didn't blank left/right borders if filter border blanking was enabled (b1).
+- Switch Native to RTG screen in D3D11 mode didn't change filter options selection to RTG panel filter options unless switch required full window/screen reopen. This caused RTG filter panel bilinear on/off and scanline settings to be ignored.
+- Display adapters work again (at least mostly same behavior as in 5.3.1) Most of them don't seem to work in AGA mode. Not sure if this is emulation problem or if real HW also have same restrictions. (Video DAC 18 is exception and really can't work with AGA due to register address conflict)
+- Drawing buffer size limit checks improved. It might still have been possible to get random crashes due to drawing buffer overflow in some rare situations.
+- bsdsocket.library ObtainSocket() didn't fully release the socket. Bug probably has existed since bsdsocket.library emulation was introduced.
+- Retina Z2 SVGA banking fix (SR)
+- Map PCI graphics board VGA memory windows. Fixes S3 Trio64 PCI. (SR)
+- Fix INMOS based RTG boards VRAM video start address calculation. (SR)
+- Misc buffer bounds validation fixes to QEMU based drivers and CHD, LHA, zip handling. (SR)
+- All remaining PCem code replaced with 86Box and 86Box updates merged (Bridgeboard CPU, interface chips, SVGA chips used in RTG board emulation, etc). (SR)
+- Mediator A4000 PCI window bank selection fix (SR)
+- ATonce v3.00 drivers don't crash anymore (SR)
+
 Beta 19:
 
 - "Remove interlace artifacts" last line does not flicker anymore. Last line of bitmap is still missing.
