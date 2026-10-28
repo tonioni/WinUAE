@@ -1067,6 +1067,7 @@
     <ClCompile Include="..\..\kbmcu\m6805\m68_ops.cpp" />
     <ClCompile Include="..\..\logging.cpp" />
     <ClCompile Include="..\..\od-generic\mman.cpp" />
+    <ClCompile Include="..\..\od-generic\screenshot_common.cpp" />
     <ClCompile Include="..\..\luascript.cpp" />
     <ClCompile Include="..\..\mame\a2410.cpp" />
     <ClCompile Include="..\..\mame\tm34010\tms34010.cpp" />

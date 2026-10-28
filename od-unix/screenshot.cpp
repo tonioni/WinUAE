@@ -7,6 +7,7 @@
 #include "avioutput.h"
 #include "custom.h"
 #include "fsdb.h"
+#include "od-generic/screenshot_common.h"
 
 #include <algorithm>
 #include <errno.h>
@@ -25,8 +26,6 @@
 #endif
 
 extern int video_recording_active;
-extern int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh,
-    int *hres, int *vres);
 
 int screenshotmode =
 #ifdef WINUAE_UNIX_WITH_LIBPNG
@@ -99,36 +98,6 @@ static bool unix_ensure_directory(const TCHAR *path)
     }
 
     return my_existsdir(tmp) || my_mkdir(tmp) == 0 || errno == EEXIST;
-}
-
-static void unix_screenshot_base_name(TCHAR *out, int out_size)
-{
-    const TCHAR *name = NULL;
-
-    if (currprefs.floppyslots[0].dfxtype >= 0 && currprefs.floppyslots[0].df[0]) {
-        name = currprefs.floppyslots[0].df;
-    } else if (currprefs.cdslots[0].inuse && currprefs.cdslots[0].name[0]) {
-        name = currprefs.cdslots[0].name;
-    }
-
-    if (name) {
-        getfilepart(out, out_size, name);
-        TCHAR *dot = _tcsrchr(out, '.');
-        if (dot) {
-            *dot = 0;
-        }
-    } else {
-        unix_tcslcpy(out, _T("WinUAE"), out_size);
-    }
-
-    if (!out[0]) {
-        unix_tcslcpy(out, _T("WinUAE"), out_size);
-    }
-    for (TCHAR *p = out; *p; p++) {
-        if (*p == '/' || *p == '\\' || *p == ':' || *p == '?' || *p == '*') {
-            *p = '_';
-        }
-    }
 }
 
 static bool unix_make_bmp(const struct vidbuffer *vb, std::vector<uae_u8> *bmp)
@@ -381,17 +350,6 @@ static bool unix_write_png(const TCHAR *filename, const struct vidbuffer *vb)
 }
 #endif
 
-static int unix_screenshot_clamp_multiplier(int value)
-{
-    if (value < 1) {
-        return 1;
-    }
-    if (value > 8) {
-        return 8;
-    }
-    return value;
-}
-
 static uae_u32 unix_screenshot_get_pixel(const struct vidbuffer *vb, int x, int y)
 {
     const uae_u8 *src = vb->bufmem + (size_t)y * (size_t)vb->rowbytes + (size_t)x * (size_t)vb->pixbytes;
@@ -408,7 +366,7 @@ static uae_u32 unix_screenshot_get_pixel(const struct vidbuffer *vb, int x, int 
 }
 
 static bool unix_prepare_screenshot_buffer(const struct vidbuffer *src, struct vidbuffer *dst,
-    std::vector<uae_u8> &storage, bool standard)
+    std::vector<uae_u8> &storage, bool standard, bool clip)
 {
     if (!src || !dst || !src->bufmem || src->outwidth <= 0 || src->outheight <= 0 || src->rowbytes <= 0) {
         return false;
@@ -418,64 +376,14 @@ static bool unix_prepare_screenshot_buffer(const struct vidbuffer *src, struct v
         return false;
     }
 
-    int width = standard || currprefs.screenshot_width <= 0 ? src->outwidth : currprefs.screenshot_width;
-    int height = standard || currprefs.screenshot_height <= 0 ? src->outheight : currprefs.screenshot_height;
+    struct screenshot_crop sc;
+    screenshot_get_crop(&sc, src->outwidth, src->outheight, 0, 0, standard, clip);
+    const int width = sc.width;
+    const int height = sc.height;
+    const int xmult = sc.xmult;
+    const int ymult = sc.ymult;
     if (width <= 0 || height <= 0) {
         return false;
-    }
-
-    int xoffset = standard ? -1 : currprefs.screenshot_xoffset;
-    int yoffset = standard ? -1 : currprefs.screenshot_yoffset;
-
-    if (!standard && screenshot_originalsize && screenshot_clipmode == 1) {
-        int cw, ch, cx, cy, crealh = 0, hres, vres;
-        if (get_custom_limits(&cw, &ch, &cx, &cy, &crealh, &hres, &vres)) {
-            int maxw = currprefs.screenshot_max_width << currprefs.gfx_resolution;
-            int maxh = currprefs.screenshot_max_height << currprefs.gfx_vresolution;
-            int minw = currprefs.screenshot_min_width << currprefs.gfx_resolution;
-            int minh = currprefs.screenshot_min_height << currprefs.gfx_vresolution;
-            if (minw > (maxhpos_display + 1) << currprefs.gfx_resolution) {
-                minw = (maxhpos_display + 1) << currprefs.gfx_resolution;
-            }
-            if (minh > (maxvsize_display + 1) << currprefs.gfx_vresolution) {
-                minh = (maxvsize_display + 1) << currprefs.gfx_vresolution;
-            }
-            if (maxw < minw) {
-                maxw = minw;
-            }
-            if (maxh < minh) {
-                maxh = minh;
-            }
-            width = cw;
-            height = ch;
-            xoffset = cx;
-            yoffset = cy;
-            if (width < minw && minw > 0) {
-                xoffset -= (minw - width) / 2;
-                width = minw;
-            }
-            if (height < minh && minh > 0) {
-                yoffset -= (minh - height) / 2;
-                height = minh;
-            }
-            if (width > maxw && maxw > 0) {
-                xoffset += (width - maxw) / 2;
-                width = maxw;
-            }
-            if (height > maxh && maxh > 0) {
-                yoffset += (height - maxh) / 2;
-                height = maxh;
-            }
-        }
-    }
-
-    int xmult = standard ? 1 : unix_screenshot_clamp_multiplier(currprefs.screenshot_xmult + 1);
-    int ymult = standard ? 1 : unix_screenshot_clamp_multiplier(currprefs.screenshot_ymult + 1);
-    while (!standard && currprefs.screenshot_output_width > width * xmult && xmult < 8) {
-        xmult++;
-    }
-    while (!standard && currprefs.screenshot_output_height > height * ymult && ymult < 8) {
-        ymult++;
     }
 
     const int output_width = width * xmult;
@@ -483,8 +391,8 @@ static bool unix_prepare_screenshot_buffer(const struct vidbuffer *src, struct v
     const int output_rowbytes = output_width * 4;
     storage.assign((size_t)output_rowbytes * (size_t)output_height, 0);
 
-    xoffset = xoffset < 0 ? (width - src->outwidth) / 2 : -xoffset;
-    yoffset = yoffset < 0 ? (height - src->outheight) / 2 : -yoffset;
+    const int xoffset = sc.xoffset;
+    const int yoffset = sc.yoffset;
     int dst_x = 0;
     int dst_y = 0;
     int src_x = 0;
@@ -540,7 +448,10 @@ static bool unix_prepare_active_screenshot(int monid, struct vidbuffer *prepared
         write_log(_T("Unix screenshot: no active video buffer\n"));
         return false;
     }
-    if (!unix_prepare_screenshot_buffer(vb, prepared, prepared_storage, standard)) {
+    // Clip to the displayed chipset area like Windows: never on the RTG screen.
+    const bool clip = !standard && screenshot_originalsize && screenshot_clipmode == 1
+        && !adisplays[monid].picasso_on;
+    if (!unix_prepare_screenshot_buffer(vb, prepared, prepared_storage, standard, clip)) {
         return false;
     }
     return true;
@@ -600,7 +511,7 @@ static bool unix_save_screenshot_clipboard(const struct vidbuffer *prepared)
 static bool unix_save_screenshot_file(int monid)
 {
     TCHAR path[MAX_DPATH];
-    TCHAR base[MAX_DPATH];
+    TCHAR name[MAX_DPATH];
     TCHAR filename[MAX_DPATH];
     std::vector<uae_u8> prepared_storage;
     struct vidbuffer prepared;
@@ -634,18 +545,15 @@ static bool unix_save_screenshot_file(int monid)
             return false;
         }
     }
-    unix_screenshot_base_name(base, sizeof base / sizeof(TCHAR));
+    screenshot_get_name(name);
 
-    for (int i = filenumber + 1; i < 100000; i++) {
 #ifdef WINUAE_UNIX_WITH_LIBPNG
-        if (screenshotmode == 1) {
-            _sntprintf(filename, sizeof filename / sizeof(TCHAR), _T("%s%s_%05d.png"), path, base, i);
-        } else {
-            _sntprintf(filename, sizeof filename / sizeof(TCHAR), _T("%s%s_%05d.bmp"), path, base, i);
-        }
+    const TCHAR *ext = screenshotmode == 1 ? _T("png") : _T("bmp");
 #else
-        _sntprintf(filename, sizeof filename / sizeof(TCHAR), _T("%s%s_%05d.bmp"), path, base, i);
+    const TCHAR *ext = _T("bmp");
 #endif
+    while (screenshot_get_filename(filename, sizeof filename / sizeof(TCHAR), path, name, ++filenumber,
+        screenshot_multi != 0, ext)) {
         FILE *existing = _tfopen(filename, _T("rb"));
         if (existing) {
             fclose(existing);
@@ -666,7 +574,6 @@ static bool unix_save_screenshot_file(int monid)
             return false;
         }
 #endif
-        filenumber = i;
         write_log(_T("Screenshot saved as \"%s\"\n"), filename);
         return true;
     }
