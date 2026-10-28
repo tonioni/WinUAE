@@ -9,13 +9,13 @@
 
 #include "registry.h"
 #include "ini.h"
+#include "od-generic/registry_ini.h"
 #include "uae/string.h"
 
 /* Unix port of the od-win32 registry abstraction. Only the ini-file mode
- * exists here; trees map to slash-joined ini section names below the
- * WinUAE root section, exactly like winuae.ini on Windows. */
-
-#define ROOT_TREE _T("WinUAE")
+ * exists here; the ini format is shared with Windows through
+ * od-generic/registry_ini.cpp. This file only picks the ini file and
+ * loads and saves it. */
 
 static int initialized;
 static TCHAR inipath[MAX_DPATH];
@@ -121,21 +121,7 @@ static void registry_init(void)
 
 static const TCHAR *gs (UAEREG *root)
 {
-    if (!root)
-        return ROOT_TREE;
-    return root->inipath;
-}
-
-static TCHAR *gsn (UAEREG *root, const TCHAR *name)
-{
-    const TCHAR *r;
-    TCHAR *s;
-    if (!root)
-        return my_strdup (name);
-    r = gs (root);
-    s = xmalloc (TCHAR, _tcslen (r) + 1 + _tcslen (name) + 1);
-    _stprintf (s, _T("%s/%s"), r, name);
-    return s;
+    return root ? root->inipath : NULL;
 }
 
 void registry_set_ini_path (const TCHAR *path)
@@ -169,203 +155,92 @@ void registry_flush (void)
 int regsetstr (UAEREG *root, const TCHAR *name, const TCHAR *str)
 {
     registry_init();
-    return ini_addstring(inidata, gs(root), name, str);
+    return regini_setstr(inidata, gs(root), name, str);
 }
 
 int regsetint (UAEREG *root, const TCHAR *name, int val)
 {
-    TCHAR tmp[100];
-    _stprintf (tmp, _T("%d"), val);
-    return regsetstr(root, name, tmp);
+    registry_init();
+    return regini_setint(inidata, gs(root), name, val);
 }
 
 int regqueryint (UAEREG *root, const TCHAR *name, int *val)
 {
-    int ret = 0;
-    TCHAR *tmp = NULL;
     registry_init();
-    if (ini_getstring(inidata, gs(root), name, &tmp)) {
-        *val = _tstol (tmp);
-        ret = 1;
-    }
-    xfree(tmp);
-    return ret;
+    return regini_queryint(inidata, gs(root), name, val);
 }
 
 int regsetlonglong (UAEREG *root, const TCHAR *name, unsigned long long val)
 {
-    TCHAR tmp[100];
-    _stprintf (tmp, _T("%lld"), (long long)val);
-    return regsetstr(root, name, tmp);
+    registry_init();
+    return regini_setlonglong(inidata, gs(root), name, val);
 }
 
 int regquerylonglong (UAEREG *root, const TCHAR *name, unsigned long long *val)
 {
-    int ret = 0;
-    TCHAR *tmp = NULL;
-    *val = 0;
     registry_init();
-    if (ini_getstring(inidata, gs(root), name, &tmp)) {
-        *val = strtoll (tmp, NULL, 10);
-        ret = 1;
-    }
-    xfree(tmp);
-    return ret;
+    return regini_querylonglong(inidata, gs(root), name, val);
 }
 
 int regquerystr (UAEREG *root, const TCHAR *name, TCHAR *str, int *size)
 {
-    int ret = 0;
-    TCHAR *tmp = NULL;
     registry_init();
-    if (ini_getstring(inidata, gs(root), name, &tmp)) {
-        if (_tcslen(tmp) >= (size_t)*size)
-            tmp[(*size) - 1] = 0;
-        _tcscpy (str, tmp);
-        *size = (int)_tcslen(str);
-        ret = 1;
-    }
-    xfree (tmp);
-    return ret;
+    return regini_querystr(inidata, gs(root), name, str, size);
 }
 
 int regenumstr (UAEREG *root, int idx, TCHAR *name, int *nsize, TCHAR *str, int *size)
 {
-    TCHAR *name2 = NULL;
-    TCHAR *str2 = NULL;
-    name[0] = 0;
-    str[0] = 0;
     registry_init();
-    int ret = ini_getsectionstring(inidata, gs(root), idx, &name2, &str2);
-    if (ret) {
-        if (_tcslen(name2) >= (size_t)*nsize) {
-            name2[(*nsize) - 1] = 0;
-        }
-        if (_tcslen(str2) >= (size_t)*size) {
-            str2[(*size) - 1] = 0;
-        }
-        _tcscpy(name, name2);
-        _tcscpy(str, str2);
-    }
-    xfree(str2);
-    xfree(name2);
-    return ret;
+    return regini_enumstr(inidata, gs(root), idx, name, nsize, str, size);
 }
 
 int regquerydatasize (UAEREG *root, const TCHAR *name, int *size)
 {
-    int ret = 0;
-    int csize = 65536;
-    TCHAR *tmp = xmalloc (TCHAR, csize);
-    if (regquerystr (root, name, tmp, &csize)) {
-        *size = (int)_tcslen(tmp) / 2;
-        ret = 1;
-    }
-    xfree (tmp);
-    return ret;
+    registry_init();
+    return regini_querydatasize(inidata, gs(root), name, size);
 }
 
 int regsetdata (UAEREG *root, const TCHAR *name, const void *str, int size)
 {
-    uae_u8 *in = (uae_u8*)str;
-    int ret;
-    TCHAR *tmp = xmalloc (TCHAR, size * 2 + 1);
-    for (int i = 0; i < size; i++)
-        _stprintf (tmp + i * 2, _T("%02X"), in[i]);
     registry_init();
-    ret = ini_addstring(inidata, gs(root), name, tmp);
-    xfree (tmp);
-    return ret;
+    return regini_setdata(inidata, gs(root), name, str, size);
 }
 
 int regquerydata (UAEREG *root, const TCHAR *name, void *str, int *size)
 {
-    int csize = (*size) * 2 + 1;
-    int i, j;
-    int ret = 0;
-    TCHAR *tmp = xmalloc (TCHAR, csize);
-    uae_u8 *out = (uae_u8*)str;
-
-    if (!regquerystr (root, name, tmp, &csize))
-        goto err;
-    j = 0;
-    for (i = 0; i < (int)_tcslen (tmp); i += 2) {
-        TCHAR c1 = _totupper(tmp[i + 0]);
-        TCHAR c2 = _totupper(tmp[i + 1]);
-        if (c1 >= 'A')
-            c1 -= 'A' - 10;
-        else if (c1 >= '0')
-            c1 -= '0';
-        if (c1 > 15)
-            goto err;
-        if (c2 >= 'A')
-            c2 -= 'A' - 10;
-        else if (c2 >= '0')
-            c2 -= '0';
-        if (c2 > 15)
-            goto err;
-        out[j++] = c1 * 16 + c2;
-    }
-    ret = 1;
-err:
-    xfree (tmp);
-    return ret;
+    registry_init();
+    return regini_querydata(inidata, gs(root), name, str, size);
 }
 
 int regdelete (UAEREG *root, const TCHAR *name)
 {
     registry_init();
-    ini_delete(inidata, gs(root), name);
-    return 1;
+    return regini_delete(inidata, gs(root), name);
 }
 
 int regexists (UAEREG *root, const TCHAR *name)
 {
     registry_init();
-    if (!inidata)
-        return 0;
-    return ini_getstring(inidata, gs(root), name, NULL);
+    return regini_exists(inidata, gs(root), name);
 }
 
 void regdeletetree (UAEREG *root, const TCHAR *name)
 {
-    TCHAR *s = gsn (root, name);
-    if (!s)
-        return;
     registry_init();
-    ini_delete(inidata, s, NULL);
-    xfree (s);
+    regini_deletetree(inidata, gs(root), name);
 }
 
 int regexiststree (UAEREG *root, const TCHAR *name)
 {
-    int ret = 0;
-    TCHAR *s = gsn (root, name);
-    if (!s)
-        return 0;
     registry_init();
-    ret = ini_getstring(inidata, s, NULL, NULL);
-    xfree (s);
-    return ret;
+    return regini_existstree(inidata, gs(root), name);
 }
 
 UAEREG *regcreatetree (UAEREG *root, const TCHAR *name)
 {
-    UAEREG *fkey;
-    TCHAR *ininame;
-
     registry_init();
-    if (!root) {
-        if (!name)
-            ininame = my_strdup (gs (NULL));
-        else
-            ininame = my_strdup (name);
-    } else {
-        ininame = xmalloc (TCHAR, _tcslen (root->inipath) + 1 + _tcslen (name) + 1);
-        _stprintf (ininame, _T("%s/%s"), root->inipath, name);
-    }
-    fkey = xcalloc (UAEREG, 1);
-    fkey->inipath = ininame;
+    UAEREG *fkey = xcalloc (UAEREG, 1);
+    fkey->inipath = regini_treepath(gs(root), name);
     return fkey;
 }
 

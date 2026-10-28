@@ -673,6 +673,9 @@
     <ClCompile Include="..\..\od-generic\mman.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\registry_ini.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\cdtvcr.cpp">
       <Filter>common</Filter>
     </ClCompile>
