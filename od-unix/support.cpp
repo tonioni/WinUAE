@@ -157,9 +157,15 @@ uae_u32 atomic_bit_test_and_reset(volatile uae_atomic *p, uae_u32 v)
     return (old & mask) != 0;
 }
 
+// Seconds since 1970 in local time, like the Windows host.
 uae_u32 getlocaltime(void)
 {
-    return (uae_u32)time(NULL);
+    time_t t = time(NULL);
+    struct tm lt;
+    if (!localtime_r(&t, &lt)) {
+        return (uae_u32)t;
+    }
+    return (uae_u32)(t + lt.tm_gmtoff);
 }
 
 void target_run(void) {}
