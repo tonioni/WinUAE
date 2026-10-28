@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "fsdb.h"
@@ -184,6 +185,28 @@ FILE *my_opentext(const TCHAR *name)
     return uae_tfopen(name, _T("r"));
 }
 
+// Offset of local time from UTC at time t, including DST in effect then.
+static time_t unix_local_offset(time_t t)
+{
+    struct tm lt;
+    if (!localtime_r(&t, &lt)) {
+        return 0;
+    }
+    return (time_t)lt.tm_gmtoff;
+}
+
+// Converts seconds since 1970 in local time to seconds since 1970 in UTC.
+static time_t unix_local_to_utc(time_t local)
+{
+    struct tm tm;
+    if (!gmtime_r(&local, &tm)) {
+        return local;
+    }
+    tm.tm_isdst = -1;
+    time_t t = mktime(&tm);
+    return t == (time_t)-1 ? local - unix_local_offset(local) : t;
+}
+
 bool my_stat(const TCHAR *name, struct mystat *ms)
 {
     struct stat st;
@@ -192,8 +215,13 @@ bool my_stat(const TCHAR *name, struct mystat *ms)
     }
     ms->size = (uae_s64)st.st_size;
     ms->mode = mode_from_stat(st);
-    ms->mtime.tv_sec = (uae_s64)st.st_mtime;
-    ms->mtime.tv_usec = 0;
+    // Amiga dates are local time, like the Windows host's my_stat().
+    ms->mtime.tv_sec = (uae_s64)st.st_mtime + unix_local_offset(st.st_mtime);
+#ifdef __APPLE__
+    ms->mtime.tv_usec = (uae_s32)(st.st_mtimespec.tv_nsec / 1000);
+#else
+    ms->mtime.tv_usec = (uae_s32)(st.st_mtim.tv_nsec / 1000);
+#endif
     return true;
 }
 
@@ -206,7 +234,7 @@ bool my_utime(const TCHAR *name, struct mytimeval *tv)
         return utimes(name, NULL) == 0;
     }
     struct timeval times[2];
-    times[0].tv_sec = (time_t)tv->tv_sec;
+    times[0].tv_sec = unix_local_to_utc((time_t)tv->tv_sec);
     times[0].tv_usec = tv->tv_usec;
     times[1] = times[0];
     return utimes(name, times) == 0;
