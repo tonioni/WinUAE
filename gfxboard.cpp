@@ -4610,7 +4610,9 @@ static const struct pci_board s3virge_pci_board =
 		{ NULL },
 		{ NULL },
 		{ voodoo3_bios_lget, voodoo3_bios_wget, voodoo3_bios_bget, NULL, NULL, NULL },
-		{ s3virge_io_lget, s3virge_io_wget, s3virge_io_bget, s3virge_io_lput, s3virge_io_wput, s3virge_io_bput }
+		{ s3virge_io_lget, s3virge_io_wget, s3virge_io_bget, s3virge_io_lput, s3virge_io_wput, s3virge_io_bput },
+		// Legacy VGA window (0xa0000-0xbffff), decoded by the VGA core without a BAR
+		{ voodoo3_mb0_lget, voodoo3_mb0_wget, voodoo3_mb0_bget, voodoo3_mb0_lput, voodoo3_mb0_wput, voodoo3_mb0_bput }
 	},
 	true,
 	get_pci_pcem, put_pci_pcem, pci_change_config
