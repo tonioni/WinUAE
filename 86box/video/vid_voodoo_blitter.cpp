@@ -269,7 +269,7 @@ skip_line_fill:
         }
 
         default:
-            fatal("bad blit command %08x\n", voodoo->bltCommand);
+            voodooblt_log("bad blit command %08x\n", voodoo->bltCommand);
     }
 }
 
