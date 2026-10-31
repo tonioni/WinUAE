@@ -4510,7 +4510,7 @@ static int calculate_linetype(int vp)
 {
 	int off = currprefs.cs_hvcsync >= HVSYNC_SYNCPOS ? LINES_AFTER_VSYNC : linear_vb_offset;
 	if (ntscpixelspal) {
-		off += 4;
+		off += VBLANK_STOP_PAL - VBLANK_STOP_NTSC;
 	}
 	int lineno = vp - off;
 	nextline_how = nln_normal;
