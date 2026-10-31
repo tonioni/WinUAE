@@ -1892,7 +1892,7 @@ static bool valid_programmed_mode(void)
 		if (!programmed_register_accessed_h) {
 			return false;
 		}
-		if (hsstrt == 0xffff || hsstop == 0xffff) {
+		if (hsstrt == 0xffff || hsstop == 0xffff || (hsstrt == 0x00ff && hsstop == 0x00ff)) {
 			return false;
 		}
 	}
@@ -1900,7 +1900,7 @@ static bool valid_programmed_mode(void)
 		if (!programmed_register_accessed_v) {
 			return false;
 		}
-		if (vsstrt == 0xffff || vsstop == 0xffff) {
+		if (vsstrt == 0xffff || vsstrt == 0x07ff || vsstop == 0xffff || vsstop == 0x07ff) {
 			return false;
 		}
 	}
