@@ -1189,8 +1189,7 @@ static void gen_fastdraw_mode(int off, int total)
 		outf("*buf2++ = col;");
 	}
 	if (genlock) {
-		outf("gpix = get_genlock_transparency_fast(c);");
-		outf("*gbuf++ = gpix;");
+		outf("*gbuf++ = get_genlock_transparency_fast(c);");
 	}
 }
 

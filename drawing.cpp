@@ -7297,6 +7297,12 @@ static void draw_blank_start(int len)
 	if (len > 0 && buf1 < (uae_u32*)xlinebuffer_start) {
 		int d = addrdiff((uae_u32*)xlinebuffer_start, buf1);
 		buf1 += d;
+		if (buf2) {
+			buf2 += d;
+		}
+		if (gbuf) {
+			gbuf += d;
+		}
 		len -= d;
 	}
 	if (buf1 + len > (uae_u32*)xlinebuffer_end) {
@@ -7306,6 +7312,9 @@ static void draw_blank_start(int len)
 		memset(buf1, 0, len * sizeof(uae_u32));
 		if (buf2) {
 			memset(buf2, 0, len * sizeof(uae_u32));
+		}
+		if (gbuf) {
+			memset(gbuf, 0, len);
 		}
 	}
 }
@@ -7321,12 +7330,20 @@ static void draw_blank_end(void)
 			if (buf2) {
 				memset(buf2, 0, len * sizeof(uae_u32));
 			}
+			if (gbuf) {
+				memset(gbuf, 0, len);
+			}
 		}
 	}
 }
 
-static void fill_border(int total, uae_u32 bgcol)
+static void fill_border(struct linestate *ls, int total, uae_u32 bgcol)
 {
+	if (gbuf && total > 0) {
+		uae_u8 b = get_genlock_transparency_border_fast(ls->bplcon3);
+		memset(gbuf, b, total);
+		gbuf += total;
+	}
 	if (buf2) {
 		while (total >= 8) {
 			*buf1++ = bgcol;
@@ -7425,6 +7442,7 @@ void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, st
 
 	buf1 = buf1p;
 	buf2 = buf2p;
+	gbuf = gbufp;
 
 	if (blank)  {
 		int len = addrdiff(xlinebuffer_end, (uae_u8*)buf1);
@@ -7432,6 +7450,9 @@ void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, st
 			memset(buf1, 0, len);
 			if (buf2) {
 				memset(buf2, 0, len);
+			}
+			if (gbuf) {
+				memset(gbuf, 0, len);
 			}
 		}
 	} else {
@@ -7445,15 +7466,15 @@ void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, st
 			if (buf2) {
 				buf2 += diff;
 			}
-			if (gbufp) {
-				gbufp += diff;
+			if (gbuf) {
+				gbuf += diff;
 			}
 			start = hbstop_offset;
 		}
 		int end = draw_end > hbstrt_offset ? hbstrt_offset : draw_end;
 		int total = end - start;
 
-		fill_border(total, bgcol);
+		fill_border(ls, total, bgcol);
 		if (full_line_draw) {
 			draw_blank_end();
 		}
@@ -7461,12 +7482,12 @@ void draw_denise_border_line_fast(int gfx_ypos, bool blank, enum nln_how how, st
 		edgeblanking(ls->hbstrt_offset, ls->hbstop_offset, ls->internal_pixel_start_cnt, ls->strlong_seen, ls->lol, ls->lol_shift_prev);
 
 		if (need_genlock_data && gbuf && total > 0) {
-			int max = addrdiff(xlinebuffer_genlock_end, gbufp);
+			int max = addrdiff(xlinebuffer_genlock_end, gbuf);
 			total += GENLOCK_EXTRA_CLEAR;
 			if (total > max) {
 				total = max;
 			}
-			memset(gbufp, 0, total);
+			memset(gbuf, 0, total);
 		}
 	}
 }
@@ -7523,6 +7544,7 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 
 	uae_u32 *buf1p = buf1;
 	uae_u32 *buf2p = buf2 != buf1 ? buf2 : NULL;
+	uae_u8 *gbufp = gbuf;
 
 	buf1t = buf1;
 	buf2t = buf2;
@@ -7736,11 +7758,13 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	
 	buf1 = buf1p;
 	buf2 = buf2p;
+	gbuf = gbufp;
 
 	// if horizontal shift is large enough to skip part of hdiw or bitplane, draw them to temp buffer.
 	if (draw_startoffset > bpl1dat_trigger_offset || draw_startoffset > hbstop_offset || draw_startoffset > hstrt_offset) {
 		buf1 = (uae_u32*)row_tmp8;
 		buf2 = (uae_u32*)row_tmp8;
+		gbuf = row_tmp8;
 		int end = draw_startoffset;
 		int cnt = ltsf_init(draw_start, draw_startoffset, &end, hbstrt_offset, hbstop_offset, bpl1dat_trigger_offset, row_tmp8 + sizeof(row_tmp8), buf1);
 		ltsf(cnt, end, hbstrt_offset, hbstop_offset, hstrt_offset, hstop_offset, bpl1dat_trigger_offset,
@@ -7748,6 +7772,7 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 		draw_start = draw_startoffset;
 		buf1 = buf1p;
 		buf2 = buf2p;
+		gbuf = gbufp;
 	}
 	if (full_line_draw) {
 		draw_blank_start(hbstop_offset);
