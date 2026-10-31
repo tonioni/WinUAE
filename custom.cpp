@@ -10825,6 +10825,11 @@ static bool checkprevfieldlinestateequal(void)
 				} else if (always || currprefs.cs_optimizations == DISPLAY_OPTIMIZATIONS_FULL) {
 					storelinestate();
 					ret = draw_border_fast(lvpos);
+					if (doflickerfix_active()) {
+						if (scandb[lvpos].scandoubled_blank[lof_display]) {
+							draw_blank_fast(lvpos);
+						}
+					}
 				}
 			}
 		} else if (type == LINETYPE_BPL && !l->blankedline) {
@@ -10924,12 +10929,12 @@ static void do_draw_line(void)
 				if (doflickerfix_active()) {
 
 					uae_s8 borderline = sd->scandoubled_vdiw[0] || sd->scandoubled_vdiw[1];
-					scandb[lvpos].scandoubled_blank[lof_display] = false;
+					sd->scandoubled_blank[lof_display] = false;
 
 					// make sure first odd/even line is blanked
 					if (vb_fast || vb_fast_prev) {
 						borderline = -1;
-						scandb[lvpos].scandoubled_blank[lof_display] = true;
+						sd->scandoubled_blank[lof_display] = true;
 					}
 
 					denise_store_restore_registers_queue(true, rga_denise_cycle_line);
