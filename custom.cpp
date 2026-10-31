@@ -457,6 +457,7 @@ static int vblank_hz_mult, vblank_hz_state;
 static struct chipset_refresh *stored_chipset_refresh;
 int doublescan, doublescan2x;
 int programmedmode;
+static bool ntscpixelspal;
 frame_time_t syncbase;
 static int fmode_saved, fmode, fmode_inuse;
 uae_u16 beamcon0, new_beamcon0;
@@ -1690,8 +1691,10 @@ static void update_display_vars(void)
 	vb->inheight = maxv << vres2;
 	vb->inxoffset = 0;
 
+	ntscpixelspal = false;
 	if (currprefs.gfx_ntscpixelspal && (beamcon0 & BEAMCON0_PAL) && !(beamcon0 & BEAMCON0_VARBEAMEN)
 		&& (current_linear_vpos == 312 || current_linear_vpos == 313)) {
+		ntscpixelspal = true;
 		vb->inheight = (vb->inheight * 525) / 625;
 		vb->inheight += 3;
 		vb->inheight &= ~1;
@@ -4499,6 +4502,9 @@ static void cursorsprite(struct sprite *s)
 static int calculate_linetype(int vp)
 {
 	int off = currprefs.cs_hvcsync >= HVSYNC_SYNCPOS ? LINES_AFTER_VSYNC : linear_vb_offset;
+	if (ntscpixelspal) {
+		off += 4;
+	}
 	int lineno = vp - off;
 	nextline_how = nln_normal;
 	if (doflickerfix_active()) {
