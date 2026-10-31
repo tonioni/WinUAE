@@ -1,4 +1,13 @@
 
+Beta 21:
+
+- "Remove interlace artifacts" should now work without flickering or missing lines.
+- "Always stretch PAL as NTSC" changes vertical start by 5 lines to better match real NTSC positioning.
+- If INTREQ PORTS/EXTER bit clear and CIA interrupt status register read happens "at the same time", CIA clear was done first but INTREQ bit should be kept set (CIA IRQ pin clear happens slightly later). Was unreliable before b13, was always wrong since b13 after event handling update. Fixes (bad) Warhead keyboard routine failing to read any keys, perhaps others too.
+- Loading statefile with out of range programmed mode setup with combined sync monitor mode didn't always force composite sync mode but selected useless H/V sync mode.
+- If directory filesystem host-side directory and at least one directory/file inside the directory was cached and was later deleted from host side, next Amiga side directory access flushed it from cache but any items inside the directory was not freed, possibly causing crash when cache become full and older entries were getting flushed. (SR)
+- On the fly ARM64 JIT enable or cache size change didn't work correctly. (SR)
+
 Beta 20:
 
 - NTSC long/short vertical sync/end position LOF was inverted (old bug)

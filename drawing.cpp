@@ -1811,7 +1811,6 @@ static void setxlinebuffer(int monid, int line)
 {
 	struct vidbuf_description* vidinfo = &adisplays[monid].gfxvidinfo;
 
-	//line += thisframe_y_adjust_real;
 	if (line < 0 || line >= max_uae_height) {
 		xlinebuffer = get_row(monid, -1);
 		xlinebuffer_genlock = NULL;
