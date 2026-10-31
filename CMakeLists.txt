@@ -2205,6 +2205,7 @@ set(WINUAE_CORE_SOURCES
     softfloat/softfloat.cpp
     softfloat/softfloat_decimal.cpp
     softfloat/softfloat_fpsp.cpp
+    od-generic/focus.cpp
     od-generic/mman.cpp
     od-unix/charset.cpp
     od-unix/clipboard.cpp

@@ -31,6 +31,8 @@
 #include "threaddep/thread.h"
 #include "uae.h"
 #include "video.h"
+#include "inputdevice.h"
+#include "od-generic/focus.h"
 
 extern int pause_emulation;
 extern void pausemode(int mode);
@@ -65,6 +67,9 @@ static std::atomic<bool> s_wrong_event_thread_logged;
 static std::atomic<bool> s_queued_present_logged;
 static uae_thread_id s_event_thread;
 static bool s_mouse_grabbed;
+static bool s_minimized;
+// True while only window events are polled (a Qt dialog is open).
+static bool s_window_events_only;
 static enum unix_video_window_mode s_requested_window_mode = UNIX_VIDEO_WINDOWED;
 static enum unix_video_window_mode s_active_window_mode = UNIX_VIDEO_WINDOWED;
 static int s_requested_display_index;
@@ -1801,6 +1806,22 @@ void unix_video_shutdown(void)
     s_available = false;
 }
 
+// A mouse capture change made by the user or by a focus change. Applies the
+// active_not_captured_* prefs like setmouseactive() on Windows.
+static void unix_video_change_mouse_grab(bool grab)
+{
+    bool was = s_mouse_grabbed;
+    unix_video_set_mouse_grab(grab);
+    if (was == grab || s_window_events_only || quit_program) {
+        return;
+    }
+    if (grab) {
+        focus_mouse_captured();
+    } else {
+        focus_mouse_released();
+    }
+}
+
 static int unix_video_poll_internal(bool *quit_requested, bool input_events)
 {
     SDL_Event event;
@@ -1835,6 +1856,7 @@ static int unix_video_poll_internal(bool *quit_requested, bool input_events)
         got = 1;
     }
 
+    s_window_events_only = !input_events;
     while (SDL_PollEvent(&event)) {
         got = 1;
         switch (event.type) {
@@ -1851,14 +1873,30 @@ static int unix_video_poll_internal(bool *quit_requested, bool input_events)
         case SDL_EVENT_WINDOW_MOVED:
             if (s_mouse_grabbed && unix_event_for_window(event.window.windowID)) {
                 unix_input_release_keys();
-                unix_video_set_mouse_grab(false);
+                unix_video_change_mouse_grab(false);
                 s_suppressed_mouse_buttons = 0;
+            }
+            break;
+        case SDL_EVENT_WINDOW_FOCUS_GAINED:
+            if (input_events) {
+                focus_activated(s_minimized, s_mouse_grabbed);
+                s_minimized = false;
+                inputdevice_acquire(TRUE);
             }
             break;
         case SDL_EVENT_WINDOW_FOCUS_LOST:
             unix_input_release_keys();
-            unix_video_set_mouse_grab(false);
+            unix_video_change_mouse_grab(false);
             s_suppressed_mouse_buttons = 0;
+            if (input_events) {
+                focus_deactivated(s_minimized, s_mouse_grabbed);
+            }
+            break;
+        case SDL_EVENT_WINDOW_MINIMIZED:
+            if (input_events && !s_minimized) {
+                s_minimized = true;
+                focus_deactivated(true, s_mouse_grabbed);
+            }
             break;
         case SDL_EVENT_KEY_DOWN:
         case SDL_EVENT_KEY_UP:
@@ -1876,11 +1914,11 @@ static int unix_video_poll_internal(bool *quit_requested, bool input_events)
             }
             if (event.key.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_G &&
                 (event.key.mod & (SDL_KMOD_CTRL | SDL_KMOD_GUI))) {
-                unix_video_set_mouse_grab(false);
+                unix_video_change_mouse_grab(false);
                 break;
             }
             if (event.key.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE && s_mouse_grabbed) {
-                unix_video_set_mouse_grab(false);
+                unix_video_change_mouse_grab(false);
             }
             unix_input_keyboard_key((int)event.key.scancode, event.key.type == SDL_EVENT_KEY_DOWN,
                 unix_input_lock_state_from_sdl(event.key.mod));
@@ -1928,7 +1966,7 @@ static int unix_video_poll_internal(bool *quit_requested, bool input_events)
                     break;
                 }
                 if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && !s_mouse_grabbed) {
-                    unix_video_set_mouse_grab(true);
+                    unix_video_change_mouse_grab(true);
                 }
                 unix_input_mouse_button(button, event.type == SDL_EVENT_MOUSE_BUTTON_DOWN);
             }
@@ -1961,6 +1999,7 @@ static int unix_video_poll_internal(bool *quit_requested, bool input_events)
         }
     }
 
+    s_window_events_only = false;
     return got;
 }
 
@@ -2159,7 +2198,7 @@ bool unix_video_get_mouse_grab(void)
 
 void unix_video_toggle_mouse_grab(void)
 {
-    unix_video_set_mouse_grab(!unix_video_get_mouse_grab());
+    unix_video_change_mouse_grab(!unix_video_get_mouse_grab());
 }
 
 void unix_video_get_desktop(int *dw, int *dh, int *x, int *y, int *w, int *h)

@@ -17,6 +17,9 @@
 #include "host.h"
 #include "devices.h"
 #include "gfxboard.h"
+#include "inputdevice.h"
+#include "sounddep/sound.h"
+#include "od-generic/focus.h"
 
 #if defined(DEBUGGER) && defined(WINUAE_UNIX_WITH_INTEGRATED_QT_UI)
 #include "debug.h"
@@ -253,9 +256,18 @@ void graphics_reset(bool) {}
 
 bool handle_events(void)
 {
+    static int was_paused;
+
     gdb_server_poll();
     handle_msgpump(false);
     if (pause_emulation) {
+        if (was_paused == 0) {
+            // Pause sound and devices however the pause was requested
+            // (hotkey, statusbar, focus), like od-win32 handle_events().
+            setpaused(pause_emulation);
+            was_paused = pause_emulation;
+            return true;
+        }
         // Drain queued AKS_* actions (e.g. a second press of the pause
         // hotkey) while paused. Without this, unpausing never happens
         // since the caller's while (handle_events()) loop is the only
@@ -263,7 +275,65 @@ bool handle_events(void)
         // od-win32/win32.cpp's handle_events() for the same call.
         inputdevice_handle_inputcode();
     }
+    if (was_paused && (!pause_emulation || quit_program)) {
+        pause_emulation = was_paused;
+        resumepaused(was_paused);
+        sound_closed = 0;
+        was_paused = 0;
+    }
     return pause_emulation != 0;
+}
+
+// Hooks for od-generic/focus.cpp, like setpaused() and friends in
+// od-win32/win32.cpp. A pause releases the mouse and the matching resume
+// captures it again.
+static bool unix_pause_regrab;
+
+void setsoundpaused(void)
+{
+    pause_sound();
+}
+
+void resumesoundpaused(void)
+{
+    resume_sound();
+}
+
+bool setpaused(int priority)
+{
+    if (pause_emulation > priority) {
+        return false;
+    }
+    pause_emulation = priority;
+    devices_pause();
+    setsoundpaused();
+    if (unix_video_get_mouse_grab()) {
+        unix_pause_regrab = true;
+        unix_video_set_mouse_grab(false);
+    }
+    return true;
+}
+
+bool resumepaused(int priority)
+{
+    if (pause_emulation > priority || !pause_emulation) {
+        return false;
+    }
+    devices_unpause();
+    resumesoundpaused();
+    if (unix_pause_regrab) {
+        unix_pause_regrab = false;
+        unix_video_set_mouse_grab(true);
+    }
+    pause_emulation = 0;
+    setsystime();
+    return true;
+}
+
+// Unix has no priority classes to switch between; lowering the nice value
+// could not be undone without privileges.
+void host_priority_set(int)
+{
 }
 
 int handle_msgpump(bool)

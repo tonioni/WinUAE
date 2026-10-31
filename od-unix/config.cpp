@@ -652,8 +652,23 @@ void target_save_options(struct zfile *f, struct uae_prefs *p)
     }
 }
 
-void target_default_options(struct uae_prefs *p, int)
+void target_default_options(struct uae_prefs *p, int type)
 {
+    if (type == 2 || type == 0 || type == 3) {
+        // Window focus defaults, as on Windows: pause when minimized.
+        p->win32_active_nocapture_pause = false;
+        p->win32_active_nocapture_nosound = false;
+        p->win32_active_input = 1 | 2 | 4;
+        p->win32_iconified_nosound = true;
+        p->win32_iconified_pause = true;
+        p->win32_iconified_input = 0;
+        p->win32_inactive_nosound = false;
+        p->win32_inactive_pause = false;
+        p->win32_inactive_input = 0;
+        p->win32_active_capture_priority = 1;
+        p->win32_inactive_priority = 2;
+        p->win32_iconified_priority = 3;
+    }
     path_configuration[0] = 0;
     path_nvram[0] = 0;
     path_screenshot[0] = 0;
