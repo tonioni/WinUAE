@@ -4118,22 +4118,26 @@ static void expand_drga(struct denise_rga *rd)
 					int add = 1 << hresolution;
 					if (buf1 && buf1 < (uae_u32*)xlinebuffer_end) {
 						buf1 += add;
-						buf2 += add;
-						buf_d += add;
+						if (buf2) {
+							buf2 += add;
+						}
 						if (gbuf) {
 							gbuf += add;
 						}
+						buf_d += add;
 					}
 					denise_lol_shift_prev = add;
 					denise_lol_shift_enable = true;
 				} else if (agnus_lol && denise_lol_shift_prev > 0) {
 					if (buf1 && buf1 > (uae_u32*)xlinebuffer_start) {
 						buf1 -= denise_lol_shift_prev;
-						buf2 -= denise_lol_shift_prev;
-						buf_d -= denise_lol_shift_prev;
+						if (buf2) {
+							buf2 -= denise_lol_shift_prev;
+						}
 						if (gbuf) {
 							gbuf -= denise_lol_shift_prev;
 						}
+						buf_d -= denise_lol_shift_prev;
 					}
 					denise_lol_shift_prev = 0;
 					denise_lol_shift_enable = true;
@@ -5903,18 +5907,22 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 		for (int i = 0; i < lol_shift_prev; i++) {
 			if (buf1 >= (uae_u32*)xlinebuffer_start && buf1 < (uae_u32*)xlinebuffer_end) {
 				*buf1++ = DEBUG_LOL_COLOR;
-				*buf2++ = DEBUG_LOL_COLOR;
-				*buf_d++ = 0;
+				if (buf2) {
+					*buf2++ = DEBUG_LOL_COLOR;
+				}
 				if (gbuf) {
 					*gbuf++ = 0xff;
 				}
+				*buf_d++ = 0;
 			} else {
 				buf1++;
-				buf2++;
-				buf_d++;
+				if (buf2) {
+					buf2++;
+				}
 				if (gbuf) {
 					gbuf++;
 				}
+				buf_d++;
 			}
 			xlinebuffer += sizeof(uae_u32);
 			xlinebuffer2 += sizeof(uae_u32);
@@ -7824,9 +7832,6 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	// clear some more bytes to clear possible lightpen cursor graphics
 	if (need_genlock_data && gbuf) {
 		int max = addrdiff(xlinebuffer_genlock_end, gbuf);
-		if (max < 0) {
-			write_log("x");
-		}
 		if (max > 0) {
 			int total = GENLOCK_EXTRA_CLEAR;
 			if (total > max) {
