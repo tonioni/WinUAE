@@ -2190,7 +2190,7 @@ static void update_68k_cycles (void)
 			cpucycleunit /= 2;
 		}
 	} else if (currprefs.cpu_frequency) {
-		cpucycleunit = CYCLE_UNIT * baseclock / currprefs.cpu_frequency;
+		cpucycleunit = (uae_u64)CYCLE_UNIT * baseclock / ((uae_u64)8 * currprefs.cpu_frequency);
 	} else if (currprefs.cpu_memory_cycle_exact && currprefs.cpu_clock_multiplier == 0) {
 		if (currprefs.cpu_model >= 68040) {
 			cpucycleunit = CYCLE_UNIT / 16;
