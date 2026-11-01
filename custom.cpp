@@ -3422,10 +3422,6 @@ bool INTREQ_0(uae_u16 v)
 	setclr(&intreq, v);
 	intreq_checks(v);
 
-	// must be called before doint_delay_intreq()
-	// to keep events in correct order.
-	rethink_intreq();
-
 	if (old != intreq) {
 		doint_delay_intreq(v);
 	}
@@ -3434,7 +3430,12 @@ bool INTREQ_0(uae_u16 v)
 
 void INTREQ(uae_u16 data)
 {
-	INTREQ_0(data);
+	// must be called before doint_delay_intreq()
+	// to keep events in correct order.
+	rethink_cias();
+	if (INTREQ_0(data)) {
+		rethink_intreq();
+	}
 }
 
 static void ADKCON(int hpos, uae_u16 v)
