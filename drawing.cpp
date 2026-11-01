@@ -134,6 +134,7 @@ static void sprwrite_64(int reg, uae_u64 v);
 static int spr_unalign_reg[2];
 static uae_u16 spr_unalign_val[2];
 static uae_u64 spr_unalign_val64[2];
+static void set_strlong(void);
 
 static void quick_denise_rga(uae_u32 linecnt, int startpos, int endpos)
 {
@@ -142,21 +143,26 @@ static void quick_denise_rga(uae_u32 linecnt, int startpos, int endpos)
 	endpos &= DENISE_RGA_SLOT_MASK;
 	while (pos != endpos) {
 		struct denise_rga *rd = &rga_denise[pos];
-		if (rd->line == linecnt && rd->rga != 0x1fe && (rd->rga < 0x38 || rd->rga >= 0x40)) {
-			denise_update_reg(rd->rga, rd->v, linecnt);
-			if (spr_unalign_reg[0]) {
-				int sreg = spr_unalign_reg[0] - 0x140;
-				sprwrite(sreg, spr_unalign_val[0]);
-				spr_unalign_reg[0] = 0;
-			}
-			if (spr_unalign_reg[1]) {
-				int sreg = spr_unalign_reg[1] - 0x140;
-				if (aga_mode) {
-					sprwrite_64(sreg, spr_unalign_val64[1]);
-				} else {
-					sprwrite(sreg, spr_unalign_val[1]);
+		if (rd->line == linecnt) {
+			if (rd->rga != 0x1fe && (rd->rga < 0x38 || rd->rga >= 0x40)) {
+				denise_update_reg(rd->rga, rd->v, linecnt);
+				if (spr_unalign_reg[0]) {
+					int sreg = spr_unalign_reg[0] - 0x140;
+					sprwrite(sreg, spr_unalign_val[0]);
+					spr_unalign_reg[0] = 0;
 				}
-				spr_unalign_reg[1] = 0;
+				if (spr_unalign_reg[1]) {
+					int sreg = spr_unalign_reg[1] - 0x140;
+					if (aga_mode) {
+						sprwrite_64(sreg, spr_unalign_val64[1]);
+					} else {
+						sprwrite(sreg, spr_unalign_val[1]);
+					}
+					spr_unalign_reg[1] = 0;
+				}
+			}
+			if (rd->rga == 0x03e) {
+				set_strlong();
 			}
 		}
 		pos++;

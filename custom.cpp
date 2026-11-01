@@ -11094,6 +11094,21 @@ static int can_fast_custom(void)
 	if (vpos == plflastline || vpos == plffirstline) {
 		return 0;
 	}
+	if (!ecs_denise) {
+		// OCS Denise blanking bug special lines
+		if (vpos >= maxvpos) {
+			return 0;
+		}
+		if (vpos == 0) {
+			return 0;
+		}
+		if (vpos == linear_vpos_vblank_lines) {
+			return 0;
+		}
+		if (vpos == linear_vpos_vblank_lines - 1) {
+			return 0;
+		}
+	}
 	if (agnus_bsvb && !harddis_v) {
 		return 0;
 	}
