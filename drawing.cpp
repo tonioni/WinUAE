@@ -5931,7 +5931,7 @@ static void get_line(int monid, int gfx_ypos, enum nln_how how, int lol_shift_pr
 			}
 		}
 		if (denise_strlong_seen && currprefs.gfx_overscanmode < OVERSCANMODE_EXTREME) {
-			if (!ecs_denise) {
+			if (!ecs_denise && !no_denise_lol) {
 				int size = currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN ? 2 : 1;
 				denise_pixtotal -= 4 * size;
 			}
