@@ -874,7 +874,7 @@ void set_custom_limits (int w, int h, int dx, int dy)
 		dy = 0;
 	}
 #ifdef WITH_SPECIALMONITORS
-	if (specialmonitor_uses_control_lines() || !fd->gfx_filter_blanking) {
+	if (specialmonitor_uses_control_lines() || (!fd->gfx_filter_blanking && currprefs.gfx_overscanmode >= OVERSCANMODE_OVERSCAN)) {
 		w = -1;
 		h = -1;
 	}
