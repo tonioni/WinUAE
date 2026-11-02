@@ -17,8 +17,8 @@ typedef void(*pci_dev_reset)(struct pci_board_state*);
 typedef void(*pci_dev_hsync)(struct pci_board_state*);
 typedef void(*pci_dev_chkcfg)(struct pci_board_state*, uae_u8*);
 typedef void(*pci_dev_free)(struct pci_board_state*);
-typedef uae_u8(*pci_get_config_func)(uaecptr);
-typedef void(*pci_put_config_func)(uaecptr, uae_u8);
+typedef uae_u8(*pci_get_config_func)(struct pci_board_state*, uaecptr);
+typedef void(*pci_put_config_func)(struct pci_board_state*, uaecptr, uae_u8);
 typedef void(*pci_change_config_func)(struct pci_board_state*);
 
 typedef struct

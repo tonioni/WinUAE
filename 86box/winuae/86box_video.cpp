@@ -42,11 +42,6 @@
 #include <86box/vid_svga.h>
 #include <86box/vid_ddc.h>
 
-/* gfxboard.cpp's video_blit_memtoscreen(), not 86Box's */
-#undef video_blit_memtoscreen
-
-static void *gfxboard_priv;
-
 /* Video state of the 86Box application */
 
 monitor_t monitors[MONITORS_NUM];
@@ -98,6 +93,111 @@ int rtg_machine_has_bus(int m, uintptr_t bus_flags)
 	return 0;
 }
 
+/* Each RTG board with an 86Box chip has its own gfxchip: its frame, its
+   memory mappings, I/O ports, timers, devices and PCI functions. The
+   card code calls the rtg_ functions without saying which board it is,
+   they work on the current board. gfxboard.cpp's calls into the card
+   make their board the current one, the card's threads (Voodoo, S3 and
+   Matrox FIFOs) keep the board that created them. */
+
+#define MAX_MAPPINGS 16
+#define MAPBLOCKSIZE 0x10000
+#define MAX_MAPBLOCKS (0x80000000 / MAPBLOCKSIZE)
+
+#define MAX_IO_PORT 0x10000
+#define MAX_PORT_HANDLERS 4
+
+#define MAX_DEVICES 8
+
+struct port_handler
+{
+	uint8_t (*inb)(uint16_t addr, void *priv);
+	uint16_t (*inw)(uint16_t addr, void *priv);
+	uint32_t (*inl)(uint16_t addr, void *priv);
+	void (*outb)(uint16_t addr, uint8_t val, void *priv);
+	void (*outw)(uint16_t addr, uint16_t val, void *priv);
+	void (*outl)(uint16_t addr, uint32_t val, void *priv);
+	void *priv;
+};
+
+struct rtg_device
+{
+	const device_t *dev;
+	void *priv;
+	int inst;
+};
+
+struct gfxchip
+{
+	/* rtggfxboard of the board, and its monitors[] index */
+	void *gfxboard;
+	int index;
+	const device_t *dev;
+	void *priv;
+	svga_t *svga;
+
+	/* Frame */
+	bitmap_t *target_bitmap;
+	/* Horizontally doubled copy of the frame (svga_t horizontal_linedbl) */
+	bitmap_t *double_bitmap;
+	bitmap_t *blit_bitmap;
+	int blit_width, blit_height, blit_hmult, blit_vmult;
+
+	/* 15 and 16 bit pixels to 32 bit, for this board's red/blue order */
+	uint32_t *video_15to32;
+	uint32_t *video_16to32;
+	int rbswapped;
+
+	/* Memory mappings, in 64k blocks of the board's PCI address space */
+	mem_mapping_t *mappings[MAX_MAPPINGS];
+	/* When each mapping was last enabled or moved */
+	uint32_t mapping_stamps[MAX_MAPPINGS];
+	uint32_t mapping_stamp;
+	mem_mapping_t **mapblocks;
+	mem_mapping_t *linear_mapping;
+	struct gfxchip_linear linear;
+
+	/* Handlers of each I/O port, allocated when the card uses the port */
+	struct port_handler *ports[MAX_IO_PORT];
+
+	pc_timer_t *timer_head;
+
+	struct rtg_device devices[MAX_DEVICES];
+	const device_t *device_current;
+	int device_current_inst;
+
+	/* PCI: the board is the only card on its bus */
+	uint8_t (*pci_card_read)(int func, int addr, int len, void *priv);
+	void (*pci_card_write)(int func, int addr, int len, uint8_t val, void *priv);
+	void *pci_card_priv;
+};
+
+static_assert(MONITORS_NUM >= GFXCHIP_MAX_BOARDS, "each board needs its own monitors[] entry");
+
+static struct gfxchip *chips[GFXCHIP_MAX_BOARDS];
+/* The board gfxboard.cpp is talking to */
+static struct gfxchip *chip_current;
+/* The board of a card thread */
+static thread_local struct gfxchip *chip_thread;
+
+static struct gfxchip *current_chip(void)
+{
+	struct gfxchip *c = chip_thread;
+	return c ? c : chip_current;
+}
+
+/* 86Box's globals for the board: its monitor and its colour tables */
+static void enter(struct gfxchip *c)
+{
+	if (chip_current == c) {
+		return;
+	}
+	chip_current = c;
+	monitor_index_global = c->index;
+	video_15to32 = c->video_15to32;
+	video_16to32 = c->video_16to32;
+}
+
 static int calc_6to8(int c)
 {
 	int ic = c;
@@ -134,30 +234,27 @@ static uint32_t calc_16to32(int c, bool swapped)
 	return swapped ? (hi | (g << 8) | (lo << 16)) : (lo | (g << 8) | (hi << 16));
 }
 
-/* The RAMDACs call this on each mode register write, rebuild only when the
-   red/blue order changes */
-static int video_rbswapped = -1;
-
-void gfxchip_video_rbswap(bool swapped)
+static void rbswap(struct gfxchip *c, bool swapped)
 {
-	if (video_rbswapped == swapped) {
+	if (c->rbswapped == swapped) {
 		return;
 	}
-	video_rbswapped = swapped;
-	for (int c = 0; c < 65536; c++) {
-		video_15to32[c] = calc_15to32(c & 0x7fff, swapped);
-		video_16to32[c] = calc_16to32(c, swapped);
+	c->rbswapped = swapped;
+	for (int i = 0; i < 65536; i++) {
+		c->video_15to32[i] = calc_15to32(i & 0x7fff, swapped);
+		c->video_16to32[i] = calc_16to32(i, swapped);
 	}
+}
+
+/* The RAMDACs call this on each mode register write, rebuild only when the
+   red/blue order changes */
+void gfxchip_video_rbswap(bool swapped)
+{
+	rbswap(current_chip(), swapped);
 }
 
 #define TARGET_WIDTH 2112
 #define TARGET_HEIGHT 2112
-
-static bitmap_t *target_bitmap;
-/* Horizontally doubled copy of the frame (svga_t horizontal_linedbl) */
-static bitmap_t *double_bitmap;
-static bitmap_t *blit_bitmap;
-static int blit_width, blit_height, blit_hmult, blit_vmult;
 
 static bitmap_t *alloc_bitmap(void)
 {
@@ -171,7 +268,16 @@ static bitmap_t *alloc_bitmap(void)
 	return b;
 }
 
-static void video_init_tables(bool swapped)
+static void free_bitmap(bitmap_t *b)
+{
+	if (b) {
+		xfree(b->dat);
+		xfree(b);
+	}
+}
+
+/* Tables all boards share */
+static void video_init_tables(void)
 {
 	for (int c = 0; c < 4; c++) {
 		for (int d = 0; d < 4; d++) {
@@ -199,32 +305,24 @@ static void video_init_tables(bool swapped)
 			video_8togs[c] = c | (c << 16) | (c << 24);
 			video_8to32[c] = calc_8to32(c);
 		}
-		video_15to32 = xcalloc(uint32_t, 65536);
-		video_16to32 = xcalloc(uint32_t, 65536);
 	}
-	gfxchip_video_rbswap(swapped);
-	if (!target_bitmap) {
-		target_bitmap = alloc_bitmap();
-		double_bitmap = alloc_bitmap();
-	}
-	blit_bitmap = target_bitmap;
-	blit_width = blit_height = blit_hmult = blit_vmult = 0;
-
-	monitor_t *m = &monitors[0];
-	memset(m, 0, sizeof(monitor_t));
-	m->mon_xsize = 640;
-	m->mon_ysize = 480;
-	m->mon_bpp = 8;
-	m->mon_changeframecount = 2;
-	m->target_buffer = target_bitmap;
-	monitor_index_global = 0;
 }
 
 /* gfxboard.cpp shows the frame */
 
-uint8_t *gfxchip_getbuffer32(int x, int y, int yy)
+uint8_t *gfxchip_getbuffer32(struct gfxchip *c, int x, int y, int yy)
 {
-	return (uint8_t *)(blit_bitmap->line[y + yy] + x);
+	return (uint8_t *)(c->blit_bitmap->line[y + yy] + x);
+}
+
+static struct gfxchip *chip_of_svga(svga_t *svga)
+{
+	for (int i = 0; i < GFXCHIP_MAX_BOARDS; i++) {
+		if (chips[i] && chips[i]->svga == svga) {
+			return chips[i];
+		}
+	}
+	return current_chip();
 }
 
 /* svga_doblit() for WinUAE: the frame at x, y of the target buffer is
@@ -232,18 +330,19 @@ uint8_t *gfxchip_getbuffer32(int x, int y, int yy)
    Lines y1 to y2 - 1 of it changed since the last frame. */
 void svga_doblit_uae(svga_t *svga, int x, int y, int w, int h, int y1, int y2)
 {
+	struct gfxchip *c = chip_of_svga(svga);
 	int hmult = svga->horizontal_linedbl ? 2 : 1;
 	int vmult = svga->linedbl ? 2 : 1;
 
 	if (w < 128 || h < 32) {
 		w = h = 0;
 	}
-	if (w != blit_width || h != blit_height || hmult != blit_hmult || vmult != blit_vmult) {
-		blit_width = w;
-		blit_height = h;
-		blit_hmult = hmult;
-		blit_vmult = vmult;
-		gfxboard_resize(w * hmult, h, hmult, vmult, gfxboard_priv);
+	if (w != c->blit_width || h != c->blit_height || hmult != c->blit_hmult || vmult != c->blit_vmult) {
+		c->blit_width = w;
+		c->blit_height = h;
+		c->blit_hmult = hmult;
+		c->blit_vmult = vmult;
+		gfxboard_resize(w * hmult, h, hmult, vmult, c->gfxboard);
 		y1 = 0;
 		y2 = h;
 	}
@@ -252,28 +351,32 @@ void svga_doblit_uae(svga_t *svga, int x, int y, int w, int h, int y1, int y2)
 	}
 	svga->monitor->mon_xsize = w;
 	svga->monitor->mon_ysize = h;
-	blit_bitmap = target_bitmap;
+	c->blit_bitmap = c->target_bitmap;
 	if (hmult > 1 && w > 0) {
+		if (!c->double_bitmap) {
+			c->double_bitmap = alloc_bitmap();
+		}
 		if (x + w * 2 > TARGET_WIDTH) {
 			w = (TARGET_WIDTH - x) / 2;
 		}
 		for (int yy = y1; yy < y2 && y + yy < TARGET_HEIGHT; yy++) {
-			uint32_t *s = target_bitmap->line[y + yy] + x;
-			uint32_t *d = double_bitmap->line[y + yy] + x;
+			uint32_t *s = c->target_bitmap->line[y + yy] + x;
+			uint32_t *d = c->double_bitmap->line[y + yy] + x;
 			for (int xx = 0; xx < w; xx++) {
 				d[xx * 2 + 0] = s[xx];
 				d[xx * 2 + 1] = s[xx];
 			}
 		}
-		blit_bitmap = double_bitmap;
+		c->blit_bitmap = c->double_bitmap;
 	}
-	video_blit_memtoscreen(x, y, y1, y2, w * hmult, h);
+	gfxboard_blit(x, y, y1, y2, w * hmult, h, c->gfxboard);
 }
 
 void video_blit_memtoscreen_monitor(int x, int y, int w, int h, int monitor_index)
 {
-	blit_bitmap = target_bitmap;
-	video_blit_memtoscreen(x, y, 0, h, w, h);
+	struct gfxchip *c = monitor_index >= 0 && monitor_index < GFXCHIP_MAX_BOARDS && chips[monitor_index] ? chips[monitor_index] : current_chip();
+	c->blit_bitmap = c->target_bitmap;
+	gfxboard_blit(x, y, 0, h, w, h, c->gfxboard);
 }
 
 void video_wait_for_buffer_monitor(int monitor_index)
@@ -325,16 +428,21 @@ size_t ddc_load_edid(char *path, uint8_t *buf, size_t size)
 
 /* The card: svga_t of the board */
 
-static svga_t *board_svga;
-
-void *svga_get_object(void)
+/* svga_init() gets the board's VRAM here, and so tells which svga_t is the
+   board's */
+void *gfxchip_svga_vram(svga_t *svga, int size)
 {
-	return board_svga;
+	struct gfxchip *c = current_chip();
+	if (!c->svga) {
+		c->svga = svga;
+	}
+	return gfxboard_getvram(c->gfxboard);
 }
 
-int svga_poll_eod(void *p)
+int gfxchip_poll(struct gfxchip *c)
 {
-	svga_t *svga = (svga_t *)p;
+	svga_t *svga = c->svga;
+	enter(c);
 	svga->vsync_eod = 0;
 	svga_poll(svga);
 	return svga->vsync_eod;
@@ -362,36 +470,16 @@ void svga_setvram(void *p, uint8_t *vram)
 	svga->vram = vram;
 }
 
-uint8_t gfxchip_read_io(int port, int index)
+uint8_t gfxchip_read_io(struct gfxchip *c, int port, int index)
 {
-	if (port == 0x3d5 && board_svga) {
-		return board_svga->crtc[index];
+	if (port == 0x3d5 && c->svga) {
+		return c->svga->crtc[index];
 	}
 	write_log(_T("gfxchip_read_io: unknown port %04x\n"), port);
 	return 0;
 }
 
-/* Memory mappings, in 64k blocks of the board's PCI address space */
-
-#define MAX_MAPPINGS 16
-#define MAPBLOCKSIZE 0x10000
-#define MAX_MAPBLOCKS (0x80000000 / MAPBLOCKSIZE)
-
-static mem_mapping_t *mappings[MAX_MAPPINGS];
-/* When each mapping was last enabled or moved */
-static uint32_t mapping_stamps[MAX_MAPPINGS];
-static uint32_t mapping_stamp;
-static mem_mapping_t **mapblocks;
-
-static mem_mapping_t *linear_mapping;
-void *gfxchip_mapping_linear_priv;
-uint32_t gfxchip_mapping_linear_offset;
-uint8_t (*gfxchip_linear_read_b)(uint32_t addr, void *priv);
-uint16_t (*gfxchip_linear_read_w)(uint32_t addr, void *priv);
-uint32_t (*gfxchip_linear_read_l)(uint32_t addr, void *priv);
-void (*gfxchip_linear_write_b)(uint32_t addr, uint8_t val, void *priv);
-void (*gfxchip_linear_write_w)(uint32_t addr, uint16_t val, void *priv);
-void (*gfxchip_linear_write_l)(uint32_t addr, uint32_t val, void *priv);
+/* Memory mappings */
 
 static uint8_t dummy_read_b(uint32_t addr, void *priv)
 {
@@ -420,43 +508,63 @@ static void dummy_write_l(uint32_t addr, uint32_t val, void *priv)
 {
 }
 
+/* The board a mapping belongs to. Mappings can change from any thread
+   that runs card code, so look it up instead of trusting the current
+   board. */
+static struct gfxchip *chip_of_mapping(mem_mapping_t *m)
+{
+	for (int i = 0; i < GFXCHIP_MAX_BOARDS; i++) {
+		struct gfxchip *c = chips[i];
+		if (!c) {
+			continue;
+		}
+		for (int j = 0; j < MAX_MAPPINGS; j++) {
+			if (c->mappings[j] == m) {
+				return c;
+			}
+		}
+	}
+	return current_chip();
+}
+
 /* Recalculate the blocks of mapping m. Where mappings overlap the one
    enabled or moved last wins, so a card's MMIO set up after its linear
    window shows through it. */
-static void mapping_recalc(mem_mapping_t *m)
+static void mapping_recalc(struct gfxchip *c, mem_mapping_t *m)
 {
 	for (int i = 0; i < MAX_MAPPINGS; i++) {
-		if (mappings[i] == m && m->enable) {
-			mapping_stamps[i] = ++mapping_stamp;
+		if (c->mappings[i] == m && m->enable) {
+			c->mapping_stamps[i] = ++c->mapping_stamp;
 		}
 	}
-	if (m == linear_mapping || (!linear_mapping && m->size >= 1024 * 1024)) {
+	if (m == c->linear_mapping || (!c->linear_mapping && m->size >= 1024 * 1024)) {
 		bool on = m->enable && m->size;
-		linear_mapping = m;
-		gfxchip_mapping_linear_priv = m->priv;
-		gfxchip_mapping_linear_offset = m->base;
-		gfxchip_linear_read_b = on && m->read_b ? m->read_b : dummy_read_b;
-		gfxchip_linear_read_w = on && m->read_w ? m->read_w : dummy_read_w;
-		gfxchip_linear_read_l = on && m->read_l ? m->read_l : dummy_read_l;
-		gfxchip_linear_write_b = on && m->write_b ? m->write_b : dummy_write_b;
-		gfxchip_linear_write_w = on && m->write_w ? m->write_w : dummy_write_w;
-		gfxchip_linear_write_l = on && m->write_l ? m->write_l : dummy_write_l;
+		struct gfxchip_linear *l = &c->linear;
+		c->linear_mapping = m;
+		l->priv = m->priv;
+		l->offset = m->base;
+		l->read_b = on && m->read_b ? m->read_b : dummy_read_b;
+		l->read_w = on && m->read_w ? m->read_w : dummy_read_w;
+		l->read_l = on && m->read_l ? m->read_l : dummy_read_l;
+		l->write_b = on && m->write_b ? m->write_b : dummy_write_b;
+		l->write_w = on && m->write_w ? m->write_w : dummy_write_w;
+		l->write_l = on && m->write_l ? m->write_l : dummy_write_l;
 	}
-	if (!mapblocks || !m->size) {
+	if (!m->size) {
 		return;
 	}
 	uint32_t start = (m->base & 0x7fffffff) / MAPBLOCKSIZE;
 	uint32_t end = ((m->base & 0x7fffffff) + m->size - 1) / MAPBLOCKSIZE;
 	for (uint32_t b = start; b <= end && b < MAX_MAPBLOCKS; b++) {
-		mapblocks[b] = NULL;
+		c->mapblocks[b] = NULL;
 		uint32_t addr = b * MAPBLOCKSIZE;
 		uint32_t stamp = 0;
 		for (int i = 0; i < MAX_MAPPINGS; i++) {
-			mem_mapping_t *mm = mappings[i];
+			mem_mapping_t *mm = c->mappings[i];
 			if (mm && mm->enable && mm->size && addr + MAPBLOCKSIZE > (mm->base & 0x7fffffff) && addr < (mm->base & 0x7fffffff) + mm->size &&
-				mapping_stamps[i] >= stamp) {
-				mapblocks[b] = mm;
-				stamp = mapping_stamps[i];
+				c->mapping_stamps[i] >= stamp) {
+				c->mapblocks[b] = mm;
+				stamp = c->mapping_stamps[i];
 			}
 		}
 	}
@@ -471,13 +579,14 @@ void rtg_mem_mapping_add(mem_mapping_t *m, uint32_t base, uint32_t size,
 	void (*write_l)(uint32_t addr, uint32_t val, void *priv),
 	uint8_t *exec, uint32_t flags, void *priv)
 {
+	struct gfxchip *c = current_chip();
 	int slot = -1;
 	for (int i = 0; i < MAX_MAPPINGS; i++) {
-		if (mappings[i] == m) {
+		if (c->mappings[i] == m) {
 			slot = i;
 			break;
 		}
-		if (!mappings[i] && slot < 0) {
+		if (!c->mappings[i] && slot < 0) {
 			slot = i;
 		}
 	}
@@ -485,7 +594,7 @@ void rtg_mem_mapping_add(mem_mapping_t *m, uint32_t base, uint32_t size,
 		write_log(_T("86Box video: too many memory mappings\n"));
 		return;
 	}
-	mappings[slot] = m;
+	c->mappings[slot] = m;
 	m->enable = size != 0;
 	m->base = base;
 	m->size = size;
@@ -499,7 +608,7 @@ void rtg_mem_mapping_add(mem_mapping_t *m, uint32_t base, uint32_t size,
 	m->exec = exec;
 	m->flags = flags;
 	m->priv = priv;
-	mapping_recalc(m);
+	mapping_recalc(c, m);
 }
 
 void rtg_mem_mapping_set_handler(mem_mapping_t *m,
@@ -516,23 +625,24 @@ void rtg_mem_mapping_set_handler(mem_mapping_t *m,
 	m->write_b = write_b;
 	m->write_w = write_w;
 	m->write_l = write_l;
-	mapping_recalc(m);
+	mapping_recalc(chip_of_mapping(m), m);
 }
 
 void rtg_mem_mapping_set_p(mem_mapping_t *m, void *priv)
 {
 	m->priv = priv;
-	mapping_recalc(m);
+	mapping_recalc(chip_of_mapping(m), m);
 }
 
 void rtg_mem_mapping_set_addr(mem_mapping_t *m, uint32_t base, uint32_t size)
 {
+	struct gfxchip *c = chip_of_mapping(m);
 	m->enable = 0;
-	mapping_recalc(m);
+	mapping_recalc(c, m);
 	m->enable = 1;
 	m->base = base;
 	m->size = size;
-	mapping_recalc(m);
+	mapping_recalc(c, m);
 }
 
 void rtg_mem_mapping_set_base_ignore(mem_mapping_t *m, uint32_t base_ignore)
@@ -543,28 +653,28 @@ void rtg_mem_mapping_set_base_ignore(mem_mapping_t *m, uint32_t base_ignore)
 void rtg_mem_mapping_disable(mem_mapping_t *m)
 {
 	m->enable = 0;
-	mapping_recalc(m);
+	mapping_recalc(chip_of_mapping(m), m);
 }
 
 void rtg_mem_mapping_enable(mem_mapping_t *m)
 {
 	m->enable = 1;
-	mapping_recalc(m);
+	mapping_recalc(chip_of_mapping(m), m);
 }
 
-static mem_mapping_t *get_mapping(uint32_t addr)
+static mem_mapping_t *get_mapping(struct gfxchip *c, uint32_t addr)
 {
 	addr &= 0x7fffffff;
-	mem_mapping_t *m = mapblocks ? mapblocks[addr / MAPBLOCKSIZE] : NULL;
+	mem_mapping_t *m = c->mapblocks[addr / MAPBLOCKSIZE];
 	if (m && (addr < (m->base & 0x7fffffff) || addr >= (m->base & 0x7fffffff) + m->size)) {
 		m = NULL;
 	}
 	return m;
 }
 
-void put_mem_gfxchip(uint32_t addr, uint32_t v, int size)
+static void put_mem(struct gfxchip *c, uint32_t addr, uint32_t v, int size)
 {
-	mem_mapping_t *m = get_mapping(addr);
+	mem_mapping_t *m = get_mapping(c, addr);
 	if (!m) {
 		return;
 	}
@@ -576,23 +686,23 @@ void put_mem_gfxchip(uint32_t addr, uint32_t v, int size)
 		if (m->write_w) {
 			m->write_w(addr, v, m->priv);
 		} else {
-			put_mem_gfxchip(addr + 0, v >> 0, 0);
-			put_mem_gfxchip(addr + 1, v >> 8, 0);
+			put_mem(c, addr + 0, v >> 0, 0);
+			put_mem(c, addr + 1, v >> 8, 0);
 		}
 	} else if (size == 2) {
 		if (m->write_l) {
 			m->write_l(addr, v, m->priv);
 		} else {
-			put_mem_gfxchip(addr + 0, v >> 0, 1);
-			put_mem_gfxchip(addr + 2, v >> 16, 1);
+			put_mem(c, addr + 0, v >> 0, 1);
+			put_mem(c, addr + 2, v >> 16, 1);
 		}
 	}
 }
 
-uint32_t get_mem_gfxchip(uint32_t addr, int size)
+static uint32_t get_mem(struct gfxchip *c, uint32_t addr, int size)
 {
 	uint32_t v = 0;
-	mem_mapping_t *m = get_mapping(addr);
+	mem_mapping_t *m = get_mapping(c, addr);
 	if (!m) {
 		return 0;
 	}
@@ -604,27 +714,44 @@ uint32_t get_mem_gfxchip(uint32_t addr, int size)
 		if (m->read_w) {
 			v = m->read_w(addr, m->priv);
 		} else {
-			v = get_mem_gfxchip(addr + 0, 0) << 0;
-			v |= get_mem_gfxchip(addr + 1, 0) << 8;
+			v = get_mem(c, addr + 0, 0) << 0;
+			v |= get_mem(c, addr + 1, 0) << 8;
 		}
 	} else if (size == 2) {
 		if (m->read_l) {
 			v = m->read_l(addr, m->priv);
 		} else {
-			v = get_mem_gfxchip(addr + 0, 1) << 0;
-			v |= get_mem_gfxchip(addr + 2, 1) << 16;
+			v = get_mem(c, addr + 0, 1) << 0;
+			v |= get_mem(c, addr + 2, 1) << 16;
 		}
 	}
 	return v;
 }
 
-void gfxchip_linear_mark(int offset)
+void put_mem_gfxchip(struct gfxchip *c, uint32_t addr, uint32_t v, int size)
 {
-	if (!linear_mapping) {
+	enter(c);
+	put_mem(c, addr, v, size);
+}
+
+uint32_t get_mem_gfxchip(struct gfxchip *c, uint32_t addr, int size)
+{
+	enter(c);
+	return get_mem(c, addr, size);
+}
+
+struct gfxchip_linear *gfxchip_get_linear(struct gfxchip *c)
+{
+	return &c->linear;
+}
+
+void gfxchip_linear_mark(struct gfxchip *c, int offset)
+{
+	if (!c->linear_mapping) {
 		return;
 	}
-	uint16_t w = gfxchip_linear_read_w(offset, gfxchip_mapping_linear_priv);
-	gfxchip_linear_write_w(offset, w, gfxchip_mapping_linear_priv);
+	uint16_t w = c->linear.read_w(offset, c->linear.priv);
+	c->linear.write_w(offset, w, c->linear.priv);
 }
 
 /* No bus mastering from the cards */
@@ -645,22 +772,6 @@ void rtg_dma_bm_write(uint32_t PhysAddress, const uint8_t *DataWrite, uint32_t T
 
 /* I/O ports. Several handlers can share a port, as in 86Box. */
 
-#define MAX_IO_PORT 0x10000
-#define MAX_PORT_HANDLERS 4
-
-struct port_handler
-{
-	uint8_t (*inb)(uint16_t addr, void *priv);
-	uint16_t (*inw)(uint16_t addr, void *priv);
-	uint32_t (*inl)(uint16_t addr, void *priv);
-	void (*outb)(uint16_t addr, uint8_t val, void *priv);
-	void (*outw)(uint16_t addr, uint16_t val, void *priv);
-	void (*outl)(uint16_t addr, uint32_t val, void *priv);
-	void *priv;
-};
-
-static struct port_handler (*ports)[MAX_PORT_HANDLERS];
-
 void rtg_io_sethandler(uint16_t base, uint16_t size,
 	uint8_t (*inb)(uint16_t addr, void *priv),
 	uint16_t (*inw)(uint16_t addr, void *priv),
@@ -670,11 +781,12 @@ void rtg_io_sethandler(uint16_t base, uint16_t size,
 	void (*outl)(uint16_t addr, uint32_t val, void *priv),
 	void *priv)
 {
-	if (!ports) {
-		ports = (struct port_handler(*)[MAX_PORT_HANDLERS])xcalloc(struct port_handler, MAX_IO_PORT * MAX_PORT_HANDLERS);
-	}
+	struct gfxchip *c = current_chip();
 	for (int i = 0; i < size && base + i < MAX_IO_PORT; i++) {
-		struct port_handler *ph = ports[base + i];
+		struct port_handler *ph = c->ports[base + i];
+		if (!ph) {
+			ph = c->ports[base + i] = xcalloc(struct port_handler, MAX_PORT_HANDLERS);
+		}
 		int j;
 		for (j = 0; j < MAX_PORT_HANDLERS; j++) {
 			if (!ph[j].inb && !ph[j].inw && !ph[j].inl && !ph[j].outb && !ph[j].outw && !ph[j].outl) {
@@ -704,11 +816,12 @@ void rtg_io_removehandler(uint16_t base, uint16_t size,
 	void (*outl)(uint16_t addr, uint32_t val, void *priv),
 	void *priv)
 {
-	if (!ports) {
-		return;
-	}
+	struct gfxchip *c = current_chip();
 	for (int i = 0; i < size && base + i < MAX_IO_PORT; i++) {
-		struct port_handler *ph = ports[base + i];
+		struct port_handler *ph = c->ports[base + i];
+		if (!ph) {
+			continue;
+		}
 		for (int j = 0; j < MAX_PORT_HANDLERS; j++) {
 			if (ph[j].priv == priv && ph[j].inb == inb && ph[j].inw == inw && ph[j].inl == inl &&
 				ph[j].outb == outb && ph[j].outw == outw && ph[j].outl == outl) {
@@ -719,15 +832,12 @@ void rtg_io_removehandler(uint16_t base, uint16_t size,
 	}
 }
 
-void put_io_gfxchip(uint32_t addr, uint32_t v, int size)
+static void put_io(struct gfxchip *c, uint32_t addr, uint32_t v, int size)
 {
 	addr &= MAX_IO_PORT - 1;
-	if (!ports) {
-		return;
-	}
-	struct port_handler *ph = ports[addr];
+	struct port_handler *ph = c->ports[addr];
 	bool found = false;
-	for (int j = 0; j < MAX_PORT_HANDLERS; j++) {
+	for (int j = 0; ph && j < MAX_PORT_HANDLERS; j++) {
 		if (size == 0 && ph[j].outb) {
 			ph[j].outb(addr, v, ph[j].priv);
 			found = true;
@@ -740,24 +850,21 @@ void put_io_gfxchip(uint32_t addr, uint32_t v, int size)
 		}
 	}
 	if (!found && size == 1) {
-		put_io_gfxchip(addr + 0, v >> 0, 0);
-		put_io_gfxchip(addr + 1, v >> 8, 0);
+		put_io(c, addr + 0, v >> 0, 0);
+		put_io(c, addr + 1, v >> 8, 0);
 	} else if (!found && size == 2) {
-		put_io_gfxchip(addr + 0, v >> 0, 1);
-		put_io_gfxchip(addr + 2, v >> 16, 1);
+		put_io(c, addr + 0, v >> 0, 1);
+		put_io(c, addr + 2, v >> 16, 1);
 	}
 }
 
-uint32_t get_io_gfxchip(uint32_t addr, int size)
+static uint32_t get_io(struct gfxchip *c, uint32_t addr, int size)
 {
 	addr &= MAX_IO_PORT - 1;
 	uint32_t v = size == 0 ? 0xff : (size == 1 ? 0xffff : 0xffffffff);
-	if (!ports) {
-		return v;
-	}
-	struct port_handler *ph = ports[addr];
+	struct port_handler *ph = c->ports[addr];
 	bool found = false;
-	for (int j = 0; j < MAX_PORT_HANDLERS; j++) {
+	for (int j = 0; ph && j < MAX_PORT_HANDLERS; j++) {
 		if (size == 0 && ph[j].inb) {
 			v &= ph[j].inb(addr, ph[j].priv);
 			found = true;
@@ -770,18 +877,28 @@ uint32_t get_io_gfxchip(uint32_t addr, int size)
 		}
 	}
 	if (!found && size == 1) {
-		v = get_io_gfxchip(addr + 0, 0) << 0;
-		v |= get_io_gfxchip(addr + 1, 0) << 8;
+		v = get_io(c, addr + 0, 0) << 0;
+		v |= get_io(c, addr + 1, 0) << 8;
 	} else if (!found && size == 2) {
-		v = get_io_gfxchip(addr + 0, 1) << 0;
-		v |= get_io_gfxchip(addr + 2, 1) << 16;
+		v = get_io(c, addr + 0, 1) << 0;
+		v |= get_io(c, addr + 2, 1) << 16;
 	}
 	return v;
 }
 
-/* Timers: every enabled timer fires once per Amiga horizontal sync */
+void put_io_gfxchip(struct gfxchip *c, uint32_t addr, uint32_t v, int size)
+{
+	enter(c);
+	put_io(c, addr, v, size);
+}
 
-static pc_timer_t *timer_head;
+uint32_t get_io_gfxchip(struct gfxchip *c, uint32_t addr, int size)
+{
+	enter(c);
+	return get_io(c, addr, size);
+}
+
+/* Timers: every enabled timer fires once per Amiga horizontal sync */
 
 void rtg_timer_disable(pc_timer_t *timer)
 {
@@ -792,7 +909,13 @@ void rtg_timer_disable(pc_timer_t *timer)
 	if (timer->prev) {
 		timer->prev->next = timer->next;
 	} else {
-		timer_head = timer->next;
+		/* First on its board's list, which need not be the current board's */
+		for (int i = 0; i < GFXCHIP_MAX_BOARDS; i++) {
+			if (chips[i] && chips[i]->timer_head == timer) {
+				chips[i]->timer_head = timer->next;
+				break;
+			}
+		}
 	}
 	if (timer->next) {
 		timer->next->prev = timer->prev;
@@ -805,13 +928,14 @@ void rtg_timer_enable(pc_timer_t *timer)
 	if (timer->flags & TIMER_ENABLED) {
 		return;
 	}
+	struct gfxchip *c = current_chip();
 	timer->flags |= TIMER_ENABLED;
 	timer->prev = NULL;
-	timer->next = timer_head;
-	if (timer_head) {
-		timer_head->prev = timer;
+	timer->next = c->timer_head;
+	if (c->timer_head) {
+		c->timer_head->prev = timer;
 	}
-	timer_head = timer;
+	c->timer_head = timer;
 }
 
 void rtg_timer_add(pc_timer_t *timer, void (*callback)(void *priv), void *priv, int start_timer)
@@ -838,14 +962,15 @@ void rtg_timer_on_auto(pc_timer_t *timer, double period)
 	}
 }
 
-void gfxchip_hsync(void)
+void gfxchip_hsync(struct gfxchip *c)
 {
+	enter(c);
 	/* Timers re-enable themselves from their callbacks, take the current
 	   ones off the list first. */
 	pc_timer_t *due[64];
 	int n = 0;
-	while (timer_head && n < 64) {
-		pc_timer_t *timer = timer_head;
+	while (c->timer_head && n < 64) {
+		pc_timer_t *timer = c->timer_head;
 		rtg_timer_disable(timer);
 		due[n++] = timer;
 	}
@@ -859,35 +984,23 @@ void gfxchip_hsync(void)
 /* Devices of the card (RAMDACs, clock generators, I2C), separate from
    the bridgeboard's device list */
 
-#define MAX_DEVICES 8
-
-struct rtg_device
-{
-	const device_t *dev;
-	void *priv;
-	int inst;
-};
-
-static struct rtg_device devices[MAX_DEVICES];
-static const device_t *device_current;
-static int device_current_inst;
-
 static void *device_add_common(const device_t *dev, int inst)
 {
+	struct gfxchip *c = current_chip();
 	for (int i = 0; i < MAX_DEVICES; i++) {
-		struct rtg_device *rd = &devices[i];
+		struct rtg_device *rd = &c->devices[i];
 		if (rd->dev) {
 			continue;
 		}
-		const device_t *prev = device_current;
-		int prev_inst = device_current_inst;
+		const device_t *prev = c->device_current;
+		int prev_inst = c->device_current_inst;
 		rd->dev = dev;
 		rd->inst = inst;
-		device_current = dev;
-		device_current_inst = inst;
+		c->device_current = dev;
+		c->device_current_inst = inst;
 		rd->priv = dev->init ? dev->init(dev) : NULL;
-		device_current = prev;
-		device_current_inst = prev_inst;
+		c->device_current = prev;
+		c->device_current_inst = prev_inst;
 		return rd->priv;
 	}
 	write_log(_T("86Box video: too many devices, can't add '%s'\n"), dev->name);
@@ -916,13 +1029,13 @@ void *rtg_device_add_inst_params(const device_t *dev, int inst, void *params)
 
 int rtg_device_get_instance(void)
 {
-	return device_current_inst;
+	return current_chip()->device_current_inst;
 }
 
-static void close_devices(void)
+static void close_devices(struct gfxchip *c)
 {
 	for (int i = MAX_DEVICES - 1; i >= 0; i--) {
-		struct rtg_device *rd = &devices[i];
+		struct rtg_device *rd = &c->devices[i];
 		if (rd->dev && rd->dev->close && rd->priv) {
 			rd->dev->close(rd->priv);
 		}
@@ -933,6 +1046,7 @@ static void close_devices(void)
 /* Card options WinUAE sets, the rest keep the device's default */
 int rtg_device_get_config_int(const char *s)
 {
+	struct gfxchip *c = current_chip();
 	if (!strcmp(s, "bilinear") || !strcmp(s, "dithering") || !strcmp(s, "dithersub") || !strcmp(s, "dacfilter")) {
 		return 1;
 	}
@@ -952,7 +1066,7 @@ int rtg_device_get_config_int(const char *s)
 		return 2;
 	}
 	if (!strcmp(s, "memory")) {
-		int vram = gfxchip_getvramsize() >> 20;
+		int vram = gfxboard_getvramsize(c->gfxboard) >> 20;
 		return vram > 0 ? vram : 2;
 	}
 	if (!strcmp(s, "render_threads")) {
@@ -977,10 +1091,10 @@ int rtg_device_get_config_int(const char *s)
 		return 1;
 #endif
 	}
-	if (device_current && device_current->config) {
-		for (const device_config_t *c = device_current->config; c->type != CONFIG_END && c->name; c++) {
-			if (!strcmp(c->name, s)) {
-				return c->default_int;
+	if (c->device_current && c->device_current->config) {
+		for (const device_config_t *cfg = c->device_current->config; cfg->type != CONFIG_END && cfg->name; cfg++) {
+			if (!strcmp(cfg->name, s)) {
+				return cfg->default_int;
 			}
 		}
 	}
@@ -1034,18 +1148,15 @@ uint32_t rom_readl(uint32_t addr, void *priv)
 	return 0xffffffff;
 }
 
-/* PCI: the board is the only card on the bus */
-
-static uint8_t (*pci_card_read)(int func, int addr, int len, void *priv);
-static void (*pci_card_write)(int func, int addr, int len, uint8_t val, void *priv);
-static void *pci_card_priv;
+/* PCI */
 
 void rtg_pci_add_card(uint8_t add_type, uint8_t (*read)(int func, int addr, int len, void *priv),
 	void (*write)(int func, int addr, int len, uint8_t val, void *priv), void *priv, uint8_t *slot)
 {
-	pci_card_read = read;
-	pci_card_write = write;
-	pci_card_priv = priv;
+	struct gfxchip *c = current_chip();
+	c->pci_card_read = read;
+	c->pci_card_write = write;
+	c->pci_card_priv = priv;
 	if (slot) {
 		*slot = 0;
 	}
@@ -1053,73 +1164,102 @@ void rtg_pci_add_card(uint8_t add_type, uint8_t (*read)(int func, int addr, int 
 
 void rtg_pci_irq(uint8_t slot, uint8_t pci_int, int level, int set, uint8_t *irq_state)
 {
-	gfxboard_intreq(gfxboard_priv, set ? 1 : 0, true);
+	gfxboard_intreq(current_chip()->gfxboard, set ? 1 : 0, true);
 }
 
-void put_pci_gfxchip(uint32_t addr, uint8_t v)
+void put_pci_gfxchip(struct gfxchip *c, uint32_t addr, uint8_t v)
 {
-	if (pci_card_write) {
-		pci_card_write(0, addr, 1, v, pci_card_priv);
+	enter(c);
+	if (c->pci_card_write) {
+		c->pci_card_write(0, addr, 1, v, c->pci_card_priv);
 	}
 }
 
-uint8_t get_pci_gfxchip(uint32_t addr)
+uint8_t get_pci_gfxchip(struct gfxchip *c, uint32_t addr)
 {
 	uint8_t v = 0;
-	if (pci_card_read) {
-		v = pci_card_read(0, addr, 1, pci_card_priv);
+	enter(c);
+	if (c->pci_card_read) {
+		v = c->pci_card_read(0, addr, 1, c->pci_card_priv);
 	}
 	return v;
 }
 
 /* Starting and stopping the card */
 
-void *gfxchip_device_init(const device_t *dev, void *gfxboard, bool swapped, void **svga)
+struct gfxchip *gfxchip_device_init(const device_t *dev, void *gfxboard, int index, bool swapped, void **priv, void **svga)
 {
-	if (!mapblocks) {
-		mapblocks = xcalloc(mem_mapping_t *, MAX_MAPBLOCKS);
+	if (index < 0 || index >= GFXCHIP_MAX_BOARDS || chips[index]) {
+		write_log(_T("86Box video: can't start '%s' as board %d\n"), dev->name, index);
+		*priv = *svga = NULL;
+		return NULL;
 	}
-	memset(mapblocks, 0, sizeof(mem_mapping_t *) * MAX_MAPBLOCKS);
-	memset(mappings, 0, sizeof(mappings));
-	memset(mapping_stamps, 0, sizeof(mapping_stamps));
-	mapping_stamp = 0;
-	if (ports) {
-		memset(ports, 0, sizeof(struct port_handler) * MAX_IO_PORT * MAX_PORT_HANDLERS);
-	}
-	linear_mapping = NULL;
-	gfxchip_mapping_linear_priv = NULL;
-	gfxchip_mapping_linear_offset = 0;
-	gfxchip_linear_read_b = dummy_read_b;
-	gfxchip_linear_read_w = dummy_read_w;
-	gfxchip_linear_read_l = dummy_read_l;
-	gfxchip_linear_write_b = dummy_write_b;
-	gfxchip_linear_write_w = dummy_write_w;
-	gfxchip_linear_write_l = dummy_write_l;
-	pci_card_read = NULL;
-	pci_card_write = NULL;
-	pci_card_priv = NULL;
-	timer_head = NULL;
-	gfxboard_priv = gfxboard;
-	video_init_tables(swapped);
+	video_init_tables();
 
-	void *priv = device_add_common(dev, 0);
-	board_svga = svga_get_pri();
-	*svga = board_svga;
-	return priv;
+	struct gfxchip *c = xcalloc(struct gfxchip, 1);
+	c->gfxboard = gfxboard;
+	c->index = index;
+	c->dev = dev;
+	c->target_bitmap = alloc_bitmap();
+	c->blit_bitmap = c->target_bitmap;
+	c->video_15to32 = xcalloc(uint32_t, 65536);
+	c->video_16to32 = xcalloc(uint32_t, 65536);
+	c->rbswapped = -1;
+	rbswap(c, swapped);
+	c->mapblocks = xcalloc(mem_mapping_t *, MAX_MAPBLOCKS);
+	struct gfxchip_linear *l = &c->linear;
+	l->read_b = dummy_read_b;
+	l->read_w = dummy_read_w;
+	l->read_l = dummy_read_l;
+	l->write_b = dummy_write_b;
+	l->write_w = dummy_write_w;
+	l->write_l = dummy_write_l;
+
+	monitor_t *m = &monitors[index];
+	memset(m, 0, sizeof(monitor_t));
+	m->mon_xsize = 640;
+	m->mon_ysize = 480;
+	m->mon_bpp = 8;
+	m->mon_changeframecount = 2;
+	m->target_buffer = c->target_bitmap;
+
+	chips[index] = c;
+	/* A freed board may have had the same address */
+	chip_current = NULL;
+	enter(c);
+	c->priv = device_add_common(dev, 0);
+	*priv = c->priv;
+	*svga = c->svga;
+	return c;
 }
 
-void gfxchip_device_close(const device_t *dev, void *priv)
+void gfxchip_device_close(struct gfxchip *c)
 {
+	if (!c) {
+		return;
+	}
+	enter(c);
 	/* The card is the first device, its RAMDAC and friends follow it */
-	close_devices();
-	board_svga = NULL;
-	timer_head = NULL;
+	close_devices(c);
+	chips[c->index] = NULL;
+	chip_current = NULL;
+	memset(&monitors[c->index], 0, sizeof(monitor_t));
+	for (int i = 0; i < MAX_IO_PORT; i++) {
+		xfree(c->ports[i]);
+	}
+	xfree(c->mapblocks);
+	xfree(c->video_15to32);
+	xfree(c->video_16to32);
+	free_bitmap(c->target_bitmap);
+	free_bitmap(c->double_bitmap);
+	xfree(c);
 }
 
-void gfxchip_device_force_redraw(const device_t *dev, void *priv)
+void gfxchip_device_force_redraw(struct gfxchip *c)
 {
-	if (dev->force_redraw) {
-		dev->force_redraw(priv);
+	enter(c);
+	if (c->dev->force_redraw) {
+		c->dev->force_redraw(c->priv);
 	}
 }
 
@@ -1159,12 +1299,26 @@ void log_close(void *priv)
 struct rtg_thread
 {
 	uae_thread_id tid;
+	void (*func)(void *param);
+	void *param;
+	struct gfxchip *chip;
 };
 
+static void rtg_thread_start(void *p)
+{
+	struct rtg_thread *t = (struct rtg_thread *)p;
+	chip_thread = t->chip;
+	t->func(t->param);
+}
+
+/* The thread works for the board that creates it */
 thread_t *thread_create_named(void (*thread_func)(void *param), void *param, const char *name)
 {
 	struct rtg_thread *t = xcalloc(struct rtg_thread, 1);
-	if (!uae_start_thread(_T("86Box video"), thread_func, param, &t->tid)) {
+	t->func = thread_func;
+	t->param = param;
+	t->chip = current_chip();
+	if (!uae_start_thread(_T("86Box video"), rtg_thread_start, t, &t->tid)) {
 		xfree(t);
 		return NULL;
 	}

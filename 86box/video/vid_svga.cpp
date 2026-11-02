@@ -1885,7 +1885,7 @@ svga_init(const device_t *info, svga_t *svga, void *priv, int memsize,
     svga->bpp               = 8;
 #ifdef UAE
     /* The board's VRAM, the Amiga can map it directly */
-    svga->vram              = (uint8_t *) gfxchip_getvram(memsize);
+    svga->vram              = (uint8_t *) gfxchip_svga_vram(svga, memsize);
 #else
     svga->vram              = (uint8_t *) calloc(memsize + 4096, 1);
 #endif
