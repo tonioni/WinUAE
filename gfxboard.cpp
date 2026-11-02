@@ -2,7 +2,7 @@
 * UAE - The Un*x Amiga Emulator
 *
 * Cirrus Logic based graphics board emulation
-* PCem/86box glue interface + boards.
+* 86Box graphics chip glue interface + boards.
 *
 * Copyright 2013-2024 Toni Wilen
 *
@@ -115,7 +115,7 @@ struct gfxboard
 	uae_u32 romtype;
 	uae_u8 er_type;
 	struct gfxboard_func *func;
-	const device_t *pcemdev;
+	const device_t *gfxchipdev;
 	uae_u8 er_flags;
 	int bustype;
 };
@@ -500,20 +500,20 @@ struct rtggfxboard
 	addrbank gfxboard_bank_registers2;
 	addrbank gfxboard_bank_special;
 
-	addrbank gfxboard_bank_vram_pcem;
-	addrbank gfxboard_bank_vram_normal_pcem;
-	addrbank gfxboard_bank_vram_wordswap_pcem;
-	addrbank gfxboard_bank_vram_longswap_pcem;
-	addrbank gfxboard_bank_vram_cv_1_pcem;
-	addrbank gfxboard_bank_vram_p4z2_pcem;
-	addrbank gfxboard_bank_io_pcem;
-	addrbank gfxboard_bank_io_swap_pcem;
-	addrbank gfxboard_bank_io_swap2_pcem;
-	addrbank gfxboard_bank_pci_pcem;
-	addrbank gfxboard_bank_mmio_pcem;
-	addrbank gfxboard_bank_mmio_wbs_pcem;
-	addrbank gfxboard_bank_mmio_lbs_pcem;
-	addrbank gfxboard_bank_special_pcem;
+	addrbank gfxboard_bank_vram_gfxchip;
+	addrbank gfxboard_bank_vram_normal_gfxchip;
+	addrbank gfxboard_bank_vram_wordswap_gfxchip;
+	addrbank gfxboard_bank_vram_longswap_gfxchip;
+	addrbank gfxboard_bank_vram_cv_1_gfxchip;
+	addrbank gfxboard_bank_vram_p4z2_gfxchip;
+	addrbank gfxboard_bank_io_gfxchip;
+	addrbank gfxboard_bank_io_swap_gfxchip;
+	addrbank gfxboard_bank_io_swap2_gfxchip;
+	addrbank gfxboard_bank_pci_gfxchip;
+	addrbank gfxboard_bank_mmio_gfxchip;
+	addrbank gfxboard_bank_mmio_wbs_gfxchip;
+	addrbank gfxboard_bank_mmio_lbs_gfxchip;
+	addrbank gfxboard_bank_special_gfxchip;
 	addrbank gfxboard_bank_bios;
 
 	addrbank *original_pci_bank;
@@ -525,24 +525,24 @@ struct rtggfxboard
 
 	struct gfxboard_func *func;
 
-	const device_t *pcemdev;
-	void *pcemobject; // device_t
-	void *pcemobject2; // svga_t
-	int pcem_mmio_offset;
-	int pcem_mmio_mask;
-	bool pcem_pci_configured;
-	int pcem_data[2];
-	int pcem_vram_offset;
-	int pcem_vram_mask;
-	int pcem_io_mask;
-	int pcem_vblank;
+	const device_t *gfxchipdev;
+	void *gfxchipobject; // device_t
+	void *gfxchipobject2; // svga_t
+	int gfxchip_mmio_offset;
+	int gfxchip_mmio_mask;
+	bool gfxchip_pci_configured;
+	int gfxchip_data[2];
+	int gfxchip_vram_offset;
+	int gfxchip_vram_mask;
+	int gfxchip_io_mask;
+	int gfxchip_vblank;
 	bool p4_revb;
 	uae_u8 *bios;
 	uae_u32 bios_mask;
 	int lfbbyteswapmode;
 	int mmiobyteswapmode;
 	struct pci_board_state *pcibs;
-	bool pcem_direct;
+	bool gfxchip_direct;
 	int lfbbar;
 
 	int width_redraw, height_redraw;
@@ -569,20 +569,20 @@ DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, nbsmem);
 DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, regs);
 DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboards, regs);
 
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_normal_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_wordswap_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_longswap_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_cv_1_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_p4z2_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, io_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, io_swap_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, io_swap2_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, pci_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, mmio_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, mmio_wbs_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, mmio_lbs_pcem);
-DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, special_pcem);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_normal_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_wordswap_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_longswap_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_cv_1_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, vram_p4z2_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, io_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, io_swap_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, io_swap2_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, pci_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, mmio_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, mmio_wbs_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, mmio_lbs_gfxchip);
+DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, special_gfxchip);
 DECLARE_MEMORY_FUNCTIONS_WITH_SUFFIX(gfxboard, bios);
 
 static const addrbank tmpl_gfxboard_bank_memory = {
@@ -650,114 +650,114 @@ static const addrbank tmpl_gfxboard_bank_special = {
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
-static const addrbank tmpl_gfxboard_bank_vram_pcem = {
-	gfxboard_lget_vram_pcem, gfxboard_wget_vram_pcem, gfxboard_bget_vram_pcem,
-	gfxboard_lput_vram_pcem, gfxboard_wput_vram_pcem, gfxboard_bput_vram_pcem,
-	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM"),
-	gfxboard_lget_vram_pcem, gfxboard_wget_vram_pcem,
+static const addrbank tmpl_gfxboard_bank_vram_gfxchip = {
+	gfxboard_lget_vram_gfxchip, gfxboard_wget_vram_gfxchip, gfxboard_bget_vram_gfxchip,
+	gfxboard_lput_vram_gfxchip, gfxboard_wput_vram_gfxchip, gfxboard_bput_vram_gfxchip,
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("86Box SVGA VRAM"),
+	gfxboard_lget_vram_gfxchip, gfxboard_wget_vram_gfxchip,
 	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
-static const addrbank tmpl_gfxboard_bank_vram_normal_pcem = {
-	gfxboard_lget_vram_normal_pcem, gfxboard_wget_vram_normal_pcem, gfxboard_bget_vram_normal_pcem,
-	gfxboard_lput_vram_normal_pcem, gfxboard_wput_vram_normal_pcem, gfxboard_bput_vram_normal_pcem,
-	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM (NOSWAP)"),
-	gfxboard_lget_vram_normal_pcem, gfxboard_wget_vram_normal_pcem,
+static const addrbank tmpl_gfxboard_bank_vram_normal_gfxchip = {
+	gfxboard_lget_vram_normal_gfxchip, gfxboard_wget_vram_normal_gfxchip, gfxboard_bget_vram_normal_gfxchip,
+	gfxboard_lput_vram_normal_gfxchip, gfxboard_wput_vram_normal_gfxchip, gfxboard_bput_vram_normal_gfxchip,
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("86Box SVGA VRAM (NOSWAP)"),
+	gfxboard_lget_vram_normal_gfxchip, gfxboard_wget_vram_normal_gfxchip,
 	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
-static const addrbank tmpl_gfxboard_bank_vram_wordswap_pcem = {
-	gfxboard_lget_vram_wordswap_pcem, gfxboard_wget_vram_wordswap_pcem, gfxboard_bget_vram_wordswap_pcem,
-	gfxboard_lput_vram_wordswap_pcem, gfxboard_wput_vram_wordswap_pcem, gfxboard_bput_vram_wordswap_pcem,
-	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM (WORDSWAP)"),
-	gfxboard_lget_vram_wordswap_pcem, gfxboard_wget_vram_wordswap_pcem,
+static const addrbank tmpl_gfxboard_bank_vram_wordswap_gfxchip = {
+	gfxboard_lget_vram_wordswap_gfxchip, gfxboard_wget_vram_wordswap_gfxchip, gfxboard_bget_vram_wordswap_gfxchip,
+	gfxboard_lput_vram_wordswap_gfxchip, gfxboard_wput_vram_wordswap_gfxchip, gfxboard_bput_vram_wordswap_gfxchip,
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("86Box SVGA VRAM (WORDSWAP)"),
+	gfxboard_lget_vram_wordswap_gfxchip, gfxboard_wget_vram_wordswap_gfxchip,
 	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
-static const addrbank tmpl_gfxboard_bank_vram_longswap_pcem = {
-	gfxboard_lget_vram_longswap_pcem, gfxboard_wget_vram_longswap_pcem, gfxboard_bget_vram_longswap_pcem,
-	gfxboard_lput_vram_longswap_pcem, gfxboard_wput_vram_longswap_pcem, gfxboard_bput_vram_longswap_pcem,
-	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM (LONGSWAP)"),
-	gfxboard_lget_vram_longswap_pcem, gfxboard_wget_vram_longswap_pcem,
+static const addrbank tmpl_gfxboard_bank_vram_longswap_gfxchip = {
+	gfxboard_lget_vram_longswap_gfxchip, gfxboard_wget_vram_longswap_gfxchip, gfxboard_bget_vram_longswap_gfxchip,
+	gfxboard_lput_vram_longswap_gfxchip, gfxboard_wput_vram_longswap_gfxchip, gfxboard_bput_vram_longswap_gfxchip,
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("86Box SVGA VRAM (LONGSWAP)"),
+	gfxboard_lget_vram_longswap_gfxchip, gfxboard_wget_vram_longswap_gfxchip,
 	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
-static const addrbank tmpl_gfxboard_bank_vram_cv_1_pcem = {
-	gfxboard_lget_vram_cv_1_pcem, gfxboard_wget_vram_cv_1_pcem, gfxboard_bget_vram_cv_1_pcem,
-	gfxboard_lput_vram_cv_1_pcem, gfxboard_wput_vram_cv_1_pcem, gfxboard_bput_vram_cv_1_pcem,
-	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM (CV64)"),
-	gfxboard_lget_vram_cv_1_pcem, gfxboard_wget_vram_cv_1_pcem,
+static const addrbank tmpl_gfxboard_bank_vram_cv_1_gfxchip = {
+	gfxboard_lget_vram_cv_1_gfxchip, gfxboard_wget_vram_cv_1_gfxchip, gfxboard_bget_vram_cv_1_gfxchip,
+	gfxboard_lput_vram_cv_1_gfxchip, gfxboard_wput_vram_cv_1_gfxchip, gfxboard_bput_vram_cv_1_gfxchip,
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("86Box SVGA VRAM (CV64)"),
+	gfxboard_lget_vram_cv_1_gfxchip, gfxboard_wget_vram_cv_1_gfxchip,
 	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
-static const addrbank tmpl_gfxboard_bank_vram_p4z2_pcem = {
-	gfxboard_lget_vram_p4z2_pcem, gfxboard_wget_vram_p4z2_pcem, gfxboard_bget_vram_p4z2_pcem,
-	gfxboard_lput_vram_p4z2_pcem, gfxboard_wput_vram_p4z2_pcem, gfxboard_bput_vram_p4z2_pcem,
-	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM (PIVZ2)"),
-	gfxboard_lget_vram_p4z2_pcem, gfxboard_wget_vram_p4z2_pcem,
+static const addrbank tmpl_gfxboard_bank_vram_p4z2_gfxchip = {
+	gfxboard_lget_vram_p4z2_gfxchip, gfxboard_wget_vram_p4z2_gfxchip, gfxboard_bget_vram_p4z2_gfxchip,
+	gfxboard_lput_vram_p4z2_gfxchip, gfxboard_wput_vram_p4z2_gfxchip, gfxboard_bput_vram_p4z2_gfxchip,
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("86Box SVGA VRAM (PIVZ2)"),
+	gfxboard_lget_vram_p4z2_gfxchip, gfxboard_wget_vram_p4z2_gfxchip,
 	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
-static const addrbank tmpl_gfxboard_bank_io_pcem = {
-	gfxboard_lget_io_pcem, gfxboard_wget_io_pcem, gfxboard_bget_io_pcem,
-	gfxboard_lput_io_pcem, gfxboard_wput_io_pcem, gfxboard_bput_io_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA IO SWAP"),
+static const addrbank tmpl_gfxboard_bank_io_gfxchip = {
+	gfxboard_lget_io_gfxchip, gfxboard_wget_io_gfxchip, gfxboard_bget_io_gfxchip,
+	gfxboard_lput_io_gfxchip, gfxboard_wput_io_gfxchip, gfxboard_bput_io_gfxchip,
+	default_xlate, default_check, NULL, NULL, _T("86Box SVGA IO SWAP"),
 	dummy_lgeti, dummy_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
-static const addrbank tmpl_gfxboard_bank_io_swap_pcem = {
-	gfxboard_lget_io_swap_pcem, gfxboard_wget_io_swap_pcem, gfxboard_bget_io_swap_pcem,
-	gfxboard_lput_io_swap_pcem, gfxboard_wput_io_swap_pcem, gfxboard_bput_io_swap_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA IO SWAP"),
+static const addrbank tmpl_gfxboard_bank_io_swap_gfxchip = {
+	gfxboard_lget_io_swap_gfxchip, gfxboard_wget_io_swap_gfxchip, gfxboard_bget_io_swap_gfxchip,
+	gfxboard_lput_io_swap_gfxchip, gfxboard_wput_io_swap_gfxchip, gfxboard_bput_io_swap_gfxchip,
+	default_xlate, default_check, NULL, NULL, _T("86Box SVGA IO SWAP"),
 	dummy_lgeti, dummy_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
-static const addrbank tmpl_gfxboard_bank_io_swap2_pcem = {
-	gfxboard_lget_io_swap2_pcem, gfxboard_wget_io_swap2_pcem, gfxboard_bget_io_swap2_pcem,
-	gfxboard_lput_io_swap2_pcem, gfxboard_wput_io_swap2_pcem, gfxboard_bput_io_swap2_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA IO SWAP2"),
+static const addrbank tmpl_gfxboard_bank_io_swap2_gfxchip = {
+	gfxboard_lget_io_swap2_gfxchip, gfxboard_wget_io_swap2_gfxchip, gfxboard_bget_io_swap2_gfxchip,
+	gfxboard_lput_io_swap2_gfxchip, gfxboard_wput_io_swap2_gfxchip, gfxboard_bput_io_swap2_gfxchip,
+	default_xlate, default_check, NULL, NULL, _T("86Box SVGA IO SWAP2"),
 	dummy_lgeti, dummy_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
-static const addrbank tmpl_gfxboard_bank_pci_pcem = {
-	gfxboard_lget_pci_pcem, gfxboard_wget_pci_pcem, gfxboard_bget_pci_pcem,
-	gfxboard_lput_pci_pcem, gfxboard_wput_pci_pcem, gfxboard_bput_pci_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA PCI"),
+static const addrbank tmpl_gfxboard_bank_pci_gfxchip = {
+	gfxboard_lget_pci_gfxchip, gfxboard_wget_pci_gfxchip, gfxboard_bget_pci_gfxchip,
+	gfxboard_lput_pci_gfxchip, gfxboard_wput_pci_gfxchip, gfxboard_bput_pci_gfxchip,
+	default_xlate, default_check, NULL, NULL, _T("86Box SVGA PCI"),
 	dummy_lgeti, dummy_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
-static const addrbank tmpl_gfxboard_bank_mmio_pcem = {
-	gfxboard_lget_mmio_pcem, gfxboard_wget_mmio_pcem, gfxboard_bget_mmio_pcem,
-	gfxboard_lput_mmio_pcem, gfxboard_wput_mmio_pcem, gfxboard_bput_mmio_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA MMIO"),
+static const addrbank tmpl_gfxboard_bank_mmio_gfxchip = {
+	gfxboard_lget_mmio_gfxchip, gfxboard_wget_mmio_gfxchip, gfxboard_bget_mmio_gfxchip,
+	gfxboard_lput_mmio_gfxchip, gfxboard_wput_mmio_gfxchip, gfxboard_bput_mmio_gfxchip,
+	default_xlate, default_check, NULL, NULL, _T("86Box SVGA MMIO"),
 	dummy_lgeti, dummy_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
-static const addrbank tmpl_gfxboard_bank_mmio_wbs_pcem = {
-	gfxboard_lget_mmio_wbs_pcem, gfxboard_wget_mmio_wbs_pcem, gfxboard_bget_mmio_wbs_pcem,
-	gfxboard_lput_mmio_wbs_pcem, gfxboard_wput_mmio_wbs_pcem, gfxboard_bput_mmio_wbs_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA MMIO WORDSWAP"),
+static const addrbank tmpl_gfxboard_bank_mmio_wbs_gfxchip = {
+	gfxboard_lget_mmio_wbs_gfxchip, gfxboard_wget_mmio_wbs_gfxchip, gfxboard_bget_mmio_wbs_gfxchip,
+	gfxboard_lput_mmio_wbs_gfxchip, gfxboard_wput_mmio_wbs_gfxchip, gfxboard_bput_mmio_wbs_gfxchip,
+	default_xlate, default_check, NULL, NULL, _T("86Box SVGA MMIO WORDSWAP"),
 	dummy_lgeti, dummy_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
-static const addrbank tmpl_gfxboard_bank_mmio_lbs_pcem = {
-	gfxboard_lget_mmio_lbs_pcem, gfxboard_wget_mmio_lbs_pcem, gfxboard_bget_mmio_lbs_pcem,
-	gfxboard_lput_mmio_lbs_pcem, gfxboard_wput_mmio_lbs_pcem, gfxboard_bput_mmio_lbs_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA MMIO WORDSWAP"),
+static const addrbank tmpl_gfxboard_bank_mmio_lbs_gfxchip = {
+	gfxboard_lget_mmio_lbs_gfxchip, gfxboard_wget_mmio_lbs_gfxchip, gfxboard_bget_mmio_lbs_gfxchip,
+	gfxboard_lput_mmio_lbs_gfxchip, gfxboard_wput_mmio_lbs_gfxchip, gfxboard_bput_mmio_lbs_gfxchip,
+	default_xlate, default_check, NULL, NULL, _T("86Box SVGA MMIO WORDSWAP"),
 	dummy_lgeti, dummy_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
 
-static const addrbank tmpl_gfxboard_bank_special_pcem = {
-	gfxboard_lget_special_pcem, gfxboard_wget_special_pcem, gfxboard_bget_special_pcem,
-	gfxboard_lput_special_pcem, gfxboard_wput_special_pcem, gfxboard_bput_special_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA SPC"),
+static const addrbank tmpl_gfxboard_bank_special_gfxchip = {
+	gfxboard_lget_special_gfxchip, gfxboard_wget_special_gfxchip, gfxboard_bget_special_gfxchip,
+	gfxboard_lput_special_gfxchip, gfxboard_wput_special_gfxchip, gfxboard_bput_special_gfxchip,
+	default_xlate, default_check, NULL, NULL, _T("86Box SVGA SPC"),
 	dummy_lgeti, dummy_wgeti,
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
@@ -827,19 +827,19 @@ void gfxboard_free_vram(int index)
 		vram_ram_a8 = 0;
 }
 
-// PCEM
-static void pcem_flush(struct rtggfxboard* gb, int index)
+// 86Box graphics chip glue
+static void gfxchip_flush(struct rtggfxboard* gb, int index)
 {
-	if (gb->pcem_direct) {
+	if (gb->gfxchip_direct) {
 		uae_u8 **buf;
 		uae_u8 *start;
 		int cnt = picasso_getwritewatch(index, gb->vram_start_offset, &buf, &start);
 		if (cnt < 0) {
-			pcem_device_force_redraw(gb->pcemdev, gb->pcemobject);
+			gfxchip_device_force_redraw(gb->gfxchipdev, gb->gfxchipobject);
 		} else {
 			for (int i = 0; i < cnt; i++) {
 				int offset = (int)(buf[i] - start);
-				pcem_linear_mark(offset);
+				gfxchip_linear_mark(offset);
 			}
 		}
 	}
@@ -849,8 +849,8 @@ void video_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h)
 {
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtggfxboard *gb = &rtggfxboards[i];
-		if (gb->pcemdev && gb->pcemobject) {
-			pcem_flush(gb, i);
+		if (gb->gfxchipdev && gb->gfxchipobject) {
+			gfxchip_flush(gb, i);
 			if (rtg_visible[gb->monitor_id] == i && gb->monswitch_delay == 0 && gb->monswitch_current == gb->monswitch_new) {
 				if (gb->gfxboard_surface == NULL) {
 					gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false);
@@ -875,31 +875,31 @@ void video_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h)
 					}
 					for (int yy = y1; yy < y2 && yy < vidinfo->maxheight; yy++) {
 						uae_u8 *d = gb->gfxboard_surface + yy * vidinfo->rowbytes;
-						uae_u8 *s = getpcembuffer32(x, y, yy);
+						uae_u8 *s = gfxchip_getbuffer32(x, y, yy);
 						int ww = w > vidinfo->maxwidth ? vidinfo->maxwidth : w;
 						memcpy(d, s, ww * vidinfo->pixbytes);
 					}
 				}
 			}
-			if (gb->pcem_direct) {
+			if (gb->gfxchip_direct) {
 				picasso_getwritewatch(i, 0, NULL, NULL);
 			}
 		}
 	}
 }
 
-static int gfxboard_pcem_poll(struct rtggfxboard *gb)
+static int gfxboard_gfxchip_poll(struct rtggfxboard *gb)
 {
 	static int toggle;
 	if (!gb->vram)
 		return 0;
 	// 1, 3, 1, 3,.. because some software needs to see hsync period.
-	int v = svga_poll_eod(gb->pcemobject2);
+	int v = svga_poll_eod(gb->gfxchipobject2);
 	if (toggle) {
 		if (!v) {
-			v |= svga_poll_eod(gb->pcemobject2);
+			v |= svga_poll_eod(gb->gfxchipobject2);
 			if (!v) {
-				v |= svga_poll_eod(gb->pcemobject2);
+				v |= svga_poll_eod(gb->gfxchipobject2);
 			}
 		}
 		toggle = 0;
@@ -913,7 +913,7 @@ static void gfxboard_rethink(void)
 {
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtggfxboard *gb = &rtggfxboards[i];
-		if (gb->pcemdev && gb->pcemobject) {
+		if (gb->gfxchipdev && gb->gfxchipobject) {
 			int irq = 0;
 			if (gb->board->bustype == GFXBOARD_BUSTYPE_DRACO) {
 #ifdef WITH_DRACO
@@ -950,17 +950,17 @@ static void gfxboard_hsync_handler(void)
 		if (gb->func && gb->userdata) {
 			gb->func->hsync(gb->userdata);
 		}
-		if (gb->pcemdev && gb->pcemobject2 && !gb->pcem_vblank) {
+		if (gb->gfxchipdev && gb->gfxchipobject2 && !gb->gfxchip_vblank) {
 			static int pollcnt;
 			bool pirq = gb->gfxboard_intreq_status;
-			int total = svga_get_vtotal(gb->pcemobject2);
+			int total = svga_get_vtotal(gb->gfxchipobject2);
 			if (total <= 0)
 				total = p96syncrate;
 			int pollsize = (total << 8) / p96syncrate;
 			pollcnt += pollsize;
 			while (pollcnt >= 256) {
-				if (gfxboard_pcem_poll(gb)) {
-					gb->pcem_vblank = 1;
+				if (gfxboard_gfxchip_poll(gb)) {
+					gb->gfxchip_vblank = 1;
 					pollcnt &= 0xff;
 					break;
 				}
@@ -974,7 +974,7 @@ static void gfxboard_hsync_handler(void)
 			}
 		}
 	}
-	pcemglue_hsync();
+	gfxchip_hsync();
 }
 
 static void init_initial(struct rtggfxboard *gb)
@@ -1010,10 +1010,10 @@ static void reinit_vram(struct rtggfxboard *gb, uaecptr vram, bool direct)
 	gb->vramrealstart = gb->vram;
 	gb->vram += gb->vram_start_offset;
 	gb->vramend += gb->vram_start_offset;
-	if (gb->pcemdev) {
-		svga_setvram(gb->pcemobject2, gb->vram);
+	if (gb->gfxchipdev) {
+		svga_setvram(gb->gfxchipobject2, gb->vram);
 		if (gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO3_PCI || gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO5_PCI) {
-			voodoo_update_vram(gb->pcemobject);
+			voodoo_update_vram(gb->gfxchipobject);
 		}
 	}
 }
@@ -1101,10 +1101,10 @@ static void init_board (struct rtggfxboard *gb)
 	if (chiptype) {
 		cirrus_init_common(&gb->vga, chiptype, 0, NULL, NULL, gb->board->manufacturer == 0, gb->board->romtype == ROMTYPE_x86_VGA);
 	}
-	gb->pcemdev = gb->board->pcemdev;
-	gb->pcem_pci_configured = false;
-	if (gb->pcemdev) {
-		gb->pcemobject = pcem_device_init(gb->pcemdev, gb, gb->board->swap, &gb->pcemobject2);
+	gb->gfxchipdev = gb->board->gfxchipdev;
+	gb->gfxchip_pci_configured = false;
+	if (gb->gfxchipdev) {
+		gb->gfxchipobject = gfxchip_device_init(gb->gfxchipdev, gb, gb->board->swap, &gb->gfxchipobject2);
 	}
 	picasso_allocatewritewatch(gb->rbc->rtg_index, gb->rbc->rtgmem_size);
 
@@ -1193,10 +1193,10 @@ static void gfxboard_free_slot2(struct rtggfxboard *gb)
 		ad->picasso_requested_on = false;
 		set_config_changed();
 	}
-	if (gb->pcemdev) {
-		if (gb->pcemobject) {
-			pcem_device_close(gb->pcemdev, gb->pcemobject);
-			gb->pcemobject = NULL;
+	if (gb->gfxchipdev) {
+		if (gb->gfxchipobject) {
+			gfxchip_device_close(gb->gfxchipdev, gb->gfxchipobject);
+			gb->gfxchipobject = NULL;
 		}
 	}
 	gb->userdata = NULL;
@@ -1294,7 +1294,7 @@ bool gfxboard_init_board(struct autoconfig_info *aci)
 		return false;
 	struct rtggfxboard *gb = &rtggfxboards[aci->devnum];
 	gb->func = gfxb->func;
-	gb->pcemdev = gfxb->pcemdev;
+	gb->gfxchipdev = gfxb->gfxchipdev;
 	gb->monitor_id = aci->prefs->rtgboards[aci->devnum].monitor_id;
 	memset(aci->autoconfig_bytes, 0xff, sizeof aci->autoconfig_bytes);
 	if (!gb->automemory)
@@ -1335,7 +1335,7 @@ bool gfxboard_init_board(struct autoconfig_info *aci)
 
 static void vga_update_size_ext(struct rtggfxboard *gb)
 {
-	if (!gb->pcemdev) {
+	if (!gb->gfxchipdev) {
 		// this forces qemu_console_resize() call
 		gb->vga.vga.graphic_mode = -1;
 		gb->vga.vga.monid = gb->monitor_id;
@@ -1355,7 +1355,7 @@ static bool gfxboard_setmode_ext(struct rtggfxboard *gb)
 {
 	int bpp;
 
-	if (gb->pcemdev) {
+	if (gb->gfxchipdev) {
 		bpp = 32;
 	} else {
 		bpp = gb->vga.vga.get_bpp(&gb->vga.vga);
@@ -1513,7 +1513,7 @@ static bool gfxboard_checkchanged(struct rtggfxboard *gb)
 {
 	struct picasso96_state_struct *state = &picasso96_state[gb->monitor_id];
 	int bpp;
-	if (gb->pcemdev) {
+	if (gb->gfxchipdev) {
 		bpp = 32;
 	} else {
 		bpp = gb->vga.vga.get_bpp(&gb->vga.vga);
@@ -1723,25 +1723,25 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 
 		} else 	if (gb->configured_mem > 0 && gb->configured_regs > 0) {
 
-			if (gb->pcemdev) {
+			if (gb->gfxchipdev) {
 				static int fcount;
-				if (!gb->pcem_vblank && gb->pcemobject2) {
-					int max = svga_get_vtotal(gb->pcemobject2);
+				if (!gb->gfxchip_vblank && gb->gfxchipobject2) {
+					int max = svga_get_vtotal(gb->gfxchipobject2);
 					while (max-- > 0) {
-						if (gfxboard_pcem_poll(gb))
+						if (gfxboard_gfxchip_poll(gb))
 							break;
 					}
 				}
-				gb->pcem_vblank = 0;
+				gb->gfxchip_vblank = 0;
 				extern int console_logging;
 #if 0
 				if (console_logging) {
 					fcount++;
 					if ((fcount % 50) == 0) {
-						if (gb->pcemobject && gb->pcemdev->add_status_info) {
+						if (gb->gfxchipobject && gb->gfxchipdev->add_status_info) {
 							char txt[1024];
 							txt[0] = 0;
-							gb->pcemdev->add_status_info(txt, sizeof(txt), gb->pcemobject);
+							gb->gfxchipdev->add_status_info(txt, sizeof(txt), gb->gfxchipobject);
 							TCHAR *s = au(txt);
 							write_log(_T("%s"), s);
 							xfree(s);
@@ -1750,7 +1750,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 				}
 #endif
 				if (((!gb->board->hasswitcher && gb->rbc->autoswitch) || gb->board->id == GFXBOARD_ID_ALTAIS_Z3) && gb->vram) {
-					bool on = svga_on(gb->pcemobject2);
+					bool on = svga_on(gb->gfxchipobject2);
 					set_monswitch(gb, on);
 				}
 			}
@@ -1796,7 +1796,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 				gb->monswitch_delay = 0;
 			}
 			// Vertical Sync End Register, 0x20 = Disable Vertical Interrupt, 0x10 = Clear Vertical Interrupt.
-			if (!gb->pcemdev && gb->board->irq) {
+			if (!gb->gfxchipdev && gb->board->irq) {
 				if ((!(gb->vga.vga.cr[0x11] & 0x20) && (gb->vga.vga.cr[0x11] & 0x10) && !(gb->vga.vga.gr[0x17] & 4))) {
 					if (gb->gfxboard_intena) {
 						gb->gfxboard_intreq = true;
@@ -1847,7 +1847,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 			continue;
 
 		if (!gb->monswitch_delay && gb->monswitch_current && ad->picasso_on && ad->picasso_requested_on && !gb->resolutionchange) {
-			if (!gb->pcemdev) {
+			if (!gb->gfxchipdev) {
 				if (picasso_getwritewatch(i, gb->vram_start_offset, NULL, NULL) < 0) {
 					gb->fullrefresh = 1;
 				}
@@ -1857,11 +1857,11 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 				gb->vga.vga.hw_ops->gfx_update(&gb->vga);
 				gb->vga_refresh_active = false;
 			} else {
-				if (gb->pcemobject) {
+				if (gb->gfxchipobject) {
 					if (gb->fullrefresh) {
-						pcem_device_force_redraw(gb->pcemdev, gb->pcemobject);
+						gfxchip_device_force_redraw(gb->gfxchipdev, gb->gfxchipobject);
 					} else {
-						pcem_flush(gb, i);
+						gfxchip_flush(gb, i);
 					}
 				}
 			}
@@ -2031,9 +2031,9 @@ static void picassoiv_checkswitch (struct rtggfxboard *gb)
 	if (ISP4()) {
 		uae_u8 v = 0;
 		bool rtg_active = (gb->picassoiv_flifi & 1) == 0;
-		if (gb->pcemdev) {
-			if (gb->pcemobject) {
-				v = pcem_read_io(0x3d5, 0x51);
+		if (gb->gfxchipdev) {
+			if (gb->gfxchipobject) {
+				v = gfxchip_read_io(0x3d5, 0x51);
 			}
 		} else {
 			v = gb->vga.vga.cr[0x51];
@@ -2851,15 +2851,15 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 		gb->gfxboard_bank_memory.bget = gfxboard_bget_mem;
 		gb->gfxboard_bank_memory.bput = gfxboard_bput_mem;
 		gb->gfxboard_bank_memory.wput = gfxboard_wput_mem;
-		if (gb->board->pcemdev) {
+		if (gb->board->gfxchipdev) {
 			if (boardnum == GFXBOARD_ID_CV643D_Z3) {
 				gb->gfxboardmem_start += 0x4000000;
 			}
 		}
 		init_board(gb);
 		copyvrambank(&gb->gfxboard_bank_memory, gb->gfxmem_bank, true);
-		copyvrambank(&gb->gfxboard_bank_vram_pcem, gb->gfxmem_bank, true);
-		if (ISP4() && !gb->board->pcemdev) {
+		copyvrambank(&gb->gfxboard_bank_vram_gfxchip, gb->gfxmem_bank, true);
+		if (ISP4() && !gb->board->gfxchipdev) {
 			if (validate_banks_z3(&gb->gfxboard_bank_memory, gb->gfxmem_bank->start >> 16, expamem_board_size >> 16)) {
 				// main vram
 				map_banks_z3(&gb->gfxboard_bank_memory, (gb->gfxmem_bank->start + PICASSOIV_VRAM1) >> 16, 0x400000 >> 16);
@@ -2875,51 +2875,51 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 			gb->picassoiv_flifi = 1;
 			gb->configured_regs = gb->gfxmem_bank->start >> 16;
 
-		} else if (gb->board->pcemdev) {
+		} else if (gb->board->gfxchipdev) {
 
 			if (boardnum == GFXBOARD_ID_CV64_Z3) {
 
-				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x40000) >> 16, 1);
-				map_banks_z3(&gb->gfxboard_bank_vram_cv_1_pcem, (start + 0x1400000) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-				map_banks_z3(&gb->gfxboard_bank_vram_cv_1_pcem, (start + 0x3400000) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-				map_banks_z3(&gb->gfxboard_bank_io_pcem, (start + 0x2000000) >> 16, 1);
-				gb->pcem_mmio_offset = 0x1000000;
-				gb->pcem_mmio_mask = 0xffff;
-				gb->pcem_io_mask = 0xffff;
+				map_banks_z3(&gb->gfxboard_bank_special_gfxchip, (start + 0x40000) >> 16, 1);
+				map_banks_z3(&gb->gfxboard_bank_vram_cv_1_gfxchip, (start + 0x1400000) >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16);
+				map_banks_z3(&gb->gfxboard_bank_vram_cv_1_gfxchip, (start + 0x3400000) >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16);
+				map_banks_z3(&gb->gfxboard_bank_io_gfxchip, (start + 0x2000000) >> 16, 1);
+				gb->gfxchip_mmio_offset = 0x1000000;
+				gb->gfxchip_mmio_mask = 0xffff;
+				gb->gfxchip_io_mask = 0xffff;
 				gb->configured_regs = gb->gfxmem_bank->start >> 16;
-				gb->pcem_vram_mask = 0x3fffff;
+				gb->gfxchip_vram_mask = 0x3fffff;
 
 			} else if (boardnum == GFXBOARD_ID_CV643D_Z3) {
 
-				map_banks_z3(&gb->gfxboard_bank_vram_pcem, (start + 0x4000000) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-				map_banks_z3(&gb->gfxboard_bank_vram_pcem, (start + 0x4400000) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-				map_banks_z3(&gb->gfxboard_bank_vram_pcem, (start + 0x4800000) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-				map_banks_z3(&gb->gfxboard_bank_vram_pcem, (start + 0x4c00000) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-				map_banks_z3(&gb->gfxboard_bank_mmio_pcem, (start + 0x5000000) >> 16, 1);
-				map_banks_z3(&gb->gfxboard_bank_mmio_wbs_pcem, (start + 0x5800000) >> 16, 1);
-				map_banks_z3(&gb->gfxboard_bank_mmio_lbs_pcem, (start + 0x7000000) >> 16, 1);
-				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x8000000) >> 16, 1);
-				map_banks_z3(&gb->gfxboard_bank_io_swap2_pcem, (start + 0xc000000) >> 16, 4);
-				map_banks_z3(&gb->gfxboard_bank_pci_pcem, (start + 0xc0e0000) >> 16, 4);
-				gb->pcem_mmio_offset = 0x1000000;
-				gb->pcem_mmio_mask = 0xffff;
-				gb->pcem_io_mask = 0x3fff;
+				map_banks_z3(&gb->gfxboard_bank_vram_gfxchip, (start + 0x4000000) >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16);
+				map_banks_z3(&gb->gfxboard_bank_vram_gfxchip, (start + 0x4400000) >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16);
+				map_banks_z3(&gb->gfxboard_bank_vram_gfxchip, (start + 0x4800000) >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16);
+				map_banks_z3(&gb->gfxboard_bank_vram_gfxchip, (start + 0x4c00000) >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16);
+				map_banks_z3(&gb->gfxboard_bank_mmio_gfxchip, (start + 0x5000000) >> 16, 1);
+				map_banks_z3(&gb->gfxboard_bank_mmio_wbs_gfxchip, (start + 0x5800000) >> 16, 1);
+				map_banks_z3(&gb->gfxboard_bank_mmio_lbs_gfxchip, (start + 0x7000000) >> 16, 1);
+				map_banks_z3(&gb->gfxboard_bank_special_gfxchip, (start + 0x8000000) >> 16, 1);
+				map_banks_z3(&gb->gfxboard_bank_io_swap2_gfxchip, (start + 0xc000000) >> 16, 4);
+				map_banks_z3(&gb->gfxboard_bank_pci_gfxchip, (start + 0xc0e0000) >> 16, 4);
+				gb->gfxchip_mmio_offset = 0x1000000;
+				gb->gfxchip_mmio_mask = 0xffff;
+				gb->gfxchip_io_mask = 0x3fff;
 				gb->configured_regs = gb->gfxmem_bank->start >> 16;
-				gb->pcem_vram_mask = 0x3fffff;
+				gb->gfxchip_vram_mask = 0x3fffff;
 
 			} else if (boardnum == GFXBOARD_ID_PICASSO4_Z3) {
 
 				gb->p4_special_start = start;
-				map_banks_z3(&gb->gfxboard_bank_special_pcem, start >> 16, PICASSOIV_REG >> 16);
-				map_banks_z3(&gb->gfxboard_bank_io_swap_pcem, (start + PICASSOIV_REG) >> 16, 4);
-				map_banks_z3(&gb->gfxboard_bank_vram_longswap_pcem, (start + PICASSOIV_VRAM1) >> 16, 0x400000 >> 16);
-				map_banks_z3(&gb->gfxboard_bank_vram_wordswap_pcem, (start + PICASSOIV_VRAM1 + 0x400000) >> 16, 0x400000 >> 16);
-				map_banks_z3(&gb->gfxboard_bank_vram_longswap_pcem, (start + PICASSOIV_VRAM2) >> 16, 0x400000 >> 16);
-				map_banks_z3(&gb->gfxboard_bank_vram_wordswap_pcem, (start + PICASSOIV_VRAM2 + 0x400000) >> 16, 0x400000 >> 16);
-				gb->pcem_mmio_offset = 0xb8000;
-				gb->pcem_mmio_mask = 0xffff;
-				gb->pcem_io_mask = 0x3fff;
-				gb->pcem_vram_mask = 0x3fffff;
+				map_banks_z3(&gb->gfxboard_bank_special_gfxchip, start >> 16, PICASSOIV_REG >> 16);
+				map_banks_z3(&gb->gfxboard_bank_io_swap_gfxchip, (start + PICASSOIV_REG) >> 16, 4);
+				map_banks_z3(&gb->gfxboard_bank_vram_longswap_gfxchip, (start + PICASSOIV_VRAM1) >> 16, 0x400000 >> 16);
+				map_banks_z3(&gb->gfxboard_bank_vram_wordswap_gfxchip, (start + PICASSOIV_VRAM1 + 0x400000) >> 16, 0x400000 >> 16);
+				map_banks_z3(&gb->gfxboard_bank_vram_longswap_gfxchip, (start + PICASSOIV_VRAM2) >> 16, 0x400000 >> 16);
+				map_banks_z3(&gb->gfxboard_bank_vram_wordswap_gfxchip, (start + PICASSOIV_VRAM2 + 0x400000) >> 16, 0x400000 >> 16);
+				gb->gfxchip_mmio_offset = 0xb8000;
+				gb->gfxchip_mmio_mask = 0xffff;
+				gb->gfxchip_io_mask = 0x3fff;
+				gb->gfxchip_vram_mask = 0x3fffff;
 
 				gb->picassoiv_bank = 0;
 				gb->picassoiv_flifi = 1;
@@ -2928,69 +2928,69 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 			} else if (boardnum == GFXBOARD_ID_PICCOLO_Z3 || boardnum == GFXBOARD_ID_SPECTRUM_Z3) {
 
 				// VRAM +0x800000. WORD/LONG endian swap hardware.
-				map_banks_z3(&gb->gfxboard_bank_vram_pcem, start  >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-				gb->pcem_vram_offset = 0x800000;
-				gb->pcem_vram_mask = 0x1fffff;
-				gb->pcem_io_mask = 0x3fff;
+				map_banks_z3(&gb->gfxboard_bank_vram_gfxchip, start  >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16);
+				gb->gfxchip_vram_offset = 0x800000;
+				gb->gfxchip_vram_mask = 0x1fffff;
+				gb->gfxchip_io_mask = 0x3fff;
 
 			} else if (boardnum == GFXBOARD_ID_SD64_Z3) {
 
-				map_banks_z3(&gb->gfxboard_bank_vram_pcem, start >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-				gb->pcem_vram_offset = 0x800000;
-				gb->pcem_vram_mask = 0x3fffff;
-				gb->pcem_io_mask = 0x3fff;
+				map_banks_z3(&gb->gfxboard_bank_vram_gfxchip, start >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16);
+				gb->gfxchip_vram_offset = 0x800000;
+				gb->gfxchip_vram_mask = 0x3fffff;
+				gb->gfxchip_io_mask = 0x3fff;
 
 			} else if (boardnum == GFXBOARD_ID_RETINA_Z3) {
 
 				uae_u32 offset = 0xc00000;
 				for (;;) {
-					map_banks_z3(&gb->gfxboard_bank_vram_pcem, (start + offset) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-					offset += gb->gfxboard_bank_vram_pcem.allocated_size;
+					map_banks_z3(&gb->gfxboard_bank_vram_gfxchip, (start + offset) >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16);
+					offset += gb->gfxboard_bank_vram_gfxchip.allocated_size;
 					if (offset >= 0x1000000)
 						break;
 				}
-				map_banks_z3(&gb->gfxboard_bank_mmio_wbs_pcem, (start + 0xb00000) >> 16, 1);
-				map_banks_z3(&gb->gfxboard_bank_io_swap_pcem, (start + 0x000000) >> 16, 1);
-				gb->pcem_vram_offset = 0x800000;
-				gb->pcem_vram_mask = 0x3fffff;
-				gb->pcem_io_mask = 0x3fff;
-				gb->pcem_mmio_offset = 0x00300000;
-				gb->pcem_mmio_mask = 0xff;
+				map_banks_z3(&gb->gfxboard_bank_mmio_wbs_gfxchip, (start + 0xb00000) >> 16, 1);
+				map_banks_z3(&gb->gfxboard_bank_io_swap_gfxchip, (start + 0x000000) >> 16, 1);
+				gb->gfxchip_vram_offset = 0x800000;
+				gb->gfxchip_vram_mask = 0x3fffff;
+				gb->gfxchip_io_mask = 0x3fff;
+				gb->gfxchip_mmio_offset = 0x00300000;
+				gb->gfxchip_mmio_mask = 0xff;
 				gb->configured_regs = gb->gfxmem_bank->start >> 16;
 				gb->gfxboard_intena = 1;
 
 			} else if (boardnum == GFXBOARD_ID_RAINBOWIII) {
 
-				map_banks_z3(&gb->gfxboard_bank_vram_pcem, start >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-				gb->pcem_mmio_offset = 0x1000000;
-				gb->pcem_vram_mask = 0x3fffff;
-				gb->pcem_vram_offset = 0x800000;
-				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x400000) >> 16, 0xc00000 >> 16);
-				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x1000000) >> 16, 0x1000000 >> 16);
-				gb->pcem_mmio_mask = 0xffff;
+				map_banks_z3(&gb->gfxboard_bank_vram_gfxchip, start >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16);
+				gb->gfxchip_mmio_offset = 0x1000000;
+				gb->gfxchip_vram_mask = 0x3fffff;
+				gb->gfxchip_vram_offset = 0x800000;
+				map_banks_z3(&gb->gfxboard_bank_special_gfxchip, (start + 0x400000) >> 16, 0xc00000 >> 16);
+				map_banks_z3(&gb->gfxboard_bank_special_gfxchip, (start + 0x1000000) >> 16, 0x1000000 >> 16);
+				gb->gfxchip_mmio_mask = 0xffff;
 				gb->configured_regs = gb->gfxmem_bank->start >> 16;
 				gb->gfxboard_external_interrupt = true;
 
 			} else if (boardnum == GFXBOARD_ID_MERLIN_Z3) {
 
 				// uses MMIO because ET4000 can have different apertures in VRAM space
-				copyvrambank(&gb->gfxboard_bank_mmio_wbs_pcem, &gb->gfxboard_bank_vram_pcem, true);
-				map_banks_z3(&gb->gfxboard_bank_mmio_wbs_pcem, start >> 16, gb->gfxboard_bank_mmio_wbs_pcem.allocated_size >> 16);
-				gb->pcem_mmio_offset = 0x00000000;
-				gb->pcem_mmio_mask = 0x3fffff;
-				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x1000000) >> 16, 0x1000000 >> 16);
+				copyvrambank(&gb->gfxboard_bank_mmio_wbs_gfxchip, &gb->gfxboard_bank_vram_gfxchip, true);
+				map_banks_z3(&gb->gfxboard_bank_mmio_wbs_gfxchip, start >> 16, gb->gfxboard_bank_mmio_wbs_gfxchip.allocated_size >> 16);
+				gb->gfxchip_mmio_offset = 0x00000000;
+				gb->gfxchip_mmio_mask = 0x3fffff;
+				map_banks_z3(&gb->gfxboard_bank_special_gfxchip, (start + 0x1000000) >> 16, 0x1000000 >> 16);
 				gb->configured_regs = gb->gfxmem_bank->start >> 16;
 				gb->gfxboard_intena = 1;
 				merlin_init(gb);
 
 			} else if (boardnum == GFXBOARD_ID_GRAFFITY_Z3) {
 
-				map_banks_z3(&gb->gfxboard_bank_vram_pcem, (start + 0xc00000) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x800000) >> 16, 65536 >> 16);
-				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x400000) >> 16, 65536 >> 16);
-				gb->pcem_vram_offset = -0x400000;
-				gb->pcem_vram_mask = 0x1fffff;
-				gb->pcem_io_mask = 0x3fff;
+				map_banks_z3(&gb->gfxboard_bank_vram_gfxchip, (start + 0xc00000) >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16);
+				map_banks_z3(&gb->gfxboard_bank_special_gfxchip, (start + 0x800000) >> 16, 65536 >> 16);
+				map_banks_z3(&gb->gfxboard_bank_special_gfxchip, (start + 0x400000) >> 16, 65536 >> 16);
+				gb->gfxchip_vram_offset = -0x400000;
+				gb->gfxchip_vram_mask = 0x1fffff;
+				gb->gfxchip_io_mask = 0x3fff;
 				gb->configured_regs = gb->gfxmem_bank->start >> 16;
 
 			}
@@ -3021,7 +3021,7 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 	if (addr == 0x48) {
 		if (gb->board->configtype == 2) {
 			addrbank *ab;
-			if (ISP4() && !gb->board->pcemdev) {
+			if (ISP4() && !gb->board->gfxchipdev) {
 				ab = &gb->gfxboard_bank_nbsmemory;
 				copyvrambank(ab, gb->gfxmem_bank, true);
 				map_banks_z2 (ab, b, 0x00200000 >> 16);
@@ -3038,9 +3038,9 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->mem_end[1] = gb->mem_start[1] + 0x00200000;
 				}
 
-			} else if (gb->board->pcemdev) {
+			} else if (gb->board->gfxchipdev) {
 				
-				copyvrambank(&gb->gfxboard_bank_vram_pcem, gb->gfxmem_bank, true);
+				copyvrambank(&gb->gfxboard_bank_vram_gfxchip, gb->gfxmem_bank, true);
 
 				if (boardnum == GFXBOARD_ID_CV643D_Z2) {
 
@@ -3048,18 +3048,18 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					copyvrambank(ab, gb->gfxmem_bank, true);
 					uaecptr start = b << 16;
 					gb->gfxboardmem_start = b << 16;
-					map_banks_z2(&gb->gfxboard_bank_vram_pcem, start >> 16, (gb->board->banksize - (0x400000 - 0x3a0000)) >> 16);
-					map_banks_z2(&gb->gfxboard_bank_special_pcem, (start + 0x3a0000) >> 16, (0x400000 - 0x3a0000) >> 16);
+					map_banks_z2(&gb->gfxboard_bank_vram_gfxchip, start >> 16, (gb->board->banksize - (0x400000 - 0x3a0000)) >> 16);
+					map_banks_z2(&gb->gfxboard_bank_special_gfxchip, (start + 0x3a0000) >> 16, (0x400000 - 0x3a0000) >> 16);
 					gb->mem_start[0] = b << 16;
 					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
 
 					init_board(gb);
 
-					gb->pcem_vram_offset = 0;
-					gb->pcem_vram_mask = 0x3fffff;
-					gb->pcem_mmio_offset = 0x1000000;
-					gb->pcem_mmio_mask = 0xffff;
-					gb->pcem_io_mask = 0x3fff;
+					gb->gfxchip_vram_offset = 0;
+					gb->gfxchip_vram_mask = 0x3fffff;
+					gb->gfxchip_mmio_offset = 0x1000000;
+					gb->gfxchip_mmio_mask = 0xffff;
+					gb->gfxchip_io_mask = 0x3fff;
 					gb->configured_mem = gb->gfxmem_bank->start >> 16;
 					gb->configured_regs = gb->gfxmem_bank->start >> 16;
 
@@ -3067,18 +3067,18 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 
 					ab = &gb->gfxboard_bank_memory;
 					copyvrambank(ab, gb->gfxmem_bank, true);
-					map_banks_z2(&gb->gfxboard_bank_vram_p4z2_pcem, b, 0x00200000 >> 16);
+					map_banks_z2(&gb->gfxboard_bank_vram_p4z2_gfxchip, b, 0x00200000 >> 16);
 					if (gb->configured_mem <= 0) {
 						gb->configured_mem = b;
 						gb->gfxboardmem_start = b << 16;
 						init_board(gb);
 						gb->mem_start[0] = b << 16;
 						gb->mem_end[0] = gb->mem_start[0] + 0x00200000;
-						gb->pcem_vram_offset = 0;
-						gb->pcem_vram_mask = 0x3fffff;
-						gb->pcem_mmio_offset = 0xb8000;
-						gb->pcem_mmio_mask = 0xffff;
-						gb->pcem_io_mask = 0x3fff;
+						gb->gfxchip_vram_offset = 0;
+						gb->gfxchip_vram_mask = 0x3fffff;
+						gb->gfxchip_mmio_offset = 0xb8000;
+						gb->gfxchip_mmio_mask = 0xffff;
+						gb->gfxchip_io_mask = 0x3fff;
 					} else {
 						gb->gfxboard_bank_memory.bget = gfxboard_bget_mem;
 						gb->gfxboard_bank_memory.bput = gfxboard_bput_mem;
@@ -3088,7 +3088,7 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 
 				} else if (boardnum == GFXBOARD_ID_PICCOLO_Z2 || boardnum == GFXBOARD_ID_SPECTRUM_Z2) {
 
-					ab = &gb->gfxboard_bank_vram_pcem;
+					ab = &gb->gfxboard_bank_vram_gfxchip;
 					gb->gfxboardmem_start = b << 16;
 					map_banks_z2(ab, b, gb->board->banksize >> 16);
 
@@ -3098,13 +3098,13 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->mem_start[0] = b << 16;
 					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
 
-					gb->pcem_vram_offset = 0x800000;
-					gb->pcem_vram_mask = 0x1fffff;
-					gb->pcem_io_mask = 0x3fff;
+					gb->gfxchip_vram_offset = 0x800000;
+					gb->gfxchip_vram_mask = 0x1fffff;
+					gb->gfxchip_io_mask = 0x3fff;
 
 				} else if (boardnum == GFXBOARD_ID_SD64_Z2) {
 
-					ab = &gb->gfxboard_bank_vram_pcem;
+					ab = &gb->gfxboard_bank_vram_gfxchip;
 					gb->gfxboardmem_start = b << 16;
 					map_banks_z2(ab, b, gb->board->banksize >> 16);
 
@@ -3113,16 +3113,16 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->configured_mem = b;
 					gb->mem_start[0] = b << 16;
 					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
-					gb->pcem_vram_offset = 0x800000;
-					gb->pcem_vram_mask = 0x3fffff;
-					gb->pcem_io_mask = 0x3fff;
+					gb->gfxchip_vram_offset = 0x800000;
+					gb->gfxchip_vram_mask = 0x3fffff;
+					gb->gfxchip_io_mask = 0x3fff;
 
 				} else if (boardnum == GFXBOARD_ID_PIXEL64) {
 
-					ab = &gb->gfxboard_bank_vram_pcem;
+					ab = &gb->gfxboard_bank_vram_gfxchip;
 					gb->gfxboardmem_start = b << 16;
 					map_banks_z2(ab, b, 0x200000 >> 16);
-					map_banks_z2(&gb->gfxboard_bank_vram_wordswap_pcem, b + (0x200000 >> 16), 0x200000 >> 16);
+					map_banks_z2(&gb->gfxboard_bank_vram_wordswap_gfxchip, b + (0x200000 >> 16), 0x200000 >> 16);
 
 					init_board(gb);
 
@@ -3130,16 +3130,16 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->mem_start[0] = b << 16;
 					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
 
-					gb->pcem_vram_offset = 0x800000;
-					gb->pcem_vram_mask = 0x1fffff;
-					gb->pcem_io_mask = 0x3fff;
+					gb->gfxchip_vram_offset = 0x800000;
+					gb->gfxchip_vram_mask = 0x1fffff;
+					gb->gfxchip_io_mask = 0x3fff;
 
 				} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000) {
 
-					ab = &gb->gfxboard_bank_vram_pcem;
+					ab = &gb->gfxboard_bank_vram_gfxchip;
 					gb->gfxboardmem_start = b << 16;
 					map_banks_z2(ab, b, 0x200000 >> 16);
-					map_banks_z2(&gb->gfxboard_bank_vram_wordswap_pcem, b + (0x200000 >> 16), 0x200000 >> 16);
+					map_banks_z2(&gb->gfxboard_bank_vram_wordswap_gfxchip, b + (0x200000 >> 16), 0x200000 >> 16);
 
 					init_board(gb);
 
@@ -3147,30 +3147,30 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->mem_start[0] = b << 16;
 					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
 
-					gb->pcem_vram_offset = 0x800000;
-					gb->pcem_vram_mask = 0x1fffff;
-					gb->pcem_io_mask = 0x3fff;
+					gb->gfxchip_vram_offset = 0x800000;
+					gb->gfxchip_vram_mask = 0x1fffff;
+					gb->gfxchip_io_mask = 0x3fff;
 
 				} else if (boardnum == GFXBOARD_ID_RETINA_Z2) {
 
 					gb->configured_mem = b;
 					gb->configured_regs = b;
 
-					ab = &gb->gfxboard_bank_special_pcem;
+					ab = &gb->gfxboard_bank_special_gfxchip;
 					map_banks_z2(ab, b, gb->board->banksize >> 16);
 
 					init_board(gb);
 
 					gb->mem_start[0] = b << 16;
 					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
-					gb->pcem_vram_offset = 0x800000;
-					gb->pcem_vram_mask = 0x3fffff;
-					gb->pcem_io_mask = 0x3fff;
+					gb->gfxchip_vram_offset = 0x800000;
+					gb->gfxchip_vram_mask = 0x3fffff;
+					gb->gfxchip_io_mask = 0x3fff;
 
 				} else if (boardnum == GFXBOARD_ID_VISIONA) {
 
 
-					ab = &gb->gfxboard_bank_vram_pcem;
+					ab = &gb->gfxboard_bank_vram_gfxchip;
 					gb->gfxboardmem_start = b << 16;
 					map_banks_z2(ab, b, gb->board->banksize >> 16);
 
@@ -3179,16 +3179,16 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->configured_mem = b;
 					gb->mem_start[0] = b << 16;
 					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
-					gb->pcem_vram_offset = 0x800000;
-					gb->pcem_vram_mask = 0x3fffff;
-					gb->pcem_mmio_mask = 0x3fff;
-					gb->pcem_mmio_offset = 0x800000;
+					gb->gfxchip_vram_offset = 0x800000;
+					gb->gfxchip_vram_mask = 0x3fffff;
+					gb->gfxchip_mmio_mask = 0x3fff;
+					gb->gfxchip_mmio_offset = 0x800000;
 					gb->gfxboard_external_interrupt = true;
 
 				} else if (boardnum == GFXBOARD_ID_DOMINO) {
 
 
-					ab = &gb->gfxboard_bank_vram_pcem;
+					ab = &gb->gfxboard_bank_vram_gfxchip;
 					gb->gfxboardmem_start = b << 16;
 					map_banks_z2(ab, b, gb->board->banksize >> 16);
 
@@ -3197,13 +3197,13 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->configured_mem = b;
 					gb->mem_start[0] = b << 16;
 					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
-					gb->pcem_vram_offset = 0x800000;
-					gb->pcem_vram_mask = 0x3fffff;
+					gb->gfxchip_vram_offset = 0x800000;
+					gb->gfxchip_vram_mask = 0x3fffff;
 
 				} else if (boardnum == GFXBOARD_ID_MERLIN_Z2) {
 
 					// uses MMIO because ET4000 can have different apertures in VRAM space
-					ab = &gb->gfxboard_bank_mmio_wbs_pcem;
+					ab = &gb->gfxboard_bank_mmio_wbs_gfxchip;
 					gb->gfxboardmem_start = b << 16;
 					map_banks_z2(ab, b, gb->board->banksize >> 16);
 
@@ -3212,16 +3212,16 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->configured_mem = b;
 					gb->mem_start[0] = b << 16;
 					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
-					gb->pcem_mmio_offset = 0x00000000;
-					gb->pcem_mmio_mask = 0x1fffff;
-					gb->pcem_io_mask = 0xffff;
+					gb->gfxchip_mmio_offset = 0x00000000;
+					gb->gfxchip_mmio_mask = 0x1fffff;
+					gb->gfxchip_io_mask = 0xffff;
 					gb->gfxboard_intena = 1;
 					merlin_init(gb);
 
 				} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000W32) {
 
 					// uses MMIO because ET4000 can have different apertures in VRAM space
-					ab = &gb->gfxboard_bank_mmio_wbs_pcem;
+					ab = &gb->gfxboard_bank_mmio_wbs_gfxchip;
 					gb->gfxboardmem_start = b << 16;
 					map_banks_z2(ab, b, gb->board->banksize >> 16);
 
@@ -3230,9 +3230,9 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->configured_mem = b;
 					gb->mem_start[0] = b << 16;
 					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
-					gb->pcem_mmio_offset = 0x00000000;
-					gb->pcem_mmio_mask = 0x0fffff;
-					gb->pcem_io_mask = 0xffff;
+					gb->gfxchip_mmio_offset = 0x00000000;
+					gb->gfxchip_mmio_mask = 0x0fffff;
+					gb->gfxchip_io_mask = 0xffff;
 					gb->gfxboard_intena = 1;
 
 				} else {
@@ -3241,7 +3241,7 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					// Piccolo Z2
 					// Graffity Z2
 
-					ab = &gb->gfxboard_bank_vram_pcem;
+					ab = &gb->gfxboard_bank_vram_gfxchip;
 					gb->gfxboardmem_start = b << 16;
 					map_banks_z2(ab, b, gb->board->banksize >> 16);
 
@@ -3250,9 +3250,9 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->configured_mem = b;
 					gb->mem_start[0] = b << 16;
 					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
-					gb->pcem_vram_offset = 0x00200000 + 0x800000;
-					gb->pcem_vram_mask = 0x3fffff;
-					gb->pcem_io_mask = 0x3fff;
+					gb->gfxchip_vram_offset = 0x00200000 + 0x800000;
+					gb->gfxchip_vram_mask = 0x3fffff;
+					gb->gfxchip_io_mask = 0x3fff;
 
 				}
 
@@ -3462,16 +3462,16 @@ static void REGPARAM2 gfxboard_bput_regs_autoconfig (uaecptr addr, uae_u32 b)
 		gb->gfxboard_bank_registers.bget = gfxboard_bget_regs;
 		gb->gfxboard_bank_registers.bput = gfxboard_bput_regs;
 
-		if (gb->p4z2 && !gb->pcemdev) {
+		if (gb->p4z2 && !gb->gfxchipdev) {
 
 			ab = &gb->gfxboard_bank_special;
 			map_banks_z2(ab, b, gb->gfxboard_bank_special.reserved_size >> 16);
 			gb->io_start = b << 16;
 			gb->io_end = gb->io_start + gb->gfxboard_bank_special.reserved_size;
 
-		} else if (gb->pcemdev) {
+		} else if (gb->gfxchipdev) {
 
-			ab = &gb->gfxboard_bank_special_pcem;
+			ab = &gb->gfxboard_bank_special_gfxchip;
 			int size = (boardnum == GFXBOARD_ID_PICASSO4_Z2 || boardnum == GFXBOARD_ID_PIXEL64) ? 0x20000 : 0x10000;
 			map_banks_z2(ab, b, size >> 16);
 			gb->io_start = b << 16;
@@ -3508,11 +3508,11 @@ static void gfxboard_free_board(struct rtggfxboard *gb)
 			return;
 		}
 	}
-	if (gb->pcemdev) {
-		if (gb->pcemobject) {
-			pcem_device_close(gb->pcemdev, gb->pcemobject);
-			gb->pcemobject = NULL;
-			gb->pcemobject2 = NULL;
+	if (gb->gfxchipdev) {
+		if (gb->gfxchipobject) {
+			gfxchip_device_close(gb->gfxchipdev, gb->gfxchipobject);
+			gb->gfxchipobject = NULL;
+			gb->gfxchipobject2 = NULL;
 		}
 	}
 	if (gb->vram && gb->gfxmem_bank->baseaddr) {
@@ -3963,12 +3963,12 @@ void gfxboard_voodoo_lfb_endianswap(int m)
 				gb->lfbbyteswapmode = m;
 				if (gb->original_pci_bank) {
 					if (!m) {
-						gb->pcem_direct = true;
+						gb->gfxchip_direct = true;
 						write_log(_T("Voodoo direct VRAM mode\n"));
 						map_banks(gb->gfxmem_bank, gb->gfxmem_bank->start >> 16, 0x01000000 >> 16, 0);
 						map_banks(gb->gfxmem_bank, (gb->gfxmem_bank->start + 0x01000000) >> 16, 0x01000000 >> 16, 0);
 					} else {
-						gb->pcem_direct = false;
+						gb->gfxchip_direct = false;
 						write_log(_T("Voodoo indirect VRAM mode (%d)\n"), m);
 						map_banks(gb->original_pci_bank, gb->gfxmem_bank->start >> 16, 0x01000000 >> 16, 0);
 						map_banks(gb->original_pci_bank, (gb->gfxmem_bank->start + 0x01000000) >> 16, 0x01000000 >> 16, 0);
@@ -4041,52 +4041,52 @@ static void pci_change_config(struct pci_board_state *pci)
 
 static void REGPARAM2 voodoo3_io_lput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_io_pcem(addr, b, 2);
+	put_io_gfxchip(addr, b, 2);
 }
 static void REGPARAM2 voodoo3_io_wput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_io_pcem(addr, b, 1);
+	put_io_gfxchip(addr, b, 1);
 }
 static void REGPARAM2 voodoo3_io_bput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_io_pcem(addr, b, 0);
+	put_io_gfxchip(addr, b, 0);
 }
 static uae_u32 REGPARAM2 voodoo3_io_lget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	return get_io_pcem(addr, 2);
+	return get_io_gfxchip(addr, 2);
 }
 static uae_u32 REGPARAM2 voodoo3_io_wget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	return get_io_pcem(addr, 1);
+	return get_io_gfxchip(addr, 1);
 }
 static uae_u32 REGPARAM2 voodoo3_io_bget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	return get_io_pcem(addr, 0);
+	return get_io_gfxchip(addr, 0);
 }
 
 static void REGPARAM2 voodoo3_mb0_lput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_mem_pcem(addr, b, 2);
+	put_mem_gfxchip(addr, b, 2);
 }
 static void REGPARAM2 voodoo3_mb0_wput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_mem_pcem(addr, b, 1);
+	put_mem_gfxchip(addr, b, 1);
 }
 static void REGPARAM2 voodoo3_mb0_bput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_mem_pcem(addr, b, 0);
+	put_mem_gfxchip(addr, b, 0);
 }
 static uae_u32 REGPARAM2 voodoo3_mb0_lget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	return get_mem_pcem(addr, 2);
+	return get_mem_gfxchip(addr, 2);
 }
 static uae_u32 REGPARAM2 voodoo3_mb0_wget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	return get_mem_pcem(addr, 1);
+	return get_mem_gfxchip(addr, 1);
 }
 static uae_u32 REGPARAM2 voodoo3_mb0_bget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	return get_mem_pcem(addr, 0);
+	return get_mem_gfxchip(addr, 0);
 }
 
 static void REGPARAM2 voodoo3_mb1_lput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
@@ -4099,22 +4099,22 @@ static void REGPARAM2 voodoo3_mb1_lput(struct pci_board_state *pcibs, uaecptr ad
 	{
 	case 0:
 		//((uae_u32*)(addr + gb->vram))[0] = b;
-		pcem_linear_write_l(addr, b, pcem_mapping_linear_priv);
+		gfxchip_linear_write_l(addr, b, gfxchip_mapping_linear_priv);
 		break;
 	case 1:
 		//do_put_mem_long((uae_u32*)(addr + gb->vram), b);
 		b = do_byteswap_32(b);
-		pcem_linear_write_l(addr, b, pcem_mapping_linear_priv);
+		gfxchip_linear_write_l(addr, b, gfxchip_mapping_linear_priv);
 		break;
 	case 2:
 		//((uae_u32*)(addr + gb->vram))[0] = b;
 		b = do_byteswap_32(b);
-		pcem_linear_write_l(addr, b, pcem_mapping_linear_priv);
+		gfxchip_linear_write_l(addr, b, gfxchip_mapping_linear_priv);
 		break;
 	case 3:
 		b = (b >> 16) | (b << 16);
 		b = do_byteswap_32(b);
-		pcem_linear_write_l(addr, b, pcem_mapping_linear_priv);
+		gfxchip_linear_write_l(addr, b, gfxchip_mapping_linear_priv);
 		//do_put_mem_long((uae_u32*)(addr + gb->vram), b);
 		break;
 	}
@@ -4130,21 +4130,21 @@ static uae_u32 REGPARAM2 voodoo3_mb1_lget(struct pci_board_state* pcibs, uaecptr
 	{
 	case 0:
 		//v = ((uae_u32*)(addr + gb->vram))[0];
-		v = pcem_linear_read_l(addr, pcem_mapping_linear_priv);
+		v = gfxchip_linear_read_l(addr, gfxchip_mapping_linear_priv);
 		break;
 	case 1:
 		//v = do_get_mem_long((uae_u32*)(addr + gb->vram));
-		v = pcem_linear_read_l(addr, pcem_mapping_linear_priv);
+		v = gfxchip_linear_read_l(addr, gfxchip_mapping_linear_priv);
 		v = do_byteswap_32(v);
 		break;
 	case 2:
 		//v = ((uae_u32*)(addr + gb->vram))[0];
-		v = pcem_linear_read_l(addr, pcem_mapping_linear_priv);
+		v = gfxchip_linear_read_l(addr, gfxchip_mapping_linear_priv);
 		v = do_byteswap_32(v);
 		break;
 	case 3:
 		//v = do_get_mem_long((uae_u32*)(addr + gb->vram));
-		v = pcem_linear_read_l(addr, pcem_mapping_linear_priv);
+		v = gfxchip_linear_read_l(addr, gfxchip_mapping_linear_priv);
 		v = do_byteswap_32(v);
 		v = (v >> 16) | (v << 16);
 		break;
@@ -4162,23 +4162,23 @@ static void REGPARAM2 voodoo3_mb1_wput(struct pci_board_state *pcibs, uaecptr ad
 	{
 	case 0:
 		//*((uae_u16*)(addr + gb->vram)) = b;
-		pcem_linear_write_w(addr, b, pcem_mapping_linear_priv);
+		gfxchip_linear_write_w(addr, b, gfxchip_mapping_linear_priv);
 		break;
 	case 1:
 		addr ^= 2;
 		b = do_byteswap_16(b);
 		//do_put_mem_word((uae_u16*)(addr + gb->vram), b);
-		pcem_linear_write_w(addr, b, pcem_mapping_linear_priv);
+		gfxchip_linear_write_w(addr, b, gfxchip_mapping_linear_priv);
 		break;
 	case 2:
 		//do_put_mem_word((uae_u16*)(addr + gb->vram), b);
 		b = do_byteswap_16(b);
-		pcem_linear_write_w(addr, b, pcem_mapping_linear_priv);
+		gfxchip_linear_write_w(addr, b, gfxchip_mapping_linear_priv);
 		break;
 	case 3:
 		//do_put_mem_word((uae_u16*)(addr + gb->vram), b);
 		b = do_byteswap_16(b);
-		pcem_linear_write_w(addr, b, pcem_mapping_linear_priv);
+		gfxchip_linear_write_w(addr, b, gfxchip_mapping_linear_priv);
 		break;
 	}
 }
@@ -4193,22 +4193,22 @@ static uae_u32 REGPARAM2 voodoo3_mb1_wget(struct pci_board_state* pcibs, uaecptr
 	{
 	case 0:
 		//v = *((uae_u16*)(addr + gb->vram));
-		v = pcem_linear_read_w(addr, pcem_mapping_linear_priv);
+		v = gfxchip_linear_read_w(addr, gfxchip_mapping_linear_priv);
 		break;
 	case 1:
 		addr ^= 2;
 		//v = *((uae_u16*)(addr + gb->vram));
-		v = pcem_linear_read_w(addr, pcem_mapping_linear_priv);
+		v = gfxchip_linear_read_w(addr, gfxchip_mapping_linear_priv);
 		v = do_byteswap_16(v);
 		break;
 	case 2:
 		//v = do_get_mem_word((uae_u16*)(addr + gb->vram));
-		v = pcem_linear_read_w(addr, pcem_mapping_linear_priv);
+		v = gfxchip_linear_read_w(addr, gfxchip_mapping_linear_priv);
 		v = do_byteswap_16(v);
 		break;
 	case 3:
 		//v = do_get_mem_word((uae_u16*)(addr + gb->vram));
-		v = pcem_linear_read_w(addr, pcem_mapping_linear_priv);
+		v = gfxchip_linear_read_w(addr, gfxchip_mapping_linear_priv);
 		v = do_byteswap_16(v);
 		break;
 	}
@@ -4228,7 +4228,7 @@ static void REGPARAM2 voodoo3_mb1_bput(struct pci_board_state *pcibs, uaecptr ad
 		addr ^= 3;
 		break;
 	}
-	pcem_linear_write_b(addr, b, pcem_mapping_linear_priv);
+	gfxchip_linear_write_b(addr, b, gfxchip_mapping_linear_priv);
 	//do_put_mem_byte((uae_u8*)(addr + gb->vram), b);
 }
 static uae_u32 REGPARAM2 voodoo3_mb1_bget(struct pci_board_state *pcibs, uaecptr addr)
@@ -4244,7 +4244,7 @@ static uae_u32 REGPARAM2 voodoo3_mb1_bget(struct pci_board_state *pcibs, uaecptr
 		addr ^= 3;
 		break;
 	}
-	uae_u32 v = pcem_linear_read_b(addr, pcem_mapping_linear_priv);
+	uae_u32 v = gfxchip_linear_read_b(addr, gfxchip_mapping_linear_priv);
 	//uae_u32 v =  do_get_mem_byte((uae_u8*)(addr + gb->vram));
 	return v;
 }
@@ -4287,32 +4287,32 @@ static const struct pci_board voodoo3_pci_board =
 		{ NULL }
 	},
 	true,
-	get_pci_pcem, put_pci_pcem, pci_change_config
+	get_pci_gfxchip, put_pci_gfxchip, pci_change_config
 };
 
 static void REGPARAM2 permedia2_mmio_lput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_mem_pcem(addr, b, 2);
+	put_mem_gfxchip(addr, b, 2);
 }
 static void REGPARAM2 permedia2_mmio_wput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_mem_pcem(addr, b, 1);
+	put_mem_gfxchip(addr, b, 1);
 }
 static void REGPARAM2 permedia2_mmio_bput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_mem_pcem(addr, b, 0);
+	put_mem_gfxchip(addr, b, 0);
 }
 static uae_u32 REGPARAM2 permedia2_mmio_lget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	return get_mem_pcem(addr, 2);
+	return get_mem_gfxchip(addr, 2);
 }
 static uae_u32 REGPARAM2 permedia2_mmio_wget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	return get_mem_pcem(addr, 1);
+	return get_mem_gfxchip(addr, 1);
 }
 static uae_u32 REGPARAM2 permedia2_mmio_bget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	return get_mem_pcem(addr, 0);
+	return get_mem_gfxchip(addr, 0);
 }
 
 
@@ -4335,7 +4335,7 @@ static const struct pci_board permedia2_pci_board =
 		{ NULL }
 	},
 	true,
-	get_pci_pcem, put_pci_pcem, pci_change_config
+	get_pci_gfxchip, put_pci_gfxchip, pci_change_config
 };
 
 
@@ -4407,7 +4407,7 @@ static void REGPARAM2 s3virge_mb0_lput(struct pci_board_state *pcibs, uaecptr ad
 	} else if (swap < -1) {
 
 	}
-	put_mem_pcem(addr, b, 2);
+	put_mem_gfxchip(addr, b, 2);
 }
 static void REGPARAM2 s3virge_mb0_wput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
@@ -4430,17 +4430,17 @@ static void REGPARAM2 s3virge_mb0_wput(struct pci_board_state *pcibs, uaecptr ad
 	} else if (swap < -1) {
 
 	}
-	put_mem_pcem(addr, b, 1);
+	put_mem_gfxchip(addr, b, 1);
 }
 static void REGPARAM2 s3virge_mb0_bput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
 	int swap = s3virgeaddr(pcibs, &addr);
-	put_mem_pcem(addr, b, 0);
+	put_mem_gfxchip(addr, b, 0);
 }
 static uae_u32 REGPARAM2 s3virge_mb0_lget(struct pci_board_state *pcibs, uaecptr addr)
 {
 	int swap = s3virgeaddr(pcibs, &addr);
-	uae_u32 v = get_mem_pcem(addr, 2);
+	uae_u32 v = get_mem_gfxchip(addr, 2);
 	if (swap > 0) {
 		if (swap == 1)
 			v = do_byteswap_32(v);
@@ -4468,7 +4468,7 @@ static uae_u32 REGPARAM2 s3virge_mb0_lget(struct pci_board_state *pcibs, uaecptr
 static uae_u32 REGPARAM2 s3virge_mb0_wget(struct pci_board_state *pcibs, uaecptr addr)
 {
 	int swap = s3virgeaddr(pcibs, &addr);
-	uae_u32 v = get_mem_pcem(addr, 1);
+	uae_u32 v = get_mem_gfxchip(addr, 1);
 	if (swap > 0) {
 		if (swap == 1)
 			v = do_byteswap_16(v);
@@ -4492,63 +4492,63 @@ static uae_u32 REGPARAM2 s3virge_mb0_wget(struct pci_board_state *pcibs, uaecptr
 static uae_u32 REGPARAM2 s3virge_mb0_bget(struct pci_board_state *pcibs, uaecptr addr)
 {
 	int swap = s3virgeaddr(pcibs, &addr);
-	uae_u32 v = get_mem_pcem(addr, 0);
+	uae_u32 v = get_mem_gfxchip(addr, 0);
 	return v;
 }
 
 static void REGPARAM2 s3virge_io_lput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_io_pcem(addr, b, 2);
+	put_io_gfxchip(addr, b, 2);
 }
 static void REGPARAM2 s3virge_io_wput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_io_pcem(addr, b, 1);
+	put_io_gfxchip(addr, b, 1);
 }
 static void REGPARAM2 s3virge_io_bput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
 	//write_log(_T("s3virge_io_bput(%08x,%02x) PC=%08x\n"), addr, b & 0xff, M68K_GETPC);
-	put_io_pcem(addr, b, 0);
+	put_io_gfxchip(addr, b, 0);
 }
 static uae_u32 REGPARAM2 s3virge_io_lget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	return get_io_pcem(addr, 2);
+	return get_io_gfxchip(addr, 2);
 }
 static uae_u32 REGPARAM2 s3virge_io_wget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	return get_io_pcem(addr, 1);
+	return get_io_gfxchip(addr, 1);
 }
 static uae_u32 REGPARAM2 s3virge_io_bget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	uae_u32 v = get_io_pcem(addr, 0);
+	uae_u32 v = get_io_gfxchip(addr, 0);
 	//write_log(_T("s3virge_io_bget(%08x,%02x) PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 	return v;
 }
 
 static void REGPARAM2 matrox_io_lput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_mem_pcem(addr, b, 2);
+	put_mem_gfxchip(addr, b, 2);
 }
 static void REGPARAM2 matrox_io_wput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_mem_pcem(addr, b, 1);
+	put_mem_gfxchip(addr, b, 1);
 }
 static void REGPARAM2 matrox_io_bput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
 {
-	put_mem_pcem(addr, b, 0);
+	put_mem_gfxchip(addr, b, 0);
 }
 static uae_u32 REGPARAM2 matrox_io_lget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	uae_u32 b = get_mem_pcem(addr, 2);
+	uae_u32 b = get_mem_gfxchip(addr, 2);
 	return b;
 }
 static uae_u32 REGPARAM2 matrox_io_wget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	uae_u16 b = get_mem_pcem(addr, 1);
+	uae_u16 b = get_mem_gfxchip(addr, 1);
 	return b;
 }
 static uae_u32 REGPARAM2 matrox_io_bget(struct pci_board_state *pcibs, uaecptr addr)
 {
-	uae_u32 v = get_mem_pcem(addr, 0);
+	uae_u32 v = get_mem_gfxchip(addr, 0);
 	return v;
 }
 
@@ -4572,7 +4572,7 @@ static const struct pci_board matrox_pci_board2 =
 		{ NULL },
 	},
 	true,
-	get_pci_pcem, put_pci_pcem, pci_change_config
+	get_pci_gfxchip, put_pci_gfxchip, pci_change_config
 };
 
 static const struct pci_board matrox_pci_board =
@@ -4590,7 +4590,7 @@ static const struct pci_board matrox_pci_board =
 		{ NULL },
 	},
 	true,
-	get_pci_pcem, put_pci_pcem, pci_change_config
+	get_pci_gfxchip, put_pci_gfxchip, pci_change_config
 };
 
 static const struct pci_config s3virge_pci_config =
@@ -4615,7 +4615,7 @@ static const struct pci_board s3virge_pci_board =
 		{ voodoo3_mb0_lget, voodoo3_mb0_wget, voodoo3_mb0_bget, voodoo3_mb0_lput, voodoo3_mb0_wput, voodoo3_mb0_bput }
 	},
 	true,
-	get_pci_pcem, put_pci_pcem, pci_change_config
+	get_pci_gfxchip, put_pci_gfxchip, pci_change_config
 };
 
 static const struct pci_config s3trio_pci_config =
@@ -4640,7 +4640,7 @@ static const struct pci_board s3trio_pci_board =
 		{ voodoo3_mb0_lget, voodoo3_mb0_wget, voodoo3_mb0_bget, voodoo3_mb0_lput, voodoo3_mb0_wput, voodoo3_mb0_bput }
 	},
 	true,
-	get_pci_pcem, put_pci_pcem, pci_change_config
+	get_pci_gfxchip, put_pci_gfxchip, pci_change_config
 };
 
 static const struct pci_config gd5446_pci_config =
@@ -4663,7 +4663,7 @@ static const struct pci_board gd5446_pci_board =
 		{ s3virge_io_lget, s3virge_io_wget, s3virge_io_bget, s3virge_io_lput, s3virge_io_wput, s3virge_io_bput }
 	},
 	true,
-	get_pci_pcem, put_pci_pcem, pci_change_config
+	get_pci_gfxchip, put_pci_gfxchip, pci_change_config
 };
 
 int gfxboard_get_index_from_id(int id)
@@ -5059,20 +5059,20 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	memcpy(&gb->gfxboard_bank_special, &tmpl_gfxboard_bank_special, sizeof(addrbank));
 	memcpy(&gb->gfxboard_bank_memory_nojit, &tmpl_gfxboard_bank_memory_nojit, sizeof(addrbank));
 
-	memcpy(&gb->gfxboard_bank_vram_pcem, &tmpl_gfxboard_bank_vram_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_vram_normal_pcem, &tmpl_gfxboard_bank_vram_normal_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_vram_wordswap_pcem, &tmpl_gfxboard_bank_vram_wordswap_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_vram_longswap_pcem, &tmpl_gfxboard_bank_vram_longswap_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_vram_cv_1_pcem, &tmpl_gfxboard_bank_vram_cv_1_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_vram_p4z2_pcem, &tmpl_gfxboard_bank_vram_p4z2_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_io_swap_pcem, &tmpl_gfxboard_bank_io_swap_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_io_swap2_pcem, &tmpl_gfxboard_bank_io_swap2_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_io_pcem, &tmpl_gfxboard_bank_io_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_pci_pcem, &tmpl_gfxboard_bank_pci_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_mmio_pcem, &tmpl_gfxboard_bank_mmio_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_mmio_wbs_pcem, &tmpl_gfxboard_bank_mmio_wbs_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_mmio_lbs_pcem, &tmpl_gfxboard_bank_mmio_lbs_pcem, sizeof(addrbank));
-	memcpy(&gb->gfxboard_bank_special_pcem, &tmpl_gfxboard_bank_special_pcem, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_vram_gfxchip, &tmpl_gfxboard_bank_vram_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_vram_normal_gfxchip, &tmpl_gfxboard_bank_vram_normal_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_vram_wordswap_gfxchip, &tmpl_gfxboard_bank_vram_wordswap_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_vram_longswap_gfxchip, &tmpl_gfxboard_bank_vram_longswap_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_vram_cv_1_gfxchip, &tmpl_gfxboard_bank_vram_cv_1_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_vram_p4z2_gfxchip, &tmpl_gfxboard_bank_vram_p4z2_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_io_swap_gfxchip, &tmpl_gfxboard_bank_io_swap_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_io_swap2_gfxchip, &tmpl_gfxboard_bank_io_swap2_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_io_gfxchip, &tmpl_gfxboard_bank_io_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_pci_gfxchip, &tmpl_gfxboard_bank_pci_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_mmio_gfxchip, &tmpl_gfxboard_bank_mmio_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_mmio_wbs_gfxchip, &tmpl_gfxboard_bank_mmio_wbs_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_mmio_lbs_gfxchip, &tmpl_gfxboard_bank_mmio_lbs_gfxchip, sizeof(addrbank));
+	memcpy(&gb->gfxboard_bank_special_gfxchip, &tmpl_gfxboard_bank_special_gfxchip, sizeof(addrbank));
 	memcpy(&gb->gfxboard_bank_bios, &tmpl_gfxboard_bank_bios, sizeof(addrbank));
 
 	gb->gfxboard_bank_memory.name = gb->memorybankname;
@@ -5153,15 +5153,15 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		gb->gfxboardmem_start = start + 0xc00000;
 		init_board(gb);
 		copyvrambank(&gb->gfxboard_bank_memory, gb->gfxmem_bank, true);
-		copyvrambank(&gb->gfxboard_bank_vram_pcem, gb->gfxmem_bank, true);
-		map_banks(&gb->gfxboard_bank_vram_pcem, gb->gfxboardmem_start >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16, 0);
-		map_banks(&gb->gfxboard_bank_mmio_wbs_pcem, (start + 0xb00000) >> 16, 1, 0);
-		map_banks(&gb->gfxboard_bank_special_pcem, (start + 0x000000) >> 16, 1, 0);
-		gb->pcem_vram_offset = 0x800000;
-		gb->pcem_vram_mask = 0x3fffff;
-		gb->pcem_io_mask = 0x3fff;
-		gb->pcem_mmio_offset = 0x00300000;
-		gb->pcem_mmio_mask = 0xff;
+		copyvrambank(&gb->gfxboard_bank_vram_gfxchip, gb->gfxmem_bank, true);
+		map_banks(&gb->gfxboard_bank_vram_gfxchip, gb->gfxboardmem_start >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16, 0);
+		map_banks(&gb->gfxboard_bank_mmio_wbs_gfxchip, (start + 0xb00000) >> 16, 1, 0);
+		map_banks(&gb->gfxboard_bank_special_gfxchip, (start + 0x000000) >> 16, 1, 0);
+		gb->gfxchip_vram_offset = 0x800000;
+		gb->gfxchip_vram_mask = 0x3fffff;
+		gb->gfxchip_io_mask = 0x3fff;
+		gb->gfxchip_mmio_offset = 0x00300000;
+		gb->gfxchip_mmio_mask = 0xff;
 		gb->configured_regs = gb->gfxmem_bank->start >> 16;
 		gb->gfxboard_intena = 1;
 		gb->configured_mem = 1;
@@ -5175,13 +5175,13 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		gb->gfxboardmem_start = start;
 		init_board(gb);
 		copyvrambank(&gb->gfxboard_bank_memory, gb->gfxmem_bank, true);
-		copyvrambank(&gb->gfxboard_bank_vram_pcem, gb->gfxmem_bank, true);
-		map_banks(&gb->gfxboard_bank_vram_pcem, gb->gfxboardmem_start >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16, 0);
-		map_banks(&gb->gfxboard_bank_special_pcem, 0xc080000 >> 16, 1, 0);
-		gb->pcem_vram_offset = 0x800000;
-		gb->pcem_vram_mask = gb->rbc->rtgmem_size - 1;
-		gb->pcem_mmio_offset = 0x1000000;
-		gb->pcem_mmio_mask = 0x3fff;
+		copyvrambank(&gb->gfxboard_bank_vram_gfxchip, gb->gfxmem_bank, true);
+		map_banks(&gb->gfxboard_bank_vram_gfxchip, gb->gfxboardmem_start >> 16, gb->gfxboard_bank_vram_gfxchip.allocated_size >> 16, 0);
+		map_banks(&gb->gfxboard_bank_special_gfxchip, 0xc080000 >> 16, 1, 0);
+		gb->gfxchip_vram_offset = 0x800000;
+		gb->gfxchip_vram_mask = gb->rbc->rtgmem_size - 1;
+		gb->gfxchip_mmio_offset = 0x1000000;
+		gb->gfxchip_mmio_mask = 0x3fff;
 		gb->configured_regs = gb->gfxmem_bank->start >> 16;
 		gb->configured_mem = 1;
 		gb->configured_regs = 1;
@@ -5316,185 +5316,185 @@ static uae_u32 REGPARAM2 gfxboard_lget_bios(uaecptr addr)
 	return (gfxboard_bget_bios(addr + 0) << 24) | (gfxboard_bget_bios(addr + 1) << 16) | (gfxboard_bget_bios(addr + 2) << 8) | (gfxboard_bget_bios(addr + 3) << 0);
 }
 
-// PCem wrapper
+// 86Box graphics chip wrapper
 
-static uae_u32 REGPARAM2 gfxboard_bget_vram_normal_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_vram_normal_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	uae_u8 	v = pcem_linear_read_b(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	uae_u8 	v = gfxchip_linear_read_b(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_vram_normal_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_vram_normal_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	uae_u16 v;
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	v = pcem_linear_read_w(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	v = gfxchip_linear_read_w(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_lget_vram_normal_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_vram_normal_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	uae_u32 v;
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	v = pcem_linear_read_l(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	v = gfxchip_linear_read_l(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	v = do_byteswap_32(v);
 	return v;
 }
-static void REGPARAM2 gfxboard_bput_vram_normal_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_vram_normal_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	addr &= gb->pcem_vram_mask;
-	pcem_linear_write_b(addr + pcem_mapping_linear_offset, b, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	addr &= gb->gfxchip_vram_mask;
+	gfxchip_linear_write_b(addr + gfxchip_mapping_linear_offset, b, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_wput_vram_normal_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_vram_normal_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	addr &= gb->pcem_vram_mask;
-	pcem_linear_write_w(addr + pcem_mapping_linear_offset, w, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	addr &= gb->gfxchip_vram_mask;
+	gfxchip_linear_write_w(addr + gfxchip_mapping_linear_offset, w, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_lput_vram_normal_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_vram_normal_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	addr &= gb->pcem_vram_mask;
+	addr += gb->gfxchip_vram_offset;
+	addr &= gb->gfxchip_vram_mask;
 	l = do_byteswap_32(l);
-	pcem_linear_write_l(addr + pcem_mapping_linear_offset, l, pcem_mapping_linear_priv);
+	gfxchip_linear_write_l(addr + gfxchip_mapping_linear_offset, l, gfxchip_mapping_linear_priv);
 }
 
 
-static uae_u32 REGPARAM2 gfxboard_bget_vram_longswap_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_vram_longswap_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	uae_u8 v = pcem_linear_read_b(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	uae_u8 v = gfxchip_linear_read_b(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_vram_longswap_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_vram_longswap_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	uae_u16 v = pcem_linear_read_w(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	uae_u16 v = gfxchip_linear_read_w(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	v = do_byteswap_16(v);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_lget_vram_longswap_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_vram_longswap_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	uae_u32 v = pcem_linear_read_l(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	uae_u32 v = gfxchip_linear_read_l(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	v = do_byteswap_32(v);
 	return v;
 }
-static void REGPARAM2 gfxboard_bput_vram_longswap_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_vram_longswap_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	addr &= gb->pcem_vram_mask;
-	pcem_linear_write_b(addr + pcem_mapping_linear_offset, b, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	addr &= gb->gfxchip_vram_mask;
+	gfxchip_linear_write_b(addr + gfxchip_mapping_linear_offset, b, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_wput_vram_longswap_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_vram_longswap_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
+	addr += gb->gfxchip_vram_offset;
 	w = do_byteswap_16(w);
-	addr &= gb->pcem_vram_mask;
-	pcem_linear_write_w(addr + pcem_mapping_linear_offset, w, pcem_mapping_linear_priv);
+	addr &= gb->gfxchip_vram_mask;
+	gfxchip_linear_write_w(addr + gfxchip_mapping_linear_offset, w, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_lput_vram_longswap_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_vram_longswap_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
+	addr += gb->gfxchip_vram_offset;
 	l = do_byteswap_32(l);
-	addr &= gb->pcem_vram_mask;
-	pcem_linear_write_l(addr + pcem_mapping_linear_offset, l, pcem_mapping_linear_priv);
+	addr &= gb->gfxchip_vram_mask;
+	gfxchip_linear_write_l(addr + gfxchip_mapping_linear_offset, l, gfxchip_mapping_linear_priv);
 }
 
 
-static uae_u32 REGPARAM2 gfxboard_bget_vram_wordswap_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_vram_wordswap_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
+	addr += gb->gfxchip_vram_offset;
 	addr ^= 1;
-	uae_u8 v = pcem_linear_read_b(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	uae_u8 v = gfxchip_linear_read_b(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_vram_wordswap_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_vram_wordswap_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	uae_u16 v = pcem_linear_read_w(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	uae_u16 v = gfxchip_linear_read_w(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_lget_vram_wordswap_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_vram_wordswap_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	uae_u32 v = pcem_linear_read_l(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	uae_u32 v = gfxchip_linear_read_l(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	v = (v >> 16) | (v << 16);
 	return v;
 }
-static void REGPARAM2 gfxboard_bput_vram_wordswap_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_vram_wordswap_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	addr &= gb->pcem_vram_mask;
+	addr += gb->gfxchip_vram_offset;
+	addr &= gb->gfxchip_vram_mask;
 	addr ^= 1;
-	pcem_linear_write_b(addr + pcem_mapping_linear_offset, b, pcem_mapping_linear_priv);
+	gfxchip_linear_write_b(addr + gfxchip_mapping_linear_offset, b, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_wput_vram_wordswap_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_vram_wordswap_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	addr &= gb->pcem_vram_mask;
-	pcem_linear_write_w(addr + pcem_mapping_linear_offset, w, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	addr &= gb->gfxchip_vram_mask;
+	gfxchip_linear_write_w(addr + gfxchip_mapping_linear_offset, w, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_lput_vram_wordswap_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_vram_wordswap_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
+	addr += gb->gfxchip_vram_offset;
 	l = (l >> 16) | (l << 16);
-	addr &= gb->pcem_vram_mask;
-	pcem_linear_write_l(addr + pcem_mapping_linear_offset, l, pcem_mapping_linear_priv);
+	addr &= gb->gfxchip_vram_mask;
+	gfxchip_linear_write_l(addr + gfxchip_mapping_linear_offset, l, gfxchip_mapping_linear_priv);
 }
 
 
 
-static uae_u32 REGPARAM2 gfxboard_bget_vram_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_vram_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	uae_u8 	v = pcem_linear_read_b((addr & gb->pcem_vram_mask) + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	uae_u8 	v = gfxchip_linear_read_b((addr & gb->gfxchip_vram_mask) + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_vram_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_vram_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	uae_u16 v;
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
+	addr += gb->gfxchip_vram_offset;
 	if (addr & 0x800000) {
 		;
 	} else if (addr & 0x400000) {
@@ -5502,7 +5502,7 @@ static uae_u32 REGPARAM2 gfxboard_wget_vram_pcem(uaecptr addr)
 	} else {
 		addr ^= 2;
 	}
-	v = pcem_linear_read_w((addr & gb->pcem_vram_mask) + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	v = gfxchip_linear_read_w((addr & gb->gfxchip_vram_mask) + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	if (addr & 0x800000) {
 		v = do_byteswap_16(v);
 	} else if (addr & 0x400000) {
@@ -5512,13 +5512,13 @@ static uae_u32 REGPARAM2 gfxboard_wget_vram_pcem(uaecptr addr)
 	}
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_lget_vram_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_vram_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	uae_u32 v;
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	v = pcem_linear_read_l((addr & gb->pcem_vram_mask) + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	v = gfxchip_linear_read_l((addr & gb->gfxchip_vram_mask) + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	if (addr & 0x800000) {
 		v = do_byteswap_32(v);
 	} else if (addr & 0x400000) {
@@ -5528,19 +5528,19 @@ static uae_u32 REGPARAM2 gfxboard_lget_vram_pcem(uaecptr addr)
 	}
 	return v;
 }
-static void REGPARAM2 gfxboard_bput_vram_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_vram_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	addr &= gb->pcem_vram_mask;
-	pcem_linear_write_b(addr + pcem_mapping_linear_offset, b, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	addr &= gb->gfxchip_vram_mask;
+	gfxchip_linear_write_b(addr + gfxchip_mapping_linear_offset, b, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_wput_vram_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_vram_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
+	addr += gb->gfxchip_vram_offset;
 	if (addr & 0x800000) {
 		w = do_byteswap_16(w);
 	} else if (addr & 0x400000) {
@@ -5548,14 +5548,14 @@ static void REGPARAM2 gfxboard_wput_vram_pcem(uaecptr addr, uae_u32 w)
 	} else {
 		addr ^= 2;
 	}
-	addr &= gb->pcem_vram_mask;
-	pcem_linear_write_w(addr + pcem_mapping_linear_offset, w, pcem_mapping_linear_priv);
+	addr &= gb->gfxchip_vram_mask;
+	gfxchip_linear_write_w(addr + gfxchip_mapping_linear_offset, w, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_lput_vram_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_vram_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
+	addr += gb->gfxchip_vram_offset;
 	if (addr & 0x800000) {
 		l = do_byteswap_32(l);
 	} else if (addr & 0x400000) {
@@ -5563,30 +5563,30 @@ static void REGPARAM2 gfxboard_lput_vram_pcem(uaecptr addr, uae_u32 l)
 	} else {
 		;
 	}
-	addr &= gb->pcem_vram_mask;
-	pcem_linear_write_l(addr + pcem_mapping_linear_offset, l, pcem_mapping_linear_priv);
+	addr &= gb->gfxchip_vram_mask;
+	gfxchip_linear_write_l(addr + gfxchip_mapping_linear_offset, l, gfxchip_mapping_linear_priv);
 }
 
-static uae_u32 REGPARAM2 gfxboard_bget_vram_cv_1_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_vram_cv_1_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	uae_u8 	v = pcem_linear_read_b(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	uae_u8 	v = gfxchip_linear_read_b(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_vram_cv_1_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_vram_cv_1_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	uae_u16 v;
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
+	addr += gb->gfxchip_vram_offset;
 	if (gb->device_data & 0x40) {
 		addr ^= 2;
 	} else if (gb->device_data & 0x20) {
 		;
 	}
-	v = pcem_linear_read_w(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	v = gfxchip_linear_read_w(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	if (gb->device_data & 0x40) {
 		;
 	} else if (gb->device_data & 0x20) {
@@ -5596,13 +5596,13 @@ static uae_u32 REGPARAM2 gfxboard_wget_vram_cv_1_pcem(uaecptr addr)
 	}
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_lget_vram_cv_1_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_vram_cv_1_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	uae_u32 v;
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	v = pcem_linear_read_l(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	v = gfxchip_linear_read_l(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	if (gb->device_data & 0x40) {
 		;
 	} else if (gb->device_data & 0x20) {
@@ -5612,20 +5612,20 @@ static uae_u32 REGPARAM2 gfxboard_lget_vram_cv_1_pcem(uaecptr addr)
 	}
 	return v;
 }
-static void REGPARAM2 gfxboard_bput_vram_cv_1_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_vram_cv_1_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	addr &= gb->pcem_vram_mask;
-	pcem_linear_write_b(addr + pcem_mapping_linear_offset, b, pcem_mapping_linear_priv);
+	addr += gb->gfxchip_vram_offset;
+	addr &= gb->gfxchip_vram_mask;
+	gfxchip_linear_write_b(addr + gfxchip_mapping_linear_offset, b, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_wput_vram_cv_1_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_vram_cv_1_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	addr &= gb->pcem_vram_mask;
+	addr += gb->gfxchip_vram_offset;
+	addr &= gb->gfxchip_vram_mask;
 	if (gb->device_data & 0x40) {
 		addr ^= 2;
 	} else if (gb->device_data & 0x20) {
@@ -5633,14 +5633,14 @@ static void REGPARAM2 gfxboard_wput_vram_cv_1_pcem(uaecptr addr, uae_u32 w)
 	} else {
 		w = do_byteswap_16(w);
 	}
-	pcem_linear_write_w(addr + pcem_mapping_linear_offset, w, pcem_mapping_linear_priv);
+	gfxchip_linear_write_w(addr + gfxchip_mapping_linear_offset, w, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_lput_vram_cv_1_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_vram_cv_1_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
-	addr &= gb->pcem_vram_mask;
+	addr += gb->gfxchip_vram_offset;
+	addr &= gb->gfxchip_vram_mask;
 	if (gb->device_data & 0x40) {
 		;
 	} else if (gb->device_data & 0x20) {
@@ -5648,7 +5648,7 @@ static void REGPARAM2 gfxboard_lput_vram_cv_1_pcem(uaecptr addr, uae_u32 l)
 	} else {
 		l = do_byteswap_32(l);
 	}
-	pcem_linear_write_l(addr + pcem_mapping_linear_offset, l, pcem_mapping_linear_priv);
+	gfxchip_linear_write_l(addr + gfxchip_mapping_linear_offset, l, gfxchip_mapping_linear_priv);
 }
 
 
@@ -5667,36 +5667,36 @@ static int p4z2swap(struct rtggfxboard *gb, uaecptr addr)
 	return 0;
 }
 
-static uae_u32 REGPARAM2 gfxboard_bget_vram_p4z2_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_vram_p4z2_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	addr += gb->pcem_vram_offset;
+	addr += gb->gfxchip_vram_offset;
 	int swap = p4z2swap(gb, addr);
 	if (swap) {
 		addr ^= 1;
 	}
-	uae_u8 	v = pcem_linear_read_b(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	uae_u8 	v = gfxchip_linear_read_b(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_vram_p4z2_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_vram_p4z2_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	uae_u16 v;
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	v = pcem_linear_read_w(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	v = gfxchip_linear_read_w(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	int swap = p4z2swap(gb, addr);
 	if (swap == 0 || swap == 1) {
 		v = do_byteswap_16(v);
 	}
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_lget_vram_p4z2_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_vram_p4z2_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	uae_u32 v;
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
-	v = pcem_linear_read_l(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
+	v = gfxchip_linear_read_l(addr + gfxchip_mapping_linear_offset, gfxchip_mapping_linear_priv);
 	int swap = p4z2swap(gb, addr);
 	if (swap == 1) {
 		v = do_byteswap_32(v);
@@ -5707,7 +5707,7 @@ static uae_u32 REGPARAM2 gfxboard_lget_vram_p4z2_pcem(uaecptr addr)
 	}
 	return v;
 }
-static void REGPARAM2 gfxboard_bput_vram_p4z2_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_vram_p4z2_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
@@ -5715,9 +5715,9 @@ static void REGPARAM2 gfxboard_bput_vram_p4z2_pcem(uaecptr addr, uae_u32 b)
 	if (swap) {
 		addr ^= 1;
 	}
-	pcem_linear_write_b(addr + pcem_mapping_linear_offset, b, pcem_mapping_linear_priv);
+	gfxchip_linear_write_b(addr + gfxchip_mapping_linear_offset, b, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_wput_vram_p4z2_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_vram_p4z2_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
@@ -5725,9 +5725,9 @@ static void REGPARAM2 gfxboard_wput_vram_p4z2_pcem(uaecptr addr, uae_u32 w)
 	if (swap == 0 || swap == 1) {
 		w = do_byteswap_16(w);
 	}
-	pcem_linear_write_w(addr + pcem_mapping_linear_offset, w, pcem_mapping_linear_priv);
+	gfxchip_linear_write_w(addr + gfxchip_mapping_linear_offset, w, gfxchip_mapping_linear_priv);
 }
-static void REGPARAM2 gfxboard_lput_vram_p4z2_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_vram_p4z2_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
@@ -5739,370 +5739,370 @@ static void REGPARAM2 gfxboard_lput_vram_p4z2_pcem(uaecptr addr, uae_u32 l)
 	} else {
 		l = (l >> 16) | (l << 16);
 	}
-	pcem_linear_write_l(addr + pcem_mapping_linear_offset, l, pcem_mapping_linear_priv);
+	gfxchip_linear_write_l(addr + gfxchip_mapping_linear_offset, l, gfxchip_mapping_linear_priv);
 }
 
 
 
 
-static uae_u32 REGPARAM2 gfxboard_lget_io_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_io_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
-	uae_u32 v = get_io_pcem(addr, 2);
+	addr &= gb->gfxchip_io_mask;
+	uae_u32 v = get_io_gfxchip(addr, 2);
 	v = do_byteswap_32(v);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_io_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_io_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
-	uae_u16 v = get_io_pcem(addr, 1);
+	addr &= gb->gfxchip_io_mask;
+	uae_u16 v = get_io_gfxchip(addr, 1);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_bget_io_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_io_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
-	uae_u32 v = get_io_pcem(addr, 0);
+	addr &= gb->gfxchip_io_mask;
+	uae_u32 v = get_io_gfxchip(addr, 0);
 	return v;
 }
-static void REGPARAM2 gfxboard_lput_io_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_io_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
+	addr &= gb->gfxchip_io_mask;
 	l = do_byteswap_32(l);
-	put_io_pcem(addr, l, 2);
+	put_io_gfxchip(addr, l, 2);
 	picassoiv_checkswitch(gb);
 }
-static void REGPARAM2 gfxboard_wput_io_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_io_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
-	put_io_pcem(addr, w, 1);
+	addr &= gb->gfxchip_io_mask;
+	put_io_gfxchip(addr, w, 1);
 	picassoiv_checkswitch(gb);
 }
-static void REGPARAM2 gfxboard_bput_io_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_io_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
-	put_io_pcem(addr, b, 0);
+	addr &= gb->gfxchip_io_mask;
+	put_io_gfxchip(addr, b, 0);
 	picassoiv_checkswitch(gb);
 }
 
-static uae_u32 REGPARAM2 gfxboard_lget_io_swap_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_io_swap_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
-	uae_u32 v = get_io_pcem(addr, 2);
+	addr &= gb->gfxchip_io_mask;
+	uae_u32 v = get_io_gfxchip(addr, 2);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_io_swap_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_io_swap_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
-	uae_u16 v = get_io_pcem(addr, 1);
+	addr &= gb->gfxchip_io_mask;
+	uae_u16 v = get_io_gfxchip(addr, 1);
 	v = do_byteswap_16(v);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_bget_io_swap_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_io_swap_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
-	uae_u32 v = get_io_pcem(addr, 0);
+	addr &= gb->gfxchip_io_mask;
+	uae_u32 v = get_io_gfxchip(addr, 0);
 	return v;
 }
-static void REGPARAM2 gfxboard_lput_io_swap_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_io_swap_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
-	put_io_pcem(addr, l, 2);
+	addr &= gb->gfxchip_io_mask;
+	put_io_gfxchip(addr, l, 2);
 	picassoiv_checkswitch(gb);
 }
-static void REGPARAM2 gfxboard_wput_io_swap_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_io_swap_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
+	addr &= gb->gfxchip_io_mask;
 	w = do_byteswap_16(w);
-	put_io_pcem(addr, w, 1);
+	put_io_gfxchip(addr, w, 1);
 	picassoiv_checkswitch(gb);
 }
-static void REGPARAM2 gfxboard_bput_io_swap_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_io_swap_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
-	put_io_pcem(addr, b, 0);
+	addr &= gb->gfxchip_io_mask;
+	put_io_gfxchip(addr, b, 0);
 	picassoiv_checkswitch(gb);
 }
 
 
-static uae_u32 REGPARAM2 gfxboard_lget_io_swap2_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_io_swap2_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
-	uae_u32 v = get_io_pcem(addr, 2);
+	addr &= gb->gfxchip_io_mask;
+	uae_u32 v = get_io_gfxchip(addr, 2);
 	v = do_byteswap_32(v);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_io_swap2_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_io_swap2_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
+	addr &= gb->gfxchip_io_mask;
 	addr ^= 2;
-	uae_u16 v = get_io_pcem(addr, 1);
+	uae_u16 v = get_io_gfxchip(addr, 1);
 	v = do_byteswap_16(v);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_bget_io_swap2_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_io_swap2_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
+	addr &= gb->gfxchip_io_mask;
 	addr ^= 3;
-	uae_u32 v = get_io_pcem(addr, 0);
+	uae_u32 v = get_io_gfxchip(addr, 0);
 	return v;
 }
-static void REGPARAM2 gfxboard_lput_io_swap2_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_io_swap2_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
+	addr &= gb->gfxchip_io_mask;
 	l = do_byteswap_32(l);
-	put_io_pcem(addr, l, 2);
+	put_io_gfxchip(addr, l, 2);
 }
-static void REGPARAM2 gfxboard_wput_io_swap2_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_io_swap2_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
+	addr &= gb->gfxchip_io_mask;
 	addr ^= 2;
 	w = do_byteswap_16(w);
-	put_io_pcem(addr, w, 1);
+	put_io_gfxchip(addr, w, 1);
 }
-static void REGPARAM2 gfxboard_bput_io_swap2_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_io_swap2_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_io_mask;
+	addr &= gb->gfxchip_io_mask;
 	addr ^= 3;
-	put_io_pcem(addr, b, 0);
+	put_io_gfxchip(addr, b, 0);
 }
 
 
 
-static uae_u32 REGPARAM2 gfxboard_bget_pci_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_pci_gfxchip(uaecptr addr)
 {
 	addr ^= 3;
-	uae_u8 v = get_pci_pcem(addr & 0xfff);
+	uae_u8 v = get_pci_gfxchip(addr & 0xfff);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_pci_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_pci_gfxchip(uaecptr addr)
 {
 	uae_u16 v;
-	v = gfxboard_bget_pci_pcem(addr) << 8;
-	v |= gfxboard_bget_pci_pcem(addr + 1) << 0;
+	v = gfxboard_bget_pci_gfxchip(addr) << 8;
+	v |= gfxboard_bget_pci_gfxchip(addr + 1) << 0;
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_lget_pci_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_pci_gfxchip(uaecptr addr)
 {
 	uae_u32 v;
-	v = gfxboard_wget_pci_pcem(addr) << 16;
-	v |= gfxboard_wget_pci_pcem(addr + 2) << 0;
+	v = gfxboard_wget_pci_gfxchip(addr) << 16;
+	v |= gfxboard_wget_pci_gfxchip(addr + 2) << 0;
 	return v;
 }
-static void REGPARAM2 gfxboard_bput_pci_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_pci_gfxchip(uaecptr addr, uae_u32 b)
 {
 	addr ^= 3;
-	put_pci_pcem(addr & 0xfff, b);
+	put_pci_gfxchip(addr & 0xfff, b);
 }
-static void REGPARAM2 gfxboard_wput_pci_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_pci_gfxchip(uaecptr addr, uae_u32 w)
 {
-	gfxboard_bput_pci_pcem(addr, w >> 8);
-	gfxboard_bput_pci_pcem(addr + 1, w & 0xff);
+	gfxboard_bput_pci_gfxchip(addr, w >> 8);
+	gfxboard_bput_pci_gfxchip(addr + 1, w & 0xff);
 }
-static void REGPARAM2 gfxboard_lput_pci_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_pci_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	gfxboard_wput_pci_pcem(addr, l >> 16);
-	gfxboard_wput_pci_pcem(addr + 2, l & 0xffff);
+	gfxboard_wput_pci_gfxchip(addr, l >> 16);
+	gfxboard_wput_pci_gfxchip(addr + 2, l & 0xffff);
 }
 
 
-static uae_u32 REGPARAM2 gfxboard_bget_mmio_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_mmio_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 	addr ^= 3;
-	uae_u8 v = get_mem_pcem(addr, 0);
+	uae_u8 v = get_mem_gfxchip(addr, 0);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_mmio_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_mmio_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 	addr ^= 2;
 	uae_u16 v;
-	v = get_mem_pcem(addr, 1);
+	v = get_mem_gfxchip(addr, 1);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_lget_mmio_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_mmio_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 	uae_u32 v;
-	v = get_mem_pcem(addr, 2);
+	v = get_mem_gfxchip(addr, 2);
 	return v;
 }
-static void REGPARAM2 gfxboard_bput_mmio_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_mmio_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 	addr ^= 3;
 #if 0
-	write_log(_T("gfxboard_bput_mmio_wbs_pcem(%08x, %08x)\n"), addr, b);
+	write_log(_T("gfxboard_bput_mmio_wbs_gfxchip(%08x, %08x)\n"), addr, b);
 #endif
-	put_mem_pcem(addr, b, 0);
+	put_mem_gfxchip(addr, b, 0);
 }
-static void REGPARAM2 gfxboard_wput_mmio_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_mmio_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 	addr ^= 2;
 #if 0
-	write_log(_T("gfxboard_wput_mmio_wbs_pcem(%08x, %08x)\n"), addr, w);
+	write_log(_T("gfxboard_wput_mmio_wbs_gfxchip(%08x, %08x)\n"), addr, w);
 #endif
-	put_mem_pcem(addr, w, 1);
+	put_mem_gfxchip(addr, w, 1);
 }
-static void REGPARAM2 gfxboard_lput_mmio_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_mmio_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 #if 0
-	write_log(_T("gfxboard_lput_mmio_wbs_pcem(%08x, %08x)\n"), addr, l);
+	write_log(_T("gfxboard_lput_mmio_wbs_gfxchip(%08x, %08x)\n"), addr, l);
 #endif
-	put_mem_pcem(addr, l, 2);
+	put_mem_gfxchip(addr, l, 2);
 }
 
 
-static uae_u32 REGPARAM2 gfxboard_bget_mmio_wbs_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_mmio_wbs_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
-	uae_u8 v = get_mem_pcem(addr, 0);
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
+	uae_u8 v = get_mem_gfxchip(addr, 0);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_mmio_wbs_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_mmio_wbs_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 	uae_u16 v;
-	v = get_mem_pcem(addr, 1);
+	v = get_mem_gfxchip(addr, 1);
 	v = do_byteswap_16(v);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_lget_mmio_wbs_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_mmio_wbs_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 	uae_u32 v;
-	v = get_mem_pcem(addr, 2);
+	v = get_mem_gfxchip(addr, 2);
 	v = do_byteswap_32(v);
 	return v;
 }
-static void REGPARAM2 gfxboard_bput_mmio_wbs_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_mmio_wbs_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 #if 0
-	write_log(_T("gfxboard_bput_mmio_wbs_pcem(%08x, %08x)\n"), addr, b);
+	write_log(_T("gfxboard_bput_mmio_wbs_gfxchip(%08x, %08x)\n"), addr, b);
 #endif
-	put_mem_pcem(addr, b, 0);
+	put_mem_gfxchip(addr, b, 0);
 }
-static void REGPARAM2 gfxboard_wput_mmio_wbs_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_mmio_wbs_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 #if 0
-	write_log(_T("gfxboard_wput_mmio_wbs_pcem(%08x, %08x)\n"), addr, w);
+	write_log(_T("gfxboard_wput_mmio_wbs_gfxchip(%08x, %08x)\n"), addr, w);
 #endif
 	w = do_byteswap_16(w);
-	put_mem_pcem(addr, w, 1);
+	put_mem_gfxchip(addr, w, 1);
 }
-static void REGPARAM2 gfxboard_lput_mmio_wbs_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_mmio_wbs_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 #if 0
-	write_log(_T("gfxboard_lput_mmio_wbs_pcem(%08x, %08x)\n"), addr, l);
+	write_log(_T("gfxboard_lput_mmio_wbs_gfxchip(%08x, %08x)\n"), addr, l);
 #endif
 	l = do_byteswap_32(l);
-	put_mem_pcem(addr, l, 2);
+	put_mem_gfxchip(addr, l, 2);
 }
 
 
-static uae_u32 REGPARAM2 gfxboard_bget_mmio_lbs_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_mmio_lbs_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
-	uae_u8 v = get_mem_pcem(addr, 0);
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
+	uae_u8 v = get_mem_gfxchip(addr, 0);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_mmio_lbs_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_mmio_lbs_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 	uae_u16 v;
-	v = get_mem_pcem(addr, 1);
+	v = get_mem_gfxchip(addr, 1);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_lget_mmio_lbs_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_mmio_lbs_gfxchip(uaecptr addr)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 	uae_u32 v;
-	v = get_mem_pcem(addr, 2);
+	v = get_mem_gfxchip(addr, 2);
 	return v;
 }
-static void REGPARAM2 gfxboard_bput_mmio_lbs_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_mmio_lbs_gfxchip(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 #if 0
-	write_log(_T("gfxboard_bput_mmio_wbs_pcem(%08x, %08x)\n"), addr, b);
+	write_log(_T("gfxboard_bput_mmio_wbs_gfxchip(%08x, %08x)\n"), addr, b);
 #endif
-	put_mem_pcem(addr, b, 0);
+	put_mem_gfxchip(addr, b, 0);
 }
-static void REGPARAM2 gfxboard_wput_mmio_lbs_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_mmio_lbs_gfxchip(uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 #if 0
-	write_log(_T("gfxboard_wput_mmio_wbs_pcem(%08x, %08x)\n"), addr, w);
+	write_log(_T("gfxboard_wput_mmio_wbs_gfxchip(%08x, %08x)\n"), addr, w);
 #endif
-	put_mem_pcem(addr, w, 1);
+	put_mem_gfxchip(addr, w, 1);
 }
-static void REGPARAM2 gfxboard_lput_mmio_lbs_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_mmio_lbs_gfxchip(uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-	addr &= gb->pcem_mmio_mask;
-	addr += gb->pcem_mmio_offset;
+	addr &= gb->gfxchip_mmio_mask;
+	addr += gb->gfxchip_mmio_offset;
 #if 0
-	write_log(_T("gfxboard_lput_mmio_wbs_pcem(%08x, %08x)\n"), addr, l);
+	write_log(_T("gfxboard_lput_mmio_wbs_gfxchip(%08x, %08x)\n"), addr, l);
 #endif
-	put_mem_pcem(addr, l, 2);
+	put_mem_gfxchip(addr, l, 2);
 }
 
 static uae_u8 get_io_merlin(struct rtggfxboard *gb, uae_u32 addr)
@@ -6110,13 +6110,13 @@ static uae_u8 get_io_merlin(struct rtggfxboard *gb, uae_u32 addr)
 	uae_u8 v = 0;
 
 	if (addr < 0x5000) {
-		v = get_io_pcem(addr, 0);
+		v = get_io_gfxchip(addr, 0);
 	}
 
 	// 2M vs 4M config bits
 	if (addr == 0x3ca) {
 		v &= ~0x0c;
-		if (gb->gfxboard_bank_vram_pcem.allocated_size >= 0x400000) {
+		if (gb->gfxboard_bank_vram_gfxchip.allocated_size >= 0x400000) {
 			v |= 4;
 		}
 	} else if (addr == 0x3c2) {
@@ -6180,14 +6180,14 @@ static uae_u8 get_io_merlin(struct rtggfxboard *gb, uae_u32 addr)
 	return v;
 }
 
-static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
+static void special_gfxchip_put(uaecptr addr, uae_u32 v, int size)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	int boardnum = gb->rbc->rtgmem_type;
 
 #if SPCDEBUG
 	//if ((addr & 0xfffff) != 0x3da)
-		write_log(_T("PCEM SPECIAL PUT %08x %08x %d PC=%08x\n"), addr, v, size, M68K_GETPC);
+		write_log(_T("GFXCHIP SPECIAL PUT %08x %08x %d PC=%08x\n"), addr, v, size, M68K_GETPC);
 #endif
 
 	if (boardnum == GFXBOARD_ID_ALTAIS_Z3) {
@@ -6200,11 +6200,11 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 		}
 		addr &= 0xffff;
 		if (size == 2) {
-			gfxboard_lput_io_swap_pcem(addr, v);
+			gfxboard_lput_io_swap_gfxchip(addr, v);
 		} else if (size == 1) {
-			gfxboard_wput_io_swap_pcem(addr, v);
+			gfxboard_wput_io_swap_gfxchip(addr, v);
 		} else {
-			gfxboard_bput_io_swap_pcem(addr, v);
+			gfxboard_bput_io_swap_gfxchip(addr, v);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_RETINA_Z2) {
@@ -6218,16 +6218,16 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			} else if (size == 1) {
 				v = do_byteswap_16(v);
 			}
-			put_mem_pcem(mem + 0xa0000, v, size);
+			put_mem_gfxchip(mem + 0xa0000, v, size);
 		} else if (addr & 0x8000) {
 			// RAMDAC
 			int dac = (addr & 15) >> 1;
 			if (dac == 6) {
-				put_io_pcem(0x3c6, v, 0);
+				put_io_gfxchip(0x3c6, v, 0);
 			} else if (dac == 0) {
-				put_io_pcem(0x3c8, v, 0);
+				put_io_gfxchip(0x3c8, v, 0);
 			} else if (dac == 1) {
-				put_io_pcem(0x3c9, v, 0);
+				put_io_gfxchip(0x3c9, v, 0);
 			}
 		} else {
 			// IO
@@ -6235,34 +6235,34 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			if (!(addr & 0x4000)) {
 				io++;
 			}
-			put_io_pcem(io, v, 0);
+			put_io_gfxchip(io, v, 0);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_PIXEL64) {
 
 		addr &= 0xffff;
 		if (size) {
-			put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
-			put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+			put_io_gfxchip(addr + 0, (v >> 8) & 0xff, 0);
+			put_io_gfxchip(addr + 1, (v >> 0) & 0xff, 0);
 		} else if (size == 0) {
-			put_io_pcem(addr, v & 0xff, 0);
+			put_io_gfxchip(addr, v & 0xff, 0);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000) {
 
 		addr &= 0xffff;
 		if (size) {
-			put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
-			put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+			put_io_gfxchip(addr + 0, (v >> 8) & 0xff, 0);
+			put_io_gfxchip(addr + 1, (v >> 0) & 0xff, 0);
 		} else if (size == 0) {
-			put_io_pcem(addr, v & 0xff, 0);
+			put_io_gfxchip(addr, v & 0xff, 0);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_CV643D_Z2) {
 
 		uaecptr addr2 = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
 		uaecptr addrd = addr2 + gb->gfxboardmem_start;
-		if (gb->pcem_pci_configured) {
+		if (gb->gfxchip_pci_configured) {
 			if (addr2 >= 0x3c0000 && addr2 < 0x3d0000) {
 				addrd &= 0x3fff;
 				if (size == 1) {
@@ -6270,16 +6270,16 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 				} else {
 					addrd ^= 3;
 				}
-				put_io_pcem(addrd, v, size);
+				put_io_gfxchip(addrd, v, size);
 				return;
 			} else if (addr2 == 0x3a0000 + 4) {
 				// Z2 IO/MMIO (What does this do?)
-				gb->pcem_data[0] = v;
+				gb->gfxchip_data[0] = v;
 				return;
 			} else if (addr2 == 0x3a0000 + 8) {
 				// Z2 endian select
-				gb->pcem_data[1] = v;
-				gb->pcem_vram_offset = (v & 0xc0) << 16;
+				gb->gfxchip_data[1] = v;
+				gb->gfxchip_vram_offset = (v & 0xc0) << 16;
 				return;
 			} else if (addr2 == 0x3a0000 + 0) {
 				if (size == 1) {
@@ -6296,38 +6296,38 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			if (addr2 >= 0x3c0000 && addr2 < 0x3c8000) {
 				addrd &= 0xfff;
 				if (size == 0)
-					gfxboard_bput_pci_pcem(addrd, v);
+					gfxboard_bput_pci_gfxchip(addrd, v);
 				else if (size == 1)
-					gfxboard_wput_pci_pcem(addrd, v);
+					gfxboard_wput_pci_gfxchip(addrd, v);
 				else
-					gfxboard_lput_pci_pcem(addrd, v);
+					gfxboard_lput_pci_gfxchip(addrd, v);
 				if (size == 2) {
-					gb->pcem_pci_configured = true;
+					gb->gfxchip_pci_configured = true;
 				}
 				return;
 			}
 		}
 		if (addr2 >= 0x3c8000 && addr2 < 0x3d0000) {
 			if (size == 0)
-				gfxboard_bput_mmio_pcem(addrd, v);
+				gfxboard_bput_mmio_gfxchip(addrd, v);
 			else if (size == 1)
-				gfxboard_wput_mmio_pcem(addrd, v);
+				gfxboard_wput_mmio_gfxchip(addrd, v);
 			else
-				gfxboard_lput_mmio_pcem(addrd, v);
+				gfxboard_lput_mmio_gfxchip(addrd, v);
 		} else if (addr2 >= 0x3e8000 && addr2 < 0x3f0000) {
 			if (size == 0)
-				gfxboard_bput_mmio_pcem(addrd, v);
+				gfxboard_bput_mmio_gfxchip(addrd, v);
 			else if (size == 1)
-				gfxboard_wput_mmio_pcem(addrd, v);
+				gfxboard_wput_mmio_gfxchip(addrd, v);
 			else
-				gfxboard_lput_mmio_pcem(addrd, v);
+				gfxboard_lput_mmio_gfxchip(addrd, v);
 		} else if (addr2 >= 0x3e0000 && addr2 < 0x3e8000) {
 			if (size == 0)
-				gfxboard_bput_mmio_wbs_pcem(addrd, v);
+				gfxboard_bput_mmio_wbs_gfxchip(addrd, v);
 			else if (size == 1)
-				gfxboard_wput_mmio_wbs_pcem(addrd, v);
+				gfxboard_wput_mmio_wbs_gfxchip(addrd, v);
 			else
-				gfxboard_lput_mmio_wbs_pcem(addrd, v);
+				gfxboard_lput_mmio_wbs_gfxchip(addrd, v);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_CV64_Z3) {
@@ -6392,10 +6392,10 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			}
 			addr &= 0x0fff;
 			if (size == 1) {
-				put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
-				put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+				put_io_gfxchip(addr + 0, (v >> 8) & 0xff, 0);
+				put_io_gfxchip(addr + 1, (v >> 0) & 0xff, 0);
 			} else if (size == 0) {
-				put_io_pcem(addr, v & 0xff, 0);
+				put_io_gfxchip(addr, v & 0xff, 0);
 			}
 		}
 	} else if (boardnum == GFXBOARD_ID_PICCOLO_Z3 || boardnum == GFXBOARD_ID_PICCOLO_Z2 || boardnum == GFXBOARD_ID_SPECTRUM_Z3 || boardnum == GFXBOARD_ID_SPECTRUM_Z2
@@ -6406,15 +6406,15 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 		} else {
 			addr &= 0x0fff;
 			if (size == 1) {
-				put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
-				put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+				put_io_gfxchip(addr + 0, (v >> 8) & 0xff, 0);
+				put_io_gfxchip(addr + 1, (v >> 0) & 0xff, 0);
 			} else if (size == 0) {
-				put_io_pcem(addr, v & 0xff, 0);
+				put_io_gfxchip(addr, v & 0xff, 0);
 			} else if (size == 2) {
-				put_io_pcem(addr + 0, (v >> 24) & 0xff, 0);
-				put_io_pcem(addr + 1, (v >> 16) & 0xff, 0);
-				put_io_pcem(addr + 2, (v >> 8) & 0xff, 0);
-				put_io_pcem(addr + 3, (v >> 0) & 0xff, 0);
+				put_io_gfxchip(addr + 0, (v >> 24) & 0xff, 0);
+				put_io_gfxchip(addr + 1, (v >> 16) & 0xff, 0);
+				put_io_gfxchip(addr + 2, (v >> 8) & 0xff, 0);
+				put_io_gfxchip(addr + 3, (v >> 0) & 0xff, 0);
 			}
 		}
 	} else if (boardnum == GFXBOARD_ID_PICASSO4_Z3 || boardnum == GFXBOARD_ID_PICASSO4_Z2) {
@@ -6442,11 +6442,11 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			} else if (addr2 >= 0x1000 && addr2 < 0x1040) {
 				addr2 -= 0x1000;
 				if (size == 0) {
-					gfxboard_bput_pci_pcem(addr2 ^ 3, v);
+					gfxboard_bput_pci_gfxchip(addr2 ^ 3, v);
 				} else if (size == 1) {
-					gfxboard_wput_pci_pcem(addr2 ^ 3, v);
+					gfxboard_wput_pci_gfxchip(addr2 ^ 3, v);
 				} else {
-					gfxboard_lput_pci_pcem(addr2 ^ 3, v);
+					gfxboard_lput_pci_gfxchip(addr2 ^ 3, v);
 				}
 				//gb->cirrus_pci[addr2] = b;
 //				reset_pci(gb);
@@ -6485,7 +6485,7 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 				} else if (size == 1) {
 					v = do_byteswap_16(v);
 				}
-				put_mem_pcem(addr + gb->pcem_mmio_offset, v, size);
+				put_mem_gfxchip(addr + gb->gfxchip_mmio_offset, v, size);
 				picassoiv_checkswitch(gb);
 //				uae_u32 addr2 = addr - gb->p4_mmiobase;
 //				gb->vgammio->write(&gb->vga, addr2, b, 1);
@@ -6499,7 +6499,7 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			} else if (size == 1) {
 				v = do_byteswap_16(v);
 			}
-			put_io_pcem(addr, v, size);
+			put_io_gfxchip(addr, v, size);
 			picassoiv_checkswitch(gb);
 //			addr = mungeaddr(gb, addr, true);
 //			if (addr) {
@@ -6531,7 +6531,7 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 
 		addr &= 0xffff;
 		if (!(addr & (0x2000 | 0x40000))) {
-			gfxboard_lput_mmio_pcem(addr, v);
+			gfxboard_lput_mmio_gfxchip(addr, v);
 		}
 		if (addr == 0x204c) {
 			gb->gfxboard_intena = (v & 1) != 0;
@@ -6548,10 +6548,10 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 		}
 		addr &= 0xfff;
 		if (size) {
-			put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
-			put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+			put_io_gfxchip(addr + 0, (v >> 8) & 0xff, 0);
+			put_io_gfxchip(addr + 1, (v >> 0) & 0xff, 0);
 		} else if (size == 0) {
-			put_io_pcem(addr, v & 0xff, 0);
+			put_io_gfxchip(addr, v & 0xff, 0);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_MERLIN_Z2 || boardnum == GFXBOARD_ID_MERLIN_Z3) {
@@ -6564,10 +6564,10 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 		}
 		if (addr < 0x5000) {
 			if (size) {
-				put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
-				put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+				put_io_gfxchip(addr + 0, (v >> 8) & 0xff, 0);
+				put_io_gfxchip(addr + 1, (v >> 0) & 0xff, 0);
 			} else if (size == 0) {
-				put_io_pcem(addr, v & 0xff, 0);
+				put_io_gfxchip(addr, v & 0xff, 0);
 			}
 		}
 
@@ -6576,17 +6576,17 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 		addr &= 0xffff;
 
 		if (size) {
-			put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
-			put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+			put_io_gfxchip(addr + 0, (v >> 8) & 0xff, 0);
+			put_io_gfxchip(addr + 1, (v >> 0) & 0xff, 0);
 		} else if (size == 0) {
-			put_io_pcem(addr, v & 0xff, 0);
+			put_io_gfxchip(addr, v & 0xff, 0);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_EGS_110_24) {
 
 		addr &= 0xffff;
 		if (!(addr & (0x1000 | 0x2000 | 0x40000))) {
-			gfxboard_lput_mmio_pcem(addr, v);
+			gfxboard_lput_mmio_gfxchip(addr, v);
 		}
 		if (addr == 0x2050) {
 			gb->gfxboard_intena = (v & 1) != 0;
@@ -6599,7 +6599,7 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 
 		addr &= 0xffff;
 		if (!(addr & (0x2000 | 0x40000))) {
-			gfxboard_lput_mmio_pcem(addr, v);
+			gfxboard_lput_mmio_gfxchip(addr, v);
 		}
 		if (addr == 0x2000) {
 			gb->gfxboard_intena = (v & 0x20) != 0;
@@ -6633,21 +6633,21 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 		addr &= 0xffff;
 		if (addr < 0x4000) {
 			if (size == 1) {
-				put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
-				put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+				put_io_gfxchip(addr + 0, (v >> 8) & 0xff, 0);
+				put_io_gfxchip(addr + 1, (v >> 0) & 0xff, 0);
 			} else if (size == 0) {
-				put_io_pcem(addr, v & 0xff, 0);
+				put_io_gfxchip(addr, v & 0xff, 0);
 			} else if (size == 2) {
-				put_io_pcem(addr + 0, (v >> 24) & 0xff, 0);
-				put_io_pcem(addr + 1, (v >> 16) & 0xff, 0);
-				put_io_pcem(addr + 2, (v >> 8) & 0xff, 0);
-				put_io_pcem(addr + 3, (v >> 0) & 0xff, 0);
+				put_io_gfxchip(addr + 0, (v >> 24) & 0xff, 0);
+				put_io_gfxchip(addr + 1, (v >> 16) & 0xff, 0);
+				put_io_gfxchip(addr + 2, (v >> 8) & 0xff, 0);
+				put_io_gfxchip(addr + 3, (v >> 0) & 0xff, 0);
 			}
 		}
 	}
 }
 
-static uae_u32 special_pcem_get(uaecptr addr, int size)
+static uae_u32 special_gfxchip_get(uaecptr addr, int size)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
 	int boardnum = gb->rbc->rtgmem_type;
@@ -6655,7 +6655,7 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 
 #if SPCDEBUG
 	//if ((addr & 0xfffff) != 0x3da)
-		write_log(_T("PCEM SPECIAL GET %08x %d PC=%08x\n"), addr, size, M68K_GETPC);
+		write_log(_T("GFXCHIP SPECIAL GET %08x %d PC=%08x\n"), addr, size, M68K_GETPC);
 #endif
 
 	if (boardnum == GFXBOARD_ID_ALTAIS_Z3) {
@@ -6668,11 +6668,11 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 		}
 		addr &= 0xffff;
 		if (size == 2) {
-			v = gfxboard_lget_io_swap_pcem(addr);
+			v = gfxboard_lget_io_swap_gfxchip(addr);
 		} else if (size == 1) {
-			v = gfxboard_wget_io_swap_pcem(addr);
+			v = gfxboard_wget_io_swap_gfxchip(addr);
 		} else {
-			v = gfxboard_bget_io_swap_pcem(addr);
+			v = gfxboard_bget_io_swap_gfxchip(addr);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_RETINA_Z2) {
@@ -6681,7 +6681,7 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 		if (addr & 0x10000) {
 			// VRAM banks
 			uaecptr mem = addr & 0xffff;
-			v = get_mem_pcem(mem + 0xa0000, size);
+			v = get_mem_gfxchip(mem + 0xa0000, size);
 			if (size == 2) {
 				v = do_byteswap_32(v);
 			} else if (size == 1) {
@@ -6691,11 +6691,11 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 			// RAMDAC
 			int dac = (addr & 15) >> 1;
 			if (dac == 6) {
-				v = get_io_pcem(0x3c6, 0);
+				v = get_io_gfxchip(0x3c6, 0);
 			} else if (dac == 0) {
-				v = get_io_pcem(0x3c8, 0);
+				v = get_io_gfxchip(0x3c8, 0);
 			} else if (dac == 1) {
-				v = get_io_pcem(0x3c9, 0);
+				v = get_io_gfxchip(0x3c9, 0);
 			}
 		} else {
 			// IO
@@ -6703,32 +6703,32 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 			if (!(addr & 0x4000)) {
 				io++;
 			}
-			v = get_io_pcem(io, 0);
+			v = get_io_gfxchip(io, 0);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_PIXEL64) {
 
 		if (size) {
-			v = get_io_pcem(addr + 0, 0) << 8;
-			v |= get_io_pcem(addr + 1, 0) << 0;
+			v = get_io_gfxchip(addr + 0, 0) << 8;
+			v |= get_io_gfxchip(addr + 1, 0) << 0;
 		} else if (size == 0) {
-			v = get_io_pcem(addr, 0);
+			v = get_io_gfxchip(addr, 0);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000) {
 
 		if (size) {
-			v = get_io_pcem(addr + 0, 0) << 8;
-			v |= get_io_pcem(addr + 1, 0) << 0;
+			v = get_io_gfxchip(addr + 0, 0) << 8;
+			v |= get_io_gfxchip(addr + 1, 0) << 0;
 		} else if (size == 0) {
-			v = get_io_pcem(addr, 0);
+			v = get_io_gfxchip(addr, 0);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_CV643D_Z2) {
 
 		uaecptr addr2 = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
 		uaecptr addrd = addr2 + gb->gfxboardmem_start;
-		if (gb->pcem_pci_configured) {
+		if (gb->gfxchip_pci_configured) {
 			// -> IO
 			if (addr2 >= 0x3c0000 && addr2 < 0x3c8000) {
 				addrd &= 0x3fff;
@@ -6737,39 +6737,39 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 				} else if (size == 1) {
 					addrd ^= 2;
 				}
-				v = get_io_pcem(addrd, size);
+				v = get_io_gfxchip(addrd, size);
 			}
 		} else {
 			if (addr2 >= 0x3c0000 && addr2 < 0x3c8000) {
 				if (size == 0)
-					v = gfxboard_bget_pci_pcem(addrd);
+					v = gfxboard_bget_pci_gfxchip(addrd);
 				else if (size == 1)
-					v = gfxboard_wget_pci_pcem(addrd);
+					v = gfxboard_wget_pci_gfxchip(addrd);
 				else
-					v = gfxboard_lget_pci_pcem(addrd);
+					v = gfxboard_lget_pci_gfxchip(addrd);
 			}
 		}
 		if (addr2 >= 0x3c8000 && addr2 < 0x3d0000) {
 			if (size == 0)
-				v = gfxboard_bget_mmio_pcem(addrd);
+				v = gfxboard_bget_mmio_gfxchip(addrd);
 			else if (size == 1)
-				v = gfxboard_wget_mmio_pcem(addrd);
+				v = gfxboard_wget_mmio_gfxchip(addrd);
 			else
-				v = gfxboard_lget_mmio_pcem(addrd);
+				v = gfxboard_lget_mmio_gfxchip(addrd);
 		} else if (addr2 >= 0x3e8000 && addr2 < 0x3f0000) {
 			if (size == 0)
-				v = gfxboard_bget_mmio_pcem(addrd);
+				v = gfxboard_bget_mmio_gfxchip(addrd);
 			else if (size == 1)
-				v = gfxboard_wget_mmio_pcem(addrd);
+				v = gfxboard_wget_mmio_gfxchip(addrd);
 			else
-				v = gfxboard_lget_mmio_pcem(addrd);
+				v = gfxboard_lget_mmio_gfxchip(addrd);
 		} else if (addr2 >= 0x3e0000 && addr2 < 0x3e8000) {
 			if (size == 0)
-				v = gfxboard_bget_mmio_wbs_pcem(addrd);
+				v = gfxboard_bget_mmio_wbs_gfxchip(addrd);
 			else if (size == 1)
-				v = gfxboard_wget_mmio_wbs_pcem(addrd);
+				v = gfxboard_wget_mmio_wbs_gfxchip(addrd);
 			else
-				v = gfxboard_lget_mmio_wbs_pcem(addrd);
+				v = gfxboard_lget_mmio_wbs_gfxchip(addrd);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_CV64_Z3) {
@@ -6790,25 +6790,25 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 				addr |= 1;
 			addr &= 0x0fff;
 			if (size == 1) {
-				v = get_io_pcem(addr + 0, 0) << 8;
-				v |= get_io_pcem(addr + 1, 0) << 0;
+				v = get_io_gfxchip(addr + 0, 0) << 8;
+				v |= get_io_gfxchip(addr + 1, 0) << 0;
 			} else if (size == 0) {
-				v = get_io_pcem(addr, 0);
+				v = get_io_gfxchip(addr, 0);
 			}
 		}
 	} else if (boardnum == GFXBOARD_ID_PICCOLO_Z3 || boardnum == GFXBOARD_ID_PICCOLO_Z2 || boardnum == GFXBOARD_ID_SPECTRUM_Z3 || boardnum == GFXBOARD_ID_SPECTRUM_Z2
 		|| boardnum == GFXBOARD_ID_SD64_Z2 || boardnum == GFXBOARD_ID_SD64_Z3) {
 		addr &= 0x0fff;
 		if (size == 1) {
-			v = get_io_pcem(addr + 0, 0) << 8;
-			v |= get_io_pcem(addr + 1, 0) << 0;
+			v = get_io_gfxchip(addr + 0, 0) << 8;
+			v |= get_io_gfxchip(addr + 1, 0) << 0;
 		} else if (size == 0) {
-			v = get_io_pcem(addr, 0);
+			v = get_io_gfxchip(addr, 0);
 		} else if (size == 2) {
-			v = get_io_pcem(addr + 0, 0) << 24;
-			v |= get_io_pcem(addr + 1, 0) << 16;
-			v |= get_io_pcem(addr + 2, 0) << 8;
-			v |= get_io_pcem(addr + 3, 0) << 0;
+			v = get_io_gfxchip(addr + 0, 0) << 24;
+			v |= get_io_gfxchip(addr + 1, 0) << 16;
+			v |= get_io_gfxchip(addr + 2, 0) << 8;
+			v |= get_io_gfxchip(addr + 3, 0) << 0;
 		}
 	} else if (boardnum == GFXBOARD_ID_PICASSO4_Z3 || boardnum == GFXBOARD_ID_PICASSO4_Z2) {
 
@@ -6832,11 +6832,11 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 #endif
 			} else if (addr2 >= 0x1000 && addr2 <= 0x1040) {
 				if (size == 0) {
-					v = gfxboard_bget_pci_pcem(addr2 ^ 3);
+					v = gfxboard_bget_pci_gfxchip(addr2 ^ 3);
 				} else if (size == 1) {
-					v = gfxboard_wget_pci_pcem(addr2 ^ 3);
+					v = gfxboard_wget_pci_gfxchip(addr2 ^ 3);
 				} else {
-					v = gfxboard_lget_pci_pcem(addr2 ^ 3);
+					v = gfxboard_lget_pci_gfxchip(addr2 ^ 3);
 				}
 				//	addr2 -= 0x1000;
 				//	v = gb->cirrus_pci[addr2];
@@ -6858,7 +6858,7 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 						addr -= 0x100;
 					}
 				}
-				v = get_mem_pcem(addr + gb->pcem_mmio_offset, size);
+				v = get_mem_gfxchip(addr + gb->gfxchip_mmio_offset, size);
 				if (size == 2) {
 					v = do_byteswap_32(v);
 				} else if (size == 1) {
@@ -6900,7 +6900,7 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 				v = gb->gfxboard_intreq ? 0x80 : 0;
 			} else if (gb->p4z2 && addr >= 0x10000) {
 				addr -= 0x10000;
-				v = get_io_pcem(addr, size);
+				v = get_io_gfxchip(addr, size);
 				if (size == 2) {
 					v = do_byteswap_32(v);
 				} else if (size == 1) {
@@ -6934,11 +6934,11 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 		addr &= 0xffff;
 		if (!(addr & (0x2000 | 0x40000))) {
 			if (size == 2) {
-				v = gfxboard_lget_mmio_pcem(addr);
+				v = gfxboard_lget_mmio_gfxchip(addr);
 			} else if (size == 1) {
-				v = gfxboard_wget_mmio_pcem(addr);
+				v = gfxboard_wget_mmio_gfxchip(addr);
 			} else {
-				v = gfxboard_bget_mmio_pcem(addr);
+				v = gfxboard_bget_mmio_gfxchip(addr);
 			}
 		}
 		if (addr == 0x2044) {
@@ -6953,10 +6953,10 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 		}
 		addr &= 0xfff;
 		if (size) {
-			v = get_io_pcem(addr + 0, 0) << 8;
-			v |= get_io_pcem(addr + 1, 0) << 0;
+			v = get_io_gfxchip(addr + 0, 0) << 8;
+			v |= get_io_gfxchip(addr + 1, 0) << 0;
 		} else if (size == 0) {
-			v = get_io_pcem(addr, 0);
+			v = get_io_gfxchip(addr, 0);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_MERLIN_Z2 || boardnum == GFXBOARD_ID_MERLIN_Z3) {
@@ -6973,10 +6973,10 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 
 		addr &= 0xffff;
 		if (size) {
-			v = get_io_pcem(addr + 0, 0) << 8;
-			v |= get_io_pcem(addr + 1, 0) << 0;
+			v = get_io_gfxchip(addr + 0, 0) << 8;
+			v |= get_io_gfxchip(addr + 1, 0) << 0;
 		} else if (size == 0) {
-			v = get_io_pcem(addr, 0);
+			v = get_io_gfxchip(addr, 0);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_EGS_110_24) {
@@ -6984,11 +6984,11 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 		addr &= 0xffff;
 		if (!(addr & (0x2000 | 0x40000))) {
 			if (size == 2) {
-				v = gfxboard_lget_mmio_pcem(addr);
+				v = gfxboard_lget_mmio_gfxchip(addr);
 			} else if (size == 1) {
-				v = gfxboard_wget_mmio_pcem(addr);
+				v = gfxboard_wget_mmio_gfxchip(addr);
 			} else {
-				v = gfxboard_bget_mmio_pcem(addr);
+				v = gfxboard_bget_mmio_gfxchip(addr);
 			}
 		} else if (addr == 0x2044) {
 			v = gb->gfxboard_intreq_marked ? 4 : 0;
@@ -7003,11 +7003,11 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 		addr &= 0xffff;
 		if (!(addr & (0x2000 | 0x40000))) {
 			if (size == 2) {
-				v = gfxboard_lget_mmio_pcem(addr);
+				v = gfxboard_lget_mmio_gfxchip(addr);
 			} else if (size == 1) {
-				v = gfxboard_wget_mmio_pcem(addr);
+				v = gfxboard_wget_mmio_gfxchip(addr);
 			} else {
-				v = gfxboard_bget_mmio_pcem(addr);
+				v = gfxboard_bget_mmio_gfxchip(addr);
 			}
 		}
 		if (addr & 0x4000) {
@@ -7019,15 +7019,15 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 		addr &= 0xffff;
 		if (addr < 0x1000) {
 			if (size == 1) {
-				v = get_io_pcem(addr + 0, 0) << 8;
-				v |= get_io_pcem(addr + 1, 0) << 0;
+				v = get_io_gfxchip(addr + 0, 0) << 8;
+				v |= get_io_gfxchip(addr + 1, 0) << 0;
 			} else if (size == 0) {
-				v = get_io_pcem(addr, 0);
+				v = get_io_gfxchip(addr, 0);
 			} else if (size == 2) {
-				v = get_io_pcem(addr + 0, 0) << 24;
-				v |= get_io_pcem(addr + 1, 0) << 16;
-				v |= get_io_pcem(addr + 2, 0) << 8;
-				v |= get_io_pcem(addr + 3, 0) << 0;
+				v = get_io_gfxchip(addr + 0, 0) << 24;
+				v |= get_io_gfxchip(addr + 1, 0) << 16;
+				v |= get_io_gfxchip(addr + 2, 0) << 8;
+				v |= get_io_gfxchip(addr + 3, 0) << 0;
 			}
 		}
 	}
@@ -7035,53 +7035,53 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 	return v;
 }
 
-static uae_u32 REGPARAM2 gfxboard_bget_special_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_bget_special_gfxchip(uaecptr addr)
 {
-	uae_u32 v = special_pcem_get(addr, 0);
+	uae_u32 v = special_gfxchip_get(addr, 0);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_special_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_wget_special_gfxchip(uaecptr addr)
 {
-	uae_u32 v = special_pcem_get(addr, 1);
+	uae_u32 v = special_gfxchip_get(addr, 1);
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_lget_special_pcem(uaecptr addr)
+static uae_u32 REGPARAM2 gfxboard_lget_special_gfxchip(uaecptr addr)
 {
-	uae_u32 v = special_pcem_get(addr, 2);
+	uae_u32 v = special_gfxchip_get(addr, 2);
 	return v;
 }
 
-static void REGPARAM2 gfxboard_bput_special_pcem(uaecptr addr, uae_u32 b)
+static void REGPARAM2 gfxboard_bput_special_gfxchip(uaecptr addr, uae_u32 b)
 {
-	special_pcem_put(addr, b, 0);
+	special_gfxchip_put(addr, b, 0);
 }
-static void REGPARAM2 gfxboard_wput_special_pcem(uaecptr addr, uae_u32 w)
+static void REGPARAM2 gfxboard_wput_special_gfxchip(uaecptr addr, uae_u32 w)
 {
-	special_pcem_put(addr, w, 1);
+	special_gfxchip_put(addr, w, 1);
 }
-static void REGPARAM2 gfxboard_lput_special_pcem(uaecptr addr, uae_u32 l)
+static void REGPARAM2 gfxboard_lput_special_gfxchip(uaecptr addr, uae_u32 l)
 {
-	special_pcem_put(addr, l, 2);
+	special_gfxchip_put(addr, l, 2);
 }
 
-void *pcem_getvram(int size)
+void *gfxchip_getvram(int size)
 {
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtggfxboard *gb = &rtggfxboards[i];
-		if (gb->pcemdev) {
+		if (gb->gfxchipdev) {
 			return gb->vram;
 		}
 	}
 	return NULL;
 }
-int pcem_getvramsize(void)
+int gfxchip_getvramsize(void)
 {
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtgboardconfig *c = &currprefs.rtgboards[i];
 		int type = c->rtgmem_type;
 		if (type >= GFXBOARD_HARDWARE) {
 			const struct gfxboard *gfxb = find_board(type);
-			if (gfxb->pcemdev) {
+			if (gfxb->gfxchipdev) {
 				return c->rtgmem_size;
 			}
 		}
@@ -7114,7 +7114,7 @@ uae_u8 *gfxboard_getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, 
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	struct picasso96_state_struct *state = &picasso96_state[monid];
 
-	if (!gb->pcemdev)
+	if (!gb->gfxchipdev)
 		return NULL;
 
 	int width = state->VirtualWidth;
@@ -7128,7 +7128,7 @@ uae_u8 *gfxboard_getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, 
 
 	uae_u8 *d = dst;
 	for (int yy = 0; yy < height; yy++) {
-		uae_u8 *s = getpcembuffer32(32, 0, yy);
+		uae_u8 *s = gfxchip_getbuffer32(32, 0, yy);
 		memcpy(d, s, width * 4);
 		d += width * 4;
 	}

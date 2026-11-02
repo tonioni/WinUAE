@@ -138,7 +138,7 @@ static uint32_t calc_16to32(int c, bool swapped)
    red/blue order changes */
 static int video_rbswapped = -1;
 
-void pcemvideorbswap(bool swapped)
+void gfxchip_video_rbswap(bool swapped)
 {
 	if (video_rbswapped == swapped) {
 		return;
@@ -202,7 +202,7 @@ static void video_init_tables(bool swapped)
 		video_15to32 = xcalloc(uint32_t, 65536);
 		video_16to32 = xcalloc(uint32_t, 65536);
 	}
-	pcemvideorbswap(swapped);
+	gfxchip_video_rbswap(swapped);
 	if (!target_bitmap) {
 		target_bitmap = alloc_bitmap();
 		double_bitmap = alloc_bitmap();
@@ -222,7 +222,7 @@ static void video_init_tables(bool swapped)
 
 /* gfxboard.cpp shows the frame */
 
-uint8_t *getpcembuffer32(int x, int y, int yy)
+uint8_t *gfxchip_getbuffer32(int x, int y, int yy)
 {
 	return (uint8_t *)(blit_bitmap->line[y + yy] + x);
 }
@@ -362,12 +362,12 @@ void svga_setvram(void *p, uint8_t *vram)
 	svga->vram = vram;
 }
 
-uint8_t pcem_read_io(int port, int index)
+uint8_t gfxchip_read_io(int port, int index)
 {
 	if (port == 0x3d5 && board_svga) {
 		return board_svga->crtc[index];
 	}
-	write_log(_T("pcem_read_io: unknown port %04x\n"), port);
+	write_log(_T("gfxchip_read_io: unknown port %04x\n"), port);
 	return 0;
 }
 
@@ -384,14 +384,14 @@ static uint32_t mapping_stamp;
 static mem_mapping_t **mapblocks;
 
 static mem_mapping_t *linear_mapping;
-void *pcem_mapping_linear_priv;
-uint32_t pcem_mapping_linear_offset;
-uint8_t (*pcem_linear_read_b)(uint32_t addr, void *priv);
-uint16_t (*pcem_linear_read_w)(uint32_t addr, void *priv);
-uint32_t (*pcem_linear_read_l)(uint32_t addr, void *priv);
-void (*pcem_linear_write_b)(uint32_t addr, uint8_t val, void *priv);
-void (*pcem_linear_write_w)(uint32_t addr, uint16_t val, void *priv);
-void (*pcem_linear_write_l)(uint32_t addr, uint32_t val, void *priv);
+void *gfxchip_mapping_linear_priv;
+uint32_t gfxchip_mapping_linear_offset;
+uint8_t (*gfxchip_linear_read_b)(uint32_t addr, void *priv);
+uint16_t (*gfxchip_linear_read_w)(uint32_t addr, void *priv);
+uint32_t (*gfxchip_linear_read_l)(uint32_t addr, void *priv);
+void (*gfxchip_linear_write_b)(uint32_t addr, uint8_t val, void *priv);
+void (*gfxchip_linear_write_w)(uint32_t addr, uint16_t val, void *priv);
+void (*gfxchip_linear_write_l)(uint32_t addr, uint32_t val, void *priv);
 
 static uint8_t dummy_read_b(uint32_t addr, void *priv)
 {
@@ -433,14 +433,14 @@ static void mapping_recalc(mem_mapping_t *m)
 	if (m == linear_mapping || (!linear_mapping && m->size >= 1024 * 1024)) {
 		bool on = m->enable && m->size;
 		linear_mapping = m;
-		pcem_mapping_linear_priv = m->priv;
-		pcem_mapping_linear_offset = m->base;
-		pcem_linear_read_b = on && m->read_b ? m->read_b : dummy_read_b;
-		pcem_linear_read_w = on && m->read_w ? m->read_w : dummy_read_w;
-		pcem_linear_read_l = on && m->read_l ? m->read_l : dummy_read_l;
-		pcem_linear_write_b = on && m->write_b ? m->write_b : dummy_write_b;
-		pcem_linear_write_w = on && m->write_w ? m->write_w : dummy_write_w;
-		pcem_linear_write_l = on && m->write_l ? m->write_l : dummy_write_l;
+		gfxchip_mapping_linear_priv = m->priv;
+		gfxchip_mapping_linear_offset = m->base;
+		gfxchip_linear_read_b = on && m->read_b ? m->read_b : dummy_read_b;
+		gfxchip_linear_read_w = on && m->read_w ? m->read_w : dummy_read_w;
+		gfxchip_linear_read_l = on && m->read_l ? m->read_l : dummy_read_l;
+		gfxchip_linear_write_b = on && m->write_b ? m->write_b : dummy_write_b;
+		gfxchip_linear_write_w = on && m->write_w ? m->write_w : dummy_write_w;
+		gfxchip_linear_write_l = on && m->write_l ? m->write_l : dummy_write_l;
 	}
 	if (!mapblocks || !m->size) {
 		return;
@@ -562,7 +562,7 @@ static mem_mapping_t *get_mapping(uint32_t addr)
 	return m;
 }
 
-void put_mem_pcem(uint32_t addr, uint32_t v, int size)
+void put_mem_gfxchip(uint32_t addr, uint32_t v, int size)
 {
 	mem_mapping_t *m = get_mapping(addr);
 	if (!m) {
@@ -576,20 +576,20 @@ void put_mem_pcem(uint32_t addr, uint32_t v, int size)
 		if (m->write_w) {
 			m->write_w(addr, v, m->priv);
 		} else {
-			put_mem_pcem(addr + 0, v >> 0, 0);
-			put_mem_pcem(addr + 1, v >> 8, 0);
+			put_mem_gfxchip(addr + 0, v >> 0, 0);
+			put_mem_gfxchip(addr + 1, v >> 8, 0);
 		}
 	} else if (size == 2) {
 		if (m->write_l) {
 			m->write_l(addr, v, m->priv);
 		} else {
-			put_mem_pcem(addr + 0, v >> 0, 1);
-			put_mem_pcem(addr + 2, v >> 16, 1);
+			put_mem_gfxchip(addr + 0, v >> 0, 1);
+			put_mem_gfxchip(addr + 2, v >> 16, 1);
 		}
 	}
 }
 
-uint32_t get_mem_pcem(uint32_t addr, int size)
+uint32_t get_mem_gfxchip(uint32_t addr, int size)
 {
 	uint32_t v = 0;
 	mem_mapping_t *m = get_mapping(addr);
@@ -604,27 +604,27 @@ uint32_t get_mem_pcem(uint32_t addr, int size)
 		if (m->read_w) {
 			v = m->read_w(addr, m->priv);
 		} else {
-			v = get_mem_pcem(addr + 0, 0) << 0;
-			v |= get_mem_pcem(addr + 1, 0) << 8;
+			v = get_mem_gfxchip(addr + 0, 0) << 0;
+			v |= get_mem_gfxchip(addr + 1, 0) << 8;
 		}
 	} else if (size == 2) {
 		if (m->read_l) {
 			v = m->read_l(addr, m->priv);
 		} else {
-			v = get_mem_pcem(addr + 0, 1) << 0;
-			v |= get_mem_pcem(addr + 2, 1) << 16;
+			v = get_mem_gfxchip(addr + 0, 1) << 0;
+			v |= get_mem_gfxchip(addr + 2, 1) << 16;
 		}
 	}
 	return v;
 }
 
-void pcem_linear_mark(int offset)
+void gfxchip_linear_mark(int offset)
 {
 	if (!linear_mapping) {
 		return;
 	}
-	uint16_t w = pcem_linear_read_w(offset, pcem_mapping_linear_priv);
-	pcem_linear_write_w(offset, w, pcem_mapping_linear_priv);
+	uint16_t w = gfxchip_linear_read_w(offset, gfxchip_mapping_linear_priv);
+	gfxchip_linear_write_w(offset, w, gfxchip_mapping_linear_priv);
 }
 
 /* No bus mastering from the cards */
@@ -719,7 +719,7 @@ void rtg_io_removehandler(uint16_t base, uint16_t size,
 	}
 }
 
-void put_io_pcem(uint32_t addr, uint32_t v, int size)
+void put_io_gfxchip(uint32_t addr, uint32_t v, int size)
 {
 	addr &= MAX_IO_PORT - 1;
 	if (!ports) {
@@ -740,15 +740,15 @@ void put_io_pcem(uint32_t addr, uint32_t v, int size)
 		}
 	}
 	if (!found && size == 1) {
-		put_io_pcem(addr + 0, v >> 0, 0);
-		put_io_pcem(addr + 1, v >> 8, 0);
+		put_io_gfxchip(addr + 0, v >> 0, 0);
+		put_io_gfxchip(addr + 1, v >> 8, 0);
 	} else if (!found && size == 2) {
-		put_io_pcem(addr + 0, v >> 0, 1);
-		put_io_pcem(addr + 2, v >> 16, 1);
+		put_io_gfxchip(addr + 0, v >> 0, 1);
+		put_io_gfxchip(addr + 2, v >> 16, 1);
 	}
 }
 
-uint32_t get_io_pcem(uint32_t addr, int size)
+uint32_t get_io_gfxchip(uint32_t addr, int size)
 {
 	addr &= MAX_IO_PORT - 1;
 	uint32_t v = size == 0 ? 0xff : (size == 1 ? 0xffff : 0xffffffff);
@@ -770,11 +770,11 @@ uint32_t get_io_pcem(uint32_t addr, int size)
 		}
 	}
 	if (!found && size == 1) {
-		v = get_io_pcem(addr + 0, 0) << 0;
-		v |= get_io_pcem(addr + 1, 0) << 8;
+		v = get_io_gfxchip(addr + 0, 0) << 0;
+		v |= get_io_gfxchip(addr + 1, 0) << 8;
 	} else if (!found && size == 2) {
-		v = get_io_pcem(addr + 0, 1) << 0;
-		v |= get_io_pcem(addr + 2, 1) << 16;
+		v = get_io_gfxchip(addr + 0, 1) << 0;
+		v |= get_io_gfxchip(addr + 2, 1) << 16;
 	}
 	return v;
 }
@@ -838,7 +838,7 @@ void rtg_timer_on_auto(pc_timer_t *timer, double period)
 	}
 }
 
-void pcemglue_hsync(void)
+void gfxchip_hsync(void)
 {
 	/* Timers re-enable themselves from their callbacks, take the current
 	   ones off the list first. */
@@ -952,7 +952,7 @@ int rtg_device_get_config_int(const char *s)
 		return 2;
 	}
 	if (!strcmp(s, "memory")) {
-		int vram = pcem_getvramsize() >> 20;
+		int vram = gfxchip_getvramsize() >> 20;
 		return vram > 0 ? vram : 2;
 	}
 	if (!strcmp(s, "render_threads")) {
@@ -1056,14 +1056,14 @@ void rtg_pci_irq(uint8_t slot, uint8_t pci_int, int level, int set, uint8_t *irq
 	gfxboard_intreq(gfxboard_priv, set ? 1 : 0, true);
 }
 
-void put_pci_pcem(uint32_t addr, uint8_t v)
+void put_pci_gfxchip(uint32_t addr, uint8_t v)
 {
 	if (pci_card_write) {
 		pci_card_write(0, addr, 1, v, pci_card_priv);
 	}
 }
 
-uint8_t get_pci_pcem(uint32_t addr)
+uint8_t get_pci_gfxchip(uint32_t addr)
 {
 	uint8_t v = 0;
 	if (pci_card_read) {
@@ -1074,7 +1074,7 @@ uint8_t get_pci_pcem(uint32_t addr)
 
 /* Starting and stopping the card */
 
-void *pcem_device_init(const device_t *dev, void *gfxboard, bool swapped, void **svga)
+void *gfxchip_device_init(const device_t *dev, void *gfxboard, bool swapped, void **svga)
 {
 	if (!mapblocks) {
 		mapblocks = xcalloc(mem_mapping_t *, MAX_MAPBLOCKS);
@@ -1087,14 +1087,14 @@ void *pcem_device_init(const device_t *dev, void *gfxboard, bool swapped, void *
 		memset(ports, 0, sizeof(struct port_handler) * MAX_IO_PORT * MAX_PORT_HANDLERS);
 	}
 	linear_mapping = NULL;
-	pcem_mapping_linear_priv = NULL;
-	pcem_mapping_linear_offset = 0;
-	pcem_linear_read_b = dummy_read_b;
-	pcem_linear_read_w = dummy_read_w;
-	pcem_linear_read_l = dummy_read_l;
-	pcem_linear_write_b = dummy_write_b;
-	pcem_linear_write_w = dummy_write_w;
-	pcem_linear_write_l = dummy_write_l;
+	gfxchip_mapping_linear_priv = NULL;
+	gfxchip_mapping_linear_offset = 0;
+	gfxchip_linear_read_b = dummy_read_b;
+	gfxchip_linear_read_w = dummy_read_w;
+	gfxchip_linear_read_l = dummy_read_l;
+	gfxchip_linear_write_b = dummy_write_b;
+	gfxchip_linear_write_w = dummy_write_w;
+	gfxchip_linear_write_l = dummy_write_l;
 	pci_card_read = NULL;
 	pci_card_write = NULL;
 	pci_card_priv = NULL;
@@ -1108,7 +1108,7 @@ void *pcem_device_init(const device_t *dev, void *gfxboard, bool swapped, void *
 	return priv;
 }
 
-void pcem_device_close(const device_t *dev, void *priv)
+void gfxchip_device_close(const device_t *dev, void *priv)
 {
 	/* The card is the first device, its RAMDAC and friends follow it */
 	close_devices();
@@ -1116,7 +1116,7 @@ void pcem_device_close(const device_t *dev, void *priv)
 	timer_head = NULL;
 }
 
-void pcem_device_force_redraw(const device_t *dev, void *priv)
+void gfxchip_device_force_redraw(const device_t *dev, void *priv)
 {
 	if (dev->force_redraw) {
 		dev->force_redraw(priv);

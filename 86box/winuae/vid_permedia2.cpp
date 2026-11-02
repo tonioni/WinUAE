@@ -37,7 +37,7 @@
 #include <86box/vid_svga_render.h>
 
 /* In 86box_video.cpp: 15/16 bit modes with red and blue swapped */
-void pcemvideorbswap(bool swapped);
+void gfxchip_video_rbswap(bool swapped);
 
 #define BLIT_LOG 0
 
@@ -366,7 +366,7 @@ static void permedia2_recalctimings(svga_t *svga)
 		bool oswaprb = svga->swaprb;
 		svga->swaprb = (permedia2->ramdac_vals[0x18] & 0x20) == 0;
 		if (oswaprb != svga->swaprb) {
-			pcemvideorbswap(svga->swaprb);
+			gfxchip_video_rbswap(svga->swaprb);
 		}
 
 		svga->fullchange = svga->monitor->mon_changeframecount;
