@@ -2954,6 +2954,18 @@ MIDFUNC(2,fsub_rr,(FRW d, FR s))
 	f_unlock(d);
 }
 
+MIDFUNC(3,fcmp_result_rrr,(FW r, FR d, FR s))
+{
+	clobber_flags();
+	d=f_readreg(d);
+	s=f_readreg(s);
+	r=f_writereg(r);
+	raw_fcmp_result_rrr(r,d,s);
+	f_unlock(r);
+	f_unlock(s);
+	f_unlock(d);
+}
+
 MIDFUNC(2,fcmp_rr,(FR d, FR s))
 {
 	d=f_readreg(d);

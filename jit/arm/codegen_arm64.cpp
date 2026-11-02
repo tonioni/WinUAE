@@ -879,6 +879,22 @@ LOWFUNC(NONE,NONE,2,raw_fsub_rr,(FRW d, FR s))
 }
 LENDFUNC(NONE,NONE,2,raw_fsub_rr,(FRW d, FR s))
 
+// FCMP: r = d - s, but equal infinities compare equal although their
+// difference is NaN. They give a zero with the sign of d instead.
+LOWFUNC(NONE,NONE,3,raw_fcmp_result_rrr,(FW r, FR d, FR s))
+{
+	FSUB_ddd(r, d, s);
+	FCMP_dd(r, r);
+	BVC_i(7);		// result is a number
+	FCMP_dd(d, s);
+	BNE_i(5);		// not equal or unordered
+	FMOV_xd(REG_WORK1, d);
+	LSR_xxi(REG_WORK1, REG_WORK1, 63);
+	LSL_xxi(REG_WORK1, REG_WORK1, 63);
+	FMOV_dx(r, REG_WORK1);
+}
+LENDFUNC(NONE,NONE,3,raw_fcmp_result_rrr,(FW r, FR d, FR s))
+
 LOWFUNC(NONE,NONE,2,raw_frndint_rr,(FW d, FR s))
 {
 	FRINTI_dd(d, s);

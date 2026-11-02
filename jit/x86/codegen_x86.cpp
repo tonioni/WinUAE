@@ -2724,6 +2724,42 @@ LOWFUNC(NONE,NONE,2,raw_fcmp_rr,(FR d, FR s))
 	emit_byte(0xe0+ds); /* cmp dest with source*/
 }
 
+/* FCMP: r = d - s, but equal infinities compare equal although their
+   difference is NaN. They give a zero with the sign of d instead.
+   The fixup uses fucomi, which every SSE2 host has. */
+LOWFUNC(NONE,NONE,3,raw_fcmp_result_rrr,(FW r, FR d, FR s))
+{
+	int ds, ss;
+
+	raw_fmov_rr(r, d);
+	raw_fsub_rr(r, s);
+	if (!have_cmov) {
+		return;
+	}
+	make_tos(r);
+	ds = stackpos(d);
+	ss = stackpos(s);
+
+	emit_byte(0xdb);
+	emit_byte(0xe8); /* fucomi st(0),st(0) */
+	emit_byte(0x7b);
+	emit_byte(14); /* jnp: the result is a number */
+	emit_byte(0xd9);
+	emit_byte(0xc0+ds); /* fld d */
+	emit_byte(0xdf);
+	emit_byte(0xe9+ss); /* fucomip d with s, pop */
+	emit_byte(0x75);
+	emit_byte(8); /* jne: not equal */
+	emit_byte(0x7a);
+	emit_byte(6); /* jp: unordered */
+	emit_byte(0xd9);
+	emit_byte(0xe8); /* fld1 */
+	emit_byte(0xd8);
+	emit_byte(0xf1+ds); /* fdiv d: 1/inf is a zero with its sign */
+	emit_byte(0xdd);
+	emit_byte(0xd9); /* fstp st(1): replace r, pop */
+}
+
 LOWFUNC(NONE,NONE,2,raw_fmul_rr,(FRW d, FR s))
 {
 	int ds;
