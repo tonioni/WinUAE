@@ -1007,10 +1007,15 @@ LOWFUNC(NONE,WRITE,2,raw_fp_from_exten_mr,(RR4 adr, FR s))
 	uae_u32* branchadd_end = (uae_u32*)get_target();
 	B_i(0);            // end_of_op
 
-	// isnan
+	// isnan or infinity: keep the sign, mantissa all ones for NaN, zero for infinity
 	write_jmp_target(branchadd_isnan, (uintptr)get_target());
-	MOV_xish(REG_WORK1, 0x7fff, 16);
-	MOVN_xi(REG_WORK2, 0);
+	LSL_xxi(REG_WORK2, REG_WORK1, 12);          // fraction
+	CMP_xi(REG_WORK2, 0);
+	CSETM_wc(REG_WORK2, NATIVE_CC_NE);
+	UBFX_xxii(REG_WORK1, REG_WORK1, 63, 1);     // extract sign
+	LSL_xxi(REG_WORK1, REG_WORK1, 31);
+	MOV_xish(REG_WORK3, 0x7fff, 16);
+	ORR_xxx(REG_WORK1, REG_WORK1, REG_WORK3);
 	B_i(4);
 
 	// iszero
@@ -1048,6 +1053,7 @@ LOWFUNC(NONE,READ,2,raw_fp_to_exten_rm,(FW d, RR4 adr))
 	CBNZ_xi(REG_WORK1, 0);          // not zero
 
 	// zero
+	uae_u32* branch_zero = (uae_u32*)get_target();
 	MOVI_di(d, 0);
 	uae_u32* branchadd_end = (uae_u32*)get_target();
 	TBZ_xii(REG_WORK4, 15, 0); // end_of_op
@@ -1060,17 +1066,43 @@ LOWFUNC(NONE,READ,2,raw_fp_to_exten_rm,(FW d, RR4 adr))
 	write_jmp_target(branchadd_notzero, (uintptr)get_target());
 	write_jmp_target(branchadd_notzero2, (uintptr)get_target());
 	MOV_xi(REG_WORK3, 15360);                 // diff of bias between double and long double
-	SUB_xxx(REG_WORK2, REG_WORK2, REG_WORK3);	// exponent done, ToDo: check for carry -> result gets Inf in double
+	SUB_xxx(REG_WORK2, REG_WORK2, REG_WORK3);	// exponent done
+	CMP_xi(REG_WORK2, 0);
+	uae_u32* branchadd_tiny = (uae_u32*)get_target();
+	BLE_i(0);				// too small for a double: zero
+	CMP_xi(REG_WORK2, 2047);
+	uae_u32* branchadd_big = (uae_u32*)get_target();
+	BGE_i(0);				// too big for a double, infinity or NaN
 	UBFX_xxii(REG_WORK4, REG_WORK4, 15, 1);		// extract sign
 	BFI_xxii(REG_WORK2, REG_WORK4, 11, 1);		// insert sign
 	LSR_xxi(REG_WORK1, REG_WORK1, 11);				// shift mantissa to correct position
 	LSL_xxi(REG_WORK2, REG_WORK2, 52);
 	ORR_xxx(REG_WORK1, REG_WORK1, REG_WORK2);
 	FMOV_dx(d, REG_WORK1);
+	uae_u32* branchadd_end3 = (uae_u32*)get_target();
+	B_i(0);					// end_of_op
+
+	// big: infinity, or NaN if the exponent is 0x7fff and the fraction is not zero
+	write_jmp_target(branchadd_big, (uintptr)get_target());
+	MOV_xi(REG_WORK3, 0x7fff - 15360);
+	CMP_xx(REG_WORK2, REG_WORK3);
+	MOV_xish(REG_WORK3, 0x7ff0, 48);			// infinity
+	uae_u32* branchadd_inf = (uae_u32*)get_target();
+	BNE_i(0);
+	uae_u32* branchadd_inf2 = (uae_u32*)get_target();
+	CBZ_xi(REG_WORK1, 0);
+	MOV_xish(REG_WORK3, 0x7ff8, 48);			// NaN
+	write_jmp_target(branchadd_inf, (uintptr)get_target());
+	write_jmp_target(branchadd_inf2, (uintptr)get_target());
+	UBFX_xxii(REG_WORK4, REG_WORK4, 15, 1);		// extract sign
+	ORR_xxxLSLi(REG_WORK3, REG_WORK3, REG_WORK4, 63);
+	FMOV_dx(d, REG_WORK3);
 
 	// end_of_op
 	write_jmp_target(branchadd_end, (uintptr)get_target());
 	write_jmp_target(branchadd_end2, (uintptr)get_target());
+	write_jmp_target(branchadd_end3, (uintptr)get_target());
+	write_jmp_target(branchadd_tiny, (uintptr)branch_zero);
 }
 LENDFUNC(NONE,READ,2,raw_fp_to_exten_rm,(FW d, RR4 adr))
 
