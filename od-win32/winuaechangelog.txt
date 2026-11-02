@@ -1,4 +1,14 @@
 
+Beta 22:
+
+- Fixed fast drawing mode missing genlock transparency in right border.
+- TV overscan mode blanking was again gone. Fixed again.
+- Genlock + TV overscan mode active at the same time works correctly.
+- Genlock + NTSC had interlace-like effect in some configuration combinations.
+- Fixed NTSC + fast drawing mode glitches in first/last visible lines that appeared in some situations.
+- b21 INTREQ fix updated, previous could have cause side-effects.
+- Merged latest 86box Voodoo and x86 CPU emulation updates.
+
 Beta 21:
 
 - "Remove interlace artifacts" should now work without flickering or missing lines.
