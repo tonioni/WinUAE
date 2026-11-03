@@ -2108,8 +2108,7 @@ void comp_fpp_opp(uae_u32 opcode, uae_u16 extra)
 				FAIL(1);				/* Illegal instruction */
 				return;
 			}
-			fmov_rr(FP_RESULT, reg);
-			fsub_rr(FP_RESULT, src);	/* Right way? */
+			fcmp_result_rrr(FP_RESULT, reg, src);
 			break;
 		case 0x3a:						/* FTST */
 			if (jit_disable.ftst)

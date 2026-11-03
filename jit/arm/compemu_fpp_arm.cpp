@@ -892,8 +892,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 				  FAIL (1);
 				  return;
 			  case 0x38: /* FCMP */
-			    fmov_rr (FP_RESULT, dreg);
-			    fsub_rr (FP_RESULT, sreg);
+			    fcmp_result_rrr (FP_RESULT, dreg, sreg);
 			    return;
 			  case 0x3a: /* FTST */
 			    fmov_rr (FP_RESULT, sreg);

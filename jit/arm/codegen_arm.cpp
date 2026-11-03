@@ -844,6 +844,23 @@ LOWFUNC(NONE,NONE,2,raw_fsub_rr,(FRW d, FR s))
 }
 LENDFUNC(NONE,NONE,2,raw_fsub_rr,(FRW d, FR s))
 
+// FCMP: r = d - s, but equal infinities compare equal although their
+// difference is NaN. They give a zero with the sign of d instead.
+LOWFUNC(NONE,NONE,3,raw_fcmp_result_rrr,(FW r, FR d, FR s))
+{
+	VSUB64_ddd(r, d, s);
+	VCMP64_dd(r, r);
+	VMRS_CPSR();
+	BVC_i(5);		// result is a number
+	VCMP64_dd(d, s);
+	VMRS_CPSR();
+	CC_VMOV64_rrd(NATIVE_CC_EQ, REG_WORK1, REG_WORK2, d);
+	CC_AND_rri(NATIVE_CC_EQ, REG_WORK2, REG_WORK2, 0x80000000);
+	CC_MOV_ri(NATIVE_CC_EQ, REG_WORK1, 0);
+	CC_VMOV64_drr(NATIVE_CC_EQ, r, REG_WORK1, REG_WORK2);
+}
+LENDFUNC(NONE,NONE,3,raw_fcmp_result_rrr,(FW r, FR d, FR s))
+
 LOWFUNC(NONE,NONE,2,raw_frndint_rr,(FW d, FR s))
 {
 	VCVTR64toI_sd(SCRATCH_F32_1, s);

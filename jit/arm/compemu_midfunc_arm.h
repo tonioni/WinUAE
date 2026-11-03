@@ -92,6 +92,7 @@ DECLARE_MIDFUNC(fdiv_rr(FRW d, FR s));
 DECLARE_MIDFUNC(fadd_rr(FRW d, FR s));
 DECLARE_MIDFUNC(fmul_rr(FRW d, FR s));
 DECLARE_MIDFUNC(fsub_rr(FRW d, FR s));
+DECLARE_MIDFUNC(fcmp_result_rrr(FW r, FR d, FR s));
 DECLARE_MIDFUNC(frndint_rr(FW d, FR s));
 DECLARE_MIDFUNC(frndintz_rr(FW d, FR s));
 DECLARE_MIDFUNC(fmod_rr(FRW d, FR s));
