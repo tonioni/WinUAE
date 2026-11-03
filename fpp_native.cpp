@@ -1039,6 +1039,11 @@ static void fp_cmp(fpdata *a, fpdata *b)
 		}
 	} else {
 		v = a->fp - b->fp;
+		// Equal infinities: the difference is NaN but they compare equal,
+		// negative infinities also set N.
+		if (isnan(v) && a->fp == b->fp) {
+			v = signbit(a->fp) ? -0.0 : 0.0;
+		}
 		fp_clear_status();
 	}
 	a->fp = v;
