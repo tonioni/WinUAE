@@ -7137,13 +7137,6 @@ static int isobsolete (TCHAR *s)
 	return 0;
 }
 
-#ifdef TARGET_NAME_COMPAT
-static bool cfgfile_is_compat_option(const TCHAR *option)
-{
-	size_t len = _tcslen(TARGET_NAME_COMPAT);
-	return !_tcsnicmp(option, TARGET_NAME_COMPAT, len) && option[len] == '.';
-}
-#endif
 
 static void cfgfile_parse_separated_line (struct uae_prefs *p, TCHAR *line1b, TCHAR *line2b, int type)
 {
@@ -7168,12 +7161,6 @@ static void cfgfile_parse_separated_line (struct uae_prefs *p, TCHAR *line1b, TC
 				u->unknown = 1;
 				cfgfile_warning(_T("unknown config entry: '%s=%s'\n"), u->option, u->value);
 			}
-#ifdef TARGET_NAME_COMPAT
-			/* Save the other host's line unchanged even when it was used here. */
-			if (cfgfile_is_compat_option(line3b)) {
-				u->unknown = 1;
-			}
-#endif
 		}
 	}
 }
