@@ -17,6 +17,7 @@
 #include "host.h"
 #include "devices.h"
 #include "gfxboard.h"
+#include "gfxfilter.h"
 
 #if defined(DEBUGGER) && defined(WINUAE_UNIX_WITH_INTEGRATED_QT_UI)
 #include "debug.h"
@@ -283,27 +284,30 @@ int handle_msgpump(bool)
     return got;
 }
 
-static bool unix_filter_blanking_prefs_changed(void)
+static bool unix_filter_prefs_changed(void)
 {
-    return currprefs.gf[GF_NORMAL].gfx_filter_blanking != changed_prefs.gf[GF_NORMAL].gfx_filter_blanking ||
-        currprefs.gf[GF_INTERLACE].gfx_filter_blanking != changed_prefs.gf[GF_INTERLACE].gfx_filter_blanking;
+    return memcmp(currprefs.gf, changed_prefs.gf, sizeof currprefs.gf) != 0 ||
+        currprefs.gfx_ntscpixels != changed_prefs.gfx_ntscpixels ||
+        currprefs.gfx_ntscpixelspal != changed_prefs.gfx_ntscpixelspal;
 }
 
 int check_prefs_changed_gfx(void)
 {
     int flags = config_changed_flags;
     bool changed = unix_runtime_graphics_prefs_changed(0);
-    bool blanking_changed = unix_filter_blanking_prefs_changed();
+    bool filter_changed = unix_filter_prefs_changed();
 
-    if (!unix_graphics_initialized || (!changed && !blanking_changed && !flags)) {
+    if (!unix_graphics_initialized || (!changed && !filter_changed && !flags)) {
         return 0;
     }
 
     config_changed_flags = 0;
-    if (blanking_changed) {
-        /* Like win32gfx.cpp; render_screen() reapplies the limits each frame. */
-        currprefs.gf[GF_NORMAL].gfx_filter_blanking = changed_prefs.gf[GF_NORMAL].gfx_filter_blanking;
-        currprefs.gf[GF_INTERLACE].gfx_filter_blanking = changed_prefs.gf[GF_INTERLACE].gfx_filter_blanking;
+    if (filter_changed) {
+        /* Like win32gfx.cpp; render_screen() reapplies the scaling and
+           limits each frame. */
+        memcpy(currprefs.gf, changed_prefs.gf, sizeof currprefs.gf);
+        currprefs.gfx_ntscpixels = changed_prefs.gfx_ntscpixels;
+        currprefs.gfx_ntscpixelspal = changed_prefs.gfx_ntscpixelspal;
     }
     if (changed) {
         unix_copy_runtime_graphics_prefs(0);
@@ -374,9 +378,52 @@ void flush_line(struct vidbuffer*, int) {}
 void flush_block(struct vidbuffer*, int, int) {}
 void flush_screen(struct vidbuffer*, int, int) {}
 void flush_clear_screen(struct vidbuffer*) {}
-bool render_screen(int, int, bool)
+/* Part of the native frame that fills the output area, from getfilterdata(). */
+struct unix_native_source_rect {
+    float x, y, w, h;
+};
+static struct unix_native_source_rect unix_native_source[MAX_AMIGADISPLAYS];
+
+bool render_screen(int monid, int, bool)
 {
-    set_custom_limits(-1, -1, -1, -1);
+    if (monid < 0 || monid >= MAX_AMIGADISPLAYS) {
+        return true;
+    }
+
+    struct unix_native_source_rect *src = &unix_native_source[monid];
+    struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
+    struct vidbuffer *vb = vidinfo->inbuffer;
+    int area_width = 0;
+    int area_height = 0;
+
+    memset(src, 0, sizeof *src);
+    if (monid != 0 || adisplays[monid].picasso_on || !vb || vb->outwidth <= 0 || vb->outheight <= 0) {
+        set_custom_limits(-1, -1, -1, -1);
+        return true;
+    }
+    if (!unix_video_get_frame_area(&area_width, &area_height)) {
+        area_width = currprefs.gfx_monitor[monid].gfx_size.width;
+        area_height = currprefs.gfx_monitor[monid].gfx_size.height;
+    }
+    if (area_width <= 0 || area_height <= 0) {
+        set_custom_limits(-1, -1, -1, -1);
+        return true;
+    }
+
+    /* Like the Windows renderers' setupscenecoords(), once per frame. */
+    struct displayscale ds = { 0 };
+    ds.srcwidth = vb->outwidth;
+    ds.srcheight = vb->outheight;
+    ds.scale = 1;
+    ds.dstwidth = area_width;
+    ds.dstheight = area_height;
+    getfilterdata(monid, &ds);
+    if (ds.outwidth > 0 && ds.outheight > 0) {
+        src->x = (float)ds.xoffset;
+        src->y = (float)ds.yoffset;
+        src->w = (float)ds.outwidth;
+        src->h = (float)ds.outheight;
+    }
     return true;
 }
 
@@ -446,6 +493,13 @@ void show_screen(int monid, int)
     frame.pixbytes = vb->pixbytes;
     frame.filter_index = adisplays[monid].gf_index;
     frame.monitor_id = monid;
+    frame.source_x = frame.source_y = frame.source_w = frame.source_h = 0.0f;
+    if (!adisplays[monid].picasso_on) {
+        frame.source_x = unix_native_source[monid].x;
+        frame.source_y = unix_native_source[monid].y;
+        frame.source_w = unix_native_source[monid].w;
+        frame.source_h = unix_native_source[monid].h;
+    }
     const int apmode = unix_apmode_index(monid);
     frame.backbuffers = currprefs.gfx_apmode[apmode].gfx_backbuffers;
     frame.vsync = currprefs.gfx_apmode[apmode].gfx_vsync > 0 && !currprefs.turbo_emulation;

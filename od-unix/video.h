@@ -14,6 +14,13 @@ struct unix_video_frame
     int monitor_id;
     int backbuffers;
     bool vsync;
+    /* Native chipset frames: the part of the frame (in frame pixels, may
+       extend past its edges) that fills the output area, as computed by
+       getfilterdata(). Unused when source_w or source_h is zero. */
+    float source_x;
+    float source_y;
+    float source_w;
+    float source_h;
 };
 
 struct unix_video_display_mode
@@ -36,6 +43,9 @@ void unix_video_shutdown(void);
 int unix_video_poll(bool *quit_requested);
 int unix_video_poll_window_events(bool *quit_requested);
 void unix_video_present(const struct unix_video_frame *frame);
+/* Size in pixels of the area the last frame was drawn into, without the
+   status bar. Safe to call from the emulation thread. */
+bool unix_video_get_frame_area(int *width, int *height);
 void unix_video_set_title(const TCHAR *title);
 bool unix_video_set_window_mode(enum unix_video_window_mode mode, int display_index, int width, int height, int refresh_rate);
 enum unix_video_window_mode unix_video_get_window_mode(void);

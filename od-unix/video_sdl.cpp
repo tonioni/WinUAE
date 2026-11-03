@@ -25,6 +25,7 @@
 #include "traps.h"
 #include "clipboard.h"
 #include "disk.h"
+#include "gfxfilter.h"
 #include "gui.h"
 #include "input.h"
 #include "options.h"
@@ -103,6 +104,10 @@ struct unix_pending_video_frame {
     int monitor_id;
     int backbuffers;
     bool vsync;
+    float source_x;
+    float source_y;
+    float source_w;
+    float source_h;
     bool valid;
 };
 
@@ -116,6 +121,8 @@ struct unix_video_layout {
 
 static std::mutex s_pending_frame_mutex;
 static unix_pending_video_frame s_pending_frame;
+static std::atomic<int> s_frame_area_width;
+static std::atomic<int> s_frame_area_height;
 
 static constexpr int UnixStatusScale = 2;
 static TCHAR s_display_name[MAX_DPATH];
@@ -267,6 +274,10 @@ static void queue_video_frame_for_event_thread(const struct unix_video_frame *fr
     s_pending_frame.monitor_id = frame->monitor_id;
     s_pending_frame.backbuffers = frame->backbuffers;
     s_pending_frame.vsync = frame->vsync;
+    s_pending_frame.source_x = frame->source_x;
+    s_pending_frame.source_y = frame->source_y;
+    s_pending_frame.source_w = frame->source_w;
+    s_pending_frame.source_h = frame->source_h;
     s_pending_frame.valid = true;
 }
 
@@ -709,6 +720,15 @@ static bool make_video_layout(const struct unix_video_frame *frame, const struct
         dst.h = source_rect.h * scale;
         dst.x = ((float)output_width - (float)frame->width * scale) / 2.0f + source_rect.x * scale;
         dst.y = ((float)frame_area_height - (float)frame->height * scale) / 2.0f + source_rect.y * scale;
+    } else if (frame->filter_index != GF_RTG && frame->source_w > 0.0f && frame->source_h > 0.0f) {
+        /* getfilterdata() picked the part of the frame that fills the
+           area; centre it with the multipliers direct3d11.cpp uses. */
+        const float mx = filterrectmult(output_width, frame->source_w, 0);
+        const float my = filterrectmult(frame_area_height, frame->source_h, 0);
+        dst.w = (float)frame->width * mx;
+        dst.h = (float)frame->height * my;
+        dst.x = (float)output_width / 2.0f - (frame->source_x + frame->source_w / 2.0f) * mx;
+        dst.y = (float)frame_area_height / 2.0f - (frame->source_y + frame->source_h / 2.0f) * my;
     } else {
         const float sx = (float)output_width / (float)frame->width;
         const float sy = (float)frame_area_height / (float)frame->height;
@@ -726,6 +746,8 @@ static bool make_video_layout(const struct unix_video_frame *frame, const struct
 
     layout->frame_dst = dst;
     layout->frame_clip = { 0, 0, output_width, frame_area_height };
+    s_frame_area_width = output_width;
+    s_frame_area_height = frame_area_height;
     layout->status_dst = {
         0.0f,
         (float)frame_area_height,
@@ -1831,6 +1853,10 @@ static int unix_video_poll_internal(bool *quit_requested, bool input_events)
         frame.monitor_id = pending.monitor_id;
         frame.backbuffers = pending.backbuffers;
         frame.vsync = pending.vsync;
+        frame.source_x = pending.source_x;
+        frame.source_y = pending.source_y;
+        frame.source_w = pending.source_w;
+        frame.source_h = pending.source_h;
         unix_video_present_on_event_thread(&frame);
         got = 1;
     }
@@ -2047,6 +2073,18 @@ static void unix_video_present_on_event_thread(const struct unix_video_frame *fr
         SDL_RenderTexture(s_renderer, s_status_texture, NULL, &layout.status_dst);
     }
     SDL_RenderPresent(s_renderer);
+}
+
+bool unix_video_get_frame_area(int *width, int *height)
+{
+    int w = s_frame_area_width.load();
+    int h = s_frame_area_height.load();
+    if (w <= 0 || h <= 0) {
+        return false;
+    }
+    *width = w;
+    *height = h;
+    return true;
 }
 
 void unix_video_present(const struct unix_video_frame *frame)

@@ -216,6 +216,22 @@ if [ "$(config_value gfx_filter_blanking "$output")" != "1" ] ||
     exit 1
 fi
 
+# The aspect ratio correction settings of the Filter page.
+cat > "$WORK/filter-aspect.uae" <<EOF
+config_description=Roundtrip filter aspect
+gfx_ntscpixels=false
+gfx_ntscpixelspal=true
+gfx_filter_autoscale=scale
+gfx_filter_aspect_ratio=16:9
+gfx_filter_keep_aspect=tv_pal
+gfx_filter_autoscale_lace=integer_auto
+gfx_filter_aspect_ratio_lace=-1:-1
+gfx_filter_keep_aspect_lace=vga
+EOF
+
+run_case filter-aspect "$WORK/filter-aspect.uae" \
+    "gfx_ntscpixels gfx_ntscpixelspal gfx_filter_autoscale gfx_filter_aspect_ratio gfx_filter_keep_aspect gfx_filter_autoscale_lace gfx_filter_aspect_ratio_lace gfx_filter_keep_aspect_lace"
+
 # A config saved by WinUAE for Windows: win32.* settings that mean the same
 # here are shown as unix.*, host device settings are not, and the win32.*
 # lines are kept for Windows.
