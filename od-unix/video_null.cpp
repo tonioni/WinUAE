@@ -33,6 +33,11 @@ int unix_video_poll_window_events(bool *quit_requested)
     return 0;
 }
 
+bool unix_video_get_frame_area(int *, int *)
+{
+    return false;
+}
+
 void unix_video_present(const struct unix_video_frame *)
 {
 }

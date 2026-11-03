@@ -466,6 +466,7 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
         || applyBool("gfx_autoresolution_vga", &prefs->gfx_autoresolution_vga)
         || applyBool("gfx_keep_aspect", &prefs->gfx_keep_aspect)
         || applyBool("gfx_ntscpixels", &prefs->gfx_ntscpixels)
+        || applyBool("gfx_ntscpixelspal", &prefs->gfx_ntscpixelspal)
         || applyBool("tablet_library", &prefs->tablet_library)) {
         return ApplySettingResult::Handled;
     }

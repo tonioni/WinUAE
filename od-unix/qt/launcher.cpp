@@ -535,6 +535,7 @@ struct WinUaeQtFilterState {
     QString autoscale = QStringLiteral("auto");
     QString integerLimit = QStringLiteral("1/1");
     QString keepAspect = QStringLiteral("none");
+    QString aspectRatio = QStringLiteral("0:0");
     bool enable = true;
     bool keepAutoscaleAspect = false;
     bool blanking = false;
@@ -2657,7 +2658,26 @@ static const ConfigChoice filterIntegerLimitChoices[] = {
 
 static const ConfigChoice filterAspectChoices[] = {
     { "VGA", "vga" },
-    { "TV", "tv" }
+    { "TV (Auto)", "tv" },
+    { "TV (PAL)", "tv_pal" },
+    { "TV (NTSC)", "tv_ntsc" }
+};
+
+/* The aspect ratio list of the Windows filter panel (win32gui.cpp). */
+static const ConfigChoice filterAspectRatioChoices[] = {
+    { "Disabled", "0:0" },
+    { "Automatic", "-1:-1" },
+    { "5:4 (1.25)", "5:4" },
+    { "4:3 (1.33)", "4:3" },
+    { "16:10 (1.60)", "16:10" },
+    { "15:9 (1.67)", "15:9" },
+    { "27:16 (1.69)", "27:16" },
+    { "128:75 (1.71)", "128:75" },
+    { "16:9 (1.78)", "16:9" },
+    { "256:135 (1.90)", "256:135" },
+    { "21:9 (2.33)", "21:9" },
+    { "32:9 (3.56)", "32:9" },
+    { "16:3 (5.33)", "16:3" }
 };
 
 static const ConfigChoice rtgAspectRatioChoices[] = {
@@ -5942,8 +5962,10 @@ private:
     QCheckBox *filterBlanking = nullptr;
     QCheckBox *filterKeepAspect = nullptr;
     QComboBox *filterAspect = nullptr;
+    QComboBox *filterAspectRatio = nullptr;
     QComboBox *filterPresetName = nullptr;
     QCheckBox *filterNtscPixels = nullptr;
+    QCheckBox *filterNtscPal = nullptr;
     QCheckBox *filterBilinear = nullptr;
     QSpinBox *filterScanlines = nullptr;
     QSpinBox *filterScanlineLevel = nullptr;
@@ -9738,15 +9760,20 @@ private:
         root->addWidget(groupBox(QStringLiteral("Size and Position"), geometry));
 
         filterKeepAutoscaleAspect = new QCheckBox(QStringLiteral("Keep autoscale aspect"));
-        filterKeepAspect = new QCheckBox(QStringLiteral("Keep aspect ratio"));
+        filterAspectRatio = combo(configChoiceDisplays(filterAspectRatioChoices, int(sizeof(filterAspectRatioChoices) / sizeof(filterAspectRatioChoices[0]))), QStringLiteral("Disabled"));
+        filterKeepAspect = new QCheckBox(QStringLiteral("Pixel aspect ratio adjustment"));
         filterAspect = combo(configChoiceDisplays(filterAspectChoices, int(sizeof(filterAspectChoices) / sizeof(filterAspectChoices[0]))), QStringLiteral("VGA"));
         filterNtscPixels = new QCheckBox(QStringLiteral("Always stretch NTSC mode"));
+        filterNtscPal = new QCheckBox(QStringLiteral("Always stretch PAL as NTSC"));
         QGridLayout *aspect = new QGridLayout;
         aspect->setColumnStretch(2, 1);
-        aspect->addWidget(filterKeepAutoscaleAspect, 0, 0, 1, 2);
-        aspect->addWidget(filterKeepAspect, 1, 0);
-        aspect->addWidget(filterAspect, 1, 1);
-        aspect->addWidget(filterNtscPixels, 2, 0, 1, 2);
+        aspect->addWidget(label(QStringLiteral("Aspect ratio:")), 0, 0);
+        aspect->addWidget(filterAspectRatio, 0, 1);
+        aspect->addWidget(filterKeepAutoscaleAspect, 1, 0, 1, 2);
+        aspect->addWidget(filterKeepAspect, 2, 0);
+        aspect->addWidget(filterAspect, 2, 1);
+        aspect->addWidget(filterNtscPixels, 3, 0, 1, 2);
+        aspect->addWidget(filterNtscPal, 4, 0, 1, 2);
         root->addWidget(groupBox(QStringLiteral("Aspect Ratio Correction"), aspect));
 
         filterBilinear = new QCheckBox(QStringLiteral("Point/Bilinear"));
@@ -9820,6 +9847,7 @@ private:
             loadFilterStateToUi(index);
         });
         connect(filterKeepAspect, &QCheckBox::toggled, this, [this]() { updateFilterControlState(); });
+        connect(filterNtscPixels, &QCheckBox::toggled, this, [this]() { updateFilterControlState(); });
         connect(filterAutoscale, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this]() {
             if (filterUpdating) {
                 return;
@@ -13399,6 +13427,9 @@ private:
         if (filterNtscPixels) {
             filterNtscPixels->setChecked(true);
         }
+        if (filterNtscPal) {
+            filterNtscPal->setChecked(false);
+        }
     }
 
     void updateFilterAutoscaleItems(int target)
@@ -13433,6 +13464,7 @@ private:
         state.keepAspect = filterKeepAspect->isChecked()
             ? configChoiceValue(filterAspectChoices, int(sizeof(filterAspectChoices) / sizeof(filterAspectChoices[0])), filterAspect->currentText())
             : QStringLiteral("none");
+        state.aspectRatio = configChoiceValue(filterAspectRatioChoices, int(sizeof(filterAspectRatioChoices) / sizeof(filterAspectRatioChoices[0])), filterAspectRatio->currentText());
         state.keepAutoscaleAspect = filterKeepAutoscaleAspect->isChecked();
         state.blanking = filterBlanking->isChecked();
         state.bilinear = filterBilinear->isChecked();
@@ -13469,7 +13501,16 @@ private:
         }
         const int target = filterTarget->currentIndex();
         filterEnable->setEnabled(target == 2);
-        filterAspect->setEnabled(filterKeepAspect->isChecked());
+        /* Like win32gui.cpp: automatic autoscale and NTSC stretching
+           choose the aspect ratio themselves. The RTG aspect ratio is on
+           the RTG page. */
+        const QString autoscale = filterAutoscaleConfigValue(filterAutoscale->currentText(), target);
+        const bool aspectAvailable = autoscale != QStringLiteral("auto") && !filterNtscPixels->isChecked();
+        filterKeepAutoscaleAspect->setEnabled(target != 1 &&
+            (autoscale == QStringLiteral("scale") || autoscale == QStringLiteral("integer_auto")));
+        filterAspectRatio->setEnabled(target != 1 && aspectAvailable);
+        filterKeepAspect->setEnabled(aspectAvailable);
+        filterAspect->setEnabled(aspectAvailable && filterKeepAspect->isChecked());
         filterBlanking->setEnabled(target != 1 && filterAutoscaleSupportsBlanking(filterAutoscaleConfigValue(filterAutoscale->currentText(), target)));
     }
 
@@ -13489,6 +13530,7 @@ private:
         filterIntegerLimit->setCurrentText(configChoiceDisplay(filterIntegerLimitChoices, int(sizeof(filterIntegerLimitChoices) / sizeof(filterIntegerLimitChoices[0])), state.integerLimit));
         filterKeepAspect->setChecked(state.keepAspect != QStringLiteral("none"));
         filterAspect->setCurrentText(configChoiceDisplay(filterAspectChoices, int(sizeof(filterAspectChoices) / sizeof(filterAspectChoices[0])), state.keepAspect));
+        filterAspectRatio->setCurrentText(configChoiceDisplay(filterAspectRatioChoices, int(sizeof(filterAspectRatioChoices) / sizeof(filterAspectRatioChoices[0])), state.aspectRatio));
         filterKeepAutoscaleAspect->setChecked(state.keepAutoscaleAspect);
         filterBlanking->setChecked(target == 1 || state.blanking);
         filterBilinear->setChecked(state.bilinear);
@@ -13523,6 +13565,9 @@ private:
         settings.insert(QStringLiteral("gfx_filter_horiz_offsetf"), QString::number(state.horizOffset, 'f', 1));
         settings.insert(QStringLiteral("gfx_filter_vert_offsetf"), QString::number(state.vertOffset, 'f', 1));
         settings.insert(QStringLiteral("gfx_filter_keep_aspect"), state.keepAspect);
+        if (target != 1) {
+            settings.insert(QStringLiteral("gfx_filter_aspect_ratio"), state.aspectRatio);
+        }
         settings.insert(QStringLiteral("gfx_filter_keep_autoscale_aspect"), state.keepAutoscaleAspect ? QStringLiteral("1") : QStringLiteral("0"));
         settings.insert(QStringLiteral("gfx_filter_autoscale"), target == 1 && !isRtgAutoscaleValue(state.autoscale) ? QStringLiteral("resize") : state.autoscale);
         settings.insert(QStringLiteral("gfx_filter_autoscale_limit"), state.integerLimit);
@@ -13710,6 +13755,7 @@ private:
             QStringLiteral("gfx_filter_horiz_offsetf"),
             QStringLiteral("gfx_filter_vert_offsetf"),
             QStringLiteral("gfx_filter_keep_aspect"),
+            QStringLiteral("gfx_filter_aspect_ratio"),
             QStringLiteral("gfx_filter_keep_autoscale_aspect"),
             QStringLiteral("gfx_filter_autoscale"),
             QStringLiteral("gfx_filter_autoscale_limit"),
@@ -13731,6 +13777,10 @@ private:
                 if (key != filterKey(base, target)) {
                     continue;
                 }
+                if (target == 1 && base == QStringLiteral("gfx_filter_aspect_ratio")) {
+                    /* gfx_filter_aspect_ratio_rtg belongs to the RTG page. */
+                    continue;
+                }
                 WinUaeQtFilterState &state = filterStates[target];
                 if (base == QStringLiteral("gfx_filter_mode")) {
                     state.modeH = value;
@@ -13750,6 +13800,8 @@ private:
                     state.vertOffset = value.toDouble();
                 } else if (base == QStringLiteral("gfx_filter_keep_aspect")) {
                     state.keepAspect = value;
+                } else if (base == QStringLiteral("gfx_filter_aspect_ratio")) {
+                    state.aspectRatio = value;
                 } else if (base == QStringLiteral("gfx_filter_keep_autoscale_aspect")) {
                     state.keepAutoscaleAspect = value.toInt() != 0 || configBoolValue(value);
                 } else if (base == QStringLiteral("gfx_filter_autoscale")) {
@@ -16224,6 +16276,7 @@ private:
         settings.insert(QStringLiteral("gfx_monitorblankdelay"), displayResyncBlank->isChecked() ? QStringLiteral("1000") : QStringLiteral("0"));
         settings.insert(QStringLiteral("gfx_keep_aspect"), displayKeepAspect->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
         settings.insert(QStringLiteral("gfx_ntscpixels"), filterNtscPixels->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
+        settings.insert(QStringLiteral("gfx_ntscpixelspal"), filterNtscPal->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
         const bool shaderPipeline = unixShaderPipelineAvailable();
         for (int i = 0; i < 3; i++) {
             const WinUaeQtFilterState state = filterStateFromUi(i);
@@ -16236,6 +16289,9 @@ private:
             settings.insert(filterKey(QStringLiteral("gfx_filter_horiz_offsetf"), i), QString::number(state.horizOffset, 'f', 1));
             settings.insert(filterKey(QStringLiteral("gfx_filter_vert_offsetf"), i), QString::number(state.vertOffset, 'f', 1));
             settings.insert(filterKey(QStringLiteral("gfx_filter_keep_aspect"), i), state.keepAspect);
+            if (i != 1) {
+                settings.insert(filterKey(QStringLiteral("gfx_filter_aspect_ratio"), i), state.aspectRatio);
+            }
             settings.insert(filterKey(QStringLiteral("gfx_filter_keep_autoscale_aspect"), i), state.keepAutoscaleAspect ? QStringLiteral("1") : QStringLiteral("0"));
             settings.insert(filterKey(QStringLiteral("gfx_filter_autoscale"), i), i == 1 && !isRtgAutoscaleValue(state.autoscale) ? QStringLiteral("resize") : state.autoscale);
             settings.insert(filterKey(QStringLiteral("gfx_filter_autoscale_limit"), i), state.integerLimit);
@@ -16689,6 +16745,7 @@ private:
             QStringLiteral("gfx_monitorblankdelay"),
             QStringLiteral("gfx_keep_aspect"),
             QStringLiteral("gfx_ntscpixels"),
+            QStringLiteral("gfx_ntscpixelspal"),
             QStringLiteral("gfx_filter_mode"),
             QStringLiteral("gfx_filter_mode2"),
             QStringLiteral("gfx_filter_horiz_zoomf"),
@@ -16698,6 +16755,7 @@ private:
             QStringLiteral("gfx_filter_horiz_offsetf"),
             QStringLiteral("gfx_filter_vert_offsetf"),
             QStringLiteral("gfx_filter_keep_aspect"),
+            QStringLiteral("gfx_filter_aspect_ratio"),
             QStringLiteral("gfx_filter_keep_autoscale_aspect"),
             QStringLiteral("gfx_filter_autoscale"),
             QStringLiteral("gfx_filter_autoscale_limit"),
@@ -16742,6 +16800,7 @@ private:
             QStringLiteral("gfx_filter_horiz_offsetf_lace"),
             QStringLiteral("gfx_filter_vert_offsetf_lace"),
             QStringLiteral("gfx_filter_keep_aspect_lace"),
+            QStringLiteral("gfx_filter_aspect_ratio_lace"),
             QStringLiteral("gfx_filter_keep_autoscale_aspect_lace"),
             QStringLiteral("gfx_filter_autoscale_lace"),
             QStringLiteral("gfx_filter_autoscale_limit_lace"),
@@ -18009,6 +18068,8 @@ private:
             displayKeepAspect->setChecked(configBoolValue(value));
         } else if (key == QStringLiteral("gfx_ntscpixels")) {
             filterNtscPixels->setChecked(configBoolValue(value));
+        } else if (key == QStringLiteral("gfx_ntscpixelspal")) {
+            filterNtscPal->setChecked(configBoolValue(value));
         } else if (key == QStringLiteral("unix.gfx_shader")) {
             const QString shader = value.trimmed();
             filterStates[0].filter = shader.isEmpty() ? QStringLiteral("none") : shader;

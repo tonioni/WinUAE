@@ -2225,6 +2225,7 @@ set(WINUAE_CORE_SOURCES
     od-unix/registry.cpp
     od-unix/romscan.cpp
     od-unix/rtg.cpp
+    od-unix/scaler.cpp
     od-unix/screenshot.cpp
     od-unix/serial.cpp
     od-unix/sound.cpp
