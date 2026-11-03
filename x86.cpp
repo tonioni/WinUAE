@@ -4092,6 +4092,7 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 
 	set_sb_emu(xb);
 	sound_pos_global = xb->sound_emu ? 0 : -1;
+	music_pos_global = sound_pos_global;
 
 	if (xb->type >= TYPE_2286) {
 		refresh_at_enable = 1;
@@ -4423,6 +4424,7 @@ void sound_reset()
 {
 	sound_handlers_num = 0;
 	sound_pos_global = 0;
+	music_pos_global = 0;
 	x86_sndbuffer[0] = outbuffer1;
 	x86_sndbuffer[1] = outbuffer2;
 	x86_sndbuffer_filled[0] = x86_sndbuffer_filled[1] = false;
