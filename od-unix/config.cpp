@@ -222,12 +222,14 @@ int target_cfgfile_load(struct uae_prefs *p, const TCHAR *filename, int type, in
     return cfgfile_load(p, filename, &loaded_type, 0, !isdefault);
 }
 
-int target_parse_compat_option(struct uae_prefs *p, const TCHAR *option, const TCHAR *value)
+int target_parse_compat_option(struct uae_prefs *p, const TCHAR *option, const TCHAR *value, int type)
 {
     if (!unix_config_is_compat_option(option)) {
         return 0;
     }
-    return target_parse_option(p, option, value, CONFIG_TYPE_HOST);
+    /* Keep the caller's type so a hardware-only linked load applies only the
+     * hardware settings and a host-only one only the host settings. */
+    return target_parse_option(p, option, value, type);
 }
 
 int target_parse_option(struct uae_prefs *p, const TCHAR *option, const TCHAR *value, int)

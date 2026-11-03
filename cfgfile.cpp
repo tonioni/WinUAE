@@ -3571,7 +3571,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 #ifdef TARGET_NAME_COMPAT
 		/* Settings saved by another host under its own section name. */
 		if (_tcscmp(section, TARGET_NAME_COMPAT) == 0) {
-			return target_parse_compat_option(p, option, value);
+			return target_parse_compat_option(p, option, value, CONFIG_TYPE_HOST);
 		}
 #endif
 		return 0;
@@ -5967,6 +5967,13 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 			option = tmpp + 1;
 			return target_parse_option(p, option, value, CONFIG_TYPE_HARDWARE);
 		}
+		#ifdef TARGET_NAME_COMPAT
+		/* Settings saved by another host under its own section name. */
+		if (_tcscmp(tmpbuf, TARGET_NAME_COMPAT) == 0) {
+			option = tmpp + 1;
+			return target_parse_compat_option(p, option, value, CONFIG_TYPE_HARDWARE);
+		}
+		#endif
 	}
 
 	if (cfgfile_yesno(option, value, _T("cpu_compatible"), &p->cpu_compatible)) {
