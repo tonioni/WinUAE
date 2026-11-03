@@ -200,6 +200,16 @@ static int activity_priority_index_from_value(int value, int defpri)
     }
 }
 
+static int activity_priority_value_from_index(int index)
+{
+    static const int values[] = { 1, 0, -1, -2 };
+    if (index < 0 || index > 3) {
+        index = 1;
+    }
+    return values[index];
+}
+
+
 static const TCHAR *configmult[] = { _T("1x"), _T("2x"), _T("3x"), _T("4x"), _T("5x"), _T("6x"), _T("7x"), _T("8x"), NULL };
 static const TCHAR *uaescsimode[] = { _T("SCSIEMU"), _T("SPTI"), _T("SPTI+SCSISCAN"), NULL };
 
@@ -585,6 +595,19 @@ void target_save_options(struct zfile *f, struct uae_prefs *p)
         scsimode = UAESCSI_SPTI;
     }
     cfgfile_target_dwrite_str(f, _T("uaescsimode"), uaescsimode[scsimode]);
+    cfgfile_target_write_bool(f, _T("middle_mouse"), (p->input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) != 0);
+    cfgfile_target_dwrite(f, _T("active_priority"), _T("%d"), activity_priority_value_from_index(p->win32_active_capture_priority));
+    cfgfile_target_dwrite_bool(f, _T("active_not_captured_nosound"), p->win32_active_nocapture_nosound);
+    cfgfile_target_dwrite_bool(f, _T("active_not_captured_pause"), p->win32_active_nocapture_pause);
+    cfgfile_target_dwrite(f, _T("active_input"), _T("%d"), p->win32_active_input);
+    cfgfile_target_dwrite(f, _T("inactive_priority"), _T("%d"), activity_priority_value_from_index(p->win32_inactive_priority));
+    cfgfile_target_dwrite_bool(f, _T("inactive_nosound"), p->win32_inactive_nosound);
+    cfgfile_target_dwrite_bool(f, _T("inactive_pause"), p->win32_inactive_pause);
+    cfgfile_target_dwrite(f, _T("inactive_input"), _T("%d"), p->win32_inactive_input);
+    cfgfile_target_dwrite(f, _T("iconified_priority"), _T("%d"), activity_priority_value_from_index(p->win32_iconified_priority));
+    cfgfile_target_dwrite_bool(f, _T("iconified_nosound"), p->win32_iconified_nosound);
+    cfgfile_target_dwrite_bool(f, _T("iconified_pause"), p->win32_iconified_pause);
+    cfgfile_target_dwrite(f, _T("iconified_input"), _T("%d"), p->win32_iconified_input);
     if (p->win32_rtgvblankrate <= 0) {
         cfgfile_target_dwrite_str(f, _T("rtg_vblank"),
             p->win32_rtgvblankrate == -1 ? _T("real") : (p->win32_rtgvblankrate == -2 ? _T("disabled") : _T("chipset")));
