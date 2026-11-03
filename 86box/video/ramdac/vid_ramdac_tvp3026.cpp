@@ -62,7 +62,7 @@ typedef struct tvp3026_ramdac_t {
 } tvp3026_ramdac_t;
 
 #ifdef UAE
-void pcemvideorbswap(bool swapped);
+void gfxchip_video_rbswap(bool swapped);
 #endif
 
 static void
@@ -112,7 +112,7 @@ tvp3026_set_bpp(tvp3026_ramdac_t *ramdac, svga_t *svga)
         }
     }
 #ifdef UAE
-    pcemvideorbswap(svga->swaprb);
+    gfxchip_video_rbswap(svga->swaprb);
 #endif
     svga_recalctimings(svga);
 }
