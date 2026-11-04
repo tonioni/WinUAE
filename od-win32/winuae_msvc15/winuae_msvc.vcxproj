@@ -3278,7 +3278,6 @@
     <ClCompile Include="..\blkdev_win32_spti.cpp" />
     <ClCompile Include="..\bsdsock.cpp" />
     <ClCompile Include="..\caps\caps_win32.cpp" />
-    <ClCompile Include="..\cda_play.cpp" />
     <ClCompile Include="..\clipboard_win32.cpp" />
     <ClCompile Include="..\darkmode.cpp" />
     <ClCompile Include="..\debug_win32.cpp" />
@@ -3334,6 +3333,7 @@
     <ClCompile Include="..\..\bsdsocket.cpp" />
     <ClCompile Include="..\..\catweasel.cpp" />
     <ClCompile Include="..\..\cd32_fmv.cpp" />
+    <ClCompile Include="..\..\cda_play.cpp" />
     <ClCompile Include="..\..\cdrom.cpp" />
     <ClCompile Include="..\..\cdtv.cpp" />
     <ClCompile Include="..\..\cia.cpp" />

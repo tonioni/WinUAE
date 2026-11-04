@@ -2,25 +2,23 @@
 /*
 * UAE
 *
-* Win32 audio player for CDA emulation
+* Audio player for CDA emulation
 *
 * Copyright 2010 Toni Wilen
 *
 */
 
-#define CDADS 0
-
 #include "sysconfig.h"
 #include "sysdeps.h"
 
 #include "options.h"
+#include "uae.h"
 #include "audio.h"
 #include "blkdev.h"
 #include "threaddep/thread.h"
 
 #include <sys/timeb.h>
 
-#include "win32.h"
 #include "gui.h"
 
 #include "cda_play.h"
@@ -62,64 +60,7 @@ void cda_audio::setvolume(int left, int right)
 }
 
 static uae_sem_t play_sem;
-
-static void sub_deinterleave(const uae_u8 *s, uae_u8 *d)
-{
-	for (int i = 0; i < 8 * 12; i++) {
-		int dmask = 0x80;
-		int smask = 1 << (7 - (i / 12));
-		(*d) = 0;
-		for (int j = 0; j < 8; j++) {
-			(*d) |= (s[(i % 12) * 8 + j] & smask) ? dmask : 0;
-			dmask >>= 1;
-		}
-		d++;
-	}
-}
-
-static void sub_to_deinterleaved(const uae_u8 *s, uae_u8 *d)
-{
-	for (int i = 0; i < 8 * 12; i++) {
-		int dmask = 0x80;
-		int smask = 1 << (7 - (i / 12));
-		(*d) = 0;
-		for (int j = 0; j < 8; j++) {
-			(*d) |= (s[(i % 12) * 8 + j] & smask) ? dmask : 0;
-			dmask >>= 1;
-		}
-		d++;
-	}
-}
-
-static void cdda_closewav(struct cda_play *ciw)
-{
-	if (ciw->cdda_wavehandle != NULL)
-		waveOutClose(ciw->cdda_wavehandle);
-	ciw->cdda_wavehandle = NULL;
-}
-
-// DAE CDDA based on Larry Osterman's "Playing Audio CDs" blog series
-
-static int cdda_openwav(struct cda_play *ciw)
-{
-	WAVEFORMATEX wav = { 0 };
-	MMRESULT mmr;
-
-	wav.cbSize = 0;
-	wav.nChannels = 2;
-	wav.nSamplesPerSec = 44100;
-	wav.wBitsPerSample = 16;
-	wav.nBlockAlign = wav.wBitsPerSample / 8 * wav.nChannels;
-	wav.nAvgBytesPerSec = wav.nBlockAlign * wav.nSamplesPerSec;
-	wav.wFormatTag = WAVE_FORMAT_PCM;
-	mmr = waveOutOpen(&ciw->cdda_wavehandle, WAVE_MAPPER, &wav, 0, 0, WAVE_ALLOWSYNC | WAVE_FORMAT_DIRECT);
-	if (mmr != MMSYSERR_NOERROR) {
-		write_log(_T("IOCTL CDDA: wave open %d\n"), mmr);
-		cdda_closewav(ciw);
-		return 0;
-	}
-	return 1;
-}
+static bool play_sem_initialized;
 
 int ciw_cdda_setstate(struct cda_play *ciw, int state, int playpos)
 {
@@ -129,7 +70,7 @@ int ciw_cdda_setstate(struct cda_play *ciw, int state, int playpos)
 	return 0;
 }
 
-void ioctl_next_cd_audio_buffer_callback(int bufnum, void *param)
+static void ioctl_next_cd_audio_buffer_callback(int bufnum, void *param)
 {
 	struct cda_play *ciw = (struct cda_play*)param;
 	uae_sem_wait(&play_sem);
@@ -213,7 +154,7 @@ static bool cdda_play2(struct cda_play *ciw, int *outpos)
 					uae_u8 *dst = ciw->cda->buffers[bufnum];
 					if (sector >= 0 && isaudiotrack(&ciw->di->toc, sector) && ciw->read_block(ciw, ciw->unitnum, dst, sector, 1, readblocksize) > 0) {
 						uae_u8 subbuf[SUB_CHANNEL_SIZE];
-						sub_deinterleave(dst + 2352, subbuf);
+						sub_to_deinterleaved(dst + 2352, subbuf);
 						if (seenindex) {
 							for (int i = 2 * SUB_ENTRY_SIZE; i < SUB_CHANNEL_SIZE; i++) {
 								if (subbuf[i]) { // non-zero R-W subchannels?
@@ -366,6 +307,7 @@ end:
 	ciw->subcodevalid = false;
 	cd_audio_mode_changed = false;
 	delete ciw->cda;
+	ciw->cda = NULL;
 
 	write_log(_T("CDDA: thread killed\n"));
 	return restart;
@@ -375,6 +317,10 @@ void ciw_cdda_play(void *v)
 {
 	struct cda_play *ciw = (struct cda_play *)v;
 	int outpos = -1;
+	if (!play_sem_initialized) {
+		uae_sem_init(&play_sem, 0, 1);
+		play_sem_initialized = true;
+	}
 	cd_audio_mode_changed = false;
 	for (;;) {
 		if (!cdda_play2(ciw, &outpos)) {

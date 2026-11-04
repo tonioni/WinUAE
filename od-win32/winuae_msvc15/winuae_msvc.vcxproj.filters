@@ -256,6 +256,9 @@
     <ClCompile Include="..\..\cd32_fmv.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\cda_play.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\cdrom.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -524,9 +527,6 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\mp3decoder.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
-    <ClCompile Include="..\cda_play.cpp">
       <Filter>win32</Filter>
     </ClCompile>
     <ClCompile Include="..\..\inputrecord.cpp">
