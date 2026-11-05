@@ -54,16 +54,16 @@ static std::string host_text_to_amiga_text(const std::string &text)
 
 static void append_be32(std::vector<uae_u8> *out, uae_u32 value)
 {
-	out->push_back(value >> 24);
-	out->push_back(value >> 16);
-	out->push_back(value >> 8);
-	out->push_back(value);
+	out->push_back((uae_u8)(value >> 24));
+	out->push_back((uae_u8)(value >> 16));
+	out->push_back((uae_u8)(value >> 8));
+	out->push_back((uae_u8)value);
 }
 
 static void append_be16(std::vector<uae_u8> *out, uae_u16 value)
 {
-	out->push_back(value >> 8);
-	out->push_back(value);
+	out->push_back((uae_u8)(value >> 8));
+	out->push_back((uae_u8)value);
 }
 
 static uae_u16 read_be16(const uae_u8 *p)
@@ -188,9 +188,9 @@ bool clipboard_encode_bitmap(const clipboard_bitmap &bitmap, bool initial, std::
 		append_be32(iff, color_count * 3);
 		for (int i = 0; i < color_count; i++) {
 			const uae_u32 color = i < (int)colors.size() ? colors[i] : 0;
-			iff->push_back(color >> 16);
-			iff->push_back(color >> 8);
-			iff->push_back(color);
+			iff->push_back((uae_u8)(color >> 16));
+			iff->push_back((uae_u8)(color >> 8));
+			iff->push_back((uae_u8)color);
 		}
 		if ((color_count * 3) & 1) {
 			iff->push_back(0);
@@ -344,7 +344,7 @@ static bool decompress_byterun1(const uae_u8 *src, const uae_u8 *end, std::vecto
 			if ((size_t)(end - src) < (size_t)count) {
 				return false;
 			}
-			const size_t writable = std::min((size_t)count, expected - out->size());
+			const size_t writable = std::min<size_t>(count, expected - out->size());
 			out->insert(out->end(), src, src + writable);
 			src += count;
 		} else if (control >= -127) {
@@ -353,7 +353,7 @@ static bool decompress_byterun1(const uae_u8 *src, const uae_u8 *end, std::vecto
 			}
 			const int count = -control + 1;
 			const uae_u8 value = *src++;
-			const size_t writable = std::min((size_t)count, expected - out->size());
+			const size_t writable = std::min<size_t>(count, expected - out->size());
 			out->insert(out->end(), writable, value);
 		}
 	}
