@@ -295,6 +295,7 @@ extern void romlist_clear (void);
 extern struct zfile *read_rom(struct romdata *rd, bool rw = false);
 extern struct zfile *read_rom_name(const TCHAR *filename, bool rw = false);
 extern struct zfile *read_device_from_romconfig(struct romconfig *rc, uae_u32 romtype, bool rw = false);
+extern bool romscan_is_candidate(const TCHAR *path, bool deepscan);
 extern struct romdata *scan_single_rom_file(struct zfile *f);
 extern struct romdata *scan_single_rom(const TCHAR *path);
 

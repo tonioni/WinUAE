@@ -3021,6 +3021,38 @@ struct zfile *flashromfile_open(const TCHAR *name)
 	return f;
 }
 
+bool romscan_is_candidate(const TCHAR *path, bool deepscan)
+{
+	const TCHAR *ext;
+
+	if (!path) {
+		return false;
+	}
+	ext = _tcsrchr(path, '.');
+	if (!ext) {
+		return false;
+	}
+	ext++;
+
+	if (!_tcsicmp(ext, _T("rom")) || !_tcsicmp(ext, _T("bin")) || !_tcsicmp(ext, _T("adf")) || !_tcsicmp(ext, _T("key"))
+		|| !_tcsicmp(ext, _T("a500")) || !_tcsicmp(ext, _T("a600"))
+		|| !_tcsicmp(ext, _T("a1200")) || !_tcsicmp(ext, _T("a3000")) || !_tcsicmp(ext, _T("a4000")) || !_tcsicmp(ext, _T("cd32"))) {
+		return true;
+	}
+	if (_tcslen(ext) >= 2 && toupper(ext[0]) == 'U' && isdigit(ext[1])) {
+		return true;
+	}
+	if (!deepscan) {
+		return false;
+	}
+	for (int i = 0; uae_archive_extensions[i]; i++) {
+		if (!_tcsicmp(ext, uae_archive_extensions[i])) {
+			return true;
+		}
+	}
+	return false;
+}
+
 struct romdata *scan_single_rom_file(struct zfile *f)
 {
 	uae_u8 buffer[20] = { 0 };

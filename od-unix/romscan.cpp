@@ -29,38 +29,6 @@ struct romscan_state {
 static bool romscan_dirty = true;
 static int recursiveromscan;
 
-static bool is_rom_extension(const TCHAR *path, bool deepscan)
-{
-	const TCHAR *ext;
-
-	if (!path) {
-		return false;
-	}
-	ext = _tcsrchr(path, '.');
-	if (!ext) {
-		return false;
-	}
-	ext++;
-
-	if (!_tcsicmp(ext, _T("rom")) || !_tcsicmp(ext, _T("bin")) || !_tcsicmp(ext, _T("adf")) || !_tcsicmp(ext, _T("key"))
-		|| !_tcsicmp(ext, _T("a500")) || !_tcsicmp(ext, _T("a600"))
-		|| !_tcsicmp(ext, _T("a1200")) || !_tcsicmp(ext, _T("a3000")) || !_tcsicmp(ext, _T("a4000")) || !_tcsicmp(ext, _T("cd32"))) {
-		return true;
-	}
-	if (_tcslen(ext) >= 2 && toupper(ext[0]) == 'U' && isdigit(ext[1])) {
-		return true;
-	}
-	if (!deepscan) {
-		return false;
-	}
-	for (int i = 0; uae_archive_extensions[i]; i++) {
-		if (!_tcsicmp(ext, uae_archive_extensions[i])) {
-			return true;
-		}
-	}
-	return false;
-}
-
 static int rom_priority(const TCHAR *path, int size)
 {
 	const TCHAR *ext = _tcsrchr(path, '.');
@@ -116,7 +84,7 @@ static int scan_zfile_rom(struct zfile *file, void *userdata)
 	const TCHAR *path = zfile_getname(file);
 	const TCHAR *romkey = _T("rom.key");
 
-	if (!is_rom_extension(path, true)) {
+	if (!romscan_is_candidate(path, true)) {
 		return 0;
 	}
 
@@ -135,7 +103,7 @@ static int scan_zfile_rom(struct zfile *file, void *userdata)
 
 static bool scan_rom_file(const TCHAR *path, romscan_state *state)
 {
-	if (!is_rom_extension(path, true)) {
+	if (!romscan_is_candidate(path, true)) {
 		return false;
 	}
 
