@@ -1744,33 +1744,6 @@ static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 	return 1;
 }
 
-static int isromext (const TCHAR *path, bool deepscan)
-{
-	const TCHAR *ext;
-	int i;
-
-	if (!path)
-		return 0;
-	ext = _tcsrchr (path, '.');
-	if (!ext)
-		return 0;
-	ext++;
-
-	if (!_tcsicmp (ext, _T("rom")) || !_tcsicmp (ext, _T("bin")) ||  !_tcsicmp (ext, _T("adf")) || !_tcsicmp (ext, _T("key"))
-		|| !_tcsicmp (ext, _T("a500")) || !_tcsicmp(ext, _T("a600"))
-		|| !_tcsicmp(ext, _T("a1200")) || !_tcsicmp(ext, _T("a3000")) || !_tcsicmp (ext, _T("a4000")) || !_tcsicmp (ext, _T("cd32")))
-		return 1;
-	if (_tcslen (ext) >= 2 && toupper(ext[0]) == 'U' && isdigit (ext[1]))
-		return 1;
-	if (!deepscan)
-		return 0;
-	for (i = 0; uae_archive_extensions[i]; i++) {
-		if (!_tcsicmp (ext, uae_archive_extensions[i]))
-			return 1;
-	}
-	return 0;
-}
-
 static INT_PTR CALLBACK InfoBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	bool handled;
@@ -1834,7 +1807,7 @@ static int scan_rom_2 (struct zfile *f, void *vrsd)
 	struct romdata *rd;
 
 	scan_rom_hook (NULL, 0);
-	if (!isromext (path, true))
+	if (!romscan_is_candidate(path, true))
 		return 0;
 	rd = scan_single_rom_file(f);
 	if (rd) {
@@ -1857,7 +1830,7 @@ static int scan_rom (const TCHAR *path, UAEREG *fkey, bool deepscan)
 	struct romdata *rd;
 	int cnt = 0;
 
-	if (!isromext (path, deepscan)) {
+	if (!romscan_is_candidate(path, deepscan)) {
 		//write_log("ROMSCAN: skipping file '%s', unknown extension\n", path);
 		return 0;
 	}
