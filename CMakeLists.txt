@@ -2205,6 +2205,7 @@ set(WINUAE_CORE_SOURCES
     softfloat/softfloat.cpp
     softfloat/softfloat_decimal.cpp
     softfloat/softfloat_fpsp.cpp
+    od-generic/clipboard.cpp
     od-generic/mman.cpp
     od-generic/registry_ini.cpp
     od-unix/charset.cpp
@@ -2345,6 +2346,17 @@ target_include_directories(winuae_unix_threading_test PRIVATE
 )
 target_link_libraries(winuae_unix_threading_test PRIVATE pthread)
 winuae_unix_register_test(winuae_unix_threading_test)
+
+add_executable(winuae_unix_clipboard_test EXCLUDE_FROM_ALL
+    od-generic/clipboard.cpp
+    od-generic/clipboard_test.cpp
+)
+target_include_directories(winuae_unix_clipboard_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_clipboard_test)
 
 add_executable(winuae_unix_serial_tx_test EXCLUDE_FROM_ALL
     od-unix/serial_tx_test.cpp

@@ -30,20 +30,14 @@
 
 #include "traps.h"
 #include "clipboard.h"
+#include "clipboard_common.h"
 #include "keybuf.h"
 #include "native2amiga_api.h"
 #include "uae.h"
 
 extern bool filesys_heartbeat(void);
 
-static constexpr size_t CLIP_SIZE_LIMIT = 10000000;
-static constexpr size_t CLIP_SIZE_LIMIT_INIT = 30000;
-
-static uaecptr clipboard_data;
-static int vdelay, vdelay2;
-static int signaling, initialized;
-static std::vector<uae_u8> to_amiga;
-static int to_amiga_phase;
+static clipboard_transfer transfer;
 static bool clip_disabled;
 static int host_poll_delay;
 static std::string last_host_clipboard;
@@ -339,32 +333,6 @@ static void normalize_text_for_keybuf(std::string *text)
 	*text = normalized;
 }
 
-static std::string host_text_to_amiga_text(const std::string &text)
-{
-	std::string converted;
-	converted.reserve(text.size());
-	for (size_t i = 0; i < text.size(); i++) {
-		if (text[i] != '\r') {
-			converted.push_back(text[i]);
-		}
-	}
-	return converted;
-}
-
-static void append_be32(std::vector<uae_u8> *out, uae_u32 value)
-{
-	out->push_back(value >> 24);
-	out->push_back(value >> 16);
-	out->push_back(value >> 8);
-	out->push_back(value);
-}
-
-static void append_be16(std::vector<uae_u8> *out, uae_u16 value)
-{
-	out->push_back(value >> 8);
-	out->push_back(value);
-}
-
 static void append_le16(std::vector<uae_u8> *out, uae_u16 value)
 {
 	out->push_back(value);
@@ -389,30 +357,7 @@ static uae_u32 read_le32(const uae_u8 *p)
 	return (uae_u32)p[0] | ((uae_u32)p[1] << 8) | ((uae_u32)p[2] << 16) | ((uae_u32)p[3] << 24);
 }
 
-static uae_u16 read_be16(const uae_u8 *p)
-{
-	return ((uae_u16)p[0] << 8) | p[1];
-}
-
-static uae_u32 read_be32(const uae_u8 *p)
-{
-	return ((uae_u32)p[0] << 24) | ((uae_u32)p[1] << 16) | ((uae_u32)p[2] << 8) | p[3];
-}
-
-static void append_literal(std::vector<uae_u8> *out, const char *literal)
-{
-	for (int i = 0; i < 4; i++) {
-		out->push_back((uae_u8)literal[i]);
-	}
-}
-
-struct UnixClipboardBitmap {
-	int width = 0;
-	int height = 0;
-	std::vector<uae_u32> pixels;
-};
-
-static bool parse_bmp(const std::vector<uae_u8> &bmp, UnixClipboardBitmap *bitmap)
+static bool parse_bmp(const std::vector<uae_u8> &bmp, clipboard_bitmap *bitmap)
 {
 	if (!bitmap || bmp.size() < 54 || bmp[0] != 'B' || bmp[1] != 'M') {
 		return false;
@@ -484,7 +429,7 @@ static bool parse_bmp(const std::vector<uae_u8> &bmp, UnixClipboardBitmap *bitma
 	return true;
 }
 
-static bool make_bmp(const UnixClipboardBitmap &bitmap, std::vector<uae_u8> *bmp)
+static bool make_bmp(const clipboard_bitmap &bitmap, std::vector<uae_u8> *bmp)
 {
 	if (!bmp || bitmap.width <= 0 || bitmap.height <= 0 ||
 		bitmap.pixels.size() < (size_t)bitmap.width * (size_t)bitmap.height) {
@@ -532,7 +477,7 @@ static bool make_bmp(const UnixClipboardBitmap &bitmap, std::vector<uae_u8> *bmp
 }
 
 #ifdef UAE_UNIX_CLIPBOARD_PNG
-static bool parse_png(const std::vector<uae_u8> &png, UnixClipboardBitmap *bitmap)
+static bool parse_png(const std::vector<uae_u8> &png, clipboard_bitmap *bitmap)
 {
 	if (!bitmap || png.empty()) {
 		return false;
@@ -575,7 +520,7 @@ static bool parse_png(const std::vector<uae_u8> &png, UnixClipboardBitmap *bitma
 	return true;
 }
 
-static bool make_png(const UnixClipboardBitmap &bitmap, std::vector<uae_u8> *png)
+static bool make_png(const clipboard_bitmap &bitmap, std::vector<uae_u8> *png)
 {
 	if (!png || bitmap.width <= 0 || bitmap.height <= 0 ||
 		bitmap.pixels.size() < (size_t)bitmap.width * (size_t)bitmap.height) {
@@ -618,7 +563,7 @@ static bool make_png(const UnixClipboardBitmap &bitmap, std::vector<uae_u8> *png
 #endif
 
 #ifdef UAE_UNIX_CLIPBOARD_IMAGEIO
-static bool parse_imageio_bitmap(const std::vector<uae_u8> &data, UnixClipboardBitmap *bitmap)
+static bool parse_imageio_bitmap(const std::vector<uae_u8> &data, clipboard_bitmap *bitmap)
 {
     if (!bitmap || data.empty()) {
         return false;
@@ -684,7 +629,7 @@ static bool parse_imageio_bitmap(const std::vector<uae_u8> &data, UnixClipboardB
     return true;
 }
 
-static bool make_tiff(const UnixClipboardBitmap &bitmap, std::vector<uae_u8> *tiff)
+static bool make_tiff(const clipboard_bitmap &bitmap, std::vector<uae_u8> *tiff)
 {
     if (!tiff || bitmap.width <= 0 || bitmap.height <= 0 ||
         bitmap.pixels.size() < (size_t)bitmap.width * (size_t)bitmap.height) {
@@ -748,231 +693,17 @@ static bool make_tiff(const UnixClipboardBitmap &bitmap, std::vector<uae_u8> *ti
 }
 #endif
 
-static std::vector<uae_u8> make_iff_text(const std::string &host_text)
-{
-	const std::string amiga_text = host_text_to_amiga_text(host_text);
-	std::vector<uae_u8> iff;
-	const uae_u32 text_size = (uae_u32)amiga_text.size();
-	const uae_u32 form_size = 4 + 8 + text_size + (text_size & 1);
-
-	iff.reserve(form_size + 8);
-	append_literal(&iff, "FORM");
-	append_be32(&iff, form_size);
-	append_literal(&iff, "FTXT");
-	append_literal(&iff, "CHRS");
-	append_be32(&iff, text_size);
-	iff.insert(iff.end(), amiga_text.begin(), amiga_text.end());
-	if (text_size & 1) {
-		iff.push_back(0);
-	}
-	return iff;
-}
-
-static bool make_iff_ilbm(const UnixClipboardBitmap &bitmap, bool initial, std::vector<uae_u8> *iff)
-{
-	if (!iff || bitmap.width <= 0 || bitmap.height <= 0 ||
-		bitmap.pixels.size() < (size_t)bitmap.width * (size_t)bitmap.height) {
-		return false;
-	}
-
-	const size_t pixel_bytes = (size_t)bitmap.width * (size_t)bitmap.height * 4;
-	if (pixel_bytes > (initial ? CLIP_SIZE_LIMIT_INIT : CLIP_SIZE_LIMIT)) {
-		return false;
-	}
-
-	std::vector<uae_u32> colors;
-	colors.reserve(256);
-	for (uae_u32 pixel : bitmap.pixels) {
-		size_t i = 0;
-		for (; i < colors.size(); i++) {
-			if (colors[i] == pixel) {
-				break;
-			}
-		}
-		if (i == colors.size()) {
-			if (colors.size() >= 256) {
-				colors.clear();
-				break;
-			}
-			colors.push_back(pixel);
-		}
-	}
-
-	int planes = 24;
-	if (colors.size() >= 256) {
-		colors.clear();
-	}
-	if (!colors.empty()) {
-		planes = 0;
-		for (size_t count = colors.size(); count > 0; count >>= 1) {
-			planes++;
-		}
-		if (planes < 1) {
-			planes = 1;
-		}
-	}
-
-	const int width = bitmap.width;
-	const int height = bitmap.height;
-	const int plane_rowbytes = ((width + 15) & ~15) / 8;
-	const uae_u32 body_size = (uae_u32)(plane_rowbytes * height * planes);
-
-	iff->clear();
-	append_literal(iff, "FORM");
-	append_be32(iff, 0);
-	append_literal(iff, "ILBM");
-	append_literal(iff, "BMHD");
-	append_be32(iff, 20);
-	append_be16(iff, (uae_u16)width);
-	append_be16(iff, (uae_u16)height);
-	append_be16(iff, 0);
-	append_be16(iff, 0);
-	iff->push_back((uae_u8)planes);
-	iff->push_back(0);
-	iff->push_back(0);
-	iff->push_back(0);
-	append_be16(iff, 0);
-	iff->push_back(1);
-	iff->push_back(1);
-	append_be16(iff, (uae_u16)width);
-	append_be16(iff, (uae_u16)height);
-	append_literal(iff, "CAMG");
-	append_be32(iff, 4);
-	uae_u32 camg = 0;
-	if (width > 400) {
-		camg |= 0x8000;
-	}
-	if (height > 300) {
-		camg |= 0x0004;
-	}
-	append_be32(iff, camg);
-
-	if (planes <= 8) {
-		const int color_count = 1 << planes;
-		append_literal(iff, "CMAP");
-		append_be32(iff, color_count * 3);
-		for (int i = 0; i < color_count; i++) {
-			const uae_u32 color = i < (int)colors.size() ? colors[i] : 0;
-			iff->push_back(color >> 16);
-			iff->push_back(color >> 8);
-			iff->push_back(color);
-		}
-		if ((color_count * 3) & 1) {
-			iff->push_back(0);
-		}
-	}
-
-	append_literal(iff, "BODY");
-	append_be32(iff, body_size);
-	const size_t body_offset = iff->size();
-	iff->resize(body_offset + body_size, 0);
-	uae_u8 *body = iff->data() + body_offset;
-
-	for (int y = 0; y < height; y++) {
-		if (planes <= 8) {
-			for (int b = 0; b < planes; b++) {
-				for (int x = 0; x < width; x++) {
-					const uae_u32 pixel = bitmap.pixels[(size_t)y * (size_t)width + x];
-					int color_index = 0;
-					for (int i = 0; i < (int)colors.size(); i++) {
-						if (colors[i] == pixel) {
-							color_index = i;
-							break;
-						}
-					}
-					if (color_index & (1 << b)) {
-						body[x / 8] |= 1 << (7 - (x & 7));
-					}
-				}
-				body += plane_rowbytes;
-			}
-		} else {
-			for (int component = 0; component < 3; component++) {
-				for (int b = 0; b < 8; b++) {
-					const int mask = 1 << (((2 - component) * 8) + b);
-					for (int x = 0; x < width; x++) {
-						const uae_u32 pixel = bitmap.pixels[(size_t)y * (size_t)width + x];
-						if (pixel & mask) {
-							body[x / 8] |= 1 << (7 - (x & 7));
-						}
-					}
-					body += plane_rowbytes;
-				}
-			}
-		}
-	}
-
-	const uae_u32 form_size = (uae_u32)iff->size() - 8;
-	(*iff)[4] = form_size >> 24;
-	(*iff)[5] = form_size >> 16;
-	(*iff)[6] = form_size >> 8;
-	(*iff)[7] = form_size;
-	if (form_size & 1) {
-		iff->push_back(0);
-	}
-	return true;
-}
-
-static void to_amiga_start(void)
-{
-	to_amiga_phase = 0;
-	if (!initialized || !clipboard_data || to_amiga.empty()) {
-		return;
-	}
-	to_amiga_phase = 1;
-}
-
 static void queue_host_text_to_amiga(const std::string &text)
 {
-	to_amiga = make_iff_text(text);
-	to_amiga_start();
+	transfer.pending = clipboard_encode_text(text);
+	transfer.start();
 }
 
-static void queue_host_bitmap_to_amiga(const UnixClipboardBitmap &bitmap, bool initial)
+static void queue_host_bitmap_to_amiga(const clipboard_bitmap &bitmap, bool initial)
 {
-	if (make_iff_ilbm(bitmap, initial, &to_amiga)) {
-		to_amiga_start();
+	if (clipboard_encode_bitmap(bitmap, initial, &transfer.pending)) {
+		transfer.start();
 	}
-}
-
-static int parse_csi(const std::string &text, size_t offset)
-{
-	while (offset < text.size()) {
-		if ((uae_u8)text[offset] >= 0x40) {
-			break;
-		}
-		offset++;
-	}
-	return (int)offset;
-}
-
-static std::string amiga_text_to_host_text(const std::string &text)
-{
-	std::string converted;
-	converted.reserve(text.size());
-	for (size_t i = 0; i < text.size(); i++) {
-		uae_u8 c = (uae_u8)text[i];
-		if (c == 0 && i + 1 < text.size()) {
-			continue;
-		}
-		if (c == 0x9b) {
-			i = parse_csi(text, i + 1);
-			continue;
-		}
-		if (c == 0x1b && i + 1 < text.size() && text[i + 1] == '[') {
-			i = parse_csi(text, i + 2);
-			continue;
-		}
-		if (c == '\r') {
-			converted.push_back('\n');
-			if (i + 1 < text.size() && text[i + 1] == '\n') {
-				i++;
-			}
-			continue;
-		}
-		converted.push_back((char)c);
-	}
-	return converted;
 }
 
 static void clipboard_put_text(const std::string &text)
@@ -984,215 +715,10 @@ static void clipboard_put_text(const std::string &text)
 
 static void from_iff_text(const uae_u8 *addr, uae_u32 len)
 {
-	if (len < 12 || memcmp(addr, "FORM", 4) || memcmp(addr + 8, "FTXT", 4)) {
-		return;
-	}
-
 	std::string text;
-	uae_u32 offset = 12;
-	while (offset + 8 <= len) {
-		const uae_u8 *chunk = addr + offset;
-		uae_u32 csize = ((uae_u32)chunk[4] << 24) | ((uae_u32)chunk[5] << 16) | ((uae_u32)chunk[6] << 8) | chunk[7];
-		offset += 8;
-		if (csize > len - offset) {
-			break;
-		}
-		if (!memcmp(chunk, "CHRS", 4)) {
-			text.append((const char *)(addr + offset), csize);
-		}
-		offset += csize + (csize & 1);
+	if (clipboard_decode_text(addr, len, &text, false)) {
+		clipboard_put_text(text);
 	}
-
-	clipboard_put_text(amiga_text_to_host_text(text));
-}
-
-static bool decompress_byterun1(const uae_u8 *src, const uae_u8 *end, std::vector<uae_u8> *out, size_t expected)
-{
-	out->clear();
-	out->reserve(expected);
-	while (src < end && out->size() < expected) {
-		const int8_t control = (int8_t)*src++;
-		if (control >= 0) {
-			const int count = control + 1;
-			if (src + count > end) {
-				return false;
-			}
-			const size_t writable = std::min((size_t)count, expected - out->size());
-			out->insert(out->end(), src, src + writable);
-			src += count;
-		} else if (control >= -127) {
-			if (src >= end) {
-				return false;
-			}
-			const int count = -control + 1;
-			const uae_u8 value = *src++;
-			const size_t writable = std::min((size_t)count, expected - out->size());
-			out->insert(out->end(), writable, value);
-		}
-	}
-	return out->size() == expected;
-}
-
-static bool parse_iff_ilbm(const uae_u8 *addr, uae_u32 len, UnixClipboardBitmap *bitmap)
-{
-	if (!bitmap || len < 12 || memcmp(addr, "FORM", 4) || memcmp(addr + 8, "ILBM", 4)) {
-		return false;
-	}
-	if (read_be32(addr + 4) > 0xffffff) {
-		return false;
-	}
-
-	int width = 0;
-	int height = 0;
-	int planes = 0;
-	int masking = 0;
-	int compression = 0;
-	uae_u32 camg = 0;
-	uae_u32 palette[256];
-	for (int i = 0; i < 256; i++) {
-		palette[i] = ((uae_u32)i << 16) | ((uae_u32)i << 8) | i;
-	}
-	bool have_bmhd = false;
-	const uae_u8 *body = NULL;
-	uae_u32 body_size = 0;
-
-	uae_u32 offset = 12;
-	while (offset + 8 <= len) {
-		const uae_u8 *chunk = addr + offset;
-		const uae_u32 csize = read_be32(chunk + 4);
-		offset += 8;
-		if (csize > len - offset) {
-			return false;
-		}
-		const uae_u8 *data = addr + offset;
-		if (!memcmp(chunk, "BMHD", 4) && csize >= 20) {
-			width = read_be16(data);
-			height = read_be16(data + 2);
-			planes = data[8];
-			masking = data[9];
-			compression = data[10];
-			have_bmhd = true;
-		} else if (!memcmp(chunk, "CAMG", 4) && csize >= 4) {
-			camg = read_be32(data);
-			if ((camg & 0xffff0000) && !(camg & 0x1000)) {
-				camg = 0;
-			}
-		} else if (!memcmp(chunk, "CMAP", 4)) {
-			const int colors = std::min<int>(256, csize / 3);
-			bool zero4 = true;
-			for (int i = 0; i < colors; i++) {
-				const uae_u8 r = data[(size_t)i * 3 + 0];
-				const uae_u8 g = data[(size_t)i * 3 + 1];
-				const uae_u8 b = data[(size_t)i * 3 + 2];
-				if ((r & 0x0f) || (g & 0x0f) || (b & 0x0f)) {
-					zero4 = false;
-				}
-				palette[i] = ((uae_u32)r << 16) | ((uae_u32)g << 8) | b;
-			}
-			if (zero4) {
-				for (int i = 0; i < colors; i++) {
-					const uae_u8 r = ((palette[i] >> 16) & 0xff) | ((palette[i] >> 20) & 0x0f);
-					const uae_u8 g = ((palette[i] >> 8) & 0xff) | ((palette[i] >> 12) & 0x0f);
-					const uae_u8 b = (palette[i] & 0xff) | ((palette[i] >> 4) & 0x0f);
-					palette[i] = ((uae_u32)r << 16) | ((uae_u32)g << 8) | b;
-				}
-			}
-		} else if (!memcmp(chunk, "BODY", 4)) {
-			body = data;
-			body_size = csize;
-		}
-		offset += csize + (csize & 1);
-	}
-
-	if (!have_bmhd || !body || width <= 0 || height <= 0 || planes <= 0 || planes > 24) {
-		return false;
-	}
-	if (planes > 8 && planes != 24 && !((camg & 0x0800) && planes > 4)) {
-		return false;
-	}
-
-	const int plane_rowbytes = ((width + 15) & ~15) / 8;
-	const int stored_planes = planes + (masking == 1 ? 1 : 0);
-	const size_t decoded_size = (size_t)plane_rowbytes * (size_t)height * (size_t)stored_planes;
-	std::vector<uae_u8> decoded;
-	if (compression) {
-		if (!decompress_byterun1(body, body + body_size, &decoded, decoded_size)) {
-			return false;
-		}
-		body = decoded.data();
-		body_size = (uae_u32)decoded.size();
-	} else if (body_size < decoded_size) {
-		return false;
-	}
-
-	const bool ham = (camg & 0x0800) && planes > 4;
-	const bool ehb = !(camg & (0x0800 | 0x0400 | 0x8000 | 0x0040)) && (camg & 0x0080) && planes == 6;
-	bitmap->width = width;
-	bitmap->height = height;
-	bitmap->pixels.assign((size_t)width * (size_t)height, 0);
-
-	for (int y = 0; y < height; y++) {
-		const uae_u8 *row = body + (size_t)y * (size_t)stored_planes * (size_t)plane_rowbytes;
-		uae_u32 ham_lastcolor = 0;
-		for (int x = 0; x < width; x++) {
-			int value = 0;
-			for (int b = 0; b < planes; b++) {
-				const int off = x / 8;
-				const int mask = 1 << (7 - (x & 7));
-				if (row[(size_t)b * plane_rowbytes + off] & mask) {
-					value |= 1 << b;
-				}
-			}
-			uae_u32 pixel = 0;
-			if (ham) {
-				if (planes >= 7) {
-					const uae_u32 c = value & 0x3f;
-					switch (value >> 6)
-					{
-						case 0: ham_lastcolor = palette[value & 0x3f]; break;
-						case 1: ham_lastcolor = (ham_lastcolor & 0xffff00) | (c << 2); break;
-						case 2: ham_lastcolor = (ham_lastcolor & 0x00ffff) | (c << 18); break;
-						case 3: ham_lastcolor = (ham_lastcolor & 0xff00ff) | (c << 10); break;
-					}
-				} else {
-					const uae_u32 c = value & 0x0f;
-					switch (value >> 4)
-					{
-						case 0: ham_lastcolor = palette[value & 0x0f]; break;
-						case 1: ham_lastcolor = (ham_lastcolor & 0xffff00) | (c << 4); break;
-						case 2: ham_lastcolor = (ham_lastcolor & 0x00ffff) | (c << 20); break;
-						case 3: ham_lastcolor = (ham_lastcolor & 0xff00ff) | (c << 12); break;
-					}
-				}
-				pixel = ham_lastcolor;
-			} else if (planes <= 8) {
-				if (ehb && value >= 32) {
-					const uae_u32 base = palette[value - 32];
-					pixel = (((base >> 17) & 0x7f) << 16) | (((base >> 9) & 0x7f) << 8) | ((base >> 1) & 0x7f);
-				} else {
-					pixel = palette[value & 0xff];
-				}
-			} else {
-				uae_u8 r = 0, g = 0, b = 0;
-				for (int bit = 0; bit < 8; bit++) {
-					const int off = x / 8;
-					const int mask = 1 << (7 - (x & 7));
-					if (row[(size_t)bit * plane_rowbytes + off] & mask) {
-						r |= 1 << bit;
-					}
-					if (row[(size_t)(8 + bit) * plane_rowbytes + off] & mask) {
-						g |= 1 << bit;
-					}
-					if (row[(size_t)(16 + bit) * plane_rowbytes + off] & mask) {
-						b |= 1 << bit;
-					}
-				}
-				pixel = ((uae_u32)r << 16) | ((uae_u32)g << 8) | b;
-			}
-			bitmap->pixels[(size_t)y * (size_t)width + x] = pixel;
-		}
-	}
-	return true;
 }
 
 static void from_iff(TrapContext *ctx, uaecptr data, uae_u32 len)
@@ -1201,15 +727,15 @@ static void from_iff(TrapContext *ctx, uaecptr data, uae_u32 len)
 		return;
 	}
 
-	std::vector<uae_u8> buffer((len + 3) & ~3);
-	trap_get_bytes(ctx, buffer.data(), data, (len + 3) & ~3);
+	std::vector<uae_u8> buffer(len);
+	trap_get_bytes(ctx, buffer.data(), data, len);
 	if (!memcmp(buffer.data(), "FORM", 4) && !memcmp(buffer.data() + 8, "FTXT", 4)) {
 		from_iff_text(buffer.data(), len);
 	} else if (!memcmp(buffer.data(), "FORM", 4) && !memcmp(buffer.data() + 8, "ILBM", 4)) {
 #ifdef UAE_UNIX_WITH_SDL3_CLIPBOARD_DATA
-		UnixClipboardBitmap bitmap;
+		clipboard_bitmap bitmap;
 		std::vector<uae_u8> bmp;
-		if (parse_iff_ilbm(buffer.data(), len, &bitmap) && make_bmp(bitmap, &bmp)) {
+		if (clipboard_decode_bitmap(buffer.data(), len, &bitmap) && make_bmp(bitmap, &bmp)) {
 			std::vector<uae_u8> png;
 #ifdef UAE_UNIX_CLIPBOARD_PNG
 			make_png(bitmap, &png);
@@ -1226,7 +752,7 @@ static void from_iff(TrapContext *ctx, uaecptr data, uae_u32 len)
 
 static void clipboard_read_host(TrapContext *, bool keyboardinject, bool initial)
 {
-	if (clip_disabled || (!keyboardinject && to_amiga_phase)) {
+	if (clip_disabled || (!keyboardinject && transfer.phase)) {
 		return;
 	}
 
@@ -1253,7 +779,7 @@ static void clipboard_read_host(TrapContext *, bool keyboardinject, bool initial
 
 #ifdef UAE_UNIX_WITH_SDL3_CLIPBOARD_DATA
 	if (!keyboardinject) {
-		UnixClipboardBitmap bitmap;
+		clipboard_bitmap bitmap;
 		std::vector<uae_u8> image;
 #ifdef UAE_UNIX_CLIPBOARD_PNG
 		if (read_host_clipboard_png(&image, initial ? CLIP_SIZE_LIMIT_INIT : CLIP_SIZE_LIMIT) && parse_png(image, &bitmap)) {
@@ -1295,48 +821,16 @@ static void clipboard_read_host(TrapContext *, bool keyboardinject, bool initial
 #endif
 }
 
-static uae_u32 to_amiga_start_cb(TrapContext *ctx, void *)
-{
-	if (!clipboard_data || to_amiga.empty() || trap_get_long(ctx, clipboard_data) != 0) {
-		return 0;
-	}
-	trap_put_long(ctx, clipboard_data, (uae_u32)to_amiga.size());
-	uae_Signal(trap_get_long(ctx, clipboard_data + 8), 1 << 13);
-	to_amiga_phase = 2;
-	return 1;
-}
-
-static uae_u32 clipboard_vsync_cb(TrapContext *ctx, void *)
-{
-	if (clipboard_data) {
-		uaecptr task = trap_get_long(ctx, clipboard_data + 8);
-		if (task && native2amiga_isfree()) {
-			uae_Signal(task, 1 << 13);
-		}
-	}
-	return 0;
-}
-
 void clipboard_vsync(void)
 {
-	if (!filesys_heartbeat() || !clipboard_data || !initialized) {
+	if (!filesys_heartbeat() || !transfer.guest_data) {
 		return;
 	}
 
-	if (signaling) {
-		vdelay--;
-		if (vdelay <= 0) {
-			trap_callback(clipboard_vsync_cb, NULL);
-			vdelay = 50;
-		}
-	}
-
-	if (vdelay2 > 0) {
-		vdelay2--;
-	}
-
-	if (to_amiga_phase == 1 && vdelay2 <= 0) {
-		trap_callback(to_amiga_start_cb, NULL);
+	// The guest waits for this signal before opening clipboard.device.
+	transfer.vsync(false);
+	if (!transfer.initialized) {
+		return;
 	}
 
 	if (host_poll_delay > 0) {
@@ -1354,10 +848,7 @@ void clipboard_host_changed(void)
 
 void clipboard_unsafeperiod(void)
 {
-	vdelay2 = 100;
-	if (vdelay < 60) {
-		vdelay = 60;
-	}
+	transfer.unsafe_period();
 }
 
 void clipboard_disable(bool disabled)
@@ -1367,50 +858,27 @@ void clipboard_disable(bool disabled)
 
 uaecptr amiga_clipboard_proc_start(TrapContext *)
 {
-	signaling = 1;
-	to_amiga_start();
-	return clipboard_data;
+	transfer.signaling = 1;
+	transfer.start();
+	return transfer.guest_data;
 }
 
 void amiga_clipboard_task_start(TrapContext *, uaecptr data)
 {
-	clipboard_data = data;
-	signaling = 1;
-	write_log(_T("clipboard task init: %08x\n"), clipboard_data);
-	to_amiga_start();
+	transfer.guest_data = data;
+	transfer.signaling = 1;
+	write_log(_T("clipboard task init: %08x\n"), transfer.guest_data);
+	transfer.start();
 }
 
 int amiga_clipboard_want_data(TrapContext *ctx)
 {
-	if (!clipboard_data) {
-		return 0;
-	}
-
-	uae_u32 addr = trap_get_long(ctx, clipboard_data + 4);
-	uae_u32 size = trap_get_long(ctx, clipboard_data);
-
-	if (!initialized || to_amiga.empty()) {
-		to_amiga.clear();
-		to_amiga_phase = 0;
-		return 0;
-	}
-	if (size != to_amiga.size()) {
-		write_log(_T("clipboard: size %d <> %d mismatch\n"), size, (int)to_amiga.size());
-		to_amiga.clear();
-		to_amiga_phase = 0;
-		return 0;
-	}
-	if (addr && size) {
-		trap_put_bytes(ctx, to_amiga.data(), addr, size);
-	}
-	to_amiga.clear();
-	to_amiga_phase = 0;
-	return 1;
+	return transfer.want_data(ctx);
 }
 
 void amiga_clipboard_got_data(TrapContext *ctx, uaecptr data, uae_u32, uae_u32 actual)
 {
-	if (!initialized) {
+	if (!transfer.initialized) {
 		return;
 	}
 	from_iff(ctx, data, actual);
@@ -1418,14 +886,14 @@ void amiga_clipboard_got_data(TrapContext *ctx, uaecptr data, uae_u32, uae_u32 a
 
 void amiga_clipboard_die(TrapContext *)
 {
-	signaling = 0;
+	transfer.signaling = 0;
 	write_log(_T("clipboard not initialized\n"));
 }
 
 void amiga_clipboard_init(TrapContext *ctx)
 {
-	signaling = 0;
-	initialized = 1;
+	transfer.signaling = 0;
+	transfer.initialized = 1;
 	host_poll_delay = 50;
 	write_log(_T("clipboard initialized\n"));
 	clipboard_read_host(ctx, false, true);
