@@ -360,20 +360,6 @@ static int do_raw_scsi(struct dev_info_ioctl* ciw, int unitnum, unsigned char* c
 }
 #endif
 
-static void sub_deinterleave(const uae_u8* s, uae_u8* d)
-{
-	for (int i = 0; i < 8 * 12; i++) {
-		int dmask = 0x80;
-		int smask = 1 << (7 - (i / 12));
-		(*d) = 0;
-		for (int j = 0; j < 8; j++) {
-			(*d) |= (s[(i % 12) * 8 + j] & smask) ? dmask : 0;
-			dmask >>= 1;
-		}
-		d++;
-	}
-}
-
 #ifdef __linux__
 static int spti_read(struct dev_info_ioctl* ciw, int unitnum, uae_u8* data, int sector, int sectorsize)
 {
@@ -722,7 +708,7 @@ static int ioctl_command_qcode(int unitnum, uae_u8* buf, int sector, bool all)
 		if (sector < 0 && ciw->cda.subcodevalid && ciw->cda.cdda_play) {
 			uae_sem_wait(&ciw->cda.sub_sem2);
 			uae_u8 subbuf[SUB_CHANNEL_SIZE];
-			sub_deinterleave(ciw->cda.subcodebuf, subbuf);
+			sub_to_deinterleaved(ciw->cda.subcodebuf, subbuf);
 			memcpy(p, subbuf + 12, 12);
 			uae_sem_post(&ciw->cda.sub_sem2);
 			valid = true;
@@ -736,7 +722,7 @@ static int ioctl_command_qcode(int unitnum, uae_u8* buf, int sector, bool all)
 				perror("CDROMSUBCHNL ioctl failed");
 			}
 			uae_u8 subbuf[SUB_CHANNEL_SIZE];
-			sub_deinterleave((uae_u8*)&subchnl, subbuf);
+			sub_to_deinterleaved((uae_u8*)&subchnl, subbuf);
 			uae_sem_post(&ciw->cda.sub_sem);
 			memcpy(p, subbuf + 12, 12);
 			valid = true;
