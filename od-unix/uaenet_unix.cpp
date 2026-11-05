@@ -38,17 +38,12 @@
 #include "options.h"
 #include "sana2.h"
 #include "threaddep/thread.h"
-#include "uaenet.h"
+#include "uaenet_common.h"
 #include "uae.h"
-
-int log_ethernet;
 
 static struct netdriverdata tds[MAX_TOTAL_NET_DEVICES];
 static int enumerated;
 static int enumerated_count;
-static int ethernet_paused;
-
-static const uae_u8 uaemac[] = { 0xaa, 0x82, 0x8a, 0x00, 0x00, 0x00 };
 
 enum
 {
@@ -62,8 +57,6 @@ struct uaenetdataunix
 {
 	void *user;
 	struct netdriverdata *tc;
-	uae_u8 *readbuffer;
-	uae_u8 *writebuffer;
 	int mtu;
 
 	char errbuf[PCAP_ERRBUF_SIZE];
@@ -71,16 +64,8 @@ struct uaenetdataunix
 	int backend;
 	int fd;
 	uaenet_gotfunc *gotfunc;
-	uaenet_getfunc *getfunc;
 
-	volatile int threadactiver;
-	uae_thread_id tidr;
-	uae_sem_t sync_semr;
-	volatile int threadactivew;
-	uae_thread_id tidw;
-	uae_sem_t sync_semw;
-	uae_sem_t change_sem;
-	uae_sem_t write_sem;
+	uaenet_worker *worker;
 };
 
 int uaenet_getdatalenght(void)
@@ -131,7 +116,7 @@ static void make_fallback_macs(struct netdriverdata *tc, int index)
 {
 	static const uae_u8 hostmac[] = { 0xaa, 0x82, 0x8a, 0xfe, 0xfe, 0x00 };
 	memcpy(tc->originalmac, hostmac, 6);
-	memcpy(tc->mac, uaemac, 6);
+	memcpy(tc->mac, uaenet_mac, 6);
 	tc->originalmac[5] = (uae_u8)(index + 1);
 	tc->mac[5] = (uae_u8)(index + 1);
 }
@@ -201,13 +186,13 @@ static bool reply_tun_arp(struct uaenetdataunix *sd, const uae_u8 *data, int len
 	memcpy(reply + 32, arp + 8, 6);
 	memcpy(reply + 38, arp + 14, 4);
 
-	if (!ethernet_paused) {
+	if (!uaenet_is_paused()) {
 		sd->gotfunc((struct s2devstruct*)sd->user, reply, sizeof(reply));
 	}
 	return true;
 }
 
-static bool send_packet(struct uaenetdataunix *sd, const uae_u8 *data, int len)
+static bool send_packet_2(struct uaenetdataunix *sd, const uae_u8 *data, int len)
 {
 	if (sd->backend == UAENET_BACKEND_PCAP) {
 		if (pcap_sendpacket(sd->fp, data, len) < 0) {
@@ -226,130 +211,81 @@ static bool send_packet(struct uaenetdataunix *sd, const uae_u8 *data, int len)
 	return write_fd_packet(sd, data, len);
 }
 
-static void uaenet_trap_threadr(void *arg)
+static int receive_packet(void *user, uae_u8 *buffer, int capacity, const uae_u8 **packet, int *length)
 {
-	struct uaenetdataunix *sd = (struct uaenetdataunix*)arg;
-
-	uae_set_thread_priority(NULL, 1);
-	sd->threadactiver = 1;
-	uae_sem_post(&sd->sync_semr);
-
-	while (sd->threadactiver == 1) {
-		if (sd->backend == UAENET_BACKEND_PCAP) {
-			struct pcap_pkthdr *header = NULL;
-			const u_char *pkt_data = NULL;
-			const int r = pcap_next_ex(sd->fp, &header, &pkt_data);
-			if (r == 1 && header && pkt_data && !ethernet_paused) {
-				const int len = std::min<int>((int)header->caplen, (int)header->len);
-				if (len > 0) {
-					uae_sem_wait(&sd->change_sem);
-					sd->gotfunc((struct s2devstruct*)sd->user, pkt_data, len);
-					uae_sem_post(&sd->change_sem);
-				}
-			} else if (r == 0) {
-				continue;
-			} else if (r == PCAP_ERROR_BREAK && sd->threadactiver != 1) {
-				break;
-			} else if (r < 0) {
-				write_log(_T("uaenet: pcap_next_ex failed, err=%d\n"), r);
-				break;
-			}
-		} else {
-			struct pollfd pfd;
-			pfd.fd = sd->fd;
-			pfd.events = POLLIN;
-			pfd.revents = 0;
-			const int pr = poll(&pfd, 1, 100);
-			if (pr < 0) {
-				if (errno == EINTR) {
-					continue;
-				}
-				write_log(_T("uaenet: TAP/TUN poll failed: %s\n"), strerror(errno));
-				break;
-			}
-			if (pr == 0 || !(pfd.revents & POLLIN)) {
-				continue;
-			}
-
-			uae_u8 *pkt_data = sd->readbuffer;
-			ssize_t got;
-			if (sd->backend == UAENET_BACKEND_TUN) {
-				got = read(sd->fd, sd->readbuffer + 14, sd->mtu);
-				if (got > 0) {
-					const uae_u8 version = sd->readbuffer[14] >> 4;
-					if (version == 4 || version == 6) {
-						memcpy(sd->readbuffer + 0, sd->tc->mac, 6);
-						memcpy(sd->readbuffer + 6, sd->tc->originalmac, 6);
-						put_be16(sd->readbuffer + 12, version == 4 ? 0x0800 : 0x86dd);
-						got += 14;
-					} else {
-						got = 0;
-					}
-				}
-			} else {
-				got = read(sd->fd, sd->readbuffer, sd->mtu + 64);
-			}
-			if (got < 0) {
-				if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-					continue;
-				}
-				write_log(_T("uaenet: TAP/TUN read failed: %s\n"), strerror(errno));
-				break;
-			}
-			if (got > 0 && !ethernet_paused) {
-				uae_sem_wait(&sd->change_sem);
-				sd->gotfunc((struct s2devstruct*)sd->user, pkt_data, (int)got);
-				uae_sem_post(&sd->change_sem);
-			}
+	struct uaenetdataunix *sd = (struct uaenetdataunix*)user;
+	if (sd->backend == UAENET_BACKEND_PCAP) {
+		struct pcap_pkthdr *header = NULL;
+		const u_char *data = NULL;
+		int result = pcap_next_ex(sd->fp, &header, &data);
+		if (result == 1 && header && data) {
+			*packet = data;
+			*length = (int)std::min(header->caplen, header->len);
+		} else if (result < 0 && result != PCAP_ERROR_BREAK) {
+			write_log(_T("uaenet: pcap_next_ex failed, err=%d\n"), result);
 		}
+		return result;
 	}
-
-	sd->threadactiver = 0;
-	uae_sem_post(&sd->sync_semr);
+	struct pollfd pfd = { sd->fd, POLLIN, 0 };
+	int result = poll(&pfd, 1, 100);
+	if (result < 0) {
+		if (errno == EINTR) {
+			return 0;
+		}
+		write_log(_T("uaenet: TAP/TUN poll failed: %s\n"), strerror(errno));
+		return -1;
+	}
+	if (!result || !(pfd.revents & POLLIN)) {
+		return 0;
+	}
+	ssize_t got;
+	if (sd->backend == UAENET_BACKEND_TUN) {
+		got = read(sd->fd, buffer + 14, sd->mtu);
+		if (got > 0) {
+			uae_u8 version = buffer[14] >> 4;
+			if (version != 4 && version != 6) {
+				return 0;
+			}
+			memcpy(buffer, sd->tc->mac, 6);
+			memcpy(buffer + 6, sd->tc->originalmac, 6);
+			put_be16(buffer + 12, version == 4 ? 0x0800 : 0x86dd);
+			got += 14;
+		}
+	} else {
+		got = read(sd->fd, buffer, capacity);
+	}
+	if (got < 0) {
+		if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+			return 0;
+		}
+		write_log(_T("uaenet: TAP/TUN read failed: %s\n"), strerror(errno));
+		return -1;
+	}
+	*packet = buffer;
+	*length = (int)got;
+	return got > 0 ? 1 : 0;
 }
 
-static void uaenet_trap_threadw(void *arg)
+static void send_packet(void *user, const uae_u8 *data, int length)
 {
-	struct uaenetdataunix *sd = (struct uaenetdataunix*)arg;
-
-	uae_set_thread_priority(NULL, 1);
-	sd->threadactivew = 1;
-	uae_sem_post(&sd->sync_semw);
-
-	while (sd->threadactivew == 1) {
-		int towrite = sd->mtu;
-		bool wrote = false;
-
-		uae_sem_wait(&sd->change_sem);
-		if (sd->getfunc((struct s2devstruct*)sd->user, sd->writebuffer, &towrite)) {
-			if (log_ethernet & 1) {
-				TCHAR out[1600 * 2], *p = out;
-				for (int i = 0; i < towrite && i < 1600; i++) {
-					_stprintf(p, _T("%02x"), sd->writebuffer[i]);
-					p += 2;
-					*p = 0;
-				}
-				write_log(_T("OUT %4d: %s\n"), towrite, out);
-			}
-			send_packet(sd, sd->writebuffer, towrite);
-			wrote = true;
-		}
-		uae_sem_post(&sd->change_sem);
-
-		if (!wrote) {
-			uae_sem_trywait_delay(&sd->write_sem, 100);
-		}
-	}
-
-	sd->threadactivew = 0;
-	uae_sem_post(&sd->sync_semw);
+	send_packet_2((struct uaenetdataunix*)user, data, length);
 }
+
+static void interrupt_receive(void *user)
+{
+	struct uaenetdataunix *sd = (struct uaenetdataunix*)user;
+	if (sd->fp) {
+		pcap_breakloop(sd->fp);
+	}
+}
+
+static const uaenet_backend packet_backend = { receive_packet, send_packet, interrupt_receive };
 
 void uaenet_trigger(void *vsd)
 {
 	struct uaenetdataunix *sd = (struct uaenetdataunix*)vsd;
 	if (sd) {
-		uae_sem_post(&sd->write_sem);
+		uaenet_wake_writer(sd->worker);
 	}
 }
 
@@ -463,12 +399,7 @@ int uaenet_open(void *vsd, struct netdriverdata *tc, void *user, uaenet_gotfunc 
 
 	uaenet_initdata(sd, user);
 	name = ua(tc->name);
-	if (mac) {
-		memcpy(tc->mac, mac, 6);
-	}
-	if (memcmp(tc->mac, tc->originalmac, 6) != 0) {
-		promiscuous = 1;
-	}
+	promiscuous = uaenet_select_mac(tc, mac, promiscuous);
 
 	if (tc->type == UAENET_PCAP) {
 		sd->backend = UAENET_BACKEND_PCAP;
@@ -501,32 +432,17 @@ int uaenet_open(void *vsd, struct netdriverdata *tc, void *user, uaenet_gotfunc 
 	sd->tc = tc;
 	sd->user = user;
 	sd->mtu = tc->mtu > 0 ? tc->mtu : 1522;
-	sd->readbuffer = xmalloc(uae_u8, sd->mtu + 64);
-	sd->writebuffer = xmalloc(uae_u8, sd->mtu + 64);
 	sd->gotfunc = gotfunc;
-	sd->getfunc = getfunc;
-
-	uae_sem_init(&sd->change_sem, 0, 1);
-	uae_sem_init(&sd->write_sem, 0, 0);
-	uae_sem_init(&sd->sync_semr, 0, 0);
-	if (!uae_start_thread(_T("uaenet_unixr"), uaenet_trap_threadr, sd, &sd->tidr)) {
-		goto end;
+	sd->worker = uaenet_start_workers(&packet_backend, sd, user, gotfunc, getfunc, sd->mtu, 100);
+	if (!sd->worker) {
+		uaenet_close(sd);
+		return 0;
 	}
-	uae_sem_wait(&sd->sync_semr);
-
-	uae_sem_init(&sd->sync_semw, 0, 0);
-	if (!uae_start_thread(_T("uaenet_unixw"), uaenet_trap_threadw, sd, &sd->tidw)) {
-		goto end;
-	}
-	uae_sem_wait(&sd->sync_semw);
 
 	write_log(_T("uaenet_unix initialized (%s)\n"),
 		sd->backend == UAENET_BACKEND_PCAP ? _T("pcap") : (sd->backend == UAENET_BACKEND_TAP ? _T("tap") : _T("tun")));
 	return 1;
 
-end:
-	uaenet_close(sd);
-	return 0;
 }
 
 void uaenet_close(void *vsd)
@@ -536,28 +452,7 @@ void uaenet_close(void *vsd)
 		return;
 	}
 
-	if (sd->threadactiver) {
-		sd->threadactiver = -1;
-		if (sd->fp) {
-			pcap_breakloop(sd->fp);
-		}
-		uae_wait_thread(sd->tidr);
-		write_log(_T("uaenet_unix read thread stopped\n"));
-	}
-	if (sd->threadactivew) {
-		sd->threadactivew = -1;
-		uae_sem_post(&sd->write_sem);
-		uae_wait_thread(sd->tidw);
-		write_log(_T("uaenet_unix write thread stopped\n"));
-	}
-
-	uae_sem_destroy(&sd->sync_semr);
-	uae_sem_destroy(&sd->sync_semw);
-	uae_sem_destroy(&sd->change_sem);
-	uae_sem_destroy(&sd->write_sem);
-
-	xfree(sd->readbuffer);
-	xfree(sd->writebuffer);
+	uaenet_stop_workers(sd->worker);
 	if (sd->fp) {
 		pcap_close(sd->fp);
 	}
@@ -600,7 +495,7 @@ static struct netdriverdata *add_pcap_entry(int *cntp, const char *ifname, const
 	TCHAR *tdesc = au(dbuf);
 	struct netdriverdata *tc = &tds[*cntp];
 	memset(tc, 0, sizeof(*tc));
-	memcpy(tc->mac, uaemac, 6);
+	memcpy(tc->mac, uaenet_mac, 6);
 	if ((verified ? get_interface_mac : get_ethernet_interface_mac)(ifname, tc->mac)) {
 		memcpy(tc->originalmac, tc->mac, 6);
 	} else {
@@ -614,8 +509,8 @@ static struct netdriverdata *add_pcap_entry(int *cntp, const char *ifname, const
 
 	write_log(_T("- MAC %02X:%02X:%02X:%02X:%02X:%02X -> %02X:%02X:%02X:%02X:%02X:%02X\n"),
 		tc->originalmac[0], tc->originalmac[1], tc->originalmac[2], tc->originalmac[3], tc->originalmac[4], tc->originalmac[5],
-		uaemac[0], uaemac[1], uaemac[2], tc->originalmac[3], tc->originalmac[4], tc->originalmac[5]);
-	memcpy(tc->mac, uaemac, 3);
+		uaenet_mac[0], uaenet_mac[1], uaenet_mac[2], tc->originalmac[3], tc->originalmac[4], tc->originalmac[5]);
+	memcpy(tc->mac, uaenet_mac, 3);
 	tc->mac[3] = tc->originalmac[3];
 	tc->mac[4] = tc->originalmac[4];
 	tc->mac[5] = tc->originalmac[5];
@@ -651,7 +546,7 @@ static struct netdriverdata *add_tuntap_entry(int *cntp, int type, const char *i
 	make_fallback_macs(tc, *cntp);
 	if (type == UAENET_TAP && get_interface_mac(ifname, tc->originalmac)) {
 		memcpy(tc->mac, tc->originalmac, 6);
-		memcpy(tc->mac, uaemac, 3);
+		memcpy(tc->mac, uaenet_mac, 3);
 	}
 	tc->type = type;
 	tc->active = 1;
@@ -728,34 +623,16 @@ static int enumerate_tuntap_interfaces(int cnt)
 
 void uaenet_enumerate_free(void)
 {
-	for (int i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
-		if (tds[i].name) {
-			xfree((void*)tds[i].name);
-		}
-		if (tds[i].desc) {
-			xfree((void*)tds[i].desc);
-		}
-		tds[i].active = 0;
-		tds[i].name = NULL;
-		tds[i].desc = NULL;
-	}
+	uaenet_clear_drivers(tds, MAX_TOTAL_NET_DEVICES, true);
 	enumerated = 0;
 	enumerated_count = 0;
 }
 
 static struct netdriverdata *enumit(const TCHAR *name)
 {
-	if (!name) {
-		return tds;
-	}
-	for (int i = 0; i < enumerated_count; i++) {
-		TCHAR mac[20];
-		struct netdriverdata *tc = &tds[i];
-		_stprintf(mac, _T("%02X:%02X:%02X:%02X:%02X:%02X"),
-			tc->mac[0], tc->mac[1], tc->mac[2], tc->mac[3], tc->mac[4], tc->mac[5]);
-		if (tc->active && (!_tcsicmp(name, tc->name) || !_tcsicmp(name, mac))) {
-			return tc;
-		}
+	struct netdriverdata *driver = uaenet_find_driver(tds, enumerated_count, name);
+	if (driver || !name) {
+		return driver;
 	}
 	if (uaenet_is_tuntap_name(name)) {
 		return add_tuntap_config_entry(name);
@@ -834,20 +711,7 @@ struct netdriverdata *uaenet_enumerate(const TCHAR *name)
 
 void uaenet_close_driver(struct netdriverdata *tc)
 {
-	if (!tc) {
-		return;
+	if (tc) {
+		uaenet_clear_drivers(tds, MAX_TOTAL_NET_DEVICES, false);
 	}
-	for (int i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
-		tds[i].active = 0;
-	}
-}
-
-void ethernet_pause(int pause)
-{
-	ethernet_paused = pause;
-}
-
-void ethernet_reset(void)
-{
-	ethernet_paused = 0;
 }
