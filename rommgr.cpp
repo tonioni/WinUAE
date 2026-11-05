@@ -19,6 +19,7 @@
 #include "autoconf.h"
 #include "filesys.h"
 #include "arcadia.h"
+#include "uae/string.h"
 
 #define SAVE_ROM 0
 
@@ -3051,6 +3052,87 @@ bool romscan_is_candidate(const TCHAR *path, bool deepscan)
 		}
 	}
 	return false;
+}
+
+int romscan_priority(const TCHAR *path, int size)
+{
+	if (!_tcsrchr(path, '.')) {
+		return 80;
+	}
+	// Archive members are not standalone host files.
+	if (!my_existsfile(path)) {
+		return 100;
+	}
+	struct mystat ms;
+	if (my_stat(path, &ms) && ms.size == size) {
+		return 9;
+	}
+	return 10;
+}
+
+struct romscan_file_data {
+	romscan_callback callback;
+	void *user;
+};
+
+static int romscan_member(struct zfile *f, void *user)
+{
+	struct romscan_file_data *data = (struct romscan_file_data*)user;
+	const TCHAR *path = zfile_getname(f);
+	const TCHAR *romkey = _T("rom.key");
+
+	if (!data->callback(data->user, ROMSCAN_MEMBER, path, NULL)) {
+		return 1;
+	}
+	if (!romscan_is_candidate(path, true)) {
+		return 0;
+	}
+	struct romdata *rd = scan_single_rom_file(f);
+	if (rd) {
+		bool more = data->callback(data->user, ROMSCAN_ROM, path, rd);
+		if (rd->type & ROMTYPE_KEY) {
+			addkeyfile(path);
+		}
+		return more ? 0 : 1;
+	}
+	if (_tcslen(path) > _tcslen(romkey) && !_tcsicmp(path + _tcslen(path) - _tcslen(romkey), romkey)) {
+		addkeyfile(path);
+	}
+	return 0;
+}
+
+void romscan_file(const TCHAR *path, bool deepscan, romscan_callback callback, void *user)
+{
+	if (!romscan_is_candidate(path, deepscan)) {
+		return;
+	}
+	if (!callback(user, ROMSCAN_FILE, path, NULL)) {
+		return;
+	}
+	for (int cnt = 0;; cnt++) {
+		TCHAR tmp[MAX_DPATH];
+		uae_tcslcpy(tmp, path, sizeof tmp / sizeof(TCHAR));
+		struct romdata *rd = scan_arcadia_rom(tmp, cnt);
+		if (!rd) {
+			break;
+		}
+		if (!callback(user, ROMSCAN_ARCADIA, tmp, rd)) {
+			return;
+		}
+	}
+	struct romscan_file_data data = { callback, user };
+	zfile_zopen(path, romscan_member, &data);
+}
+
+void romscan_with_keyring(bool (*scan)(void *), void (*restart)(void *), void *user, int max_restarts)
+{
+	for (int retries = 0;; retries++) {
+		int keys = get_keyring();
+		if (!scan(user) || get_keyring() <= keys || (max_restarts >= 0 && retries >= max_restarts)) {
+			return;
+		}
+		restart(user);
+	}
 }
 
 struct romdata *scan_single_rom_file(struct zfile *f)

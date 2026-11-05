@@ -1678,25 +1678,6 @@ static void abspathtorelative (TCHAR *name)
 		memmove (name, name + _tcslen (start_path_exe), (_tcslen (name) - _tcslen (start_path_exe) + 1) * sizeof (TCHAR));
 }
 
-static int extpri(const TCHAR *p, int size)
-{
-	const TCHAR *s = _tcsrchr(p, '.');
-	if (s == NULL)
-		return 80;
-	// if archive: lowest priority
-	if (!my_existsfile(p))
-		return 100;
-	int pri = 10;
-	// prefer matching size
-	struct mystat ms;
-	if (my_stat(p, &ms)) {
-		if (ms.size == size) {
-			pri--;
-		}
-	}
-	return pri;
-}
-
 static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 {
 	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH], tmp3[MAX_DPATH];
@@ -1727,8 +1708,8 @@ static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 			s = _tcschr(s2, '\"');
 			if (s)
 				*s = 0;
-			int pri1 = extpri(s2, rd->size);
-			int pri2 = extpri(pathname, rd->size);
+			int pri1 = romscan_priority(s2, rd->size);
+			int pri2 = romscan_priority(pathname, rd->size);
 			if (pri2 >= pri1)
 				return 1;
 		}
@@ -1799,54 +1780,40 @@ static bool scan_rom_hook (const TCHAR *name, int line)
 	return cdstate.active;
 }
 
-static int scan_rom_2 (struct zfile *f, void *vrsd)
+static bool scan_rom_result(void *user, romscan_event event, const TCHAR *path, struct romdata *rd)
 {
-	struct romscandata *rsd = (struct romscandata*)vrsd;
-	const TCHAR *path = zfile_getname(f);
-	const TCHAR *romkey = _T("rom.key");
-	struct romdata *rd;
-
-	scan_rom_hook (NULL, 0);
-	if (!romscan_is_candidate(path, true))
-		return 0;
-	rd = scan_single_rom_file(f);
-	if (rd) {
-		TCHAR name[MAX_DPATH];
-		getromname (rd, name);
-		scan_rom_hook (name, 3);
-		addrom (rsd->fkey, rd, path);
-		if (rd->type & ROMTYPE_KEY)
-			addkeyfile (path);
-		rsd->got = 1;
-	} else if (_tcslen (path) > _tcslen (romkey) && !_tcsicmp (path + _tcslen (path) - _tcslen (romkey), romkey)) {
-		addkeyfile (path);
-	}
-	return 0;
-}
-
-static int scan_rom (const TCHAR *path, UAEREG *fkey, bool deepscan)
-{
-	struct romscandata rsd = { fkey, 0 };
-	struct romdata *rd;
-	int cnt = 0;
-
-	if (!romscan_is_candidate(path, deepscan)) {
-		//write_log("ROMSCAN: skipping file '%s', unknown extension\n", path);
-		return 0;
-	}
-	scan_rom_hook (path, 2);
-	for (;;) {
-		TCHAR tmp[MAX_DPATH];
-		_tcscpy (tmp, path);
-		rd = scan_arcadia_rom (tmp, cnt++);
-		if (rd) {
-			if (!addrom (fkey, rd, tmp))
-				return 1;
-			continue;
+	struct romscandata *rsd = (struct romscandata*)user;
+	switch (event)
+	{
+	case ROMSCAN_FILE:
+		scan_rom_hook(path, 2);
+		break;
+	case ROMSCAN_MEMBER:
+		scan_rom_hook(NULL, 0);
+		break;
+	case ROMSCAN_ARCADIA:
+		if (!addrom(rsd->fkey, rd, path)) {
+			rsd->got = 1;
+			return false;
+		}
+		break;
+	case ROMSCAN_ROM:
+		{
+			TCHAR name[MAX_DPATH];
+			getromname(rd, name);
+			scan_rom_hook(name, 3);
+			addrom(rsd->fkey, rd, path);
+			rsd->got = 1;
 		}
 		break;
 	}
-	zfile_zopen (path, scan_rom_2, (void*)&rsd);
+	return true;
+}
+
+static int scan_rom(const TCHAR *path, UAEREG *fkey, bool deepscan)
+{
+	struct romscandata rsd = { fkey, 0 };
+	romscan_file(path, deepscan, scan_rom_result, &rsd);
 	return rsd.got;
 }
 
@@ -2016,11 +1983,47 @@ static int scan_roms_3 (UAEREG *fkey, TCHAR **paths, const TCHAR *path)
 
 extern int get_rom_path (TCHAR *out, pathtype mode);
 
+struct romscan_paths_data {
+	UAEREG *fkey;
+	TCHAR **paths;
+	int count;
+	int result;
+};
+
+static bool scan_rom_pass(void *user)
+{
+	struct romscan_paths_data *data = (struct romscan_paths_data*)user;
+	if (!scan_rom_hook(NULL, 0)) {
+		return false;
+	}
+	TCHAR path[MAX_DPATH];
+	fetch_path(_T("KickstartPath"), path, sizeof path / sizeof(TCHAR));
+	data->count += scan_roms_3(data->fkey, data->paths, path);
+	static pathtype pt[] = { PATH_TYPE_DEFAULT, PATH_TYPE_WINUAE, PATH_TYPE_NEWWINUAE, PATH_TYPE_NEWAF, PATH_TYPE_AMIGAFOREVERDATA, PATH_TYPE_END };
+	for (int i = 0; pt[i] != PATH_TYPE_END; i++) {
+		data->result = get_rom_path(path, pt[i]);
+		if (data->result < 0) {
+			break;
+		}
+		data->count += scan_roms_3(data->fkey, data->paths, path);
+	}
+	return true;
+}
+
+static void restart_rom_scan(void *user)
+{
+	struct romscan_paths_data *data = (struct romscan_paths_data*)user;
+	write_log(_T("ROM scan: more keys found, restarting..\n"));
+	for (int i = 0; i < MAX_ROM_PATHS; i++) {
+		xfree(data->paths[i]);
+		data->paths[i] = NULL;
+	}
+}
+
 int scan_roms (HWND hDlg, int show)
 {
-	TCHAR path[MAX_DPATH];
 	static int recursive;
-	int id, i, ret, keys, cnt;
+	int id, i, ret, cnt;
 	UAEREG *fkey, *fkey2;
 	TCHAR *paths[MAX_ROM_PATHS];
 	MSG msg;
@@ -2051,28 +2054,11 @@ int scan_roms (HWND hDlg, int show)
 	for (i = 0; i < MAX_ROM_PATHS; i++)
 		paths[i] = NULL;
 	scan_rom_hook (NULL, 0);
-	while (scan_rom_hook (NULL, 0)) {
-		keys = get_keyring ();
-		fetch_path (_T("KickstartPath"), path, sizeof path / sizeof (TCHAR));
-		cnt += scan_roms_3 (fkey, paths, path);
-		if (1) {
-			static pathtype pt[] = { PATH_TYPE_DEFAULT, PATH_TYPE_WINUAE, PATH_TYPE_NEWWINUAE, PATH_TYPE_NEWAF, PATH_TYPE_AMIGAFOREVERDATA, PATH_TYPE_END };
-			for (i = 0; pt[i] != PATH_TYPE_END; i++) {
-				ret = get_rom_path (path, pt[i]);
-				if (ret < 0)
-					break;
-				cnt += scan_roms_3 (fkey, paths, path);
-			}
-			if (get_keyring() > keys) { /* more keys detected in previous scan? */
-				write_log (_T("ROM scan: more keys found, restarting..\n"));
-				for (i = 0; i < MAX_ROM_PATHS; i++) {
-					xfree (paths[i]);
-					paths[i] = NULL;
-				}
-				continue;
-			}
-		}
-		break;
+	{
+		struct romscan_paths_data data = { fkey, paths, 0, 0 };
+		romscan_with_keyring(scan_rom_pass, restart_rom_scan, &data, -1);
+		cnt = data.count;
+		ret = data.result;
 	}
 	if (cnt == 0)
 		scan_roms_3 (fkey, paths, workprefs.path_rom.path[0]);
