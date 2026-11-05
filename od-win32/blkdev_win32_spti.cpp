@@ -1037,20 +1037,6 @@ static int ioctl_command_play(int unitnum, int startlsn, int endlsn, int scan, p
 	return 1;
 }
 
-static void sub_deinterleave(const uae_u8 *s, uae_u8 *d)
-{
-	for (int i = 0; i < 8 * 12; i++) {
-		int dmask = 0x80;
-		int smask = 1 << (7 - (i / 12));
-		(*d) = 0;
-		for (int j = 0; j < 8; j++) {
-			(*d) |= (s[(i % 12) * 8 + j] & smask) ? dmask : 0;
-			dmask >>= 1;
-		}
-		d++;
-	}
-}
-
 /* read qcode */
 static int ioctl_command_qcode(int unitnum, uae_u8 *buf, int sector, bool all)
 {
@@ -1082,7 +1068,7 @@ static int ioctl_command_qcode(int unitnum, uae_u8 *buf, int sector, bool all)
 	if (cd->subcodevalid) {
 		uae_sem_wait(&di->cda.sub_sem2);
 		uae_u8 subbuf[SUB_CHANNEL_SIZE];
-		sub_deinterleave(di->cda.subcodebuf, subbuf);
+		sub_to_deinterleaved(di->cda.subcodebuf, subbuf);
 		memcpy(p, subbuf + 12, 12);
 		uae_sem_post(&di->cda.sub_sem2);
 	} else {
