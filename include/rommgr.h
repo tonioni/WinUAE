@@ -295,7 +295,21 @@ extern void romlist_clear (void);
 extern struct zfile *read_rom(struct romdata *rd, bool rw = false);
 extern struct zfile *read_rom_name(const TCHAR *filename, bool rw = false);
 extern struct zfile *read_device_from_romconfig(struct romconfig *rc, uae_u32 romtype, bool rw = false);
+enum romscan_event {
+	ROMSCAN_FILE,
+	ROMSCAN_MEMBER,
+	ROMSCAN_ARCADIA,
+	ROMSCAN_ROM
+};
+// FILE and MEMBER report progress with rd == NULL. Return false to stop
+// scanning this file. Each detected ROM is reported before loading its key.
+typedef bool (*romscan_callback)(void *user, romscan_event event, const TCHAR *path, struct romdata *rd);
 extern bool romscan_is_candidate(const TCHAR *path, bool deepscan);
+extern int romscan_priority(const TCHAR *path, int size);
+extern void romscan_file(const TCHAR *path, bool deepscan, romscan_callback callback, void *user);
+// A scan callback returns false to stop. Restart prepares the next pass;
+// max_restarts == -1 allows retries while the keyring keeps growing.
+extern void romscan_with_keyring(bool (*scan)(void *), void (*restart)(void *), void *user, int max_restarts);
 extern struct romdata *scan_single_rom_file(struct zfile *f);
 extern struct romdata *scan_single_rom(const TCHAR *path);
 

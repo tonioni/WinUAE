@@ -8,12 +8,10 @@
 #include <vector>
 
 #include "options.h"
-#include "arcadia.h"
 #include "fsdb.h"
 #include "rommgr.h"
 #include "uae/string.h"
 #include "uae.h"
-#include "zfile.h"
 
 struct detected_rom {
 	TCHAR path[MAX_DPATH];
@@ -23,30 +21,10 @@ struct detected_rom {
 
 struct romscan_state {
 	std::vector<detected_rom> detected;
-	bool got;
 };
 
 static bool romscan_dirty = true;
 static int recursiveromscan;
-
-static int rom_priority(const TCHAR *path, int size)
-{
-	const TCHAR *ext = _tcsrchr(path, '.');
-	if (!ext) {
-		return 80;
-	}
-
-	struct stat st;
-	int pri = 10;
-	if (stat(path, &st) == 0) {
-		if (st.st_size == size) {
-			pri--;
-		}
-	} else {
-		pri = 100;
-	}
-	return pri;
-}
 
 static bool same_rom_identity(const struct romdata *a, const struct romdata *b)
 {
@@ -65,7 +43,7 @@ static void add_detected_rom(romscan_state *state, const TCHAR *path, struct rom
 		fullpath(rom.path, sizeof rom.path / sizeof(TCHAR));
 	}
 	rom.rd = rd;
-	rom.priority = rom_priority(rom.path, rd->size);
+	rom.priority = romscan_priority(rom.path, rd->size);
 
 	for (detected_rom &existing : state->detected) {
 		if (same_rom_identity(existing.rd, rd)) {
@@ -78,48 +56,12 @@ static void add_detected_rom(romscan_state *state, const TCHAR *path, struct rom
 	state->detected.push_back(rom);
 }
 
-static int scan_zfile_rom(struct zfile *file, void *userdata)
+static bool scan_rom_result(void *user, romscan_event event, const TCHAR *path, struct romdata *rd)
 {
-	romscan_state *state = static_cast<romscan_state*>(userdata);
-	const TCHAR *path = zfile_getname(file);
-	const TCHAR *romkey = _T("rom.key");
-
-	if (!romscan_is_candidate(path, true)) {
-		return 0;
+	if (event == ROMSCAN_ARCADIA || event == ROMSCAN_ROM) {
+		add_detected_rom((romscan_state*)user, path, rd);
 	}
-
-	struct romdata *rd = scan_single_rom_file(file);
-	if (rd) {
-		add_detected_rom(state, path, rd);
-		if (rd->type & ROMTYPE_KEY) {
-			addkeyfile(path);
-		}
-		state->got = true;
-	} else if (_tcslen(path) > _tcslen(romkey) && !_tcsicmp(path + _tcslen(path) - _tcslen(romkey), romkey)) {
-		addkeyfile(path);
-	}
-	return 0;
-}
-
-static bool scan_rom_file(const TCHAR *path, romscan_state *state)
-{
-	if (!romscan_is_candidate(path, true)) {
-		return false;
-	}
-
-	const bool had_rom = state->got;
-	for (int cnt = 0;; cnt++) {
-		TCHAR tmp[MAX_DPATH];
-		uae_tcslcpy(tmp, path, sizeof tmp / sizeof(TCHAR));
-		struct romdata *rd = scan_arcadia_rom(tmp, cnt);
-		if (!rd) {
-			break;
-		}
-		add_detected_rom(state, tmp, rd);
-		state->got = true;
-	}
-	zfile_zopen(path, scan_zfile_rom, state);
-	return state->got != had_rom;
+	return true;
 }
 
 static void scan_rom_directory(const TCHAR *path, int level, romscan_state *state)
@@ -148,7 +90,7 @@ static void scan_rom_directory(const TCHAR *path, int level, romscan_state *stat
 			continue;
 		}
 		if (S_ISREG(st.st_mode) && st.st_size < 10000000) {
-			scan_rom_file(full, state);
+			romscan_file(full, true, scan_rom_result, state);
 		} else if (S_ISDIR(st.st_mode) && name[0] != '.') {
 			if (recursiveromscan < 0 || recursiveromscan > level) {
 				scan_rom_directory(full, level + 1, state);
@@ -250,7 +192,6 @@ static void add_nofile_roms(romscan_state *state)
 static int scan_rom_paths(struct uae_prefs *prefs)
 {
 	romscan_state state;
-	state.got = false;
 
 	for (const std::string &path : rom_scan_paths(prefs)) {
 		write_log(_T("ROM scan directory '%s'\n"), path.c_str());
@@ -262,6 +203,25 @@ static int scan_rom_paths(struct uae_prefs *prefs)
 		romlist_add(rom.path, rom.rd);
 	}
 	return (int)state.detected.size();
+}
+
+struct romscan_paths_data {
+	struct uae_prefs *prefs;
+	int count;
+};
+
+static bool scan_rom_pass(void *user)
+{
+	struct romscan_paths_data *data = (struct romscan_paths_data*)user;
+	data->count = scan_rom_paths(data->prefs);
+	return true;
+}
+
+static void restart_rom_scan(void *user)
+{
+	struct romscan_paths_data *data = (struct romscan_paths_data*)user;
+	romlist_clear();
+	load_keyring(data->prefs, NULL);
 }
 
 void unix_romscan_mark_dirty(void)
@@ -286,13 +246,9 @@ void unix_romscan_refresh(struct uae_prefs *prefs, bool force)
 
 	romlist_clear();
 	load_keyring(prefs, NULL);
-	const int keys = get_keyring();
-	int count = scan_rom_paths(prefs);
-	if (get_keyring() > keys) {
-		romlist_clear();
-		load_keyring(prefs, NULL);
-		count = scan_rom_paths(prefs);
-	}
+	struct romscan_paths_data data = { prefs, 0 };
+	romscan_with_keyring(scan_rom_pass, restart_rom_scan, &data, 1);
+	int count = data.count;
 	romlist_add(NULL, NULL);
 	write_log(_T("ROM scan found %d known ROM%s\n"), count, count == 1 ? _T("") : _T("s"));
 	romscan_dirty = false;
