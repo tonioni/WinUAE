@@ -683,6 +683,7 @@ void target_default_options(struct uae_prefs *p, int type)
     // devices and ROM-scan state while generating a machine preset.
     if (type == 1) {
         return;
+    }
     if (type == 2 || type == 0 || type == 3) {
         // Window focus defaults, as on Windows: pause when minimized.
         p->win32_active_nocapture_pause = false;
