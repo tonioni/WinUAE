@@ -31,18 +31,6 @@
 #define MIDI_STOP       0xFC
 #define MIDI_SENSE      0xFE
 
-typedef struct mos
-{
-    BYTE status;
-    BYTE byte1;
-    BYTE byte2;
-    int length;
-    int posn;
-    int sysex;
-    int timecode;
-    int unknown;
-} MidiOutStatus;
-
 typedef enum
 {
     midi_input,

@@ -1369,7 +1369,7 @@ if(WINUAE_UNIX_WITH_MIDI)
     if(APPLE)
         set(WINUAE_UNIX_ENABLE_MIDI ON)
         target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_MIDI=1 WINUAE_UNIX_WITH_COREMIDI=1)
-        list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/midi.cpp)
+        list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/midi.cpp od-generic/midi_parser.cpp)
         list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES "-framework CoreMIDI" "-framework CoreFoundation")
         list(APPEND WINUAE_UNIX_MIDI_LIBRARIES "-framework CoreMIDI" "-framework CoreFoundation")
         list(APPEND WINUAE_UNIX_MIDI_QT_DEFINITIONS UAE_UNIX_WITH_COREMIDI=1)
@@ -1380,7 +1380,7 @@ if(WINUAE_UNIX_WITH_MIDI)
             target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_MIDI=1 WINUAE_UNIX_WITH_ALSA_MIDI=1)
             target_include_directories(winuae_core PRIVATE ${ALSA_INCLUDE_DIRS})
             target_compile_options(winuae_core PRIVATE ${ALSA_CFLAGS_OTHER})
-            list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/midi.cpp)
+            list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/midi.cpp od-generic/midi_parser.cpp)
             list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${ALSA_LIBRARIES})
             list(APPEND WINUAE_UNIX_EXTRA_LIBRARY_DIRS ${ALSA_LIBRARY_DIRS})
             list(APPEND WINUAE_UNIX_MIDI_LIBRARIES ${ALSA_LIBRARIES})
@@ -2351,6 +2351,17 @@ target_include_directories(winuae_unix_threading_test PRIVATE
 )
 target_link_libraries(winuae_unix_threading_test PRIVATE pthread)
 winuae_unix_register_test(winuae_unix_threading_test)
+
+add_executable(winuae_unix_midi_parser_test EXCLUDE_FROM_ALL
+    od-generic/midi_parser.cpp
+    od-generic/midi_parser_test.cpp
+)
+target_include_directories(winuae_unix_midi_parser_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_midi_parser_test)
 
 add_executable(winuae_unix_clipboard_test EXCLUDE_FROM_ALL
     od-generic/clipboard.cpp
