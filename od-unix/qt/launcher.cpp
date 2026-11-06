@@ -36,6 +36,7 @@
 #endif
 
 #include "config.h"
+#include "include/cpu_selection.h"
 #include "drive_sound_sets.h"
 #include "floppybridge_ui.h"
 #include "launcher.h"
@@ -13129,7 +13130,7 @@ private:
         }
         const bool mmuSelected = mmuButtons && mmuButtons->checkedId() > 0;
         if (jit) {
-            jit->setEnabled(unixJitBackendAvailable() && cpu >= 68020 && !cpu24Bit->isChecked() && !mmuSelected);
+            jit->setEnabled(unixJitBackendAvailable() && cpu_selection_jit(cpu, cpu24Bit->isChecked(), mmuSelected));
             if (!jit->isEnabled() && jit->isChecked()) {
                 jit->setChecked(false);
             }
@@ -13145,16 +13146,16 @@ private:
             chipsetCycleExactMemory->setToolTip(jitEnabled ? QStringLiteral("Cycle-exact emulation is not compatible with JIT.") : QString());
         }
         if (moreCompatible) {
-            moreCompatible->setEnabled(!memoryCycleExact && !(jitEnabled && cpu >= 68040));
+            moreCompatible->setEnabled(cpu_selection_compatible(cpu, memoryCycleExact, jitEnabled));
         }
         if (cpuDataCache) {
-            cpuDataCache->setEnabled(cpu >= 68030 && moreCompatible->isChecked() && !jitEnabled);
+            cpuDataCache->setEnabled(cpu_selection_data_cache(cpu, moreCompatible->isChecked(), jitEnabled));
         }
         if (cpuUnimplemented) {
             cpuUnimplemented->setEnabled(cpu == 68060 && !jitEnabled);
         }
         if (mmuButtons) {
-            const bool mmuEnabled = cpu >= 68030 && !jitEnabled;
+            const bool mmuEnabled = cpu_selection_mmu(cpu, jitEnabled);
             for (QAbstractButton *button : mmuButtons->buttons()) {
                 button->setEnabled(button == mmuButtons->button(0) || mmuEnabled);
             }
@@ -13172,7 +13173,7 @@ private:
         if (fpuMode) {
             fpuMode->setEnabled(hasFpu);
         }
-        const bool jitOptions = jitEnabled && cpu >= 68020 && !cpu24Bit->isChecked();
+        const bool jitOptions = jitEnabled && cpu_selection_jit(cpu, cpu24Bit->isChecked(), false);
         for (QWidget *widget : { static_cast<QWidget *>(jitCache), static_cast<QWidget *>(jitCacheLabel), static_cast<QWidget *>(jitConstJump), static_cast<QWidget *>(jitHardFlush), static_cast<QWidget *>(jitNoFlags), static_cast<QWidget *>(jitCatchFault) }) {
             if (widget) {
                 widget->setEnabled(jitOptions);
@@ -14303,7 +14304,7 @@ private:
     {
         const int cpu = selectedCpuModel();
         const bool compatible = moreCompatible && moreCompatible->isChecked();
-        const bool external = cpu < 68040 && (cpu >= 68020 || !compatible);
+        const bool external = cpu_selection_external_fpu(cpu, compatible);
         for (const int id : { 68881, 68882 }) {
             if (QAbstractButton *button = fpuButtons->button(id)) {
                 button->setEnabled(external);
@@ -14320,19 +14321,9 @@ private:
         const int checked = fpuButtons->checkedId();
         const bool compatible = moreCompatible && moreCompatible->isChecked();
         const bool memoryCycleExact = chipsetCycleExactMemory && chipsetCycleExactMemory->isChecked();
-        int target = checked;
-        if (cpu >= 68040) {
-            if (checked == 68881 || checked == 68882) {
-                target = FpuInternal;
-            }
-        } else {
-            if (checked == FpuInternal) {
-                target = 68881;
-            }
-            if (cpu <= 68010 && (compatible || memoryCycleExact)) {
-                target = 0;
-            }
-        }
+        const int model = cpu_selection_fpu(cpu, checked == FpuInternal ? 68881 : checked,
+            compatible, memoryCycleExact);
+        const int target = model >= 68040 && model <= 68060 ? FpuInternal : model;
         if (target != checked) {
             if (QAbstractButton *button = fpuButtons->button(target)) {
                 button->setChecked(true);
@@ -14345,11 +14336,8 @@ private:
         const int cpu = selectedCpuModel();
         if (cpu != lastSelectedCpuModel) {
             if (cpu24Bit) {
-                if (cpu <= 68010) {
-                    cpu24Bit->setChecked(true);
-                } else if (cpu >= 68030) {
-                    cpu24Bit->setChecked(false);
-                }
+                cpu24Bit->setChecked(cpu_selection_address24(cpu, lastSelectedCpuModel,
+                    cpu24Bit->isChecked()));
             }
             remapFpuSelection();
         }
@@ -15535,7 +15523,7 @@ private:
         const bool cpu24BitAddressing = cpu24Bit && cpu24Bit->isChecked();
         const int requestedJitCacheSize = jitCache ? jitCacheSizeFromPosition(jitCache->value()) : 0;
         const bool jitActive = jit && jit->isChecked() && unixJitBackendAvailable()
-            && cpu >= 68020 && !cpu24BitAddressing && requestedJitCacheSize > 0;
+            && cpu_selection_jit(cpu, cpu24BitAddressing, false) && requestedJitCacheSize > 0;
         if (configDescription && !configDescription->text().trimmed().isEmpty()) {
             settings.insert(QStringLiteral("config_description"), configDescription->text().trimmed());
         }

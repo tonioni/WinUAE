@@ -11,6 +11,7 @@
 #include <assert.h>
 
 #include "options.h"
+#include "cpu_selection.h"
 #include "threaddep/thread.h"
 #include "uae.h"
 #include "gensound.h"
@@ -260,24 +261,9 @@ void fixup_cpu (struct uae_prefs *p)
 		p->fpu_model = 0;
 	}
 
-	switch (p->cpu_model)
-	{
-	case 68000:
-		break;
-	case 68010:
-		break;
-	case 68020:
-		break;
-	case 68030:
-		break;
-	case 68040:
-		if (p->fpu_model)
-			p->fpu_model = 68040;
-		break;
-	case 68060:
-		if (p->fpu_model)
-			p->fpu_model = 68060;
-		break;
+	if (p->cpu_model == 68040 || p->cpu_model == 68060) {
+		p->fpu_model = cpu_selection_fpu(p->cpu_model, p->fpu_model,
+			p->cpu_compatible, p->cpu_memory_cycle_exact);
 	}
 
 	if (p->cpu_thread && (p->cpu_compatible || p->ppc_mode || p->cpu_memory_cycle_exact || p->cpu_model < 68020)) {
@@ -318,7 +304,7 @@ void fixup_cpu (struct uae_prefs *p)
 	if (p->cpu_model >= 68040 && p->cachesize && p->cpu_compatible)
 		p->cpu_compatible = false;
 
-	if ((p->cpu_model < 68030 || p->cachesize) && p->mmu_model) {
+	if (!cpu_selection_mmu(p->cpu_model, p->cachesize != 0) && p->mmu_model) {
 		error_log (_T("MMU emulation requires 68030/040/060 and it is not JIT compatible."));
 		p->mmu_model = 0;
 	}
@@ -386,7 +372,7 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log(_T("Cycle-exact mode requires at least Disabled but emulated sound setting."));
 	}
 
-	if (p->cpu_data_cache && (!p->cpu_compatible || p->cachesize || p->cpu_model < 68030)) {
+	if (p->cpu_data_cache && !cpu_selection_data_cache(p->cpu_model, p->cpu_compatible, p->cachesize != 0)) {
 		p->cpu_data_cache = false;
 		error_log(_T("Data cache emulation requires More compatible, is not JIT compatible, 68030+ only."));
 	}
