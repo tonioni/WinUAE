@@ -1,4 +1,5 @@
 #include "mount_config.h"
+#include "include/cfgfile_mount.h"
 
 #include <QDebug>
 
@@ -141,9 +142,58 @@ static bool testConfigFieldList()
     return ok;
 }
 
+static bool testSharedFormatting()
+{
+    bool ok = true;
+    // Windows paths retain literal backslashes in modern mount entries.
+    ok = requireText(winUaeQtConfigEscapeMin(QStringLiteral("C:\\Amiga, Work\\disk.hdf")),
+        QStringLiteral("\"C:\\Amiga, Work\\disk.hdf\""), "Windows mount path") && ok;
+    ok = requireText(winUaeQtConfigEscapeMin(QStringLiteral(" path ")),
+        QStringLiteral("\" path \""), "boundary spaces") && ok;
+    ok = requireText(winUaeQtConfigEscapeMin(QStringLiteral("disk\"name")),
+        QStringLiteral("\"disk\\\"name\""), "Qt quoted field escaping") && ok;
+    ok = requireText(winUaeQtConfigEscapeMin(QStringLiteral("/tmp/Amiga:日本語,Work")),
+        QStringLiteral("\"/tmp/Amiga:日本語,Work\""), "Unicode mount path") && ok;
+
+    // Instantiate the same helpers for the core's narrow and Windows wide
+    // character configurations, independently of Qt's UTF-16 conversion.
+    const auto narrow = cfgfile_format_filesystem<char>(true, "DH1", "Work",
+        cfgfile_escape_min_string(std::string("/tmp/Work,One")), -127);
+    const auto wide = cfgfile_format_filesystem<wchar_t>(true, L"DH1", L"Work",
+        cfgfile_escape_min_string(std::wstring(L"/tmp/Work,One")), -127);
+    ok = require(narrow == "ro,DH1:Work:\"/tmp/Work,One\",-127", "narrow core mount") && ok;
+    ok = require(wide == L"ro,DH1:Work:\"/tmp/Work,One\",-127", "wide core mount") && ok;
+
+    ok = require(cfgfile_escape_min_string(std::string("disk\"name")) == "disk\\\"name",
+        "core minimal quote escaping") && ok;
+    WinUaeQtMountEntry quoted;
+    quoted.device = QStringLiteral("DH1");
+    quoted.volume = QStringLiteral("Work");
+    quoted.path = QStringLiteral("/tmp/disk\"name");
+    WinUaeQtMountEntry reloaded;
+    ok = require(parseWinUaeQtFilesystem2MountValue(serializeWinUaeQtFilesystem2MountValue(quoted),
+        &reloaded), "quoted path reload") && ok;
+    ok = requireText(reloaded.path, quoted.path, "quoted path preserved") && ok;
+
+    const QString original = QStringLiteral(
+        "ro,DH2:\"/tmp/Disk,One.hdf\",32,2,2,1024,-128,"
+        "\"/tmp/File,System\",scsi3_a4091-2,2048,256/4/32,"
+        "\"/tmp/Geometry,One\",SCSI1,flags=0x4,lock,future_option");
+    WinUaeQtMountEntry entry;
+    ok = require(parseWinUaeQtHardfile2MountValue(original, &entry), "extended mount parse") && ok;
+    entry.readOnly = false;
+    entry.bootPri = 7;
+    const QString edited = serializeWinUaeQtHardfile2MountValue(entry);
+    ok = requireText(edited, QString(original).replace(QStringLiteral("ro,DH2:"), QStringLiteral("rw,DH2:"))
+        .replace(QStringLiteral("1024,-128,"), QStringLiteral("1024,7,")),
+        "controller geometry and unknown options survive edit") && ok;
+    return ok;
+}
+
 int main()
 {
     bool ok = true;
+    ok = testSharedFormatting() && ok;
     ok = testDirectoryMount() && ok;
     ok = testHardfileMount() && ok;
     ok = testCdMount() && ok;

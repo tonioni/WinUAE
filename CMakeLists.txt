@@ -2102,6 +2102,7 @@ set(WINUAE_CORE_SOURCES
     cdtv.cpp
     cdtvcr.cpp
     cfgfile.cpp
+    include/cfgfile_mount.h
     cia.cpp
     consolehook.cpp
     cpuboard.cpp
@@ -2491,6 +2492,7 @@ if(WINUAE_UNIX_WITH_QT_UI)
             od-unix/qt/mount_config.cpp
             od-unix/qt/mount_config_test.cpp
         )
+        target_include_directories(winuae_unix_qt_mount_config_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
         target_link_libraries(winuae_unix_qt_mount_config_test PRIVATE ${WINUAE_UNIX_QT_WIDGETS_TARGET})
         winuae_unix_register_test(winuae_unix_qt_mount_config_test)
 

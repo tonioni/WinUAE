@@ -13,6 +13,7 @@
 #include <ctype.h>
 
 #include "options.h"
+#include "cfgfile_mount.h"
 #include "uae.h"
 #include "audio.h"
 #include "events.h"
@@ -660,16 +661,10 @@ static TCHAR *cfgfile_escape (const TCHAR *s, const TCHAR *escstr, bool quote, b
 	return s2;
 }
 
-// escapy only , and " or if starts or ends with a space
+// Escape only commas, quotes and leading or trailing spaces.
 static TCHAR *cfgfile_escape_min(const TCHAR *s)
 {
-	for (int i = 0; s[i]; i++) {
-		TCHAR c = s[i];
-		if (c == ',' || c == '\"' || (c == ' ' && (i == 0 || s[i + 1] == 0))) {
-			return cfgfile_escape(s, _T(","), true, true);
-		}
-	}
-	return my_strdup(s);
+	return my_strdup(cfgfile_escape_min_string(std::basic_string<TCHAR>(s)).c_str());
 }
 
 static TCHAR *getnextentry (const TCHAR **valuep, const TCHAR separator)
@@ -1316,8 +1311,8 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 		str1c = cfgfile_escape_min(str1);
 		str2b = cfgfile_escape (str2, _T(":,"), true, false);
 		if (ci->type == UAEDEV_DIR) {
-			_stprintf (tmp, _T("%s,%s:%s:%s,%d"), ci->readonly ? _T("ro") : _T("rw"),
-				ci->devname ? ci->devname : _T(""), ci->volname, str1c, bp);
+			_tcscpy(tmp, cfgfile_format_filesystem<TCHAR>(ci->readonly,
+				ci->devname, ci->volname, str1c, bp).c_str());
 			if (p->got_fs2_hdf2 >= 0) {
 				cfgfile_write_str (f, _T("filesystem2"), tmp);
 			}
@@ -1332,16 +1327,17 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 			cfgfile_to_path_save(ci->filesys, filesyspath, PATH_HDF);
 			TCHAR *sfilesys = cfgfile_escape_min(filesyspath);
 			TCHAR *sgeometry = cfgfile_escape(ci->geometry, NULL, true, false);
-			_stprintf (tmp, _T("%s,%s:%s,%d,%d,%d,%d,%d,%s,%s"),
-				ci->readonly ? _T("ro") : _T("rw"),
-				ci->devname ? ci->devname : _T(""), str1c,
-				ci->sectors, ci->surfaces, ci->reserved, ci->blocksize,
-				bp, ci->filesys[0] ? sfilesys : _T(""), hdcs);
-			_stprintf (tmp3, _T("%s,%s:%s%s%s,%d,%d,%d,%d,%d,%s,%s"),
-				ci->readonly ? _T("ro") : _T("rw"),
-				ci->devname ? ci->devname : _T(""), str1b, str2b[0] ? _T(":") : _T(""), str2b,
-				ci->sectors, ci->surfaces, ci->reserved, ci->blocksize,
-				bp, ci->filesys[0] ? sfilesys : _T(""), hdcs);
+			TCHAR geometry[128];
+			_stprintf(geometry, _T("%d,%d,%d,%d"),
+				ci->sectors, ci->surfaces, ci->reserved, ci->blocksize);
+			const std::basic_string<TCHAR> extra = std::basic_string<TCHAR>(ci->filesys[0] ? sfilesys : _T(""))
+				+ _T(",") + hdcs;
+			const std::basic_string<TCHAR> legacy_path = std::basic_string<TCHAR>(str1b)
+				+ (str2b[0] ? _T(":") : _T("")) + str2b;
+			_tcscpy(tmp, cfgfile_format_hardfile<TCHAR>(ci->readonly,
+				ci->devname, str1c, geometry, bp, extra).c_str());
+			_tcscpy(tmp3, cfgfile_format_hardfile<TCHAR>(ci->readonly,
+				ci->devname, legacy_path, geometry, bp, extra).c_str());
 			if (ci->highcyl || ci->physical_geometry || ci->geometry[0]) {
 				TCHAR *s = tmp + _tcslen (tmp);
 				TCHAR *s2 = s;
@@ -1413,11 +1409,11 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 		}
 		_stprintf (tmp2, _T("uaehf%d"), i);
 		if (ci->type == UAEDEV_CD) {
-			cfgfile_write (f, tmp2, _T("cd%d,%s"), ci->device_emu_unit, tmp);
+			cfgfile_write_str(f, tmp2, cfgfile_format_uaehf<TCHAR>(_T("cd"), ci->device_emu_unit, tmp).c_str());
 		} else if (ci->type == UAEDEV_TAPE) {
-			cfgfile_write (f, tmp2, _T("tape%d,%s"), ci->device_emu_unit, tmp);
+			cfgfile_write_str(f, tmp2, cfgfile_format_uaehf<TCHAR>(_T("tape"), ci->device_emu_unit, tmp).c_str());
 		} else {
-			cfgfile_write (f, tmp2, _T("%s,%s"), ci->type == UAEDEV_HDF ? _T("hdf") : _T("dir"), tmp3);
+			cfgfile_write_str(f, tmp2, cfgfile_format_uaehf<TCHAR>(ci->type == UAEDEV_HDF ? _T("hdf") : _T("dir"), tmp3).c_str());
 		}
 		if (ci->type == UAEDEV_DIR) {
 			bool add_extra = false;

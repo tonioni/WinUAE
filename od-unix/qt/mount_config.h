@@ -16,7 +16,6 @@ struct WinUaeQtMountEntry {
     int emuUnit = 0;
 };
 
-QString winUaeQtConfigAccessValue(bool readOnly);
 QString winUaeQtConfigEscapeMin(QString value);
 QStringList winUaeQtConfigFieldList(QString value);
 QString winUaeQtConfigJoinFields(const QStringList &fields);
