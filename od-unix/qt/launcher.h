@@ -129,14 +129,6 @@ enum {
     WINUAE_QT_ROM_KIND_CARTRIDGE = 2, // freezer/cartridge
 };
 
-// The ROMs a quickstart model+config resolves to (via built_in_prefs), so the
-// launcher can preselect them as win32 does. Empty if not found in the romlist.
-struct WinUaeQtQuickstartRoms {
-    QString rom;
-    QString romExt;
-    QString cart;
-};
-
 struct WinUaeQtHardwareInfoProvider {
     void *context = nullptr;
     QStringList driveSoundSets;
@@ -149,7 +141,10 @@ struct WinUaeQtHardwareInfoProvider {
     QVector<WinUaeQtRomChoice> (*romList)(void *context, int kind) = nullptr;
     // Force a rescan of the configured ROM search paths into the shared romlist.
     void (*rescanRoms)(void *context) = nullptr;
-    WinUaeQtQuickstartRoms (*quickstartRoms)(void *context, const QString &quickstart) = nullptr;
+    bool (*quickstartPreset)(void *context, int model, int config, int compatibility,
+        bool ntsc, int floppies, WinUaeQtConfig *preset) = nullptr;
+    bool (*chipsetPreset)(void *context, const WinUaeQtConfig::Settings &settings,
+        const QString &compatible, WinUaeQtConfig *preset) = nullptr;
     bool (*applyConfig)(void *context, const WinUaeQtConfig &config) = nullptr;
     QVector<WinUaeQtHardwareBoard> (*boards)(void *context) = nullptr;
     bool (*customOrder)(void *context) = nullptr;

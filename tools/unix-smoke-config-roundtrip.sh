@@ -61,7 +61,7 @@ run_case() {
     absent_keys=${4:-}
     output="$WORK/$name-out.uae"
 
-    env QT_QPA_PLATFORM=offscreen \
+    env QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}" \
         WINUAE_INI="$WORK/$name.ini" \
         WINUAE_QT_CONFIG_ROUNDTRIP_OUT="$output" \
         "$EXE" -f "$input" >/dev/null 2>&1 || {
@@ -248,6 +248,63 @@ if [ "$(config_value unix.rtg_vblank "$output")" != "50" ] ||
     [ "$(config_value unix.soundcard "$output")" = "3" ]; then
     echo "FAIL: win32-keys: win32.* settings were not mapped as expected" >&2
     cat "$output" >&2
+    exit 1
+fi
+
+# Check defaults produced by Quickstart itself, rather than putting the
+# expected hardware values into the input as explicit overrides.
+run_preset() {
+    name=$1
+    preset=$2
+    expected=$3
+    input="$WORK/$name.uae"
+    cat > "$input" <<EOF
+quickstart=$preset
+clipboard_sharing=true
+unix.nvram_path=$WORK/nvram
+sound_frequency=44100
+EOF
+    run_case "$name" "$input" \
+        "quickstart clipboard_sharing unix.nvram_path sound_frequency" "cpu_type"
+    output="$WORK/$name-out.uae"
+    for setting in $expected; do
+        key=${setting%%=*}
+        value=${setting#*=}
+        actual=$(config_value "$key" "$output")
+        if [ "$actual" != "$value" ]; then
+            echo "FAIL: $name: $key: expected '$value', got '$actual'" >&2
+            exit 1
+        fi
+    done
+}
+
+run_preset quickstart-a1000 "A1000,2" \
+    "cpu_model=68000 chipmem_size=0 chipset_compatible=A1000"
+run_preset quickstart-a500-ecs "A500,2" \
+    "chipset=ecs_agnus chipmem_size=2 bogomem_size=0"
+run_preset quickstart-blizzard "A1200,2" \
+    "cpu_model=68030 cpu_multiplier=5 cpuboard_type=Blizzard1230IV cpuboardmem1_size=32"
+run_preset quickstart-a3000 "A3000,2" \
+    "cpu_model=68030 a3000mem_size=8 sound_output=normal"
+run_preset quickstart-cd32 "CD32,0" \
+    "cpu_model=68020 nr_floppies=0 floppy0type=-1"
+
+cat > "$WORK/quickstart-overrides.uae" <<EOF
+quickstart=A1200,2
+cpu_multiplier=8
+cpuboardmem1_size=64
+chipmem_size=4
+EOF
+run_case quickstart-overrides "$WORK/quickstart-overrides.uae" \
+    "cpu_multiplier cpuboardmem1_size chipmem_size"
+
+cat > "$WORK/environment-rom.uae" <<EOF
+config_description=Environment ROM override
+EOF
+WINUAE_KICKSTART_ROM="$WORK/custom.rom" \
+    run_case environment-rom "$WORK/environment-rom.uae" "config_description"
+if [ "$(config_value kickstart_rom_file "$WORK/environment-rom-out.uae")" != "$WORK/custom.rom" ]; then
+    echo "FAIL: environment-rom: ROM override was replaced by the default preset" >&2
     exit 1
 fi
 
