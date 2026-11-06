@@ -363,7 +363,7 @@ int hdf_resize_target(struct hardfiledata *hfd, uae_u64 newsize)
     if (ftruncate(hfd->handle->fd, (off_t)newsize) != 0) {
         return 0;
     }
-    hfd->physsize = hfd->virtsize = newsize;
+    hfd->physsize = newsize;
     hfd->cache_valid = 0;
     return 1;
 }
