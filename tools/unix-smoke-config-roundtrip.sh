@@ -251,4 +251,11 @@ if [ "$(config_value unix.rtg_vblank "$output")" != "50" ] ||
     exit 1
 fi
 
+# Parsing flags must free the original allocation, not the cursor advanced
+# by the integer parser. This configuration used to abort before Qt opened.
+cat > "$WORK/mount-flags.uae" <<EOF
+hardfile2=ro,:/tmp/mount-flags.hdf,0,0,0,512,0,,scsi0_a4091,flags=0x4,lock
+EOF
+run_case mount-flags "$WORK/mount-flags.uae" "hardfile2"
+
 echo "winuae config roundtrip smoke passed"

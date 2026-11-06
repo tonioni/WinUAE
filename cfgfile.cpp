@@ -5531,7 +5531,8 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 
 			TCHAR *pflags;
 			if ((pflags = cfgfile_option_get(tmpp2, _T("flags")))) {
-				getintval(&pflags, &uci.unit_special_flags, 0);
+				TCHAR *value = pflags;
+				getintval(&value, &uci.unit_special_flags, 0);
 				xfree(pflags);
 			}
 
