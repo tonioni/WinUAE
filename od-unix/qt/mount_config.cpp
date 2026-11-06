@@ -34,55 +34,15 @@ static bool takeConfigField(QString *input, QChar delimiter, QString *field, boo
         return false;
     }
 
-    if (input->startsWith(QLatin1Char('"'))) {
-        QString output;
-        bool escaped = false;
-        bool closed = false;
-        int index = 1;
-        for (; index < input->size(); index++) {
-            const QChar c = input->at(index);
-            if (escaped) {
-                output.append(c);
-                escaped = false;
-            } else if (c == QLatin1Char('\\')) {
-                escaped = true;
-            } else if (c == QLatin1Char('"')) {
-                index++;
-                closed = true;
-                break;
-            } else {
-                output.append(c);
-            }
-        }
-        if (!closed) {
-            return false;
-        }
-        if (index < input->size()) {
-            if (input->at(index) != delimiter) {
-                return false;
-            }
-            *input = input->mid(index + 1);
-        } else if (requireDelimiter) {
-            return false;
-        } else {
-            input->clear();
-        }
-        *field = output;
-        return true;
+    const std::u16string source = input->toStdU16String();
+    const char16_t *next = source.c_str();
+    std::u16string value;
+    if (!cfgfile_mount_field(next, char16_t(delimiter.unicode()), value,
+            requireDelimiter, true)) {
+        return false;
     }
-
-    const int delimiterIndex = input->indexOf(delimiter);
-    if (delimiterIndex < 0) {
-        if (requireDelimiter) {
-            return false;
-        }
-        *field = *input;
-        input->clear();
-        return true;
-    }
-
-    *field = input->left(delimiterIndex);
-    *input = input->mid(delimiterIndex + 1);
+    *input = input->mid(next - source.c_str());
+    *field = QString::fromStdU16String(value);
     return true;
 }
 
@@ -138,51 +98,36 @@ bool winUaeQtHardfileUsesNonUaeController(const WinUaeQtMountEntry &entry)
         || controller.startsWith(QStringLiteral("custom"));
 }
 
-static bool parseAccessValue(const QString &value, bool *readOnly)
+static bool parseMountPrefix(QString *value, bool directory, WinUaeQtMountEntry *entry)
 {
-    if (value.compare(QStringLiteral("ro"), Qt::CaseInsensitive) == 0) {
-        *readOnly = true;
-        return true;
+    const std::u16string source = value->toStdU16String();
+    cfgfile_mount_prefix<char16_t> prefix;
+    if (!cfgfile_parse_mount_prefix(source.c_str(), directory, prefix, true)) {
+        return false;
     }
-    if (value.compare(QStringLiteral("rw"), Qt::CaseInsensitive) == 0) {
-        *readOnly = false;
-        return true;
-    }
-    return false;
+    entry->readOnly = prefix.readonly;
+    entry->device = QString::fromStdU16String(prefix.device);
+    entry->volume = QString::fromStdU16String(prefix.volume);
+    entry->path = QString::fromStdU16String(prefix.path);
+    *value = value->mid(prefix.consumed);
+    return true;
 }
 
 static bool parseDirectoryMountValue(QString value, WinUaeQtMountEntry *entry)
 {
-    QString access;
-    QString device;
-    QString volume;
-    QString path;
     QString bootPri;
-    if (!takeConfigField(&value, QLatin1Char(','), &access, true)
-        || !takeConfigField(&value, QLatin1Char(':'), &device, true)
-        || !takeConfigField(&value, QLatin1Char(':'), &volume, true)
-        || !takeConfigField(&value, QLatin1Char(','), &path, true)
-        || !takeConfigField(&value, QLatin1Char(','), &bootPri, false)
-        || !parseAccessValue(access, &entry->readOnly)) {
+    if (!parseMountPrefix(&value, true, entry)
+        || !takeConfigField(&value, QLatin1Char(','), &bootPri, false)) {
         return false;
     }
     entry->kind = QStringLiteral("dir");
-    entry->device = device;
-    entry->volume = volume;
-    entry->path = path;
     entry->bootPri = bootPri.toInt();
     return true;
 }
 
 static bool parseHardfileMountValue(QString value, WinUaeQtMountEntry *entry)
 {
-    QString access;
-    QString device;
-    QString path;
-    if (!takeConfigField(&value, QLatin1Char(','), &access, true)
-        || !takeConfigField(&value, QLatin1Char(':'), &device, true)
-        || !takeConfigField(&value, QLatin1Char(','), &path, true)
-        || !parseAccessValue(access, &entry->readOnly)) {
+    if (!parseMountPrefix(&value, false, entry)) {
         return false;
     }
     QString sectors;
@@ -200,8 +145,6 @@ static bool parseHardfileMountValue(QString value, WinUaeQtMountEntry *entry)
         entry->hardfileTail = value;
     }
     entry->kind = QStringLiteral("hdf");
-    entry->device = device;
-    entry->path = path;
     return true;
 }
 
