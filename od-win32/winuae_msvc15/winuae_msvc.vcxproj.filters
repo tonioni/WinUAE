@@ -694,6 +694,10 @@
     <ClCompile Include="..\..\od-generic\clipboard.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\focus.cpp">
+    <ClCompile Include="..\..\od-generic\screenshot_common.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\od-generic\uaenet.cpp">
       <Filter>common</Filter>
     </ClCompile>

@@ -19,6 +19,7 @@
 #include "fsdb.h"
 #include "zfile.h"
 #include "gfxboard.h"
+#include "od-generic/screenshot_common.h"
 
 #include "png.h"
 
@@ -33,24 +34,6 @@ extern bool need_genlock_data;
 static bool usealpha(void)
 {
 	return need_genlock_data != 0 && get_row_genlock(0, 0) && currprefs.genlock_image && currprefs.genlock_alpha;
-}
-
-static void namesplit (TCHAR *s)
-{
-	int l;
-
-	l = uaetcslen(s) - 1;
-	while (l >= 0) {
-		if (s[l] == '.')
-			s[l] = 0;
-		if (s[l] == '\\' || s[l] == '/' || s[l] == ':' || s[l] == '?') {
-			l++;
-			break;
-		}
-		l--;
-	}
-	if (l > 0)
-		memmove (s, s + l, (uaetcslen(s + l) + 1) * sizeof (TCHAR));
 }
 
 static int toclipboard (BITMAPINFO *bi, void *bmp)
@@ -142,7 +125,6 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		int rgb_bs2, rgb_gs2, rgb_rs2, rgb_as2;
 		uae_u8 pal[256 * 3];
 		int screenshot_width = 0, screenshot_height = 0;
-		int screenshot_xoffset = -1, screenshot_yoffset = -1;
 		int dx = 0, dy = 0;
 
 		if (gfxboard_isgfxboardscreen(monid)) {
@@ -197,77 +179,13 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 			goto donormal;
 		}
 
-		int screenshot_xmult = 1;
-		int screenshot_ymult = 1;
-
-		screenshot_width = width;
-		screenshot_height = height;
-		if (!standard) {
-			screenshot_xmult = currprefs.screenshot_xmult + 1;
-			screenshot_ymult = currprefs.screenshot_ymult + 1;
-			if (currprefs.screenshot_width > 0)
-				screenshot_width = currprefs.screenshot_width;
-			if (currprefs.screenshot_height > 0)
-				screenshot_height = currprefs.screenshot_height;
-			screenshot_xoffset = currprefs.screenshot_xoffset;
-			screenshot_yoffset = currprefs.screenshot_yoffset;
-		}
-
-		int xoffset = dx, yoffset = dy;
-
-		if (!WIN32GFX_IsPicassoScreen(mon) && screenshot_clipmode == 1) {
-			int cw, ch, cx, cy, crealh = 0, hres, vres;
-			if (get_custom_limits(&cw, &ch, &cx, &cy, &crealh, &hres, &vres)) {
-				int maxw = currprefs.screenshot_max_width << currprefs.gfx_resolution;
-				int maxh = currprefs.screenshot_max_height << currprefs.gfx_vresolution;
-				int minw = currprefs.screenshot_min_width << currprefs.gfx_resolution;
-				int minh = currprefs.screenshot_min_height << currprefs.gfx_vresolution;
-				if (minw > (maxhpos_display + 1) << currprefs.gfx_resolution)
-					minw = (maxhpos_display + 1) << currprefs.gfx_resolution;
-				if (minh > (maxvsize_display + 1) << currprefs.gfx_vresolution)
-					minh = (maxvsize_display + 1) << currprefs.gfx_vresolution;
-				if (maxw < minw)
-					maxw = minw;
-				if (maxh < minh)
-					maxh = minh;
-				screenshot_width = cw;
-				screenshot_height = ch;
-				screenshot_xoffset = cx;
-				screenshot_yoffset = cy;
-				if (screenshot_width < minw && minw > 0) {
-					screenshot_xoffset -= (minw - screenshot_width) / 2;
-					screenshot_width = minw;
-				}
-				if (screenshot_height < minh && minh > 0) {
-					screenshot_yoffset -= (minh - screenshot_height) / 2;
-					screenshot_height = minh;
-				}
-				if (screenshot_width > maxw && maxw > 0) {
-					screenshot_xoffset += (screenshot_width - maxw) / 2;
-					screenshot_width = maxw;
-				}
-				if (screenshot_height > maxh && maxh > 0) {
-					screenshot_yoffset += (screenshot_height - maxh) / 2;
-					screenshot_height = maxh;
-				}
-				xoffset = screenshot_xoffset < 0 ? (screenshot_width - width) / 2 : -screenshot_xoffset;
-				yoffset = screenshot_yoffset < 0 ? (screenshot_height - height) / 2 : -screenshot_yoffset;
-			}
-		}
-
-		if (screenshot_xmult < 1)
-			screenshot_xmult = 1;
-		if (screenshot_ymult < 1)
-			screenshot_ymult = 1;
-
-		int maxw_output = standard ? 0 : currprefs.screenshot_output_width;
-		int maxh_output = standard ? 0 : currprefs.screenshot_output_height;
-		while (maxw_output > screenshot_width * screenshot_xmult && screenshot_xmult < 8) {
-			screenshot_xmult++;
-		}
-		while (maxh_output > screenshot_height * screenshot_ymult && screenshot_ymult < 8) {
-			screenshot_ymult++;
-		}
+		struct screenshot_crop sc;
+		screenshot_get_crop(&sc, width, height, dx, dy, standard, !WIN32GFX_IsPicassoScreen(mon) && screenshot_clipmode == 1);
+		int screenshot_xmult = sc.xmult;
+		int screenshot_ymult = sc.ymult;
+		int xoffset = sc.xoffset, yoffset = sc.yoffset;
+		screenshot_width = sc.width;
+		screenshot_height = sc.height;
 
 		ZeroMemory (bi, sizeof(bi));
 		bi->bmiHeader.biClrUsed = bits <= 8 ? (1 << bits) : 0;
@@ -1111,15 +1029,6 @@ static void screenshot_prepare_multi(void)
 static int filenumber = 0;
 static int dirnumber = 1;
 
-static void getscreenshotfilename(TCHAR *name)
-{
-	if (currprefs.floppyslots[0].dfxtype >= 0 && currprefs.floppyslots[0].df[0]) {
-		_tcscpy(name, currprefs.floppyslots[0].df);
-	} else if (currprefs.cdslots[0].inuse) {
-		_tcscpy(name, currprefs.cdslots[0].name);
-	}
-}
-
 /*
 Captures the Amiga display (GDI, D3D) surface and saves it to file as a 24bit bitmap.
 */
@@ -1128,8 +1037,6 @@ int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imag
 	static int recursive;
 	FILE *fp = NULL;
 	int failed = 0;
-	int screenshot_max = 1000; // limit 999 iterations / screenshots
-	const TCHAR *format = _T("%s%s%s%03d.%s");
 	bool alpha = usealpha();
 
 	HBITMAP offscreen_bitmap = NULL; // bitmap that is converted to a DIB
@@ -1154,7 +1061,6 @@ int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imag
 		TCHAR filename[MAX_DPATH];
 		TCHAR path[MAX_DPATH];
 		TCHAR name[MAX_DPATH];
-		TCHAR underline[] = _T("_");
 
 		if (spath) {
 			fp = _tfopen (spath, _T("wb"));
@@ -1189,8 +1095,6 @@ int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imag
 					break;
 				dirnumber++;
 			}
-			format = _T("%s%s%s%05d.%s");
-			screenshot_max = 100000;
 			screenshot_multi_start = 0;
 			if (dirnumber == 1000) {
 				failed = 1;
@@ -1199,15 +1103,10 @@ int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imag
 			CreateDirectory(path, NULL);
 		}
 
-		name[0] = 0;
-		getscreenshotfilename(name);
-		if (!name[0])
-			underline[0] = 0;
-		namesplit (name);
+		screenshot_get_name(name);
 
-		while(++filenumber < screenshot_max)
+		while (screenshot_get_filename(filename, sizeof(filename) / sizeof(TCHAR), path, name, ++filenumber, screenshot_multi != 0, screenshotmode == 2 ? _T("iff") : (screenshotmode ? _T("png") : _T("bmp"))))
 		{
-			_stprintf (filename, format, path, name, underline, filenumber, screenshotmode == 2 ? _T("iff") : (screenshotmode ? _T("png") : _T("bmp")));
 			if ((fp = _tfopen (filename, _T("rb"))) == NULL) // does file not exist?
 			{
 				int nok = 0;

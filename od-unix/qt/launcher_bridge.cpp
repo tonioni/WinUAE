@@ -10,6 +10,7 @@
 #include <QStringList>
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 #include <stdio.h>
@@ -622,21 +623,77 @@ static void bridgeRescanRoms(void *context)
     unix_romscan_refresh(static_cast<struct uae_prefs *>(context), true);
 }
 
-static WinUaeQtQuickstartRoms bridgeQuickstartRoms(void *, const QString &quickstart)
+static bool bridgeConfigFromPrefs(struct uae_prefs *prefs, WinUaeQtConfig *config,
+    bool includeDefaults = false);
+
+static bool bridgeQuickstartPreset(void *context, int model, int config, int compatibility,
+    bool ntsc, int floppies, WinUaeQtConfig *preset)
 {
-    WinUaeQtQuickstartRoms out;
-    if (quickstart.isEmpty()) {
-        return out;
+    if (!context || !preset) {
+        return false;
     }
-    struct uae_prefs *temp = new uae_prefs();
-    default_prefs(temp, false, 0);
-    QByteArray value = quickstart.toLocal8Bit();
-    cfgfile_parse_option(temp, _T("quickstart"), value.data(), 0);
-    out.rom = QString::fromLocal8Bit(temp->romfile);
-    out.romExt = QString::fromLocal8Bit(temp->romextfile);
-    out.cart = QString::fromLocal8Bit(temp->cartfile);
-    delete temp;
-    return out;
+    // built_in_prefs changes the inline hardware fields only. Borrow the host
+    // settings, without default_prefs() resetting global config/debugger state.
+    auto temp = std::make_unique<uae_prefs>(*static_cast<uae_prefs *>(context));
+    temp->all_lines = nullptr;
+    temp->ntscmode = ntsc;
+    temp->nr_floppies = floppies;
+    temp->romfile[0] = temp->romextfile[0] = temp->romextfile2[0] = 0;
+    temp->cartfile[0] = temp->flashfile[0] = 0;
+    // A missing ROM must not prevent displaying the machine's hardware preset.
+    built_in_prefs(temp.get(), model, config, compatibility, 0);
+    // Resolve CPU constraints as the core does before running the machine.
+    // In particular, a fast A3000 preset must not retain the previous MMU.
+    fixup_cpu(temp.get());
+    if (!bridgeConfigFromPrefs(temp.get(), preset, true)) {
+        return false;
+    }
+    // Clear controls whose disabled values are normally omitted from configs.
+    if (!temp->fpu_model) {
+        preset->setValue(QStringLiteral("fpu_model"), QStringLiteral("0"));
+    }
+    if (!temp->mmu_model) {
+        preset->setValue(QStringLiteral("mmu_model"), QStringLiteral("0"));
+    }
+    // The serializer omits disabled RTG boards and expansion SCSI controllers.
+    preset->setValue(QStringLiteral("gfxcard_size"), QString::number(temp->rtgboards[0].rtgmem_size / 0x100000));
+    for (const QString &key : { QStringLiteral("scsi_a3000"), QStringLiteral("scsi_a4000t") }) {
+        if (!preset->settings().contains(key)) {
+            preset->setValue(key, QStringLiteral("false"));
+        }
+    }
+    return true;
+}
+
+static bool bridgeChipsetPreset(void *context, const WinUaeQtConfig::Settings &settings,
+    const QString &compatible, WinUaeQtConfig *preset)
+{
+    if (!context || !preset) {
+        return false;
+    }
+    auto temp = std::make_unique<uae_prefs>(*static_cast<uae_prefs *>(context));
+    temp->all_lines = nullptr;
+    // Chipset defaults depend on CPU, RAM expansions and PAL/NTSC. Read the
+    // current controls, rather than the last hardware-info preview.
+    for (const char *name : { "cpu_model", "cpu_compatible", "chipmem_size",
+            "bogomem_size", "fastmem_size", "z3mem_size", "cpuboard_type", "ntsc" }) {
+        const QString key = QString::fromLatin1(name);
+        if (settings.contains(key)) {
+            QByteArray value = settings.value(key).toLocal8Bit();
+            cfgfile_parse_option(temp.get(), name, value.data(), 0);
+        }
+    }
+    QByteArray value = compatible.toLocal8Bit();
+    cfgfile_parse_option(temp.get(), _T("chipset_compatible"), value.data(), 0);
+    if (!bridgeConfigFromPrefs(temp.get(), preset, true)) {
+        return false;
+    }
+    for (const QString &key : { QStringLiteral("scsi_a3000"), QStringLiteral("scsi_a4000t") }) {
+        if (!preset->settings().contains(key)) {
+            preset->setValue(key, QStringLiteral("false"));
+        }
+    }
+    return true;
 }
 
 static QStringList bridgeDriveSoundSets()
@@ -659,7 +716,8 @@ static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *pre
     provider.hostSettingsFlush = bridgeHostSettingsFlush;
     provider.romList = bridgeRomList;
     provider.rescanRoms = bridgeRescanRoms;
-    provider.quickstartRoms = bridgeQuickstartRoms;
+    provider.quickstartPreset = bridgeQuickstartPreset;
+    provider.chipsetPreset = bridgeChipsetPreset;
     provider.boardCatalog = bridgeBoardCatalog;
     provider.applyConfig = bridgeApplyHardwareConfig;
     provider.boards = bridgeHardwareBoards;
@@ -715,7 +773,7 @@ static bool bridgeCopyPath(const QString &path, char *out, size_t outLen)
     return true;
 }
 
-static bool bridgeConfigFromPrefs(struct uae_prefs *prefs, WinUaeQtConfig *config)
+static bool bridgeConfigFromPrefs(struct uae_prefs *prefs, WinUaeQtConfig *config, bool includeDefaults)
 {
     if (!prefs || !config) {
         return false;
@@ -724,7 +782,11 @@ static bool bridgeConfigFromPrefs(struct uae_prefs *prefs, WinUaeQtConfig *confi
     if (!file) {
         return false;
     }
-    cfgfile_save_options(file, prefs, CONFIG_TYPE_ALL);
+    if (includeDefaults) {
+        cfgfile_save_options_full(file, prefs, CONFIG_TYPE_ALL);
+    } else {
+        cfgfile_save_options(file, prefs, CONFIG_TYPE_ALL);
+    }
     size_t len = 0;
     const uae_u8 *data = zfile_get_data_pointer(file, &len);
     const QString text = data && len ? QString::fromLocal8Bit((const char *)data, int(len)) : QString();

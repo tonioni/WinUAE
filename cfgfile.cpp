@@ -7231,6 +7231,14 @@ static int getconfigstoreline (const TCHAR *option, TCHAR *value)
 	}
 }
 
+// Include default-valued options when projecting preferences into an editor.
+void cfgfile_save_options_full(struct zfile *f, struct uae_prefs *p, int type)
+{
+	uaeconfig++;
+	cfgfile_save_options(f, p, type);
+	uaeconfig--;
+}
+
 bool cfgfile_createconfigstore(struct uae_prefs *p)
 {
 	uae_u8 zeros[4] = { 0 };
