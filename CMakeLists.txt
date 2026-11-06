@@ -2162,6 +2162,7 @@ set(WINUAE_CORE_SOURCES
     gfxlib.cpp
     gfxutil.cpp
     hardfile.cpp
+    hardfile_cache.cpp
     hrtmon.rom.cpp
     ide.cpp
     idecontrollers.cpp
@@ -2570,6 +2571,17 @@ if(WINUAE_UNIX_WITH_QT_UI)
         message(STATUS "Qt Widgets not found; skipping Unix Qt targets")
     endif()
 endif()
+
+add_executable(winuae_unix_hardfile_cache_test EXCLUDE_FROM_ALL
+    hardfile_cache.cpp
+    od-unix/hardfile_cache_test.cpp
+)
+target_include_directories(winuae_unix_hardfile_cache_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_hardfile_cache_test)
 
 add_executable(winuae_unix_cpu_selection_test EXCLUDE_FROM_ALL
     od-unix/cpu_selection_test.cpp

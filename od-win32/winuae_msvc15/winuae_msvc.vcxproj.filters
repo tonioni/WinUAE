@@ -358,6 +358,9 @@
     <ClCompile Include="..\..\gfxutil.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\hardfile_cache.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\hardfile.cpp">
       <Filter>common</Filter>
     </ClCompile>

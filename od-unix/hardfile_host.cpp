@@ -17,12 +17,15 @@
 
 #include "options.h"
 #include "filesys.h"
+#include "hardfile_cache.h"
+#include "zfile.h"
 #include "uae.h"
 #include "uae/io.h"
 
 struct hardfilehandle {
     int fd;
     bool realdrive;
+    struct zfile *zf;
 };
 
 #define UNIX_MAX_NATIVE_DRIVES MAX_FILESYSTEM_UNITS
@@ -188,7 +191,7 @@ int hdf_open_target(struct hardfiledata *hfd, const TCHAR *name)
     hdf_close_target(hfd);
     hfd->handle = xcalloc(hardfilehandle, 1);
     hfd->handle->fd = -1;
-    hfd->cache = xcalloc(uae_u8, 16384);
+    hfd->cache = xcalloc(uae_u8, HDF_HOST_CACHE_SIZE);
     hfd->cache_valid = 0;
     hfd->flags = 0;
     if (is_native_device_name(name)) {
@@ -238,6 +241,19 @@ int hdf_open_target(struct hardfiledata *hfd, const TCHAR *name)
         hdf_close_target(hfd);
         return 0;
     }
+    if (size < 64 * 1024 * 1024 && hdf_compressed_name(name)) {
+        close(hfd->handle->fd);
+        hfd->handle->fd = -1;
+        hfd->handle->zf = zfile_fopen(name, _T("rb"), ZFD_NORMAL);
+        if (!hfd->handle->zf) {
+            hdf_close_target(hfd);
+            return 0;
+        }
+        zfile_fseek(hfd->handle->zf, 0, SEEK_END);
+        size = zfile_ftell(hfd->handle->zf);
+        zfile_fseek(hfd->handle->zf, 0, SEEK_SET);
+        hfd->ci.readonly = true;
+    }
     hfd->physsize = hfd->virtsize = size;
     hfd->offset = 0;
     hfd->handle_valid = 1;
@@ -264,6 +280,9 @@ void hdf_close_target(struct hardfiledata *hfd)
         return;
     }
     if (hfd->handle) {
+        if (hfd->handle->zf) {
+            zfile_fclose(hfd->handle->zf);
+        }
         if (hfd->handle->fd >= 0) {
             close(hfd->handle->fd);
         }
@@ -276,25 +295,36 @@ void hdf_close_target(struct hardfiledata *hfd)
     hfd->handle_valid = 0;
 }
 
-int hdf_read_target(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
+static int hdf_read_host(struct hardfiledata *hfd, void *buffer,
+    uae_u64 offset, int len, uae_u32 *error)
 {
-    if (error) {
-        *error = 0;
-    }
-    if (!hfd || !hfd->handle || hfd->handle->fd < 0) {
-        if (error) {
-            *error = errno;
+    if (hfd->handle->zf) {
+        if (zfile_fseek(hfd->handle->zf, offset + hfd->offset, SEEK_SET)) {
+            *error = 45;
+            return 0;
         }
-        return 0;
+        return (int)zfile_fread(buffer, 1, len, hfd->handle->zf);
     }
-    ssize_t got = pread(hfd->handle->fd, buffer, len, (off_t)(offset + hfd->offset));
+    ssize_t got;
+    do {
+        got = pread(hfd->handle->fd, buffer, len, (off_t)(offset + hfd->offset));
+    } while (got < 0 && errno == EINTR);
     if (got < 0) {
-        if (error) {
-            *error = errno;
-        }
+        *error = errno;
         return 0;
     }
     return (int)got;
+}
+
+int hdf_read_target(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
+{
+    if (!hfd || !hfd->handle || !hfd->handle_valid) {
+        if (error) {
+            *error = 45;
+        }
+        return 0;
+    }
+    return hdf_read_cached(hfd, buffer, offset, len, error, hdf_read_host);
 }
 
 int hdf_write_target(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
@@ -308,6 +338,13 @@ int hdf_write_target(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
         }
         return 0;
     }
+    if (!hdf_check_bounds(hfd, offset, len)) {
+        if (error) {
+            *error = 45;
+        }
+        return 0;
+    }
+    hfd->cache_valid = 0;
     ssize_t done = pwrite(hfd->handle->fd, buffer, len, (off_t)(offset + hfd->offset));
     if (done < 0) {
         if (error) {
@@ -320,13 +357,14 @@ int hdf_write_target(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 
 int hdf_resize_target(struct hardfiledata *hfd, uae_u64 newsize)
 {
-    if (!hfd || !hfd->handle || hfd->handle->fd < 0 || hfd->handle->realdrive) {
+    if (!hfd || !hfd->handle || hfd->handle->fd < 0 || hfd->handle->realdrive || hfd->ci.readonly || newsize > 0x7fffffffffffffffULL) {
         return 0;
     }
     if (ftruncate(hfd->handle->fd, (off_t)newsize) != 0) {
         return 0;
     }
     hfd->physsize = hfd->virtsize = newsize;
+    hfd->cache_valid = 0;
     return 1;
 }
 
