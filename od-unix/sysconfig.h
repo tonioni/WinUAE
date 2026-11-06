@@ -178,8 +178,8 @@ typedef signed long long INT64;
 typedef unsigned long long UINT64;
 #endif
 
-#define BYTE int8_t
-#define WORD int16_t
+#define BYTE uint8_t
+#define WORD uint16_t
 #define UBYTE uint8_t
 #define UWORD uint16_t
 #define USHORT uint16_t
