@@ -190,9 +190,45 @@ static bool testSharedFormatting()
     return ok;
 }
 
+static bool testSharedParsing()
+{
+    bool ok = true;
+    cfgfile_mount_prefix<char> prefix;
+    const char *directory = "RO,DH1:Work:\"C:\\Work,One\",-5";
+    ok = require(cfgfile_parse_mount_prefix(directory, true, prefix, false), "core directory prefix") && ok;
+    ok = require(prefix.readonly && prefix.device == "DH1" && prefix.volume == "Work"
+        && prefix.path == "C:\\Work,One" && std::string(directory + prefix.consumed) == "-5",
+        "literal Windows path and tail") && ok;
+    cfgfile_mount_prefix<wchar_t> wide;
+    ok = require(cfgfile_parse_mount_prefix(L"rw,DH2:\"Disk,One\",32,1,2,512,0", false, wide, false)
+        && wide.path == L"Disk,One" && wide.device == L"DH2", "wide core prefix") && ok;
+    WinUaeQtMountEntry entry;
+    ok = require(parseWinUaeQtFilesystem2MountValue(
+        QStringLiteral("rw,DH0:Work:\"/tmp/a\\\"b,one\",0"), &entry), "editor escaped quote") && ok;
+    ok = requireText(entry.path, QStringLiteral("/tmp/a\"b,one"), "editor quote decoding") && ok;
+    for (const char *bad : { "", "rw", "rx,DH0:Work:/tmp,0", "rw,DH0", "rw,DH0:Work",
+            "rw,DH0:Work:\"unterminated", "rw,DH0:Work:\"/tmp\"junk,0", "rw,DH0:Work:\"/tmp\"" }) {
+        ok = require(!cfgfile_parse_mount_prefix(bad, true, prefix, false), "malformed mount rejected") && ok;
+        ok = require(!parseWinUaeQtFilesystem2MountValue(QString::fromLatin1(bad), &entry),
+            "editor malformed mount rejected") && ok;
+    }
+    const char *suffix = "ro,:\":physical drive\":X:,0,0,0,512,0";
+    ok = require(cfgfile_parse_mount_prefix(suffix, false, prefix, false, true)
+        && prefix.path == ":physical drive" && std::string(suffix + prefix.consumed) == ":X:,0,0,0,512,0",
+        "legacy physical drive suffix") && ok;
+    const char *last = "\"last\"";
+    std::string field;
+    ok = require(cfgfile_mount_field(last, ',', field, false, true)
+        && field == "last" && *last == 0, "last quoted field does not pass terminator") && ok;
+    const char *dangling = "\"dangling\\";
+    ok = require(!cfgfile_mount_field(dangling, ',', field, false, true), "dangling escape rejected") && ok;
+    return ok;
+}
+
 int main()
 {
     bool ok = true;
+    ok = testSharedParsing() && ok;
     ok = testSharedFormatting() && ok;
     ok = testDirectoryMount() && ok;
     ok = testHardfileMount() && ok;

@@ -5383,89 +5383,28 @@ static int cfgfile_parse_partial_newfilesys (struct uae_prefs *p, int nr, int ty
 static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHAR *value, int unit, bool uaehfentry)
 {
 	struct uaedev_config_info uci;
-	TCHAR *tmpp = _tcschr (value, ','), *tmpp2;
+	TCHAR *tmpp, *tmpp2;
 	TCHAR *str = NULL;
-	TCHAR devname[MAX_DPATH], volname[MAX_DPATH];
+	cfgfile_mount_prefix<TCHAR> prefix;
 
-	devname[0] = volname[0] = 0;
 	uci_set_defaults (&uci, false);
-
 	config_newfilesystem = 1;
-	if (tmpp == 0)
+	if (!cfgfile_parse_mount_prefix(value, type == 0, prefix, false, type == 4)
+		|| prefix.device.size() >= MAX_DPATH || prefix.volume.size() >= MAX_DPATH
+		|| prefix.path.size() >= MAX_DPATH) {
 		goto invalid_fs;
-
-	*tmpp++ = '\0';
-	if (strcasecmp (value, _T("ro")) == 0)
-		uci.readonly = true;
-	else if (strcasecmp (value, _T("rw")) == 0)
-		uci.readonly = false;
-	else
-		goto invalid_fs;
-
-	value = tmpp;
+	}
+	uci.readonly = prefix.readonly;
+	_tcscpy(uci.devname, prefix.device.c_str());
+	_tcscpy(uci.volname, prefix.volume.c_str());
+	_tcscpy(uci.rootdir, prefix.path.c_str());
+	tmpp = value + prefix.consumed;
 	if (type == 0) {
 		uci.type = UAEDEV_DIR;
-		tmpp = _tcschr (value, ':');
-		if (tmpp == 0)
-			goto empty_fs;
-		*tmpp++ = 0;
-		_tcscpy (devname, value);
-		tmpp2 = tmpp;
-		tmpp = _tcschr (tmpp, ':');
-		if (tmpp == 0)
-			goto empty_fs;
-		*tmpp++ = 0;
-		_tcscpy (volname, tmpp2);
-		tmpp2 = tmpp;
-		// quoted special case
-		if (tmpp2[0] == '\"') {
-			const TCHAR *end;
-			TCHAR *n = cfgfile_unescape (tmpp2, &end, 0, true);
-			if (!n)
-				goto invalid_fs;
-			_tcscpy (uci.rootdir, n);
-			xfree(n);
-			tmpp = (TCHAR*)end;
-			*tmpp++ = 0;
-		} else {
-			tmpp = _tcschr (tmpp, ',');
-			if (tmpp == 0)
-				goto empty_fs;
-			*tmpp++ = 0;
-			_tcscpy (uci.rootdir, tmpp2);
-		}
-		_tcscpy (uci.volname, volname);
-		_tcscpy (uci.devname, devname);
-		if (! getintval (&tmpp, &uci.bootpri, 0))
+		if (!getintval(&tmpp, &uci.bootpri, 0))
 			goto empty_fs;
 	} else if (type == 1 || ((type == 2 || type == 3 || type == 4) && uaehfentry)) {
-		bool midmarker = false;
-		tmpp = _tcschr (value, ':');
-		if (tmpp == 0)
-			goto invalid_fs;
-		*tmpp++ = '\0';
-		_tcscpy (devname, value);
-		tmpp2 = tmpp;
-		// quoted special case
-		if (tmpp2[0] == '\"') {
-			const TCHAR *end;
-			TCHAR *n = cfgfile_unescape (tmpp2, &end, 0, true);
-			if (!n)
-				goto invalid_fs;
-			_tcscpy (uci.rootdir, n);
-			xfree(n);
-			tmpp = (TCHAR*)end;
-			midmarker = *tmpp == ':'; // <real hd path>:<optional extra path/drive letter>?
-			if (!midmarker) {
-				*tmpp++ = 0;
-			}
-		} else {
-			tmpp = _tcschr (tmpp, ',');
-			if (tmpp == 0)
-				goto invalid_fs;
-			*tmpp++ = 0;
-			_tcscpy (uci.rootdir, tmpp2);
-		}
+		const bool midmarker = *tmpp == ':';
 		if (type == 4 && midmarker) {
 			// get optional extra path
 			const TCHAR *tmppr = tmpp;
@@ -5479,7 +5418,6 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 		}
 		if (uci.rootdir[0] != ':')
 			get_hd_geometry (&uci);
-		_tcscpy (uci.devname, devname);
 		if (! getintval (&tmpp, &uci.sectors, ',')
 			|| ! getintval (&tmpp, &uci.surfaces, ',')
 			|| ! getintval (&tmpp, &uci.reserved, ',')

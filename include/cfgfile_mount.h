@@ -3,6 +3,83 @@
 
 #include <string>
 
+// Read one field without modifying the input. Callers retain their on-disk
+// quoting convention: modern core mount paths keep backslashes literally,
+// while editor fields unescape a backslash followed by another character.
+template<typename Char>
+static bool cfgfile_mount_field(const Char *&input, Char separator,
+	std::basic_string<Char>& field, bool require_separator,
+	bool unescape_quoted, bool allow_path_suffix = false)
+{
+	const Char *next = input;
+	std::basic_string<Char> value;
+	if (*next == '"') {
+		next++;
+		while (*next && *next != '"') {
+			if (unescape_quoted && *next == '\\') {
+				next++;
+				if (!*next) {
+					return false;
+				}
+			}
+			value += *next++;
+		}
+		if (*next != '"') {
+			return false;
+		}
+		next++;
+	} else {
+		while (*next && *next != separator) {
+			value += *next++;
+		}
+	}
+	if (*next == separator) {
+		next++;
+	} else if (!(allow_path_suffix && *next == ':')
+		&& (*next || require_separator)) {
+		return false;
+	}
+	input = next;
+	field = value;
+	return true;
+}
+
+template<typename Char>
+struct cfgfile_mount_prefix {
+	bool readonly = false;
+	std::basic_string<Char> device, volume, path;
+	size_t consumed = 0;
+};
+
+// The common prefix of filesystem2, hardfile2 and uaehf mount values.
+// Geometry, controller-specific options and legacy drive suffixes follow it.
+template<typename Char>
+static bool cfgfile_parse_mount_prefix(const Char *input, bool directory,
+	cfgfile_mount_prefix<Char>& prefix, bool unescape_quoted,
+	bool allow_path_suffix = false)
+{
+	const Char *next = input;
+	std::basic_string<Char> access;
+	cfgfile_mount_prefix<Char> parsed;
+	if (!cfgfile_mount_field(next, Char(','), access, true, unescape_quoted)
+		|| access.size() != 2 || (access[0] != 'r' && access[0] != 'R')) {
+		return false;
+	}
+	if (access[1] == 'o' || access[1] == 'O') {
+		parsed.readonly = true;
+	} else if (access[1] != 'w' && access[1] != 'W') {
+		return false;
+	}
+	if (!cfgfile_mount_field(next, Char(':'), parsed.device, true, unescape_quoted)
+		|| (directory && !cfgfile_mount_field(next, Char(':'), parsed.volume, true, unescape_quoted))
+		|| !cfgfile_mount_field(next, Char(','), parsed.path, true, unescape_quoted, allow_path_suffix)) {
+		return false;
+	}
+	parsed.consumed = next - input;
+	prefix = parsed;
+	return true;
+}
+
 // Shared by the TCHAR config writer and editors with their own string types.
 // Paths passed to the formatters are already escaped for the chosen format:
 // filesystem2/hardfile2 use minimal escaping, legacy uaehf paths use full
