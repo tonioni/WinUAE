@@ -6645,25 +6645,21 @@ static TCHAR *getdefaultini (int *tempfile)
 
 static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 {
+	int consumed = parse_core_arg(argx, np, np2);
+	if (consumed) {
+		return consumed;
+	}
 	const TCHAR *arg = argx + 1;
 
 	if (argx[0] != '-' && argx[0] != '/')
 		return 0;
 
-	if (!_tcscmp(arg, _T("convert")) && np && np2) {
-		zfile_convertimage(np, np2);
-		return -1;
-	}
 	if (!_tcscmp(arg, _T("console"))) {
 		console_started = 1;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("cli"))) {
 		console_emulation = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("log"))) {
-		console_logging = 1;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("logfile"))) {
@@ -6688,10 +6684,6 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 #endif
-	if (!_tcscmp(arg, _T("pngprint"))) {
-		pngprint = 1;
-		return 1;
-	}
 	if (!_tcscmp(arg, _T("norawinput"))) {
 		no_rawinput |= 4;
 		return 1;
@@ -6740,90 +6732,8 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		force_directsound = 1;
 		return 1;
 	}
-	if (!_tcscmp(arg, _T("scsilog"))) {
-		log_scsi = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("scsiemulog"))) {
-		extern int log_scsiemu;
-		log_scsiemu = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("ds_partition_hdf"))) {
-		extern int enable_ds_partition_hdf;
-		enable_ds_partition_hdf = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("filesyslog"))) {
-		log_filesys = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("filesyslog2"))) {
-		log_filesys = 2;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("netlog"))) {
-		log_net = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("serlog"))) {
-		log_sercon = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("serlog2"))) {
-		log_sercon = 2;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("serlog3"))) {
-		log_sercon = 3;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("a2065log"))) {
-		log_a2065 = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("a2065log2"))) {
-		log_a2065 = 2;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("a2065log3"))) {
-		log_a2065 = 3;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("a2065_promiscuous"))) {
-		a2065_promiscuous = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("seriallog"))) {
-		log_uaeserial = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("vsynclog")) || !_tcscmp(arg, _T("vsynclog1"))) {
-		log_vsync |= 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("vsynclog2"))) {
-		log_vsync |= 2;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("bsdlog"))) {
-		log_bsd = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("clipboarddebug"))) {
-		clipboard_debug = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("clipboardlog"))) {
-		clipboard_log = 1;
-		return 1;
-	}
 	if (!_tcscmp(arg, _T("rplog"))) {
 		log_rp = 3;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("dsplog"))) {
-		log_dsp = 1;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("nomultidisplay"))) {
@@ -6896,10 +6806,6 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		ahi_debug = 3;
 		return 1;
 	}
-	if (!_tcscmp(arg, _T("quittogui"))) {
-		quit_to_gui = 1;
-		return 1;
-	}
 	if (!_tcscmp(arg, _T("ini")) && np) {
 		inipath = my_strdup(np);
 		return 2;
@@ -6918,27 +6824,8 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		createbootlog = false;
 		return 1;
 	}
-	if (!_tcscmp(arg, _T("cd32log"))) {
-		if (log_cd32 < 1)
-			log_cd32 = 1;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("cd32log2"))) {
-		if (log_cd32 < 2)
-			log_cd32 = 2;
-		return 1;
-	}
 	if (!_tcscmp(arg, _T("nolcd"))) {
 		logitech_lcd = 0;
-		return 1;
-	}
-	if (!_tcscmp(arg, _T("romlist"))) {
-		void dumpromlist(void);
-		dumpromlist();
-		return -1;
-	}
-	if (!_tcscmp(arg, _T("rawextadf"))) {
-		floppy_writemode = -1;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("busywait"))) {
@@ -6977,10 +6864,6 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		on_screen_keyboard = 1;
 		return 1;
 	}
-	if (!_tcscmp(arg, _T("nomt"))) {
-		multithread_enabled = 0;
-		return 1;
-	}
 
 	if (!np)
 		return 0;
@@ -6997,24 +6880,12 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 2;
 	}
 
-	if (!_tcscmp(arg, _T("ethlog"))) {
-		log_ethernet = getval(np);
-		return 2;
-	}
 	if (!_tcscmp (arg, _T("vsync_modechangetimeout"))) {
 		vsync_modechangetimeout = getval (np);
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("rtg_blitter"))) {
 		debug_rtg_blitter = getval (np);
-		return 2;
-	}
-	if (!_tcscmp (arg, _T("vsync_min_delay"))) {
-		debug_vsync_min_delay = getval (np);
-		return 2;
-	}
-	if (!_tcscmp (arg, _T("vsync_forced_delay"))) {
-		debug_vsync_forced_delay = getval (np);
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("threadedd3d"))) {
@@ -7025,28 +6896,8 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		tablet_log = getval (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, _T("blitterdebug"))) {
-		log_blitter = getval (np);
-		return 2;
-	}
 	if (!_tcscmp (arg, _T("inputlog"))) {
 		rawinput_log = getval (np);
-		return 2;
-	}
-	if (!_tcscmp (arg, _T("inputdevicelog"))) {
-		inputdevice_logging = getval (np);
-		return 2;
-	}
-	if (!_tcscmp (arg, _T("slirplog"))) {
-		slirp_debug = getval (np);
-		return 2;
-	}
-	if (!_tcscmp (arg, _T("ldlog"))) {
-		log_ld = getval (np);
-		return 2;
-	}
-	if (!_tcscmp (arg, _T("kbmculog"))) {
-		kb_mcu_log = getval (np);
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("midiinbuffer"))) {
@@ -7101,18 +6952,6 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		minidumpmode = (MINIDUMP_TYPE)getval (np);
 		return 2;
 	}
-	if (!_tcscmp(arg, _T("jitevent"))) {
-		pissoff_value = getval(np) * CYCLE_UNIT;
-		return 2;
-	}
-	if (!_tcscmp(arg, _T("cpuevent"))) {
-		pissoff_nojit_value = getval(np) * CYCLE_UNIT;
-		return 2;
-	}
-	if (!_tcscmp (arg, _T("inputrecorddebug"))) {
-		inputrecord_debug = getval (np);
-		return 2;
-	}
 	if (!_tcscmp(arg, _T("extraframewait"))) {
 		extraframewait = getval(np);
 		return 2;
@@ -7123,10 +6962,6 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, _T("framelatency"))) {
 		forcedframelatency = getval (np);
-		return 2;
-	}
-	if (!_tcscmp(arg, _T("conlogfile"))) {
-		conlogfile = my_strdup(np);
 		return 2;
 	}
 #ifdef RETROPLATFORM
