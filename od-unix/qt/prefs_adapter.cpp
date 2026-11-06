@@ -8,9 +8,7 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
-#include "audio.h"
 #include "custom.h"
-#include "gfxboard.h"
 #include "options.h"
 #include "romscan.h"
 
@@ -76,14 +74,6 @@ static bool textToBool(const QString &text, bool *out)
     return false;
 }
 
-static bool settingToBool(const WinUaeQtConfig::Settings &settings, const QString &key, bool *out)
-{
-    if (!settings.contains(key)) {
-        return false;
-    }
-    return textToBool(settings.value(key), out);
-}
-
 static bool rtgVBlankValueToInt(const QString &value, int *out)
 {
     const QString normalized = value.trimmed().toLower();
@@ -117,19 +107,6 @@ static void copyTextSetting(TCHAR *dst, size_t dstSize, const QString &value)
     dst[dstSize - 1] = 0;
 }
 
-static bool parseSoundOutput(const QString &value, int *out)
-{
-    static const Choice choices[] = {
-        { "none", 0 },
-        { "interrupts", 1 },
-        { "normal", 2 },
-        { "good", 2 },
-        { "exact", 3 },
-        { "best", 3 },
-    };
-    return parseChoice(value, choices, out);
-}
-
 static bool parseChipsetCompatible(const QString &value, int *out)
 {
     static const Choice choices[] = {
@@ -152,94 +129,6 @@ static bool parseChipsetCompatible(const QString &value, int *out)
         { "DraCo", CP_DRACO },
     };
     return parseChoice(value, choices, out);
-}
-
-static bool parseGfxCardType(const QString &value, int *out)
-{
-    for (int index = 0;; index++) {
-        const int id = gfxboard_get_id_from_index(index);
-        if (id < 0) {
-            break;
-        }
-        const TCHAR *name = gfxboard_get_configname(id);
-        if (name && value.compare(QString::fromLocal8Bit(name), Qt::CaseInsensitive) == 0) {
-            *out = id;
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool parseSoundChannels(const QString &value, int *out, struct uae_prefs *prefs)
-{
-    static const Choice choices[] = {
-        { "mono", SND_MONO },
-        { "stereo", SND_STEREO },
-        { "clonedstereo", SND_4CH_CLONEDSTEREO },
-        { "4ch", SND_4CH },
-        { "clonedstereo6ch", SND_6CH_CLONEDSTEREO },
-        { "6ch", SND_6CH },
-        { "clonedstereo8ch", SND_8CH_CLONEDSTEREO },
-        { "8ch", SND_8CH },
-        { "mixed", SND_NONE },
-    };
-    if (!parseChoice(value, choices, out)) {
-        return false;
-    }
-    if (*out == SND_NONE) {
-        *out = SND_STEREO;
-        prefs->sound_mixed_stereo_delay = 5;
-        prefs->sound_stereo_separation = 7;
-    }
-    return true;
-}
-
-static bool parseLinemode(const QString &value, int *out)
-{
-    static const Choice choices[] = {
-        { "none", 0 },
-        { "double", 1 },
-        { "scanlines", 2 },
-        { "scanlines2p", 3 },
-        { "scanlines3p", 4 },
-        { "double2", 5 },
-        { "scanlines2", 6 },
-        { "scanlines2p2", 7 },
-        { "scanlines2p3", 8 },
-        { "double3", 9 },
-        { "scanlines3", 10 },
-        { "scanlines3p2", 11 },
-        { "scanlines3p3", 12 },
-    };
-    return parseChoice(value, choices, out);
-}
-
-static bool parseFullscreenMode(const QString &value, int *out)
-{
-    static const Choice choices[] = {
-        { "false", GFX_WINDOW },
-        { "true", GFX_FULLSCREEN },
-        { "fullwindow", GFX_FULLWINDOW },
-    };
-    return parseChoice(value, choices, out);
-}
-
-static bool parseVsyncMode(const QString &value, int *out)
-{
-    static const Choice choices[] = {
-        { "false", 0 },
-        { "true", 1 },
-        { "autoswitch", 2 },
-    };
-    if (parseChoice(value, choices, out)) {
-        return true;
-    }
-    bool enabled = false;
-    if (textToBool(value, &enabled)) {
-        *out = enabled ? 1 : 0;
-        return true;
-    }
-    return false;
 }
 
 static void parseSettingOption(struct uae_prefs *prefs, const QString &key, const QString &value)
@@ -271,25 +160,17 @@ static void applyCycleExactConstraint(struct uae_prefs *prefs)
     }
 }
 
-static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &settings,
+// Only launcher semantics belong here. Ordinary settings are interpreted by
+// cfgfile_parse_option so config loading and GUI edits use the same parser.
+static ApplySettingResult applyLauncherSetting(const WinUaeQtConfig::Settings &settings,
     const WinUaeQtConfig::Setting &setting, struct uae_prefs *prefs)
 {
-    auto applyInt = [&](const char *key, int *field, int multiplier = 1) -> bool {
+    auto applyInt = [&](const char *key, int *field) -> bool {
         if (setting.key != QString::fromLatin1(key)) {
             return false;
         }
         int parsed = 0;
         if (textToInt(setting.value, &parsed)) {
-            *field = parsed * multiplier;
-        }
-        return true;
-    };
-    auto applyBool = [&](const char *key, bool *field) -> bool {
-        if (setting.key != QString::fromLatin1(key)) {
-            return false;
-        }
-        bool parsed = false;
-        if (textToBool(setting.value, &parsed)) {
             *field = parsed;
         }
         return true;
@@ -339,6 +220,8 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
         copyTextSetting(prefs->picassoivromfile, sizeof prefs->picassoivromfile / sizeof(TCHAR), setting.value);
         return ApplySettingResult::Handled;
     }
+    // Previewing preferences must not schedule a savestate restore or change
+    // global savestate paths through the core parser.
     if (setting.key == QStringLiteral("statefile")) {
         copyTextSetting(prefs->statefile, sizeof prefs->statefile / sizeof(TCHAR), setting.value);
         return ApplySettingResult::Handled;
@@ -359,28 +242,6 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
         }
     }
     for (int drive = 0; drive < 4; drive++) {
-        const QString key = QStringLiteral("floppy%1type").arg(drive);
-        if (setting.key == key) {
-            int value = 0;
-            if (textToInt(setting.value, &value)) {
-                prefs->floppyslots[drive].dfxtype = value;
-            }
-            return ApplySettingResult::Handled;
-        }
-    }
-    for (int drive = 0; drive < 4; drive++) {
-        const QString key = QStringLiteral("floppy%1wp").arg(drive);
-        if (setting.key != key) {
-            continue;
-        }
-        bool value = false;
-        if (textToBool(setting.value, &value)) {
-            prefs->floppyslots[drive].forcedwriteprotect = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-
-    for (int drive = 0; drive < 4; drive++) {
         const QString soundKey = QStringLiteral("floppy%1sound").arg(drive);
         const QString externalKey = QStringLiteral("floppy%1soundext").arg(drive);
         if (setting.key == soundKey || setting.key == externalKey) {
@@ -398,84 +259,7 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
             return ApplySettingResult::Handled;
         }
     }
-    for (int drive = 0; drive < 4; drive++) {
-        const QString key = QStringLiteral("floppy%1soundvolume_empty").arg(drive);
-        if (setting.key == key) {
-            if (textToInt(setting.value, &value)) {
-                prefs->dfxclickvolume_empty[drive] = value;
-            }
-            return ApplySettingResult::Handled;
-        }
-    }
-    for (int drive = 0; drive < 4; drive++) {
-        const QString key = QStringLiteral("floppy%1soundvolume_disk").arg(drive);
-        if (setting.key == key) {
-            if (textToInt(setting.value, &value)) {
-                prefs->dfxclickvolume_disk[drive] = value;
-            }
-            return ApplySettingResult::Handled;
-        }
-    }
 
-    if (setting.key == QStringLiteral("nr_floppies")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->nr_floppies = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("floppy_speed")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->floppy_speed = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("maprom")) {
-        bool ok = false;
-        const uint parsed = setting.value.toUInt(&ok, 0);
-        if (ok) {
-            prefs->maprom = parsed;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (applyBool("kickshifter", &prefs->kickshifter)
-        || applyBool("ntsc", &prefs->ntscmode)
-        || applyBool("immediate_blits", &prefs->immediate_blits)
-        || applyBool("genlock", &prefs->genlock)
-        || applyBool("genlock_alpha", &prefs->genlock_alpha)
-        || applyBool("keyboard_nkro", &prefs->keyboard_nkro)
-        || applyBool("df0idhw", &prefs->cs_df0idhw)
-        || applyBool("sana2", &prefs->sana2)
-        || applyBool("bsdsocket_emu", &prefs->socket_emu)
-        || applyBool("uaeserial", &prefs->uaeserial)
-        || applyBool("sampler_stereo", &prefs->sampler_stereo)
-        || applyBool("sound_auto", &prefs->sound_auto)
-        || applyBool("sound_stereo_swap_paula", &prefs->sound_stereo_swap_paula)
-        || applyBool("sound_stereo_swap_ahi", &prefs->sound_stereo_swap_ahi)
-        || applyBool("serial_on_demand", &prefs->serial_demand)
-        || applyBool("serial_hardware_ctsrts", &prefs->serial_hwctsrts)
-        || applyBool("serial_status", &prefs->serial_rtsctsdtrdtecd)
-        || applyBool("serial_ri", &prefs->serial_ri)
-        || applyBool("serial_direct", &prefs->serial_direct)
-        || applyBool("parallel_postscript_detection", &prefs->parallel_postscript_detection)
-        || applyBool("parallel_postscript_emulation", &prefs->parallel_postscript_emulation)
-        || applyBool("state_replay_autoplay", &prefs->inprec_autoplay)
-        || applyBool("gfx_resize_windowed", &prefs->gfx_windowed_resize)
-        || applyBool("gfx_flickerfixer", &prefs->gfx_scandoubler)
-        || applyBool("gfx_blacker_than_black", &prefs->gfx_blackerthanblack)
-        || applyBool("gfx_monochrome", &prefs->gfx_grayscale)
-        || applyBool("gfx_autoresolution_vga", &prefs->gfx_autoresolution_vga)
-        || applyBool("gfx_keep_aspect", &prefs->gfx_keep_aspect)
-        || applyBool("gfx_ntscpixels", &prefs->gfx_ntscpixels)
-        || applyBool("gfx_ntscpixelspal", &prefs->gfx_ntscpixelspal)
-        || applyBool("tablet_library", &prefs->tablet_library)) {
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("genlock_aspect")) {
-        if (textToBool(setting.value, &boolValue)) {
-            prefs->genlock_aspect = boolValue ? 1 : 0;
-        }
-        return ApplySettingResult::Handled;
-    }
     if (applyText("genlock_image", prefs->genlock_image_file, sizeof prefs->genlock_image_file / sizeof(TCHAR))
         || applyText("genlock_video", prefs->genlock_video_file, sizeof prefs->genlock_video_file / sizeof(TCHAR))
         || applyText("ghostscript_parameters", prefs->ghostscript_parameters, sizeof prefs->ghostscript_parameters / sizeof(TCHAR))
@@ -492,75 +276,23 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
         prefs->use_serial = prefs->sername[0] != 0;
         return ApplySettingResult::Handled;
     }
-    if (applyInt("genlock_mix", &prefs->genlock_mix)
-        || applyInt("chipset_rtc_adjust", &prefs->cs_rtc_adjust)
-        || applyInt("fatgary", &prefs->cs_fatgaryrev)
-        || applyInt("ramsey", &prefs->cs_ramseyrev)
-        || applyInt("sound_max_buff", &prefs->sound_maxbsiz)
-        || applyInt("sound_frequency", &prefs->sound_freq)
-        || applyInt("sound_stereo_separation", &prefs->sound_stereo_separation)
-        || applyInt("sound_stereo_mixing_delay", &prefs->sound_mixed_stereo_delay)
-        || applyInt("parallel_autoflush", &prefs->parallel_autoflush_time)
-        || applyInt("midiout_device", &prefs->win32_midioutdev)
+    // Device indices are launcher selections. The target parser can clamp them
+    // against an enumeration that is not yet available during a preview.
+    if (applyInt("midiout_device", &prefs->win32_midioutdev)
         || applyInt("midi_device", &prefs->win32_midioutdev)
         || applyInt("midiin_device", &prefs->win32_midiindev)
         || applyInt("unix.soundcard", &prefs->win32_soundcard)
         || applyInt("unix.samplersoundcard", &prefs->win32_samplersoundcard)
-        || applyInt("samplersoundcard", &prefs->win32_samplersoundcard)
-        || applyInt("state_replay_rate", &prefs->statecapturerate)
-        || applyInt("state_replay_buffers", &prefs->statecapturebuffersize)
-        || applyInt("gfx_display", &prefs->gfx_apmode[APMODE_NATIVE].gfx_display)
-        || applyInt("gfx_display_rtg", &prefs->gfx_apmode[APMODE_RTG].gfx_display)
-        || applyInt("gfx_refreshrate", &prefs->gfx_apmode[APMODE_NATIVE].gfx_refreshrate)
-        || applyInt("gfx_refreshrate_rtg", &prefs->gfx_apmode[APMODE_RTG].gfx_refreshrate)
-        || applyInt("gfx_backbuffers", &prefs->gfx_apmode[APMODE_NATIVE].gfx_backbuffers)
-        || applyInt("gfx_backbuffers_rtg", &prefs->gfx_apmode[APMODE_RTG].gfx_backbuffers)
-        || applyInt("gfx_frame_slices", &prefs->gfx_display_sections)
-        || applyInt("gfx_framerate", &prefs->gfx_framerate)
-        || applyInt("gfx_autoresolution", &prefs->gfx_autoresolution)
-        || applyInt("gfx_monitorblankdelay", &prefs->gfx_monitorblankdelay)
-        || applyInt("rtg_modes", &prefs->picasso96_modeflags)
-        || applyInt("cd_speed", &prefs->cd_speed)
-        || applyInt("filesys_max_size", &prefs->filesys_limit)) {
-        if (setting.key == QStringLiteral("gfx_display")) {
-            prefs->gfx_apmode[APMODE_RTG].gfx_display = prefs->gfx_apmode[APMODE_NATIVE].gfx_display;
-        }
+        || applyInt("samplersoundcard", &prefs->win32_samplersoundcard)) {
         return ApplySettingResult::Handled;
     }
-    if (setting.key == QStringLiteral("cpuboardmem1_size") ||
-        setting.key == QStringLiteral("cpuboardmem2_size")) {
-        if (textToInt(setting.value, &value)) {
-            if (setting.key == QStringLiteral("cpuboardmem1_size")) {
-                prefs->cpuboardmem1.size = value * 0x100000;
-            } else {
-                prefs->cpuboardmem2.size = value * 0x100000;
-            }
-        }
-        return ApplySettingResult::Handled;
-    }
+    // Keep the launcher's order-sensitive CPU/JIT constraints until they
+    // share a selection helper with the other frontends.
     if (setting.key == QStringLiteral("cpu_model")) {
         if (textToInt(setting.value, &value)) {
             prefs->cpu_model = value;
             prefs->fpu_model = 0;
             applyCycleExactConstraint(prefs);
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("fpu_model")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->fpu_model = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("cpu_compatible")) {
-        if (textToBool(setting.value, &boolValue)) {
-            prefs->cpu_compatible = boolValue;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("cpu_24bit_addressing")) {
-        if (textToBool(setting.value, &boolValue)) {
-            prefs->address_space_24 = boolValue;
         }
         return ApplySettingResult::Handled;
     }
@@ -596,178 +328,10 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
         }
         return ApplySettingResult::Handled;
     }
-    if (setting.key == QStringLiteral("chipmem_size")) {
-        if (textToInt(setting.value, &value)) {
-            if (value < 0) {
-                prefs->chipmem.size = 0x20000;
-            } else if (value == 0) {
-                prefs->chipmem.size = 0x40000;
-            } else {
-                prefs->chipmem.size = value * 0x80000;
-            }
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("fastmem_size")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->fastmem[0].size = value * 0x100000;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("bogomem_size")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->bogomem.size = value * 0x40000;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("z3mem_size")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->z3fastmem[0].size = value * 0x100000;
-        }
-        return ApplySettingResult::Handled;
-    }
     if (setting.key == QStringLiteral("cachesize")) {
         if (textToInt(setting.value, &value)) {
             prefs->cachesize = value;
             applyCycleExactConstraint(prefs);
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("compfpu")) {
-        if (textToBool(setting.value, &boolValue)) {
-            prefs->compfpu = boolValue;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("comp_constjump")) {
-        if (textToBool(setting.value, &boolValue)) {
-            prefs->comp_constjump = boolValue;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("comp_nf")) {
-        if (textToBool(setting.value, &boolValue)) {
-            prefs->compnf = boolValue;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("comp_catchfault")) {
-        if (textToBool(setting.value, &boolValue)) {
-            prefs->comp_catchfault = boolValue;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("comp_flushmode")) {
-        if (setting.value.compare(QStringLiteral("hard"), Qt::CaseInsensitive) == 0) {
-            prefs->comp_hardflush = true;
-        } else if (setting.value.compare(QStringLiteral("soft"), Qt::CaseInsensitive) == 0) {
-            prefs->comp_hardflush = false;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("comp_trustbyte")
-        || setting.key == QStringLiteral("comp_trustword")
-        || setting.key == QStringLiteral("comp_trustlong")
-        || setting.key == QStringLiteral("comp_trustnaddr")) {
-        static const Choice choices[] = {
-            { "direct", 0 },
-            { "indirect", 1 },
-            { "indirectKS", 2 },
-            { "afterPic", 3 },
-        };
-        if (parseChoice(setting.value, choices, &value)) {
-            if (setting.key == QStringLiteral("comp_trustbyte")) {
-                prefs->comptrustbyte = value;
-            } else if (setting.key == QStringLiteral("comp_trustword")) {
-                prefs->comptrustword = value;
-            } else if (setting.key == QStringLiteral("comp_trustlong")) {
-                prefs->comptrustlong = value;
-            } else {
-                prefs->comptrustnaddr = value;
-            }
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("sound_output")) {
-        if (parseSoundOutput(setting.value, &value)) {
-            prefs->produce_sound = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("sound_channels")) {
-        if (parseSoundChannels(setting.value, &value, prefs)) {
-            prefs->sound_stereo = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("sound_interpol")) {
-        static const Choice choices[] = {
-            { "none", 0 },
-            { "anti", 1 },
-            { "sinc", 2 },
-            { "rh", 3 },
-            { "crux", 4 },
-        };
-        if (parseChoice(setting.value, choices, &value)) {
-            prefs->sound_interpol = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("sound_filter")) {
-        static const Choice choices[] = {
-            { "off", 0 },
-            { "emulated", 1 },
-            { "on", 2 },
-            { "fixedonly", 3 },
-        };
-        if (parseChoice(setting.value, choices, &value)) {
-            prefs->sound_filter = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("sound_filter_type")) {
-        static const Choice choices[] = {
-            { "standard", 0 },
-            { "enhanced", 1 },
-        };
-        if (parseChoice(setting.value, choices, &value)) {
-            prefs->sound_filter_type = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("sound_volume")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->sound_volume_master = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("sound_volume_paula")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->sound_volume_paula = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("sound_volume_cd")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->sound_volume_cd = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("sound_volume_ahi")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->sound_volume_board = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("sound_volume_midi")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->sound_volume_midi = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("sound_volume_genlock")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->sound_volume_genlock = value;
         }
         return ApplySettingResult::Handled;
     }
@@ -779,41 +343,6 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
 #else
         prefs->win32_midirouter = false;
 #endif
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("serial_translate")) {
-        static const Choice choices[] = {
-            { "disabled", 0 },
-            { "crlf_cr", 1 },
-        };
-        if (parseChoice(setting.value, choices, &value)) {
-            prefs->serial_crlf = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("parallel_matrix_emulation")) {
-        static const Choice choices[] = {
-            { "none", 0 },
-            { "ascii", 1 },
-            { "epson_matrix_9pin", 2 },
-            { "epson_matrix_24pin", 3 },
-            { "epson_matrix_48pin", 4 },
-        };
-        if (parseChoice(setting.value, choices, &value)) {
-            prefs->parallel_matrix_emulation = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("gfxcard_size")) {
-        if (textToInt(setting.value, &value)) {
-            prefs->rtgboards[0].rtgmem_size = value * 0x100000;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("gfxcard_type")) {
-        if (parseGfxCardType(setting.value, &value)) {
-            prefs->rtgboards[0].rtgmem_type = value;
-        }
         return ApplySettingResult::Handled;
     }
     if (setting.key == QStringLiteral("gfx_width_windowed") ||
@@ -843,76 +372,6 @@ static ApplySettingResult applyTypedSetting(const WinUaeQtConfig::Settings &sett
         } else if (setting.key == QStringLiteral("gfx_height_fullscreen") && textToInt(setting.value, &value)) {
             prefs->gfx_monitor[0].gfx_size_fs.height = value;
             prefs->gfx_monitor[0].gfx_size_fs.special = 0;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("gfx_fullscreen_amiga")) {
-        if (parseFullscreenMode(setting.value, &value)) {
-            prefs->gfx_apmode[APMODE_NATIVE].gfx_fullscreen = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("gfx_fullscreen_picasso")) {
-        if (parseFullscreenMode(setting.value, &value)) {
-            prefs->gfx_apmode[APMODE_RTG].gfx_fullscreen = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("gfx_vsync")) {
-        if (parseVsyncMode(setting.value, &value)) {
-            prefs->gfx_apmode[APMODE_NATIVE].gfx_vsync = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("gfx_vsync_picasso")) {
-        if (parseVsyncMode(setting.value, &value)) {
-            prefs->gfx_apmode[APMODE_RTG].gfx_vsync = value;
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("gfx_vsyncmode") ||
-        setting.key == QStringLiteral("gfx_vsyncmode_picasso")) {
-        static const Choice choices[] = {
-            { "normal", 0 },
-            { "busywait", 1 },
-        };
-        if (parseChoice(setting.value, choices, &value)) {
-            if (setting.key == QStringLiteral("gfx_vsyncmode")) {
-                prefs->gfx_apmode[APMODE_NATIVE].gfx_vsyncmode = value;
-            } else {
-                prefs->gfx_apmode[APMODE_RTG].gfx_vsyncmode = value;
-            }
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("gfx_linemode")) {
-        if (parseLinemode(setting.value, &value)) {
-            prefs->gfx_vresolution = VRES_NONDOUBLE;
-            prefs->gfx_pscanlines = 0;
-            prefs->gfx_iscanlines = 0;
-            if (value > 0) {
-                prefs->gfx_iscanlines = (value - 1) / 4;
-                prefs->gfx_pscanlines = (value - 1) % 4;
-                prefs->gfx_vresolution = VRES_DOUBLE;
-            }
-        }
-        return ApplySettingResult::Handled;
-    }
-    if (setting.key == QStringLiteral("gfx_center_horizontal") ||
-        setting.key == QStringLiteral("gfx_center_vertical")) {
-        static const Choice choices[] = {
-            { "none", 0 },
-            { "simple", 1 },
-            { "smart", 2 },
-            { "false", 0 },
-            { "true", 1 },
-        };
-        if (parseChoice(setting.value, choices, &value)) {
-            if (setting.key == QStringLiteral("gfx_center_horizontal")) {
-                prefs->gfx_xcenter = value;
-            } else {
-                prefs->gfx_ycenter = value;
-            }
         }
         return ApplySettingResult::Handled;
     }
@@ -956,7 +415,7 @@ bool applyWinUaeQtConfigToPrefs(const WinUaeQtConfig &config, struct uae_prefs *
 
     const WinUaeQtConfig::Settings &settings = config.settings();
     for (const WinUaeQtConfig::Setting &setting : config.orderedSettings()) {
-        if (applyTypedSetting(settings, setting, prefs) == ApplySettingResult::Handled) {
+        if (applyLauncherSetting(settings, setting, prefs) == ApplySettingResult::Handled) {
             continue;
         }
         parseSettingOption(prefs, setting.key, setting.value);
