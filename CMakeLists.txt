@@ -2102,6 +2102,7 @@ set(WINUAE_CORE_SOURCES
     cdtv.cpp
     cdtvcr.cpp
     cfgfile.cpp
+    include/hardfile_defaults.h
     include/cfgfile_mount.h
     cia.cpp
     consolehook.cpp

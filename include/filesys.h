@@ -130,6 +130,7 @@ extern int hdf_open (struct hardfiledata *hfd);
 extern int hdf_open (struct hardfiledata *hfd, const TCHAR *altname);
 extern int hdf_dup (struct hardfiledata *dhfd, const struct hardfiledata *shfd);
 extern void hdf_close (struct hardfiledata *hfd);
+extern bool hdf_probe_rdb(struct uaedev_config_info *ci);
 extern int hdf_read_rdb (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error);
 extern int hdf_read(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error);
 extern int hdf_write(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config.h"
+#include "include/hardfile_defaults.h"
 
 #include <QStringList>
 #include <QVector>
@@ -129,6 +130,16 @@ enum {
     WINUAE_QT_ROM_KIND_CARTRIDGE = 2, // freezer/cartridge
 };
 
+struct WinUaeQtHardfileInfo {
+    explicit WinUaeQtHardfileInfo(bool rdbMode = false) : rdb(rdbMode)
+    {
+        hardfile_geometry_defaults(this, rdbMode);
+    }
+    int sectors, surfaces, reserved, blocksize;
+    bool rdb;
+    QString controller = QStringLiteral("uae0");
+};
+
 struct WinUaeQtHardwareInfoProvider {
     void *context = nullptr;
     QStringList driveSoundSets;
@@ -145,6 +156,7 @@ struct WinUaeQtHardwareInfoProvider {
         bool ntsc, int floppies, WinUaeQtConfig *preset) = nullptr;
     bool (*chipsetPreset)(void *context, const WinUaeQtConfig::Settings &settings,
         const QString &compatible, WinUaeQtConfig *preset) = nullptr;
+    void (*hardfileInfo)(void *context, const QString &path, WinUaeQtHardfileInfo *info) = nullptr;
     bool (*applyConfig)(void *context, const WinUaeQtConfig &config) = nullptr;
     QVector<WinUaeQtHardwareBoard> (*boards)(void *context) = nullptr;
     bool (*customOrder)(void *context) = nullptr;

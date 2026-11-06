@@ -14437,6 +14437,22 @@ private:
         }
     }
 
+    WinUaeQtMountEntry newHardfileMountEntry(const QString &path) const
+    {
+        WinUaeQtHardfileInfo info;
+        if (hardwareProvider.hardfileInfo) {
+            hardwareProvider.hardfileInfo(hardwareProvider.context, path, &info);
+        }
+        WinUaeQtMountEntry entry;
+        entry.kind = QStringLiteral("hdf");
+        entry.device = info.rdb ? QString() : nextMountDeviceName();
+        entry.path = path;
+        entry.hardfileGeometry = QStringLiteral("%1,%2,%3,%4")
+            .arg(info.sectors).arg(info.surfaces).arg(info.reserved).arg(info.blocksize);
+        entry.hardfileTail = QLatin1Char(',') + info.controller;
+        return entry;
+    }
+
     void addHardfileMountDialog()
     {
         const QString path = getOpenFileNamePreservingSymlinks(this, QStringLiteral("Add hardfile"), fileDialogInitialPath(QString()), hardfileImageFilter());
@@ -14444,14 +14460,7 @@ private:
             return;
         }
 
-        WinUaeQtMountEntry entry;
-        entry.kind = QStringLiteral("hdf");
-        entry.device = nextMountDeviceName();
-        entry.path = path;
-        entry.hardfileGeometry = QStringLiteral("32,1,2,512");
-        entry.hardfileTail = QStringLiteral(",uae0");
-        entry.readOnly = false;
-        entry.bootPri = 0;
+        WinUaeQtMountEntry entry = newHardfileMountEntry(path);
         if (showHardfileMountDialog(&entry, QStringLiteral("Hardfile Properties"))) {
             addMountEntry(entry);
         }
@@ -15203,19 +15212,17 @@ private:
         connect(rdbMode, &QCheckBox::toggled, this,
             [sectors, surfaces, reserved, blockSize, device, filesys,
              bootPri, updateControllerBackedRdbControls](bool checked) {
+            const WinUaeQtHardfileInfo defaults(checked);
+            if (checked || (sectors->value() == 0 && surfaces->value() == 0 && reserved->value() == 0)) {
+                sectors->setValue(defaults.sectors);
+                surfaces->setValue(defaults.surfaces);
+                reserved->setValue(defaults.reserved);
+                blockSize->setValue(defaults.blocksize);
+            }
             if (checked) {
-                sectors->setValue(0);
-                surfaces->setValue(0);
-                reserved->setValue(0);
-                blockSize->setValue(512);
                 device->clear();
                 filesys->clear();
                 bootPri->setValue(0);
-            } else if (sectors->value() == 0 && surfaces->value() == 0 && reserved->value() == 0) {
-                sectors->setValue(32);
-                surfaces->setValue(1);
-                reserved->setValue(2);
-                blockSize->setValue(512);
             }
             updateControllerBackedRdbControls();
         });

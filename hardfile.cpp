@@ -1253,6 +1253,59 @@ int hdf_read_rdb (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int le
 	return v;
 }
 
+// Inspect an image without changing it, using the same decoding as RDB I/O.
+bool hdf_probe_rdb(struct uaedev_config_info *ci)
+{
+	uae_u8 id[512];
+	int i;
+	struct hardfiledata hfd;
+	uae_u32 error = 0;
+
+	memset (id, 0, sizeof id);
+	memset (&hfd, 0, sizeof hfd);
+	hfd.ci.readonly = true;
+	hfd.ci.blocksize = 512;
+	bool rdb = false;
+	if (hdf_open (&hfd, ci->rootdir) > 0) {
+		for (i = 0; i < 16; i++) {
+			if (hdf_read_rdb(&hfd, id, i * 512, sizeof id, &error) != sizeof id || error) {
+				break;
+			}
+			if (!error && i == 0 && !memcmp (id + 2, "CIS", 3)) {
+				ci->controller_type = HD_CONTROLLER_TYPE_CUSTOM_FIRST;
+				ci->controller_type_unit = 0;
+				break;
+			}
+			bool babe = id[0] == 0xBA && id[1] == 0xBE && id[2] == 0x00 && id[3] == 0x00; // A2090
+			babe |= id[0] == 0x44 && id[1] == 0x4f && id[2] == 0x53 && id[3] == 0x00 && id[4] == 0xBA && id[5] == 0xBE && id[6] == 0x00 && id[7] == 0x00; // Mast FireBall
+			if (!error && (!memcmp (id, "RDSK\0\0\0", 7) || !memcmp (id, "CDSK\0\0\0", 7) || !memcmp (id, "DRKS\0\0", 6) ||
+				(id[0] == 0x53 && id[1] == 0x10 && id[2] == 0x9b && id[3] == 0x13 && id[4] == 0 && id[5] == 0) || babe)) {
+				// RDSK or ADIDE "encoded" RDSK
+				int blocksize = 512;
+				if (!babe) {
+					blocksize = (int)(((uae_u32)id[16] << 24) | (id[17] << 16) | (id[18] << 8) | id[19]);
+					if (!blocksize) {
+						blocksize = 512;
+					}
+				}
+				ci->cyls = ci->highcyl = 0;
+				ci->sectors = 0;
+				ci->surfaces = 0;
+				ci->reserved = 0;
+				ci->filesys[0] = 0;
+				ci->bootpri = 0;
+				ci->devname[0] = 0;
+				if (blocksize >= 512)
+					ci->blocksize = blocksize;
+				rdb = true;
+				break;
+			}
+		}
+		hdf_close (&hfd);
+	}
+	return rdb;
+}
+
 int hdf_read(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
 {
 	int v;
