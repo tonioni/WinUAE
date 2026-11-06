@@ -55,6 +55,7 @@
 #include "xwin.h"
 #include "keyboard.h"
 #include "inputdevice.h"
+#include "od-generic/focus.h"
 #include "drawing.h"
 #include "render.h"
 #include "picasso96_win.h"
@@ -177,7 +178,6 @@ HMODULE kerneldll;
 
 int pause_emulation;
 
-static int sound_closed;
 static int recapture;
 static int focus;
 static int mouseinside;
@@ -807,6 +807,11 @@ void setpriority (struct threadpriorities *pri)
 	}
 }
 
+void host_priority_set(int index)
+{
+	setpriority(&priorities[index]);
+}
+
 static void setcursorshape(int monid)
 {
 	if (currprefs.input_tablet && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_magic_mouse_cursor == MAGICMOUSE_NATIVE_ONLY) {
@@ -1143,12 +1148,7 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 			wait_keyrelease();
 		}
 		inputdevice_acquire(TRUE);
-		setpriority (&priorities[currprefs.win32_active_capture_priority]);
-		if (currprefs.win32_active_nocapture_pause) {
-			resumepaused(2);
-		} else if (currprefs.win32_active_nocapture_nosound && sound_closed < 0) {
-			resumesoundpaused();
-		}
+		focus_mouse_captured();
 		setmaintitle(mon->monitor_id);
 #if KBHOOK
 		if (!hhook) {
@@ -1167,12 +1167,7 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 		inputdevice_releasebuttons();
 	}
 	if (!active && allowpause) {
-		if (currprefs.win32_active_nocapture_pause) {
-			setpaused (2);
-		} else if (currprefs.win32_active_nocapture_nosound) {
-			setsoundpaused ();
-			sound_closed = -1;
-		}
+		focus_mouse_released();
 		setmaintitle(mon->monitor_id);
 	}
 #ifdef RETROPLATFORM
@@ -1194,8 +1189,6 @@ static int hotkeys[] = { VK_VOLUME_UP, VK_VOLUME_DOWN, VK_VOLUME_MUTE, -1 };
 
 static void winuae_active(struct AmigaMonitor *mon, HWND hwnd, int minimized)
 {
-	struct threadpriorities *pri;
-
 	//write_log (_T("winuae_active(%p,%d)\n"), hwnd, minimized);
 
 	monitor_off = 0;
@@ -1206,25 +1199,7 @@ static void winuae_active(struct AmigaMonitor *mon, HWND hwnd, int minimized)
 	timebegin ();
 
 	focus = mon->monitor_id + 1;
-	pri = &priorities[currprefs.win32_inactive_priority];
-	if (!minimized)
-		pri = &priorities[currprefs.win32_active_capture_priority];
-	setpriority(pri);
-
-	if (sound_closed) {
-		if (sound_closed < 0) {
-			resumesoundpaused ();
-		} else {
-			if (currprefs.win32_active_nocapture_pause) {
-				if (mouseactive)
-					resumepaused (2);
-			} else if (currprefs.win32_iconified_pause && !currprefs.win32_inactive_pause)
-				resumepaused (1);
-			else if (currprefs.win32_inactive_pause)
-				resumepaused (2);
-		}
-		sound_closed = 0;
-	}
+	focus_activated(minimized != 0, mouseactive != 0);
 #if 0
 	RegisterHotKey (mon->hAmigaWnd, IDHOT_SNAPDESKTOP, 0, VK_SNAPSHOT);
 	for (int i = 0; hotkeys[i] >= 0; i++)
@@ -1257,7 +1232,6 @@ static void winuae_active(struct AmigaMonitor *mon, HWND hwnd, int minimized)
 
 static void winuae_inactive(struct AmigaMonitor *mon, HWND hWnd, int minimized)
 {
-	struct threadpriorities *pri;
 	int wasfocus = focus;
 
 	//write_log (_T("winuae_inactive(%d)\n"), minimized);
@@ -1285,47 +1259,7 @@ static void winuae_inactive(struct AmigaMonitor *mon, HWND hWnd, int minimized)
 	wait_keyrelease ();
 	setmouseactive(mon->monitor_id, 0);
 	clipboard_active(mon->hAmigaWnd, 0);
-	pri = &priorities[currprefs.win32_inactive_priority];
-	if (!quit_program) {
-		if (minimized) {
-			pri = &priorities[currprefs.win32_iconified_priority];
-			if (currprefs.win32_iconified_pause) {
-				inputdevice_unacquire();
-				setpaused(1);
-				sound_closed = 1;
-			} else if (currprefs.win32_iconified_nosound) {
-				inputdevice_unacquire(currprefs.win32_iconified_input);
-				setsoundpaused();
-				sound_closed = -1;
-			} else {
-				inputdevice_unacquire(currprefs.win32_iconified_input);
-			}
-		} else if (mouseactive) {
-			inputdevice_unacquire();
-			if (currprefs.win32_active_nocapture_pause) {
-				setpaused (2);
-				sound_closed = 1;
-			} else if (currprefs.win32_active_nocapture_nosound) {
-				setsoundpaused ();
-				sound_closed = -1;
-			}
-		} else {
-			if (currprefs.win32_inactive_pause) {
-				inputdevice_unacquire();
-				setpaused(2);
-				sound_closed = 1;
-			} else if (currprefs.win32_inactive_nosound) {
-				inputdevice_unacquire(currprefs.win32_inactive_input);
-				setsoundpaused();
-				sound_closed = -1;
-			} else {
-				inputdevice_unacquire(currprefs.win32_inactive_input);
-			}
-		}
-	} else {
-		inputdevice_unacquire();
-	}
-	setpriority (pri);
+	focus_deactivated(minimized != 0, mouseactive != 0);
 #ifdef FILESYS
 	filesys_flush_cache ();
 #endif
@@ -1347,13 +1281,7 @@ void enablecapture(int monid)
 		return;
 	//write_log(_T("enablecapture\n"));
 	setmouseactive(monid, 1);
-	if (sound_closed < 0) {
-		resumesoundpaused();
-		sound_closed = 0;
-	}
-	if (currprefs.win32_inactive_pause || currprefs.win32_active_nocapture_pause) {
-		resumepaused(2);
-	}
+	focus_capture_enabled();
 }
 
 void disablecapture(void)
@@ -1361,13 +1289,7 @@ void disablecapture(void)
 	//write_log(_T("disablecapture\n"));
 	setmouseactive(0, 0);
 	focus = 0;
-	if (currprefs.win32_active_nocapture_pause && sound_closed == 0) {
-		setpaused (2);
-		sound_closed = 1;
-	} else if (currprefs.win32_active_nocapture_nosound && sound_closed == 0) {
-		setsoundpaused ();
-		sound_closed = -1;
-	}
+	focus_capture_disabled();
 }
 
 void gui_gameport_button_change (int port, int button, int onoff)
