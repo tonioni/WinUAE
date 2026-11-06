@@ -2078,6 +2078,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
     <ClInclude Include="..\..\include\cfgfile_mount.h" />
+    <ClInclude Include="..\..\include\cpu_selection.h" />
     <ClInclude Include="..\resources\resource.h" />
   </ItemGroup>
   <ItemGroup>
