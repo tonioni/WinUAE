@@ -27,6 +27,7 @@
 
 #include "threaddep/thread.h"
 #include "options.h"
+#include "hardfile_defaults.h"
 #include "traps.h"
 #include "uae.h"
 #include "memory.h"
@@ -888,12 +889,7 @@ static int set_filesys_volume (const TCHAR *rootdir, int *flags, bool *readonly,
 void uci_set_defaults (struct uaedev_config_info *uci, bool rdb)
 {
 	memset (uci, 0, sizeof (struct uaedev_config_info));
-	if (!rdb) {
-		uci->sectors = 32;
-		uci->reserved = 2;
-		uci->surfaces = 1;
-	}
-	uci->blocksize = 512;
+	hardfile_geometry_defaults(uci, rdb);
 	uci->maxtransfer = 0x7fffffff;
 	uci->mask = 0xffffffff;
 	uci->bufmemtype = 1;

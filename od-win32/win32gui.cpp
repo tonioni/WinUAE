@@ -14788,50 +14788,9 @@ static int archivehd;
 
 static void hardfile_testrdb (struct hfdlg_vals *hdf)
 {
-	uae_u8 id[512];
-	int i;
-	struct hardfiledata hfd;
-	uae_u32 error = 0;
-
-	memset (id, 0, sizeof id);
-	memset (&hfd, 0, sizeof hfd);
-	hfd.ci.readonly = true;
-	hfd.ci.blocksize = 512;
-	hdf->rdb = 0;
-	if (hdf_open (&hfd, hdf->ci.rootdir) > 0) {
-		for (i = 0; i < 16; i++) {
-			hdf_read_rdb (&hfd, id, i * 512, 512, &error);
-			if (!error && i == 0 && !memcmp (id + 2, "CIS", 3)) {
-				hdf->ci.controller_type = HD_CONTROLLER_TYPE_CUSTOM_FIRST;
-				hdf->ci.controller_type_unit = 0;
-				break;
-			}
-			bool babe = id[0] == 0xBA && id[1] == 0xBE && id[2] == 0x00 && id[3] == 0x00; // A2090
-			babe |= id[0] == 0x44 && id[1] == 0x4f && id[2] == 0x53 && id[3] == 0x00 && id[4] == 0xBA && id[5] == 0xBE && id[6] == 0x00 && id[7] == 0x00; // Mast FireBall
-			if (!error && (!memcmp (id, "RDSK\0\0\0", 7) || !memcmp (id, "CDSK\0\0\0", 7) || !memcmp (id, "DRKS\0\0", 6) ||
-				(id[0] == 0x53 && id[1] == 0x10 && id[2] == 0x9b && id[3] == 0x13 && id[4] == 0 && id[5] == 0) || babe)) {
-				// RDSK or ADIDE "encoded" RDSK
-				int blocksize = 512;
-				if (!babe) {
-					blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
-					if (!blocksize) {
-						blocksize = 512;
-					}
-				}
-				hdf->ci.cyls = hdf->ci.highcyl = hdf->forcedcylinders = 0;
-				hdf->ci.sectors = 0;
-				hdf->ci.surfaces = 0;
-				hdf->ci.reserved = 0;
-				hdf->ci.filesys[0] = 0;
-				hdf->ci.bootpri = 0;
-				hdf->ci.devname[0] = 0;
-				if (blocksize >= 512)
-					hdf->ci.blocksize = blocksize;
-				hdf->rdb = 1;
-				break;
-			}
-		}
-		hdf_close (&hfd);
+	hdf->rdb = hdf_probe_rdb(&hdf->ci);
+	if (hdf->rdb) {
+		hdf->forcedcylinders = 0;
 	}
 }
 

@@ -20,6 +20,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "options.h"
+#include "filesys.h"
 #include "memory.h"
 #include "autoconf.h"
 #include "rommgr.h"
@@ -696,6 +697,25 @@ static bool bridgeChipsetPreset(void *context, const WinUaeQtConfig::Settings &s
     return true;
 }
 
+static void bridgeHardfileInfo(void *, const QString &path, WinUaeQtHardfileInfo *info)
+{
+    uaedev_config_info ci;
+    uci_set_defaults(&ci, info->rdb);
+    const QByteArray filename = path.toLocal8Bit();
+    if (filename.size() >= sizeof ci.rootdir) {
+        return;
+    }
+    _tcscpy(ci.rootdir, filename.constData());
+    info->rdb = hdf_probe_rdb(&ci);
+    info->sectors = ci.sectors;
+    info->surfaces = ci.surfaces;
+    info->reserved = ci.reserved;
+    info->blocksize = ci.blocksize;
+    if (ci.controller_type == HD_CONTROLLER_TYPE_CUSTOM_FIRST) {
+        info->controller = QStringLiteral("custom0_%1").arg(bridgeText(expansionroms[0].name));
+    }
+}
+
 static QStringList bridgeDriveSoundSets()
 {
     TCHAR directory[MAX_DPATH];
@@ -718,6 +738,7 @@ static WinUaeQtHardwareInfoProvider bridgeHardwareProvider(struct uae_prefs *pre
     provider.rescanRoms = bridgeRescanRoms;
     provider.quickstartPreset = bridgeQuickstartPreset;
     provider.chipsetPreset = bridgeChipsetPreset;
+    provider.hardfileInfo = bridgeHardfileInfo;
     provider.boardCatalog = bridgeBoardCatalog;
     provider.applyConfig = bridgeApplyHardwareConfig;
     provider.boards = bridgeHardwareBoards;
