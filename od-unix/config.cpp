@@ -677,8 +677,13 @@ void target_save_options(struct zfile *f, struct uae_prefs *p)
     }
 }
 
-void target_default_options(struct uae_prefs *p, int)
+void target_default_options(struct uae_prefs *p, int type)
 {
+    // Quickstart resets hardware only, as on Windows. Keep host paths,
+    // devices and ROM-scan state while generating a machine preset.
+    if (type == 1) {
+        return;
+    }
     path_configuration[0] = 0;
     path_nvram[0] = 0;
     path_screenshot[0] = 0;
