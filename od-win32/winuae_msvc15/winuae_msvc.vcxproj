@@ -3335,6 +3335,7 @@
     <ClCompile Include="..\..\blitter.cpp" />
     <ClCompile Include="..\..\blkdev.cpp" />
     <ClCompile Include="..\..\blkdev_cdimage.cpp" />
+    <ClCompile Include="..\..\bsdsocket_results.cpp" />
     <ClCompile Include="..\..\bsdsocket.cpp" />
     <ClCompile Include="..\..\catweasel.cpp" />
     <ClCompile Include="..\..\cd32_fmv.cpp" />

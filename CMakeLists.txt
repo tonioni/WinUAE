@@ -1780,7 +1780,7 @@ endif()
 if(WINUAE_UNIX_WITH_BSDSOCKET)
     set(WINUAE_UNIX_ENABLE_BSDSOCKET ON)
     target_compile_definitions(winuae_unix_core_defs INTERFACE BSDSOCKET=1)
-    list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/bsdsock_unix.cpp)
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/bsdsock_unix.cpp bsdsocket_results.cpp)
 endif()
 
 if(WINUAE_UNIX_WITH_UAESCSI)
@@ -2351,6 +2351,18 @@ target_include_directories(winuae_unix_threading_test PRIVATE
 )
 target_link_libraries(winuae_unix_threading_test PRIVATE pthread)
 winuae_unix_register_test(winuae_unix_threading_test)
+
+add_executable(winuae_unix_socket_results_test EXCLUDE_FROM_ALL
+    bsdsocket_results.cpp
+    od-unix/bsdsocket_results_test.cpp
+)
+target_include_directories(winuae_unix_socket_results_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+target_compile_definitions(winuae_unix_socket_results_test PRIVATE BSDSOCKET=1)
+winuae_unix_register_test(winuae_unix_socket_results_test)
 
 add_executable(winuae_unix_clipboard_test EXCLUDE_FROM_ALL
     od-generic/clipboard.cpp

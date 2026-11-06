@@ -247,6 +247,9 @@
     <ClCompile Include="..\..\blkdev_cdimage.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\bsdsocket_results.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\bsdsocket.cpp">
       <Filter>common</Filter>
     </ClCompile>
