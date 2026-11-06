@@ -2167,20 +2167,34 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			_stprintf (tmp, _T("cdimage%d"), i);
 			cfgfile_to_path_save(p->cdslots[i].name, tmp2, PATH_CD);
 			if (p->cdslots[i].type != SCSI_UNIT_DEFAULT || _tcschr (p->cdslots[i].name, ',') || p->cdslots[i].delayed) {
-				//for escaping some day..
-				//TCHAR *n = cfgfile_escape(tmp2, _T(","), true, true);
-				//_tcscpy(tmp2, n);
-				//xfree(n);
-				_tcscat(tmp2, _T(","));
+				int params = 0;
+				if ((p->cdslots[i].delayed || p->cdslots[i].type != SCSI_UNIT_DEFAULT) && _tcschr(p->cdslots[i].name, ',')) {
+					// This should always escape if name has a comma
+					// but currently only escape if extra parameters are present,
+					// for backwards compatibility with old config files.
+					TCHAR *n = cfgfile_escape(tmp2, _T(","), true, true);
+					_tcscpy(tmp2, n);
+					xfree(n);
+				}
 				if (p->cdslots[i].delayed) {
+					if (!params) {
+						params = 1;
+						_tcscat(tmp2, _T(","));
+					}
 					_tcscat(tmp2, _T("delay"));
-					_tcscat(tmp2, _T(":"));
 				}
 				if (p->cdslots[i].type != SCSI_UNIT_DEFAULT) {
-					_tcscat (tmp2, cdmodes[p->cdslots[i].type + 1]);
+					if (!params) {
+						params = 1;
+						_tcscat(tmp2, _T(","));
+					} else if (params < 2) {
+						_tcscat(tmp2, _T(":"));
+						params = 2;
+					}
+					_tcscat(tmp2, cdmodes[p->cdslots[i].type + 1]);
 				}
 			}
-			cfgfile_write_str (f, tmp, tmp2);
+			cfgfile_write_str(f, tmp, tmp2);
 		}
 	}
 
