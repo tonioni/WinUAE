@@ -2206,6 +2206,7 @@ set(WINUAE_CORE_SOURCES
     softfloat/softfloat_decimal.cpp
     softfloat/softfloat_fpsp.cpp
     od-generic/clipboard.cpp
+    od-generic/focus.cpp
     od-generic/mman.cpp
     od-generic/registry_ini.cpp
     od-generic/screenshot_common.cpp
