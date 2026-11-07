@@ -17,9 +17,16 @@ Environment:
   WINUAE_DMG_CODESIGN_IDENTITY codesign identity for the final DMG.
                                Defaults to WINUAE_CODESIGN_IDENTITY when set.
   WINUAE_DMG_CODESIGN_OPTIONS  Extra options passed to codesign for the DMG.
+                               Defaults to "--timestamp".
+  WINUAE_CODESIGN_KEYCHAIN     Optional keychain passed to codesign.
   WINUAE_NOTARY_PROFILE        notarytool keychain profile. When set, submit
                                the final DMG and staple the ticket.
-  WINUAE_SKIP_NOTARIZATION=1   Do not submit/staple even if a profile is set.
+  WINUAE_NOTARY_KEY            App Store Connect API key (.p8) path; used
+                               instead of WINUAE_NOTARY_PROFILE when set,
+                               together with WINUAE_NOTARY_KEY_ID and
+                               WINUAE_NOTARY_ISSUER.
+  WINUAE_SKIP_NOTARIZATION=1   Do not submit/staple even if credentials are
+                               set.
 EOF
 }
 
@@ -236,20 +243,47 @@ hdiutil convert "${rw_dmg}" -format UDZO -imagekey zlib-level=9 -o "${final_dmg}
 dmg_codesign_identity="${WINUAE_DMG_CODESIGN_IDENTITY:-${WINUAE_CODESIGN_IDENTITY:-}}"
 if [[ -n "${dmg_codesign_identity}" && "${dmg_codesign_identity}" != "-" ]] && command -v codesign >/dev/null 2>&1; then
     dmg_codesign_args=(--force --sign "${dmg_codesign_identity}")
-    split_extra_args "${WINUAE_DMG_CODESIGN_OPTIONS:-}"
+    if [[ -n "${WINUAE_CODESIGN_KEYCHAIN:-}" ]]; then
+        dmg_codesign_args+=(--keychain "${WINUAE_CODESIGN_KEYCHAIN}")
+    fi
+    split_extra_args "${WINUAE_DMG_CODESIGN_OPTIONS:---timestamp}"
     dmg_codesign_args+=(${extra_args[@]+"${extra_args[@]}"})
     codesign "${dmg_codesign_args[@]}" "${final_dmg}"
 fi
 
 hdiutil verify "${final_dmg}" >/dev/null
 
-if [[ "${WINUAE_SKIP_NOTARIZATION:-0}" != "1" && -n "${WINUAE_NOTARY_PROFILE:-}" ]]; then
+notary_auth=()
+if [[ -n "${WINUAE_NOTARY_KEY:-}" ]]; then
+    notary_auth=(--key "${WINUAE_NOTARY_KEY}"
+        --key-id "${WINUAE_NOTARY_KEY_ID:?WINUAE_NOTARY_KEY_ID is required with WINUAE_NOTARY_KEY}"
+        --issuer "${WINUAE_NOTARY_ISSUER:?WINUAE_NOTARY_ISSUER is required with WINUAE_NOTARY_KEY}")
+elif [[ -n "${WINUAE_NOTARY_PROFILE:-}" ]]; then
+    notary_auth=(--keychain-profile "${WINUAE_NOTARY_PROFILE}")
+fi
+
+if [[ "${WINUAE_SKIP_NOTARIZATION:-0}" != "1" && ${#notary_auth[@]} -gt 0 ]]; then
     if ! command -v xcrun >/dev/null 2>&1; then
         echo "error: notarization requires xcrun/notarytool" >&2
         exit 1
     fi
-    xcrun notarytool submit "${final_dmg}" --keychain-profile "${WINUAE_NOTARY_PROFILE}" --wait
+    notary_json="${output_dir}/notarytool-submit.json"
+    xcrun notarytool submit "${final_dmg}" "${notary_auth[@]}" \
+        --wait --output-format json > "${notary_json}" || true
+    notary_id="$(plutil -extract id raw -o - "${notary_json}" 2>/dev/null || true)"
+    notary_status="$(plutil -extract status raw -o - "${notary_json}" 2>/dev/null || true)"
+    echo "notarization ${notary_id:-<no id>}: ${notary_status:-<no status>}" >&2
+    if [[ "${notary_status}" != "Accepted" ]]; then
+        cat "${notary_json}" >&2 || true
+        if [[ -n "${notary_id}" ]]; then
+            xcrun notarytool log "${notary_id}" "${notary_auth[@]}" >&2 || true
+        fi
+        echo "error: notarization failed for ${final_dmg}" >&2
+        exit 1
+    fi
     xcrun stapler staple "${final_dmg}"
+    xcrun stapler validate "${final_dmg}"
+    spctl --assess --type open --context context:primary-signature --verbose=2 "${final_dmg}" >&2
 fi
 
 "${script_dir}/macos-verify-dmg.sh" "${final_dmg}" >/dev/null
