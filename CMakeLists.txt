@@ -2226,6 +2226,7 @@ set(WINUAE_CORE_SOURCES
     od-generic/rtg_scaler.cpp
     od-generic/display_modes.cpp
     od-generic/mman.cpp
+    od-generic/sound_common.cpp
     od-generic/registry_ini.cpp
     od-generic/avsync.cpp
     od-generic/screenshot_common.cpp
@@ -2380,6 +2381,18 @@ target_include_directories(winuae_unix_socket_results_test PRIVATE
 )
 target_compile_definitions(winuae_unix_socket_results_test PRIVATE BSDSOCKET=1)
 winuae_unix_register_test(winuae_unix_socket_results_test)
+
+add_executable(winuae_unix_sound_common_test EXCLUDE_FROM_ALL
+    od-generic/sound_common.cpp
+    od-generic/sound_common_test.cpp
+)
+target_compile_definitions(winuae_unix_sound_common_test PRIVATE AVIOUTPUT=1)
+target_include_directories(winuae_unix_sound_common_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_sound_common_test)
 
 add_executable(winuae_unix_threading_test EXCLUDE_FROM_ALL
     od-unix/threading.cpp
