@@ -276,11 +276,8 @@ int readser(int *buffer)
 	}
 }
 
-static void flush_serial_output(void);
-
 int readseravail(bool *breakcond)
 {
-	flush_serial_output();
 	if (breakcond) {
 		*breakcond = false;
 	}
@@ -339,6 +336,11 @@ static void flush_serial_output(void)
 			return;
 		}
 	}
+}
+
+void host_serial_hsync(void)
+{
+	flush_serial_output();
 }
 
 void writeser_flush(void)

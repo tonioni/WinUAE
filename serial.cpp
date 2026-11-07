@@ -698,10 +698,7 @@ static void serdatcopy(void)
 
 void serial_hsynchandler (void)
 {
-#ifdef AHI
-	extern void hsyncstuff(void);
-	hsyncstuff();
-#endif
+	host_serial_hsync();
 	bool can = canreceive();
 
 #ifdef ARCADIA

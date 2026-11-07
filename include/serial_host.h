@@ -27,6 +27,8 @@ void closeser(void);
 int checkserwrite(int spaceneeded);
 void serialuartbreak(int enabled);
 
+void host_serial_hsync(void);
+
 void serial_map_deactivate(void);
 
 bool host_serial_map_available(void);

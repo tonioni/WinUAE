@@ -366,3 +366,10 @@ bool host_serial_map_available(void)
 {
 	return sermap_data != NULL;
 }
+
+void host_serial_hsync(void)
+{
+#ifdef AHI
+	hsyncstuff();
+#endif
+}
