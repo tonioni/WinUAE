@@ -716,10 +716,10 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\od-generic\hostcfg.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\od-generic\hostcfg_compat.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\od-generic\mman.cpp">
       <Filter>common</Filter>
@@ -2094,12 +2094,13 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\include\serial_host.h">
+      <Filter>common</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\include\hostcfg.h">
-      <Filter>Header Files</Filter>
+      <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\..\od-generic\hostcfg.def">
-      <Filter>Header Files</Filter>
-    <ClInclude Include="..\..\include\serial_host.h">
       <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
