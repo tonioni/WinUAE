@@ -703,6 +703,12 @@
     <ClCompile Include="..\..\od-generic\uaenet.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\hostcfg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\od-generic\hostcfg_compat.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\od-generic\mman.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -2076,6 +2082,12 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\include\hostcfg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\od-generic\hostcfg.def">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
     <ClInclude Include="..\..\include\cfgfile_mount.h" />
     <ClInclude Include="..\..\include\cpu_selection.h" />

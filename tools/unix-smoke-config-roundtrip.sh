@@ -251,6 +251,47 @@ if [ "$(config_value unix.rtg_vblank "$output")" != "50" ] ||
     exit 1
 fi
 
+# Portable settings use the same table in the core and launcher. Later
+# host-prefix aliases win, while foreign device selection stays untouched.
+cat > "$WORK/portable-host.uae" <<EOF
+config_description=Portable host settings
+win32.recording_width=320
+unix.recording_width=640
+unix.recording_height=200
+win32.recording_height=480
+win32.screenshot_mult_width=3x
+win32.screenshot_mult_height=2x
+unix.active_priority=1
+win32.active_priority=-1
+win32.inactive_priority=0
+win32.iconified_priority=-2
+win32.inactive_input=4
+win32.iconified_input=0
+win32.middle_mouse=true
+win32.cpu_idle=150
+win32.midiout_device_name=Foreign MIDI port
+win32.serial_port=COM7
+EOF
+run_case portable-host "$WORK/portable-host.uae" \
+    "win32.recording_width unix.recording_width unix.recording_height win32.recording_height win32.screenshot_mult_width win32.screenshot_mult_height win32.cpu_idle win32.midiout_device_name win32.serial_port"
+output="$WORK/portable-host-out.uae"
+for expected in active_priority=-1 inactive_priority=0 iconified_priority=-2 \
+    inactive_input=4 iconified_input=0 middle_mouse=true; do
+    key=${expected%%=*}
+    value=${expected#*=}
+    if [ "$(config_value "unix.$key" "$output")" != "$value" ]; then
+        echo "FAIL: portable-host: unix.$key did not retain $value" >&2
+        exit 1
+    fi
+done
+
+if ! awk '/^win32.active_priority=/{foreign=NR}
+    /^unix.active_priority=/{native=NR}
+    END{exit !(native > foreign)}' "$output"; then
+    echo "FAIL: portable-host: native edits must follow foreign aliases" >&2
+    exit 1
+fi
+
 # Parsing flags must free the original allocation, not the cursor advanced
 # by the integer parser. This configuration used to abort before Qt opened.
 cat > "$WORK/mount-flags.uae" <<EOF
