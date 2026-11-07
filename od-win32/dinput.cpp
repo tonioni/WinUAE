@@ -1548,6 +1548,7 @@ static bool initialize_rawinput (void)
 	TCHAR *bufp, *buf1, *buf2;
 	int rmouse = 0, rkb = 0, rhid = 0;
 	TCHAR tmp[100];
+	bool rdp_bug = false;
 
 	bufsize = 10000 * sizeof (TCHAR);
 	bufp = xmalloc (TCHAR, 2 * bufsize / sizeof (TCHAR));
@@ -1603,14 +1604,21 @@ static bool initialize_rawinput (void)
 
 		if (raw_handles < MAX_RAW_HANDLES)
 			rawinputhandles[raw_handles++] = h;
-		if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, NULL, &vtmp) == 1)
+		if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, NULL, &vtmp) == 1) {
+			write_log(_T("%d: %d %p RIDI_DEVICENAME (1) failed %08x\n"), rawcnt, type, h, GetLastError());
 			continue;
-		if (vtmp >= bufsize)
+		}
+		if (vtmp >= bufsize) {
+			write_log(_T("%d: %d %p RIDI_DEVICENAME (1) buffer too small %d >= %d\n"), rawcnt, type, h, vtmp, bufsize);
 			continue;
-		if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf1, &vtmp) == -1)
+		}
+		if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf1, &vtmp) == -1) {
 			continue;
-		if (rdpdevice (buf1))
+		}
+		if (rdpdevice (buf1)) {
+			write_log(_T("%d: %d %p RIDI_DEVICENAME (1) is RDP device ('%s'), skipping\n"), rawcnt, type, h, buf1);
 			continue;
+		}
 		if (type == RIM_TYPEMOUSE)
 			rnum_mouse++;
 		else if (type == RIM_TYPEKEYBOARD)
@@ -1660,15 +1668,22 @@ static bool initialize_rawinput (void)
 				continue;
 
 			if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, NULL, &vtmp) == -1) {
-				write_log (_T("%p RIDI_DEVICENAME failed %08x\n"), h, GetLastError());
+				write_log (_T("%d: %d %p RIDI_DEVICENAME (2) failed %08x\n"), rawcnt, type, h, GetLastError());
 				continue;
 			}
 			if (vtmp >= bufsize) {
-				write_log (_T("%p RIDI_DEVICENAME too big %d\n"), h, vtmp);
+				write_log (_T("%d: %d %p RIDI_DEVICENAME (2) too big %d >= %d\n"), rawcnt, type, h, vtmp, bufsize);
 				continue;
 			}
 			if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf1, &vtmp) == -1) {
-				write_log (_T("%p RIDI_DEVICENAME %d failed %08x\n"), h, vtmp, GetLastError());
+				DWORD err = GetLastError();
+				write_log (_T("%d: %d %p RIDI_DEVICENAME (2) %d failed %08x\n"), rawcnt, type, h, vtmp, err);
+				if (vtmp == 1 && type == RIM_TYPEMOUSE && err == ERROR_INVALID_HANDLE) {
+					// Strange bug where RIDI_DEVICENAME with NULL does not return error and returns buffer size = 1.
+					// But following RIDI_DEVICENAME with buffer returns ERROR_INVALID_HANDLE.
+					// Seems to only happen when using RDP.
+					rdp_bug = true;
+				}
 				continue;
 			}
 
@@ -1676,19 +1691,19 @@ static bool initialize_rawinput (void)
 			memset (rdi, 0, sizeof (RID_DEVICE_INFO));
 			rdi->cbSize = sizeof (RID_DEVICE_INFO);
 			if (GetRawInputDeviceInfo (h, RIDI_DEVICEINFO, NULL, &vtmp) == -1) {
-				write_log (_T("%p RIDI_DEVICEINFO failed %08x\n"), h, GetLastError());
+				write_log (_T("%d: %d %p RIDI_DEVICEINFO (3) failed %08x\n"), rawcnt, type, h, GetLastError());
 				continue;
 			}
 			if (vtmp >= bufsize) {
-				write_log (_T("%p RIDI_DEVICEINFO too big %d\n"), h, vtmp);
+				write_log (_T("%d: %d %p RIDI_DEVICEINFO (3) too big %d >= %d\n"), rawcnt, type, h, vtmp, bufsize);
 				continue;
 			}
 			if (GetRawInputDeviceInfo (h, RIDI_DEVICEINFO, buf2, &vtmp) == -1) {
-				write_log (_T("%p RIDI_DEVICEINFO %d failed %08x\n"), h, vtmp, GetLastError());
+				write_log (_T("%d: %d %p RIDI_DEVICEINFO (3) %d failed %08x\n"), rawcnt, type, h, vtmp, GetLastError());
 				continue;
 			}
 
-			write_log (_T("%p %d %04X/%04X (%d/%d)\n"), h, type, rdi->hid.dwVendorId, rdi->hid.dwProductId, rdi->hid.usUsage, rdi->hid.usUsagePage);
+			write_log (_T("%d: %d %p %04X/%04X (%d/%d)\n"), rawcnt, type, h, rdi->hid.dwVendorId, rdi->hid.dwProductId, rdi->hid.usUsage, rdi->hid.usUsagePage);
 
 			if (type == RIM_TYPEMOUSE) {
 				if (rdpdevice (buf1))
@@ -2043,6 +2058,12 @@ static bool initialize_rawinput (void)
 		sortobjects (&di_mouse[i]);
 	for (int i = 0; i < num_joystick; i++)
 		sortobjects (&di_joystick[i]);
+
+	if (rdp_bug && rnum_kb == 0 && !(no_rawinput & 1)) {
+		// if rdp_bug and no keyboards found: disable rawinput keyboard and use directinput to read keyboard.
+		no_rawinput |= 1;
+		write_log(_T("RDP RAWINPUT bug detected, disabling RAWINPUT keyboard support. Using DirectInput to read keyboard.\n"));
+	}
 
 	return 1;
 
