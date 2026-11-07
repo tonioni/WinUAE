@@ -4141,7 +4141,7 @@ static struct ConfigStruct *CreateConfigStore (struct ConfigStruct *oldconfig, i
 static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *config, TCHAR *newpath)
 {
 	TCHAR name[MAX_DPATH], desc[MAX_DPATH];
-	TCHAR path[MAX_DPATH];
+	TCHAR path[MAX_DPATH], oldcn[MAX_DPATH];
 	static TCHAR full_path[MAX_DPATH];
 	int ok = 1;
 	bool absolutepath = false;
@@ -4149,6 +4149,7 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 	full_path[0] = 0;
 	name[0] = 0;
 	desc[0] = 0;
+	_tcscpy(oldcn, config_filename);
 	config_pathfilename[0] = 0;
 	GetDlgItemText (hDlg, IDC_EDITNAME, name, MAX_DPATH);
 	if ((name[0] == '\\' && name[1] == '\\') || (_istalpha(name[0]) && name[1] == ':'))
@@ -4230,7 +4231,7 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 				TCHAR szMessage[MAX_DPATH];
 				WIN32GUI_LoadUIString(IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
 				pre_gui_message(szMessage);
-				config_filename[0] = 0;
+				_tcscpy(config_filename, oldcn);
 				ok = 0;
 			}
 		}
@@ -6334,8 +6335,12 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 		{
 			case IDC_CONFIGSEARCH:
 			{
+				TCHAR s[MAX_PATH];
+				_tcscpy(s, config_search);
 				GetDlgItemText(hDlg, IDC_CONFIGSEARCH, config_search, MAX_DPATH);
-				config = refreshconfiglist(hDlg, config);
+				if (_tcscmp(s, config_search)) {
+					config = refreshconfiglist(hDlg, config);
+				}
 				break;
 			}
 		}
@@ -23106,10 +23111,23 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			break;
 		case ZFILE_CONFIGURATION:
 			if (target_cfgfile_load (&workprefs, file, CONFIG_TYPE_DEFAULT, 0)) {
+				if (currentpage == LOADSAVE_ID) {
+					TCHAR *p = _tcsrchr(file, '\\');
+					if (!p) {
+						p = _tcsrchr(file, '/');
+					}
+					SetDlgItemText(panelDlg, IDC_EDITDESCRIPTION, workprefs.description);
+					SetDlgItemText(panelDlg, IDC_EDITNAME, p ? p + 1 : file);
+					_tcscpy(config_filename, p ? p + 1 : file);
+					setguititle(hDlg);
+				}
 				if (full_property_sheet) {
 					inputdevice_updateconfig (NULL, &workprefs);
-					if (!workprefs.start_gui)
+					if (workprefs.start_gui) {
 						ret = 1;
+					} else {
+						ret = -1;
+					}
 				} else {
 					uae_restart(&workprefs, workprefs.start_gui, file);
 					ret = 1;
@@ -23477,9 +23495,15 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		addnotifications (hDlg, FALSE, TRUE);
 		return TRUE;
 	case WM_DROPFILES:
-		if (dragdrop (hDlg, (HDROP)wParam, (gui_active || full_property_sheet) ? &workprefs : &changed_prefs, currentpage))
-			SendMessage (hDlg, WM_COMMAND, IDOK, 0);
-		updatePanel (currentpage, 0);
+		{
+			int update = dragdrop (hDlg, (HDROP)wParam, (gui_active || full_property_sheet) ? &workprefs : &changed_prefs, currentpage);
+			if (update > 0) {
+				SendMessage (hDlg, WM_COMMAND, IDOK, 0);
+			}
+			if (update >= 0) {
+				updatePanel (currentpage, 0);
+			}
+		}
 		return FALSE;
 	case WM_NOTIFY:
 		{
