@@ -3,6 +3,7 @@
 
 #include "audio.h"
 #include "avioutput.h"
+#include "od-generic/avsync.h"
 #include "custom.h"
 #include "fsdb.h"
 #include "options.h"
@@ -41,6 +42,8 @@ static int aviout_monid;
 static int avioutput_fps = VBLANK_HZ_PAL;
 static bool avi_header_written;
 static bool avi_failed;
+static avi_audio_clock audio_clock;
+static std::vector<uae_s16> pending_audio;
 
 int avioutput_audio, avioutput_video, avioutput_enabled, avioutput_requested;
 int avioutput_width, avioutput_height, avioutput_bits;
@@ -284,10 +287,10 @@ static void write_stream_header(FILE *f, const char type[4], const char handler[
     put_u32(f, suggested_size);
     put_u32(f, 0xffffffffu);
     put_u32(f, sample_size);
-    put_u32(f, 0);
-    put_u32(f, 0);
-    put_u32(f, width);
-    put_u32(f, height);
+    put_u16(f, 0);
+    put_u16(f, 0);
+    put_u16(f, (uae_u16)width);
+    put_u16(f, (uae_u16)height);
 }
 
 static bool start_avi_if_needed(int width, int height, int frame_size)
@@ -313,6 +316,10 @@ static bool start_avi_if_needed(int width, int height, int frame_size)
         return false;
     }
 
+    avioutput_fps = (int)(vblank_hz + 0.5f);
+    if (avioutput_fps <= 0)
+        avioutput_fps = ispal(NULL) ? 50 : 60;
+    audio_clock = avi_audio_clock{};
     avi_index.clear();
     avi_frame_count = 0;
     avi_audio_bytes = 0;
@@ -360,6 +367,7 @@ static bool start_avi_if_needed(int width, int height, int frame_size)
         &video_length_pos, frame_size, 0, width, height);
     put_fourcc(avi_file, "strf");
     put_u32(avi_file, 40);
+    put_u32(avi_file, 40); // BITMAPINFOHEADER size
     put_u32(avi_file, width);
     put_u32(avi_file, height);
     put_u16(avi_file, 1);
@@ -410,7 +418,7 @@ static bool start_avi_if_needed(int width, int height, int frame_size)
 
 static bool write_avi_chunk(const char id[4], const uae_u8 *data, size_t size, uae_u32 flags)
 {
-    if (!avi_file || !data) {
+    if (!avi_file || (!data && size)) {
         return false;
     }
 
@@ -548,11 +556,17 @@ void AVIOutput_End(void)
     avioutput_enabled = 0;
     avioutput_requested = 0;
     avi_failed = false;
+    pending_audio.clear();
+    audio_clock = avi_audio_clock{};
     video_recording_active &= ~1;
 }
 
 void AVIOutput_Begin(bool)
 {
+    if (!avioutput_requested) {
+        pending_audio.clear();
+        audio_clock = avi_audio_clock{};
+    }
     if (!avioutput_audio && !avioutput_video) {
         avioutput_video = 1;
     }
@@ -610,7 +624,16 @@ bool AVIOutput_WriteAudio(uae_u8 *sndbuffer, int sndbufsize)
         return true;
     }
 
-    if (!avioutput_video && !avi_file) {
+    if (avioutput_video) {
+        int stride = unix_avi_channels() * (int)sizeof(uae_s16);
+        if (sndbufsize % stride)
+            return false;
+        size_t start = pending_audio.size();
+        pending_audio.resize(start + sndbufsize / sizeof(uae_s16));
+        memcpy(pending_audio.data() + start, sndbuffer, sndbufsize);
+        return true;
+    }
+    if (!avi_file) {
         start_avi_if_needed(1, 1, 4);
     }
     if (!avi_file || !avi_header_written) {
@@ -645,6 +668,25 @@ bool frame_drawn(int monid)
     start_if_requested(monid, width, height, (int)frame.size());
     if (!avi_file || !avi_header_written || monid != aviout_monid) {
         return false;
+    }
+    if (avioutput_audio == AVIAUDIO_AVI) {
+        finish_sound_buffer();
+        int channels = unix_avi_channels();
+        int count = avi_audio_samples(&audio_clock, unix_avi_sample_rate(), avioutput_fps);
+        if (count < 0) {
+            AVIOutput_End();
+            return false;
+        }
+        std::vector<uae_s16> output((size_t)count * channels);
+        if (!avi_audio_resample(pending_audio.data(), (int)(pending_audio.size() / channels),
+                output.data(), count, channels) ||
+            !write_avi_chunk("01wb", (const uae_u8 *)output.data(),
+                output.size() * sizeof(uae_s16), 0)) {
+            AVIOutput_End();
+            return false;
+        }
+        avi_audio_bytes += (uae_u32)(output.size() * sizeof(uae_s16));
+        pending_audio.clear();
     }
     if (!write_avi_chunk("00db", frame.data(), frame.size(), 0x10)) {
         AVIOutput_End();
