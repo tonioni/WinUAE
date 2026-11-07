@@ -1079,6 +1079,9 @@
     <ClCompile Include="..\..\od-generic\hostcfg.cpp" />
     <ClCompile Include="..\..\od-generic\hostcfg_compat.cpp" />
     <ClCompile Include="..\..\od-generic\mman.cpp" />
+    <ClCompile Include="..\..\od-generic\scaler.cpp" />
+    <ClCompile Include="..\..\od-generic\rtg_scaler.cpp" />
+    <ClCompile Include="..\..\od-generic\display_modes.cpp" />
     <ClCompile Include="..\..\od-generic\registry_ini.cpp" />
     <ClCompile Include="..\..\luascript.cpp" />
     <ClCompile Include="..\..\mame\a2410.cpp" />
@@ -3526,6 +3529,8 @@
     <ClInclude Include="..\..\include\cfgfile_mount.h" />
     <ClInclude Include="..\..\od-generic\blkdev_ioctl_common.h" />
     <ClInclude Include="..\..\od-generic\avsync.h" />
+    <ClInclude Include="..\..\od-generic\scaler.h" />
+    <ClInclude Include="..\..\od-generic\display_modes.h" />
     <ClInclude Include="..\..\include\cpu_selection.h" />
     <ClInclude Include="..\resources\resource.h" />
   </ItemGroup>
