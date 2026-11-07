@@ -46,6 +46,8 @@
 #include "gdb_server.h"
 #include "options.h"
 #include "hostcfg.h"
+#include "uae/dlopen.h"
+#include "target_dlopen.h"
 #include "audio.h"
 #include "sound.h"
 #include "uae.h"
@@ -7860,6 +7862,20 @@ end:
 HMODULE WIN32_LoadLibrary (const TCHAR *name)
 {
 	return WIN32_LoadLibrary_2 (name, TRUE);
+}
+
+bool target_dlopen_plugin(const TCHAR *name, TCHAR *path,
+	size_t path_size, UAE_DLHANDLE *handle)
+{
+	*handle = NULL;
+	if (_tcslen(name) + _tcslen(LT_MODULE_EXT) >= path_size)
+		return true;
+	_tcscpy(path, name);
+	_tcscat(path, LT_MODULE_EXT);
+	*handle = WIN32_LoadLibrary(path);
+	// This target owns the search, including failed loads. Do not retry
+	// through the generic loader with a different name or search path.
+	return true;
 }
 
 int isdllversion (const TCHAR *name, int version, int revision, int subver, int subrev)

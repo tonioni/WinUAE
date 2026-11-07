@@ -46,7 +46,7 @@ int disk_debug_track = -1;
 #include "driveclick.h"
 #endif
 #ifdef CAPS
-#include "od-win32/caps/caps_win32.h"
+#include "uae/caps.h"
 #endif
 #ifdef SCP
 #include "scp.h"

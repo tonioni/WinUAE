@@ -47,7 +47,6 @@ static long adjust_blocks (long blocks, int fromsize, int tosize)
 }
 
 #ifdef WINDOWS
-#include "od-win32/posixemu.h"
 #include <windows.h>
 int get_fs_usage (const TCHAR *path, const TCHAR *disk, struct fs_usage *fsp)
 {

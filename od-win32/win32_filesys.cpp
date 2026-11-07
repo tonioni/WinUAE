@@ -1,3 +1,16 @@
+#include "sysconfig.h"
+#include "sysdeps.h"
+
+#include <windows.h>
+#include <winioctl.h>
+
+#include "options.h"
+#include "traps.h"
+#include "memory.h"
+#include "filesys.h"
+#include "autoconf.h"
+#include "uae.h"
+
 
 
 /* Determines if this drive-letter currently has a disk inserted */
@@ -30,12 +43,7 @@ static int valid_volumename (struct uaedev_mount_info *mountinfo, const TCHAR *v
 	}
 	/* if result is still good, we've passed the illegal names check, and must check for duplicates now */
 	if(result && fullcheck) {
-		for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
-			if (mountinfo->ui[i].open && mountinfo->ui[i].volname && _tcsicmp (mountinfo->ui[i].volname, volumename) == 0) {
-				result = 0;
-				break;
-			}
-		}
+		result = !filesys_volume_name_exists(mountinfo, volumename);
 	}
 	return result;
 }
@@ -189,7 +197,7 @@ void filesys_addexternals (void)
 						continue;
 					}
 				}
-				target_get_volume_name (&mountinfo, &ci, inserted, true, cnt++);
+				target_get_volume_name (NULL, &ci, inserted, true, cnt++);
 				if (!ci.volname[0])
 					_stprintf (ci.volname, _T("WinUNK_%c"), drive);
 			}
@@ -206,7 +214,7 @@ void filesys_addexternals (void)
 			ci.readonly = !rw;
 			ci.bootpri = -20 - drvnum;
 			//write_log (_T("Drive type %d: '%s' '%s'\n"), drivetype, volumepath, volumename);
-			add_filesys_unit (&ci, true);
+			filesys_add_external_unit (&ci);
 			drvnum++;
 		} /* if drivemask */
 		dwDriveMask >>= 1;

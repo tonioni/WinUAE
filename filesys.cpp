@@ -1163,6 +1163,25 @@ static int add_filesys_unit (struct uaedev_config_info *ci, bool custom)
 	return nr;
 }
 
+// Host drive discovery must not depend on the private mount table layout.
+int filesys_add_external_unit(struct uaedev_config_info *ci)
+{
+	return add_filesys_unit(ci, true);
+}
+
+bool filesys_volume_name_exists(const struct uaedev_mount_info *mtinf,
+	const TCHAR *name)
+{
+	if (!mtinf)
+		mtinf = &mountinfo;
+	for (int i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+		const UnitInfo *ui = &mtinf->ui[i];
+		if (ui->open && ui->volname && _tcsicmp(ui->volname, name) == 0)
+			return true;
+	}
+	return false;
+}
+
 int kill_filesys_unitconfig (struct uae_prefs *p, int nr)
 {
 	struct uaedev_config_data *uci;
@@ -9620,9 +9639,6 @@ void filesys_install_code (void)
 
 }
 
-#ifdef _WIN32
-#include "od-win32/win32_filesys.cpp"
-#endif
 
 static uae_u8 *restore_filesys_hardfile (UnitInfo *ui, uae_u8 *src)
 {

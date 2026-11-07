@@ -21,11 +21,7 @@
 #include "execlib.h"
 #include "native2amiga.h"
 #include "sana2.h"
-#if defined(_WIN32) && defined(WITH_UAENET_PCAP)
-#include "win32_uaenet.h"
-#else
 #include "ethernet.h"
-#endif
 #include "execio.h"
 #include "debug.h"
 #include "devices.h"
