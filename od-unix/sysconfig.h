@@ -256,4 +256,6 @@ static inline long uae_unix_timezone_offset(void)
 
 #define DRIVE_CDROM 5
 
+#define TARGET_HAS_CUSTOM_FSDB 1
+
 #endif /* WINUAE_OD_UNIX_SYSCONFIG_H */

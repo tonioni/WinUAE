@@ -25,6 +25,15 @@ This is an early macOS/Linux port of the WinUAE source tree. The current Unix bu
 - Full UI parity with the Windows configuration dialogs and platform packaging are still incomplete.
 - If SDL3 is not found, CMake currently builds a headless/null-video target.
 
+## Directory drives
+
+Directory drives use Amiberry-compatible `.uaem` sidecars for Amiga
+protection bits, comments and timestamps. Host names use UTF-8 and `%XX`
+escaping: for example, the Amiga name `Foo\Bar` is stored as `Foo%5cBar`,
+and a literal percent sign is stored as `%25`. Sidecars follow files when
+they are renamed or deleted. Existing `_UAEFSDB.___` name and metadata
+entries remain readable alongside sidecars.
+
 ## Requirements
 
 - CMake 3.20 or newer

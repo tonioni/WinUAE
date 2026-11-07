@@ -2152,7 +2152,7 @@ set(WINUAE_CORE_SOURCES
     fpp_softfloat.cpp
     framebufferboards.cpp
     fsdb.cpp
-    fsdb_unix.cpp
+    od-generic/fsdb_posix.cpp
     gayle.cpp
     gdb_monitor.cpp
     gdb_protocol.cpp
@@ -2320,6 +2320,17 @@ if(WINUAE_UNIX_BUILD_EXECUTABLE)
             winuae_unix_smoke_config_roundtrip
     )
 endif()
+
+add_executable(winuae_unix_fsdb_posix_test EXCLUDE_FROM_ALL
+    od-generic/fsdb_posix.cpp
+    od-generic/fsdb_posix_test.cpp
+)
+target_include_directories(winuae_unix_fsdb_posix_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_fsdb_posix_test)
 
 add_executable(winuae_unix_path_expand_test EXCLUDE_FROM_ALL
     od-unix/path_expand.cpp
