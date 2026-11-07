@@ -17,3 +17,14 @@
 #define NO_MAIN_IN_MAIN_C
 
 #define OPTIONSFILENAME _T("default.uae")
+
+// Implemented by the Windows backend instead of the generic defaults.
+#define TARGET_HAS_MACHDEP_FREE
+#define TARGET_HAS_AUDIO_PULL
+#define TARGET_HAS_STATUSLINE_UPDATED
+#define TARGET_HAS_CUSTOM_FSDB
+#define TARGET_HAS_EXTERNAL_FILESYSTEM
+#define TARGET_HAS_KEYFILE
+#define TARGET_HAS_CPU_RATE
+#define TARGET_HAS_TOUCH_LIGHTPEN
+#define TARGET_HAS_DEBUG_INFO

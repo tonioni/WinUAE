@@ -1070,7 +1070,7 @@ endif()
 
 if(WINUAE_UNIX_WITH_ARCHIVES)
     target_compile_definitions(winuae_unix_core_defs INTERFACE
-        WINUAE_UNIX_WITH_ARCHIVES=1
+        WITH_ARCHIVES=1
         A_ZIP=1
         A_7Z=1
         A_LHA=1
@@ -1079,7 +1079,6 @@ if(WINUAE_UNIX_WITH_ARCHIVES)
         A_WRP=1
     )
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES
-        zfile_archive.cpp
         archivers/zip/ioapi.cpp
         archivers/zip/unzip.cpp
         archivers/zip/zip.cpp
@@ -2205,12 +2204,14 @@ set(WINUAE_CORE_SOURCES
     vm.cpp
     writelog.cpp
     zfile.cpp
+    zfile_archive.cpp
     archivers/mp2/kjmp2.cpp
     softfloat/softfloat.cpp
     softfloat/softfloat_decimal.cpp
     softfloat/softfloat_fpsp.cpp
     od-generic/clipboard.cpp
     od-generic/focus.cpp
+    od-generic/target_defaults.cpp
     od-generic/hostcfg.cpp
     od-generic/hostcfg_compat.cpp
     od-generic/mman.cpp

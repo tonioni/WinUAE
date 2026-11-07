@@ -32,13 +32,7 @@
 #include "zfile.h"
 #include "zarchive.h"
 
-int consoleopen;
-int p96syncrate = 312;
-int p96refresh_active;
-int max_uae_width = 8192;
-int max_uae_height = 8192;
 
-void machdep_free(void) {}
 #ifndef WINUAE_UNIX_WITH_VIDEOGRAB
 void pausevideograb(int) {}
 bool getpausevideograb(void) { return false; }
@@ -55,12 +49,6 @@ const TCHAR *unix_sampler_device_name(int) { return _T(""); }
 const TCHAR *unix_sampler_device_config_name(int) { return _T(""); }
 int unix_sampler_device_index_from_config_name(const TCHAR *) { return -1; }
 #endif
-int audio_is_pull(void) { return 0; }
-bool audio_is_pull_event(void) { return false; }
-int audio_pull_buffer(void) { return 0; }
-bool audio_finish_pull(void) { return false; }
-void save_log_open(void) {}
-void statusline_updated(int) {}
 
 #ifdef DEBUGGER
 extern void unix_gui_debugger_update_info(const TCHAR *text);
@@ -186,8 +174,6 @@ void update_debug_info(void)
 
 	unix_gui_debugger_update_info(info.c_str());
 }
-#else
-void update_debug_info(void) {}
 #endif
 
 struct netdriverdata **target_ethernet_enumerate(void)
@@ -207,55 +193,3 @@ struct netdriverdata **target_ethernet_enumerate(void)
 void ethernet_pause(int) {}
 void ethernet_reset(void) {}
 #endif
-
-#ifndef WINUAE_UNIX_WITH_ARCHIVES
-struct zvolume *archive_directory_plain(struct zfile *) { return NULL; }
-struct zvolume *archive_directory_lha(struct zfile *) { return NULL; }
-struct zvolume *archive_directory_zip(struct zfile *) { return NULL; }
-struct zvolume *archive_directory_7z(struct zfile *) { return NULL; }
-struct zfile *archive_access_7z(struct znode *) { return NULL; }
-struct zvolume *archive_directory_rar(struct zfile *) { return NULL; }
-struct zfile *archive_access_rar(struct znode *) { return NULL; }
-struct zvolume *archive_directory_lzx(struct zfile *) { return NULL; }
-struct zfile *archive_access_lzx(struct znode *) { return NULL; }
-struct zvolume *archive_directory_arcacc(struct zfile *, unsigned int) { return NULL; }
-struct zvolume *archive_directory_adf(struct znode *, struct zfile *) { return NULL; }
-struct zvolume *archive_directory_rdb(struct zfile *) { return NULL; }
-struct zvolume *archive_directory_fat(struct zfile *) { return NULL; }
-struct zvolume *archive_directory_tar(struct zfile *) { return NULL; }
-struct zfile *archive_access_select(struct znode *, struct zfile *, unsigned int, int, int *retcode, int)
-{
-    if (retcode) {
-        *retcode = 0;
-    }
-    return NULL;
-}
-void archive_access_scan(struct zfile *, zfile_callback, void *, unsigned int) {}
-void archive_access_close(void *, unsigned int) {}
-struct zfile *archive_unpackzfile(struct zfile *zf) { return zf; }
-struct zfile *archive_access_lha(struct znode *) { return NULL; }
-struct zfile *archive_getzfile(struct znode *, unsigned int, int) { return NULL; }
-int isfat(uae_u8 *) { return 0; }
-#endif
-
-a_inode *custom_fsdb_lookup_aino_aname(a_inode *, const TCHAR *) { return NULL; }
-a_inode *custom_fsdb_lookup_aino_nname(a_inode *, const TCHAR *) { return NULL; }
-int custom_fsdb_used_as_nname(a_inode *, const TCHAR *) { return 0; }
-
-void filesys_addexternals(void) {}
-int target_get_volume_name(struct uaedev_mount_info *, struct uaedev_config_info *, bool, bool, int) { return 0; }
-uae_u8 *target_load_keyfile(struct uae_prefs *, const TCHAR *, int *size, TCHAR *)
-{
-    if (size) {
-        *size = 0;
-    }
-    return NULL;
-}
-uae_u32 emulib_target_getcpurate(uae_u32, uae_u32 *low)
-{
-    if (low) {
-        *low = 0;
-    }
-    return 0;
-}
-int is_touch_lightpen(void) { return 0; }

@@ -22,7 +22,7 @@ int always_flush_log;
 TCHAR *conlogfile;
 FILE *debugfile;
 
-extern int consoleopen;
+int consoleopen;
 extern int unix_gui_debugger_get_input(TCHAR *out, int maxlen);
 extern void unix_gui_debugger_write(const TCHAR *text);
 extern void unix_gui_debugger_close(void);

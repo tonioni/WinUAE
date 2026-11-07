@@ -35,7 +35,10 @@
 #include <vector>
 
 extern int pause_emulation;
-extern int p96syncrate;
+int p96syncrate = 312;
+int p96refresh_active;
+int max_uae_width = 8192;
+int max_uae_height = 8192;
 extern void picasso_trigger_vblank(void);
 extern void inputdevice_handle_inputcode(void);
 extern void unix_rtg_overlay_sprite(int monid, uae_u32 *dst, int width, int height, int rowpixels);
