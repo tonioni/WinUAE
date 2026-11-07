@@ -12,7 +12,8 @@
 #include "custom.h"
 #include "options.h"
 #include "serial.h"
-#include "serial_tx.h"
+#include "serial_helpers.h"
+#include "serial_host.h"
 #include "uae.h"
 #ifdef WITH_MIDI
 #include "midi.h"
@@ -21,35 +22,14 @@
 #include "midiemu.h"
 #endif
 
-#define SERIALDEBUG 0
-#define SERIAL_LOOPBACK _T("LOOPBACK_SERIAL")
-
-void serial_open(void);
-void serial_close(void);
-
-int serdev;
-int seriallog;
-int log_sercon;
-int doreadser;
-int serstat = -1;
-uae_u16 serper;
-uae_u16 serdat;
-
 static int serial_fd = -1;
 static int listen_fd = -1;
 static int conn_fd = -1;
 static bool tcpserial;
-static bool serloop_enabled;
-static bool serempty_enabled;
-static bool rx_full;
-static bool rx_irq;
-static bool ovrun;
-static bool dtr;
+static uae_u8 output_buffer[256];
+static int output_size;
 static bool telnet_iac;
 static int telnet_skip;
-static uae_u16 serdatr;
-static uae_u8 oldserbits;
-static uae_u8 serial_send_previous = 0xff;
 static struct termios saved_tios;
 static bool saved_tios_valid;
 
@@ -59,48 +39,6 @@ static void set_nonblock(int fd)
 	if (flags >= 0) {
 		fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 	}
-}
-
-static speed_t baud_to_speed(int baud)
-{
-	switch (baud) {
-	case 300: return B300;
-	case 1200: return B1200;
-	case 2400: return B2400;
-	case 4800: return B4800;
-	case 9600: return B9600;
-	case 19200: return B19200;
-	case 38400: return B38400;
-	case 57600: return B57600;
-	case 115200: return B115200;
-#ifdef B230400
-	case 230400: return B230400;
-#endif
-	default: return B9600;
-	}
-}
-
-static int serial_period_to_baud(uae_u16 v)
-{
-	if ((v & 0x7fff) == 0) {
-		return 0;
-	}
-	const double hz = currprefs.ntscmode ? 3579545.0 : 3546895.0;
-	const int baud = (int)(hz / (double)((v & 0x7fff) + 1) + 0.5);
-	const int standard[] = { 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400 };
-	int best = standard[0];
-	int bestdiff = abs(baud - best);
-	if (baud >= 30000 && baud <= 32500) {
-		return 31400;
-	}
-	for (int i = 1; i < (int)(sizeof standard / sizeof standard[0]); i++) {
-		int diff = abs(baud - standard[i]);
-		if (diff < bestdiff) {
-			best = standard[i];
-			bestdiff = diff;
-		}
-	}
-	return best;
 }
 
 static bool configure_serial_fd(int baud)
@@ -118,7 +56,8 @@ static bool configure_serial_fd(int baud)
 		saved_tios_valid = true;
 	}
 	cfmakeraw(&tios);
-	speed_t speed = baud_to_speed(baud > 0 ? baud : 9600);
+	speed_t speed = baud == 110 ? B110 : baud == 600 ? B600
+		: serial_baud_to_speed(baud > 0 ? baud : 9600);
 	cfsetispeed(&tios, speed);
 	cfsetospeed(&tios, speed);
 	tios.c_cflag |= CLOCAL | CREAD;
@@ -179,57 +118,12 @@ static void tcp_disconnect(void)
 	}
 }
 
-static bool parse_tcp_spec(const TCHAR *spec, std::string *host, std::string *port, bool *waitmode)
-{
-	std::string s = spec ? spec : "";
-	*waitmode = false;
-	if (s.compare(0, 2, "//") == 0) {
-		s.erase(0, 2);
-	}
-	size_t slash = s.find('/');
-	if (slash != std::string::npos) {
-		std::string opt = s.substr(slash + 1);
-		s.erase(slash);
-		if (!strcasecmp(opt.c_str(), "wait")) {
-			*waitmode = true;
-		}
-	}
-	*host = "127.0.0.1";
-	*port = "1234";
-	if (s.empty()) {
-		return true;
-	}
-	size_t colon = s.rfind(':');
-	if (colon == std::string::npos) {
-		bool digits = true;
-		for (char c : s) {
-			if (!isdigit((unsigned char)c)) {
-				digits = false;
-				break;
-			}
-		}
-		if (digits) {
-			*port = s;
-		} else {
-			*host = s;
-		}
-		return true;
-	}
-	if (colon > 0) {
-		*host = s.substr(0, colon);
-	}
-	if (colon + 1 < s.size()) {
-		*port = s.substr(colon + 1);
-	}
-	return true;
-}
-
 static int opentcp(const TCHAR *sername)
 {
 	std::string host;
 	std::string port;
 	bool waitmode = false;
-	parse_tcp_spec(sername, &host, &port, &waitmode);
+	serial_parse_tcp_spec(sername, &host, &port, &waitmode);
 
 	struct addrinfo hints;
 	memset(&hints, 0, sizeof hints);
@@ -304,6 +198,7 @@ void closeser(void)
 	close_fd(&conn_fd);
 	close_fd(&listen_fd);
 	tcpserial = false;
+	output_size = 0;
 	saved_tios_valid = false;
 }
 
@@ -416,44 +311,66 @@ int readseravail(bool *breakcond)
 	return 0;
 }
 
-void writeser_flush(void)
+static void flush_serial_output(void)
 {
-#ifdef WITH_MIDI
-	if (midi_ready) {
+	int fd = tcpserial ? (tcp_accept_pending() ? conn_fd : -1) : serial_fd;
+	if (fd < 0) {
+		output_size = 0;
 		return;
 	}
-#endif
-	if (serial_fd >= 0) {
-		tcdrain(serial_fd);
+	while (output_size > 0) {
+		ssize_t n = tcpserial ? send(fd, output_buffer, output_size, 0)
+			: write(fd, output_buffer, output_size);
+		if (n > 0) {
+			output_size -= (int)n;
+			memmove(output_buffer, output_buffer + n, output_size);
+		} else if (n < 0 && errno == EINTR) {
+			continue;
+		} else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+			return;
+		} else {
+			if (tcpserial) {
+				tcp_disconnect();
+			}
+			output_size = 0;
+			return;
+		}
 	}
+}
+
+void host_serial_hsync(void)
+{
+	flush_serial_output();
+}
+
+void writeser_flush(void)
+{
+	flush_serial_output();
 }
 
 void writeser(int c)
 {
-	unsigned char b = (unsigned char)c;
-	if (tcpserial) {
-		if (tcp_accept_pending() && send(conn_fd, &b, 1, 0) != 1) {
-			tcp_disconnect();
-		}
-		return;
-	}
+	if (!tcpserial) {
 #ifdef WITH_MIDIEMU
-	if (midi_emu) {
-		uae_u8 outchar = (uae_u8)c;
-		midi_emu_parse(&outchar, 1);
-		return;
-	}
+		if (midi_emu) {
+			uae_u8 outchar = (uae_u8)c;
+			midi_emu_parse(&outchar, 1);
+			return;
+		}
 #endif
 #ifdef WITH_MIDI
-	if (midi_ready) {
-		BYTE outchar = (BYTE)c;
-		Midi_Parse(midi_output, &outchar);
-		return;
-	}
+		if (midi_ready) {
+			BYTE outchar = (BYTE)c;
+			Midi_Parse(midi_output, &outchar);
+			return;
+		}
 #endif
-	if (serial_fd >= 0) {
-		write(serial_fd, &b, 1);
 	}
+	flush_serial_output();
+	if (output_size < (int)sizeof(output_buffer)) {
+		output_buffer[output_size++] = (uae_u8)c;
+	}
+	flush_serial_output();
 }
 
 void flushser(void)
@@ -473,11 +390,16 @@ void getserstat(int *pstatus)
 	} else if (serial_fd >= 0) {
 		ioctl(serial_fd, TIOCMGET, &status);
 	}
-	*pstatus = status;
+	*pstatus = ((status & TIOCM_CAR) ? SERIAL_HOST_CAR : 0)
+		| ((status & TIOCM_DSR) ? SERIAL_HOST_DSR : 0)
+		| ((status & TIOCM_RI) ? SERIAL_HOST_RI : 0)
+		| ((status & TIOCM_CTS) ? SERIAL_HOST_CTS : 0);
 }
 
 void setserstat(int mask, int onoff)
 {
+	mask = ((mask & SERIAL_HOST_DTR) ? TIOCM_DTR : 0)
+		| ((mask & SERIAL_HOST_RTS) ? TIOCM_RTS : 0);
 	if (serial_fd < 0) {
 		return;
 	}
@@ -526,247 +448,35 @@ int setbaud(int baud, int org_baud)
 	return configure_serial_fd(baud) ? 1 : 0;
 }
 
-static void serial_rx_irq(void)
+int checkserwrite(int spaceneeded)
 {
-	rx_full = true;
-	rx_irq = true;
-	INTREQ_INT(11, 0);
+	flush_serial_output();
+	return spaceneeded >= 0 && spaceneeded <= (int)sizeof(output_buffer) - output_size;
 }
 
-static void checkreceive_serial(void)
+void serialuartbreak(int enabled)
 {
-	if (rx_full) {
-		return;
-	}
-	int recdata;
-	if (!readseravail(NULL) || !readser(&recdata)) {
-		return;
-	}
-	if (currprefs.serial_crlf) {
-		static int previous = -1;
-		if (recdata == 0 || (previous == 13 && recdata == 10)) {
-			previous = -1;
-			return;
-		}
-		previous = recdata;
-	}
-	serdatr = (uae_u16)((recdata & 0xff) | 0x0100);
-	serial_rx_irq();
-}
-
-void SERPER(uae_u16 w)
-{
-	if (serper == w) {
-		return;
-	}
-	serper = w;
-	const int baud = serial_period_to_baud(w);
-	if (baud > 0) {
-		setbaud(baud == 31400 ? 38400 : baud, baud);
+	if (serial_fd >= 0) {
+		ioctl(serial_fd, enabled ? TIOCSBRK : TIOCCBRK);
 	}
 }
 
-uae_u16 SERDATR(void)
+bool host_serial_map_available(void)
 {
-	uae_u16 v = serdatr & 0x03ff;
-	v |= 0x2000 | 0x1000 | 0x0800;
-	if (rx_full) {
-		v |= 0x4000;
-	}
-	if (ovrun) {
-		v |= 0x8000;
-	}
-	rx_full = false;
-	if (!rx_irq) {
-		INTREQ_INT(11, 0);
-	}
-	return v;
+	return false;
 }
 
-void SERDAT(uae_u16 w)
+void host_serial_map_send(uae_u32)
 {
-	serdat = w;
-	if (!serdev) {
-		return;
-	}
-	uae_u8 encoded[2];
-	const int encoded_size = unix_serial_encode_tx(serper, w, encoded);
-	if (encoded_size == 1 && currprefs.serial_crlf
-		&& encoded[0] == 10 && serial_send_previous != 13) {
-		writeser(13);
-	}
-	for (int i = 0; i < encoded_size; i++) {
-		writeser(encoded[i]);
-	}
-	if (encoded_size == 1) {
-		serial_send_previous = encoded[0];
-	}
 }
 
-void serial_rbf_change(bool set)
+uae_u32 host_serial_map_receive(void)
 {
-	ovrun = set;
-	if (!set) {
-		rx_irq = false;
-	}
+	return 0xffffffff;
 }
 
-void serial_dtr_on(void)
+void host_serial_map_deactivate(void)
 {
-	dtr = true;
-	if (currprefs.serial_demand) {
-		serial_open();
-	}
-	setserstat(TIOCM_DTR, 1);
-}
-
-void serial_dtr_off(void)
-{
-	dtr = false;
-	setserstat(TIOCM_DTR, 0);
-	if (currprefs.serial_demand) {
-		serial_close();
-	}
-}
-
-uae_u8 serial_readstatus(uae_u8 v, uae_u8)
-{
-	int status = 0;
-	uae_u8 serbits = oldserbits;
-
-	if (serloop_enabled) {
-		status = TIOCM_DSR | TIOCM_CAR | TIOCM_CTS;
-	} else if (currprefs.use_serial) {
-		getserstat(&status);
-	} else {
-		return v;
-	}
-
-	if (currprefs.serial_rtsctsdtrdtecd) {
-		if (status & TIOCM_CAR) {
-			serbits &= ~0x20;
-		} else {
-			serbits |= 0x20;
-		}
-		if (status & TIOCM_DSR) {
-			serbits &= ~0x08;
-		} else {
-			serbits |= 0x08;
-		}
-		if (status & TIOCM_CTS) {
-			serbits &= ~0x10;
-		} else {
-			serbits |= 0x10;
-		}
-	}
-	if (currprefs.serial_ri) {
-		if (status & TIOCM_RI) {
-			serbits &= ~0x04;
-		} else {
-			serbits |= 0x04;
-		}
-	} else {
-		serbits &= ~0x04;
-		serbits |= v & 0x04;
-	}
-
-	serbits &= 0x04 | 0x08 | 0x10 | 0x20;
-	oldserbits &= ~(0x04 | 0x08 | 0x10 | 0x20);
-	oldserbits |= serbits;
-	return (v & (0x80 | 0x40 | 0x02 | 0x01)) | serbits;
-}
-
-uae_u8 serial_writestatus(uae_u8 newstate, uae_u8 dir)
-{
-	if (currprefs.use_serial) {
-		if (currprefs.serial_rtsctsdtrdtecd && ((oldserbits ^ newstate) & 0x80) && (dir & 0x80)) {
-			if (newstate & 0x80) {
-				serial_dtr_off();
-			} else {
-				serial_dtr_on();
-			}
-		}
-		if (!currprefs.serial_hwctsrts && currprefs.serial_rtsctsdtrdtecd && ((oldserbits ^ newstate) & 0x40) && (dir & 0x40)) {
-			setserstat(TIOCM_RTS, (newstate & 0x40) ? 0 : 1);
-		}
-	}
-	oldserbits &= ~(0x80 | 0x40);
-	oldserbits |= newstate & (0x80 | 0x40);
-	return oldserbits;
-}
-
-void serial_flush_buffer(void)
-{
-	writeser_flush();
-}
-
-void serial_rethink(void)
-{
-	checkreceive_serial();
-}
-
-void serial_hsynchandler(void)
-{
-	checkreceive_serial();
-}
-
-void serial_uartbreak(int v)
-{
-	if (serial_fd < 0) {
-		return;
-	}
-	if (v) {
-		tcsendbreak(serial_fd, 0);
-	}
-}
-
-void serial_open(void)
-{
-	if (serdev) {
-		return;
-	}
-	serper = 0;
-	if (!_tcsicmp(currprefs.sername, SERIAL_LOOPBACK)) {
-		serloop_enabled = true;
-	} else if (!currprefs.sername[0]) {
-		serempty_enabled = true;
-	} else if (!openser(currprefs.sername)) {
-		write_log(_T("SERIAL: Could not open device %s\n"), currprefs.sername);
-		return;
-	}
-	serdev = 1;
-	serdatr = 0x0100;
-}
-
-void serial_close(void)
-{
-	closeser();
-	serdev = 0;
-	serloop_enabled = false;
-	serempty_enabled = false;
-	rx_full = false;
-	rx_irq = false;
-	ovrun = false;
-}
-
-void serial_init(void)
-{
-	if (!currprefs.use_serial) {
-		return;
-	}
-	if (!currprefs.serial_demand) {
-		serial_open();
-	}
-	serdatr = 0x0100;
-}
-
-void serial_exit(void)
-{
-	serial_close();
-	dtr = false;
-	oldserbits = 0;
-	serdat = 0;
-	serdatr = 0x0100;
 }
 
 void enet_writeser(uae_u16)

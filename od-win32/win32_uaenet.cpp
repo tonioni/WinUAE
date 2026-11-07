@@ -7,7 +7,7 @@
 */
 
 #include <winsock2.h>
-#include <Iphlpapi.h>
+#include <iphlpapi.h>
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -16,7 +16,7 @@
 #define WPCAP
 #define PCAP_DONT_INCLUDE_PCAP_BPF_H
 #include "pcap.h"
-#include "packet32.h"
+#include "Packet32.h"
 #include "pcap/dlt.h"
 
 #include "ntddndis.h"
@@ -261,7 +261,7 @@ struct netdriverdata *uaenet_enumerate (const TCHAR *name)
 			break;
 		}
 		ss = au (d->name);
-		ss2 = d->description ? au (d->description) : _T("(no description)");
+		ss2 = au (d->description ? d->description : "(no description)");
 		write_log (_T("%s\n- %s\n"), ss, ss2);
 		xfree (ss2);
 		xfree (ss);

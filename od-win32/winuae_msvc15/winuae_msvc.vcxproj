@@ -1066,6 +1066,7 @@
     <ClCompile Include="..\..\kbmcu\m6805\m68emu.cpp" />
     <ClCompile Include="..\..\kbmcu\m6805\m68_ops.cpp" />
     <ClCompile Include="..\..\logging.cpp" />
+    <ClCompile Include="..\..\od-generic\midi_parser.cpp" />
     <ClCompile Include="..\..\od-generic\clipboard.cpp" />
     <ClCompile Include="..\..\od-generic\focus.cpp" />
     <ClCompile Include="..\..\od-generic\screenshot_common.cpp" />
@@ -3313,6 +3314,7 @@
     <ClCompile Include="..\rp.cpp" />
     <ClCompile Include="..\screenshot.cpp" />
     <ClCompile Include="..\serial_win32.cpp" />
+    <ClCompile Include="..\..\serial.cpp" />
     <ClCompile Include="..\sounddep\sound.cpp" />
     <ClCompile Include="..\statusline_win32.cpp" />
     <ClCompile Include="..\unicode.cpp" />
@@ -3337,6 +3339,7 @@
     <ClCompile Include="..\..\blitter.cpp" />
     <ClCompile Include="..\..\blkdev.cpp" />
     <ClCompile Include="..\..\blkdev_cdimage.cpp" />
+    <ClCompile Include="..\..\bsdsocket_results.cpp" />
     <ClCompile Include="..\..\bsdsocket.cpp" />
     <ClCompile Include="..\..\catweasel.cpp" />
     <ClCompile Include="..\..\cd32_fmv.cpp" />
@@ -3374,6 +3377,7 @@
     <ClCompile Include="..\..\gdb_server.cpp" />
     <ClCompile Include="..\..\gdb_target.cpp" />
     <ClCompile Include="..\..\gfxutil.cpp" />
+    <ClCompile Include="..\..\hardfile_cache.cpp" />
     <ClCompile Include="..\..\hardfile.cpp" />
     <ClCompile Include="..\..\identify.cpp" />
     <ClCompile Include="..\..\inputdevice.cpp" />
@@ -3504,6 +3508,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\include\hostcfg.h" />
     <ClInclude Include="..\..\od-generic\hostcfg.def" />
+    <ClInclude Include="..\..\include\serial_host.h" />
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
     <ClInclude Include="..\..\include\cfgfile_mount.h" />
     <ClInclude Include="..\..\include\cpu_selection.h" />

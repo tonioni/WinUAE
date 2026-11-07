@@ -187,6 +187,9 @@
     <ClCompile Include="..\serial_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\serial.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\sounddep\sound.cpp">
       <Filter>win32</Filter>
     </ClCompile>
@@ -245,6 +248,9 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\blkdev_cdimage.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\bsdsocket_results.cpp">
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\bsdsocket.cpp">
@@ -356,6 +362,9 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\gfxutil.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\hardfile_cache.cpp">
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\hardfile.cpp">
@@ -689,6 +698,9 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\logging.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\od-generic\midi_parser.cpp">
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\od-generic\clipboard.cpp">
@@ -2087,6 +2099,8 @@
     </ClInclude>
     <ClInclude Include="..\..\od-generic\hostcfg.def">
       <Filter>Header Files</Filter>
+    <ClInclude Include="..\..\include\serial_host.h">
+      <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
     <ClInclude Include="..\..\include\cfgfile_mount.h" />

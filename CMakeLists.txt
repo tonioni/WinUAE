@@ -1369,7 +1369,7 @@ if(WINUAE_UNIX_WITH_MIDI)
     if(APPLE)
         set(WINUAE_UNIX_ENABLE_MIDI ON)
         target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_MIDI=1 WINUAE_UNIX_WITH_COREMIDI=1)
-        list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/midi.cpp)
+        list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/midi.cpp od-generic/midi_parser.cpp)
         list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES "-framework CoreMIDI" "-framework CoreFoundation")
         list(APPEND WINUAE_UNIX_MIDI_LIBRARIES "-framework CoreMIDI" "-framework CoreFoundation")
         list(APPEND WINUAE_UNIX_MIDI_QT_DEFINITIONS UAE_UNIX_WITH_COREMIDI=1)
@@ -1380,7 +1380,7 @@ if(WINUAE_UNIX_WITH_MIDI)
             target_compile_definitions(winuae_unix_core_defs INTERFACE WITH_MIDI=1 WINUAE_UNIX_WITH_ALSA_MIDI=1)
             target_include_directories(winuae_core PRIVATE ${ALSA_INCLUDE_DIRS})
             target_compile_options(winuae_core PRIVATE ${ALSA_CFLAGS_OTHER})
-            list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/midi.cpp)
+            list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/midi.cpp od-generic/midi_parser.cpp)
             list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${ALSA_LIBRARIES})
             list(APPEND WINUAE_UNIX_EXTRA_LIBRARY_DIRS ${ALSA_LIBRARY_DIRS})
             list(APPEND WINUAE_UNIX_MIDI_LIBRARIES ${ALSA_LIBRARIES})
@@ -1780,7 +1780,7 @@ endif()
 if(WINUAE_UNIX_WITH_BSDSOCKET)
     set(WINUAE_UNIX_ENABLE_BSDSOCKET ON)
     target_compile_definitions(winuae_unix_core_defs INTERFACE BSDSOCKET=1)
-    list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/bsdsock_unix.cpp)
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/bsdsock_unix.cpp bsdsocket_results.cpp)
 endif()
 
 if(WINUAE_UNIX_WITH_UAESCSI)
@@ -2162,6 +2162,7 @@ set(WINUAE_CORE_SOURCES
     gfxlib.cpp
     gfxutil.cpp
     hardfile.cpp
+    hardfile_cache.cpp
     hrtmon.rom.cpp
     ide.cpp
     idecontrollers.cpp
@@ -2235,7 +2236,9 @@ set(WINUAE_CORE_SOURCES
     od-unix/rtg.cpp
     od-unix/scaler.cpp
     od-unix/screenshot.cpp
+    serial.cpp
     od-unix/serial.cpp
+    od-unix/serial_helpers.cpp
     od-unix/sound.cpp
     od-unix/stubs.cpp
     od-unix/support.cpp
@@ -2341,6 +2344,18 @@ target_include_directories(winuae_unix_registry_test PRIVATE
 )
 winuae_unix_register_test(winuae_unix_registry_test)
 
+add_executable(winuae_unix_socket_results_test EXCLUDE_FROM_ALL
+    bsdsocket_results.cpp
+    od-unix/bsdsocket_results_test.cpp
+)
+target_include_directories(winuae_unix_socket_results_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+target_compile_definitions(winuae_unix_socket_results_test PRIVATE BSDSOCKET=1)
+winuae_unix_register_test(winuae_unix_socket_results_test)
+
 add_executable(winuae_unix_threading_test EXCLUDE_FROM_ALL
     od-unix/threading.cpp
     od-unix/threading_test.cpp
@@ -2352,6 +2367,17 @@ target_include_directories(winuae_unix_threading_test PRIVATE
 )
 target_link_libraries(winuae_unix_threading_test PRIVATE pthread)
 winuae_unix_register_test(winuae_unix_threading_test)
+
+add_executable(winuae_unix_midi_parser_test EXCLUDE_FROM_ALL
+    od-generic/midi_parser.cpp
+    od-generic/midi_parser_test.cpp
+)
+target_include_directories(winuae_unix_midi_parser_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_midi_parser_test)
 
 add_executable(winuae_unix_clipboard_test EXCLUDE_FROM_ALL
     od-generic/clipboard.cpp
@@ -2386,13 +2412,18 @@ target_include_directories(winuae_unix_uaenet_test PRIVATE
 target_link_libraries(winuae_unix_uaenet_test PRIVATE pthread)
 winuae_unix_register_test(winuae_unix_uaenet_test)
 
-add_executable(winuae_unix_serial_tx_test EXCLUDE_FROM_ALL
-    od-unix/serial_tx_test.cpp
+add_executable(winuae_unix_serial_helpers_test EXCLUDE_FROM_ALL
+    od-unix/serial_helpers.cpp
+    od-unix/serial_helpers_test.cpp
 )
-target_include_directories(winuae_unix_serial_tx_test PRIVATE
+target_include_directories(winuae_unix_serial_helpers_test PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
 )
-winuae_unix_register_test(winuae_unix_serial_tx_test)
+winuae_unix_register_test(winuae_unix_serial_helpers_test)
+
+
 
 if(WINUAE_UNIX_WITH_INTEGRATED_QT_UI AND NOT WINUAE_UNIX_WITH_QT_UI)
     message(STATUS
@@ -2571,6 +2602,17 @@ if(WINUAE_UNIX_WITH_QT_UI)
         message(STATUS "Qt Widgets not found; skipping Unix Qt targets")
     endif()
 endif()
+
+add_executable(winuae_unix_hardfile_cache_test EXCLUDE_FROM_ALL
+    hardfile_cache.cpp
+    od-unix/hardfile_cache_test.cpp
+)
+target_include_directories(winuae_unix_hardfile_cache_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_hardfile_cache_test)
 
 add_executable(winuae_unix_cpu_selection_test EXCLUDE_FROM_ALL
     od-unix/cpu_selection_test.cpp

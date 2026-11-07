@@ -27,6 +27,7 @@
 #include "autoconf.h"
 #include "traps.h"
 #include "bsdsocket.h"
+#include "bsdsocket_results.h"
 
 #include "threaddep/thread.h"
 #include "registry.h"
@@ -1433,12 +1434,22 @@ uae_u32 host_shutdown(SB, uae_u32 sd, uae_u32 how)
 	return -1;
 }
 
+/*
+ * struct in_addr (IP_MULTICAST_IF) and struct ip_mreq (IP_ADD_MEMBERSHIP,
+ * IP_DROP_MEMBERSHIP) hold addresses in network byte order, so they are
+ * copied byte for byte, not as 32-bit integers.
+ */
+static bool is_ip_multicast_address_option(uae_u32 level, uae_u32 optname)
+{
+	return level == IPPROTO_IP && (optname == IP_MULTICAST_IF || optname == IP_ADD_MEMBERSHIP || optname == IP_DROP_MEMBERSHIP);
+}
+
 void host_setsockopt(SB, uae_u32 sd, uae_u32 level, uae_u32 optname, uae_u32 optval, uae_u32 len)
 {
 	TrapContext *ctx = NULL;
 	SOCKET s;
 	uae_char buf[MAXADDRLEN];
-	int i;
+	uae_u32 i;
 
 	BSDTRACE((_T("setsockopt(%d,%d,0x%x,0x%x[0x%x],%d) -> "),sd,(short)level,optname,optval,get_long(optval),len));
 	sd++;
@@ -1449,19 +1460,24 @@ void host_setsockopt(SB, uae_u32 sd, uae_u32 level, uae_u32 optname, uae_u32 opt
 			write_log (_T("BSDSOCK: WARNING - Excessive optlen in setsockopt() (%d)\n"), len);
 			len = sizeof buf;
 		}
-#if 1
+
 		if (level == IPPROTO_IP && optname == IP_HDRINCL) { // IP_HDRINCL emulated by icmp.dll
 			sb->resultval = 0;
 			return;
 		}
-#endif
-		for (i = 0; i < len / 4; i++) {
-			((long*)buf)[i] = get_long (optval + i * 4);
+
+		if (is_ip_multicast_address_option(level, optname)) {
+			for (i = 0; i < len; i++)
+				buf[i] = get_byte(optval + i);
+		} else {
+			for (i = 0; i < len / 4; i++) {
+				((long*)buf)[i] = get_long(optval + i * 4);
+			}
+			if (len - i == 2)
+				((long*)buf)[i] = get_word(optval + i * 4);
+			else if (len - i == 1)
+				((long*)buf)[i] = get_byte(optval + i * 4);
 		}
-		if (len - i == 2)
-			((long*)buf)[i] = get_word (optval + i * 4);
-		else if (len - i == 1)
-			((long*)buf)[i] = get_byte (optval + i * 4);
 
 		/* timeval -> milliseconds */
 		if (level == SOL_SOCKET && (optname == SO_SNDTIMEO || optname == SO_RCVTIMEO)) {
@@ -1538,26 +1554,31 @@ uae_u32 host_getsockopt(TrapContext *ctx, SB, uae_u32 sd, uae_u32 level, uae_u32
 					len = 8;
 				}
 				// len can equal 1 */
-				for (int i = 0; i < len; i += 4) {
-					uae_u32 v;
-					if (len - i >= 4)
-						v = *((long*)(buf + i));
-					else if (len - i >= 2)
-						v = *((short*)(buf + i));
-					else
-						v = buf[i];
-					if (outlen >= 4) {
-						put_long (optval + outcnt, v);
-						outlen -= 4;
-						outcnt += 4;
-					} else if (outlen >= 2) {
-						put_word (optval + outcnt, v);
-						outlen -= 2;
-						outcnt += 2;
-					} else if (outlen > 0) {
-						put_byte (optval + outcnt, v);
-						outlen -= 1;
-						outcnt += 1;
+				if (is_ip_multicast_address_option(level, optname)) {
+					for (int i = 0; i < len && outlen > 0; i++, outlen--)
+						put_byte(optval + outcnt++, buf[i]);
+				} else {
+					for (int i = 0; i < len; i += 4) {
+						uae_u32 v;
+						if (len - i >= 4)
+							v = *((long*)(buf + i));
+						else if (len - i >= 2)
+							v = *((short*)(buf + i));
+						else
+							v = buf[i];
+						if (outlen >= 4) {
+							put_long(optval + outcnt, v);
+							outlen -= 4;
+							outcnt += 4;
+						} else if (outlen >= 2) {
+							put_word(optval + outcnt, v);
+							outlen -= 2;
+							outcnt += 2;
+						} else if (outlen > 0) {
+							put_byte(optval + outcnt, v);
+							outlen -= 1;
+							outcnt += 1;
+						}
 					}
 				}
 				put_long (optlen,outcnt);
@@ -2656,10 +2677,8 @@ void host_gethostbynameaddr (TrapContext *ctx, SB, uae_u32 name, uae_u32 namelen
 {
 	static int wscounter;
 	HOSTENT *h;
-	int size, numaliases = 0, numaddr = 0;
-	uae_u32 aptr;
 	char *name_rp;
-	int i, tindex;
+	int tindex;
 	struct threadargs args;
 	volatile struct threadargs *argsp;
 	uae_u32 addr;
@@ -2720,53 +2739,11 @@ void host_gethostbynameaddr (TrapContext *ctx, SB, uae_u32 name, uae_u32 namelen
 kludge:
 		h = (HOSTENT *)buf;
 
-		// compute total size of hostent
-		size = 28;
-		if (h->h_name != NULL)
-			size += uaestrlen(h->h_name) + 1;
-
-		if (h->h_aliases != NULL)
-			while (h->h_aliases[numaliases])
-				size += uaestrlen(h->h_aliases[numaliases++]) + 5;
-
-		if (h->h_addr_list != NULL) {
-			while (h->h_addr_list[numaddr]) numaddr++;
-			size += numaddr*(h->h_length + 4);
-		}
-
-		if (sb->hostent) {
-			uae_FreeMem(ctx, sb->hostent, sb->hostentsize, sb->sysbase);
-		}
-
-		sb->hostent = uae_AllocMem(ctx, size, 0, sb->sysbase);
-
-		if (!sb->hostent) {
-			write_log (_T("BSDSOCK: WARNING - gethostby%s() ran out of Amiga memory ")
-				_T("(couldn't allocate %ld bytes) while returning result of lookup for '%s':%d\n"),
-				addrtype == -1 ? _T("name") : _T("addr"), size, name_rp, argsp->wscnt);
-			bsdsocklib_seterrno(ctx, sb, 12); // ENOMEM
-			release_get_thread (tindex);
+		if (!bsdsock_copy_hostent(ctx, sb, h->h_name, h->h_aliases,
+			h->h_addrtype, h->h_length, h->h_addr_list)) {
+			release_get_thread(tindex);
 			return;
 		}
-
-		sb->hostentsize = size;
-
-		aptr = sb->hostent + 28 + numaliases * 4 + numaddr * 4;
-
-		// transfer hostent to Amiga memory
-		put_long (sb->hostent + 4, sb->hostent + 20);
-		put_long (sb->hostent + 8, h->h_addrtype);
-		put_long (sb->hostent + 12, h->h_length);
-		put_long (sb->hostent + 16, sb->hostent + 24 + numaliases * 4);
-
-		for (i = 0; i < numaliases; i++)
-			put_long (sb->hostent + 20 + i * 4, addstr_ansi(ctx, &aptr, h->h_aliases[i]));
-		put_long (sb->hostent + 20 + numaliases * 4, 0);
-		for (i = 0; i < numaddr; i++)
-			put_long (sb->hostent + 24 + (numaliases + i) * 4, addmem(ctx, &aptr, h->h_addr_list[i], h->h_length));
-		put_long (sb->hostent + 24 + numaliases * 4 + numaddr * 4, 0);
-		put_long (sb->hostent, aptr);
-		addstr_ansi(ctx, &aptr, h->h_name);
 
 		if (ISBSDTRACE) {
 			TCHAR *s = au (h->h_name);
@@ -2789,10 +2766,8 @@ void host_getprotobyname(TrapContext *ctx, SB, uae_u32 name)
 {
 	static int wscounter;
 	PROTOENT *p;
-	int size, numaliases = 0;
-	uae_u32 aptr;
 	char *name_rp;
-	int i, tindex;
+	int tindex;
 	struct threadargs args;
 	volatile struct threadargs *argsp;
 
@@ -2824,47 +2799,12 @@ void host_getprotobyname(TrapContext *ctx, SB, uae_u32 name)
 	if (!sb->sb_errno) {
 		p = (PROTOENT *)argsp->buf;
 
-		// compute total size of protoent
-		size = 16;
-		if (p->p_name != NULL)
-			size += uaestrlen(p->p_name)+1;
-
-		if (p->p_aliases != NULL)
-			while (p->p_aliases[numaliases])
-				size += uaestrlen(p->p_aliases[numaliases++])+5;
-
-		if (sb->protoent) {
-			uae_FreeMem(ctx, sb->protoent, sb->protoentsize, sb->sysbase);
-		}
-
-		sb->protoent = uae_AllocMem(ctx, size, 0, sb->sysbase);
-
-		if (!sb->protoent) {
-			if (ISBSDTRACE) {
-				TCHAR *s = au(name_rp ? name_rp : "");
-				write_log (_T("BSDSOCK: WARNING - getprotobyname() ran out of Amiga memory ")
-					_T("(couldn't allocate %ld bytes) while returning result of lookup for '%s':%d\n"),
-					size, s, argsp->wscnt);
-				xfree (s);
-			}
-			bsdsocklib_seterrno(ctx, sb, 12); // ENOMEM
-			release_get_thread (tindex);
+		if (!bsdsock_copy_protoent(ctx, sb, p->p_name, p->p_aliases, p->p_proto)) {
+			xfree(name_rp);
+			release_get_thread(tindex);
 			return;
 		}
 
-		sb->protoentsize = size;
-
-		aptr = sb->protoent + 16 + numaliases * 4;
-
-		// transfer protoent to Amiga memory
-		trap_put_long(ctx, sb->protoent + 4, sb->protoent + 12);
-		trap_put_long(ctx, sb->protoent + 8, p->p_proto);
-
-		for (i = 0; i < numaliases; i++)
-			trap_put_long(ctx, sb->protoent + 12 + i * 4, addstr_ansi(ctx, &aptr, p->p_aliases[i]));
-		trap_put_long(ctx, sb->protoent + 12 + numaliases * 4,0);
-		trap_put_long(ctx, sb->protoent, aptr);
-		addstr_ansi(ctx, &aptr, p->p_name);
 		if (ISBSDTRACE) {
 			TCHAR *s = au (p->p_name);
 			BSDTRACE((_T("OK (%s, %d):%d\n"), s, p->p_proto, argsp->wscnt));
@@ -2889,10 +2829,8 @@ void host_getservbynameport(TrapContext *ctx, SB, uae_u32 nameport, uae_u32 prot
 {
 	static int wscounter;
 	SERVENT *s;
-	int size, numaliases = 0;
-	uae_u32 aptr;
 	TCHAR *name_rp = NULL, *proto_rp = NULL;
-	int i, tindex;
+	int tindex;
 	struct threadargs args;
 	volatile struct threadargs *argsp;
 
@@ -2932,45 +2870,11 @@ void host_getservbynameport(TrapContext *ctx, SB, uae_u32 nameport, uae_u32 prot
 	if (!sb->sb_errno) {
 		s = (SERVENT *)argsp->buf;
 
-		// compute total size of servent
-		size = 20;
-		if (s->s_name != NULL)
-			size += uaestrlen(s->s_name)+1;
-		if (s->s_proto != NULL)
-			size += uaestrlen(s->s_proto)+1;
-
-		if (s->s_aliases != NULL)
-			while (s->s_aliases[numaliases])
-				size += uaestrlen(s->s_aliases[numaliases++])+5;
-
-		if (sb->servent) {
-			uae_FreeMem(ctx, sb->servent, sb->serventsize, sb->sysbase);
-		}
-
-		sb->servent = uae_AllocMem(ctx, size, 0, sb->sysbase);
-
-		if (!sb->servent) {
-			write_log (_T("BSDSOCK: WARNING - getservby%s() ran out of Amiga memory (couldn't allocate %ld bytes):%d\n"), type ? _T("port") : _T("name"), size, argsp->wscnt);
-			bsdsocklib_seterrno(ctx, sb, 12); // ENOMEM
-			release_get_thread (tindex);
+		if (!bsdsock_copy_servent(ctx, sb, s->s_name, s->s_aliases,
+			(unsigned short)ntohs(s->s_port), s->s_proto)) {
+			release_get_thread(tindex);
 			return;
 		}
-
-		sb->serventsize = size;
-
-		aptr = sb->servent + 20 + numaliases * 4;
-
-		// transfer servent to Amiga memory
-		trap_put_long(ctx, sb->servent + 4, sb->servent + 16);
-		trap_put_long(ctx, sb->servent + 8, (unsigned short)htons(s->s_port));
-
-		for (i = 0; i < numaliases; i++)
-			trap_put_long(ctx, sb->servent + 16 + i * 4, addstr_ansi(ctx, &aptr,s->s_aliases[i]));
-		trap_put_long(ctx, sb->servent + 16 + numaliases * 4,0);
-		trap_put_long(ctx, sb->servent, aptr);
-		addstr_ansi(ctx, &aptr, s->s_name);
-		trap_put_long(ctx, sb->servent + 12, aptr);
-		addstr_ansi(ctx, &aptr, s->s_proto);
 
 		if (ISBSDTRACE) {
 			TCHAR *ss = au(s->s_name);
