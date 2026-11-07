@@ -932,7 +932,7 @@ end:
 }
 
 #ifdef CAPS
-#include "od-win32/caps/caps_win32.h"
+#include "uae/caps.h"
 static struct zfile *ipf (struct zfile *z, int index, int *retcode)
 {
 	int i, j, r;
@@ -1853,7 +1853,6 @@ static int isinternetfile (const TCHAR *name)
 	return 0;
 }
 #include <wininet.h>
-#include "win32.h"
 #define INETBUFFERLEN 1000000
 static struct zfile *zfile_fopen_internet (const TCHAR *name, const TCHAR *mode, int mask)
 {

@@ -16,7 +16,6 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #define IHF_WINDOWHIDDEN 6
-#define WINUAEAPPNAME _T("Arabuusimiehet.WinUAE")
 extern HMODULE hUIDLL;
 extern HWND hHiddenWnd, hGUIWnd;
 extern int mouseactive;

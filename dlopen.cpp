@@ -10,9 +10,6 @@
 #else
 #include <dlfcn.h>
 #endif
-#ifdef WINUAE
-#include "od-win32/win32.h"
-#endif
 
 UAE_DLHANDLE uae_dlopen(const TCHAR *path)
 {
@@ -71,11 +68,6 @@ UAE_DLHANDLE uae_dlopen_plugin(const TCHAR *name)
 		return NULL;
 	}
 	UAE_DLHANDLE handle = uae_dlopen(path);
-#elif defined(WINUAE)
-	TCHAR path[MAX_DPATH];
-	_tcscpy(path, name);
-	_tcscat(path, LT_MODULE_EXT);
-	UAE_DLHANDLE handle = WIN32_LoadLibrary(path);
 #else
 	TCHAR path[MAX_DPATH] = { 0 };
 	UAE_DLHANDLE handle;

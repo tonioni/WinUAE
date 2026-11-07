@@ -14,6 +14,9 @@
 #define TARGET_NAME _T("win32")
 #endif
 
+#define WINUAEAPPNAME _T("Arabuusimiehet.WinUAE")
+#define TARGET_HAS_DLOPEN_PLUGIN
+
 #define NO_MAIN_IN_MAIN_C
 
 #define OPTIONSFILENAME _T("default.uae")

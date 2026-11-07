@@ -13,7 +13,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include "win32.h"
+#include "uae/dlopen.h"
 #endif
 
 #include "options.h"
@@ -784,7 +784,7 @@ static int canrar (void)
 		{
 			HMODULE rarlib;
 
-			rarlib = WIN32_LoadLibrary (_T("unrar.dll"));
+			rarlib = uae_dlopen_plugin(_T("unrar"));
 			if (rarlib) {
 				TCHAR tmp[MAX_DPATH];
 				tmp[0] = 0;
@@ -967,7 +967,7 @@ static int arcacc_init (struct zfile *zf)
 {
 	if (arcacc_mod)
 		return 1;
-	arcacc_mod = WIN32_LoadLibrary (_T("archiveaccess.dll"));
+	arcacc_mod = uae_dlopen_plugin(_T("archiveaccess"));
 	if (!arcacc_mod) {
 		write_log (_T("failed to open archiveaccess.dll ('%s')\n"), zfile_getname (zf));
 		return 0;

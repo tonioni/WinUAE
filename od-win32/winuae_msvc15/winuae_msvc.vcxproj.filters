@@ -346,6 +346,9 @@
     <ClCompile Include="..\..\fsdb.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\win32_filesys.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\fsusage.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -406,8 +409,8 @@
     <ClCompile Include="..\..\rommgr.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\sampler.cpp">
-      <Filter>common</Filter>
+    <ClCompile Include="..\sampler.cpp">
+      <Filter>win32</Filter>
     </ClCompile>
     <ClCompile Include="..\..\sana2.cpp">
       <Filter>common</Filter>
@@ -2112,6 +2115,12 @@
   <ItemGroup>
     <ClInclude Include="..\..\od-generic\hostcfg.def">
       <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\uae\caps.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\target_dlopen.h">
+      <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\hostcfg.h">
       <Filter>shared</Filter>

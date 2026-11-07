@@ -3371,6 +3371,7 @@
     <ClCompile Include="..\..\filesys.cpp" />
     <ClCompile Include="..\..\fpp.cpp" />
     <ClCompile Include="..\..\fsdb.cpp" />
+    <ClCompile Include="..\win32_filesys.cpp" />
     <ClCompile Include="..\..\fsusage.cpp" />
     <ClCompile Include="..\..\gayle.cpp" />
     <ClCompile Include="..\..\gdb_monitor.cpp" />
@@ -3391,7 +3392,7 @@
     <ClCompile Include="..\..\newcpu.cpp" />
     <ClCompile Include="..\..\readcpu.cpp" />
     <ClCompile Include="..\..\rommgr.cpp" />
-    <ClCompile Include="..\..\sampler.cpp" />
+    <ClCompile Include="..\sampler.cpp" />
     <ClCompile Include="..\..\sana2.cpp" />
     <ClCompile Include="..\..\savestate.cpp" />
     <ClCompile Include="..\..\scsi.cpp" />
@@ -3507,6 +3508,8 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\include\uae\caps.h" />
+    <ClInclude Include="..\..\include\target_dlopen.h" />
     <ClInclude Include="..\..\include\hostcfg.h" />
     <ClInclude Include="..\..\od-generic\hostcfg.def" />
     <ClInclude Include="..\..\include\serial_host.h" />
