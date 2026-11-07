@@ -2387,49 +2387,11 @@ void host_WaitSelect(TrapContext *ctx, SB, uae_u32 nfds, uae_u32 readfds, uae_u3
 	}
 }
 
-uae_u32 host_Inet_NtoA(TrapContext *ctx, SB, uae_u32 in)
+uae_u32 host_inet_addr(const char *text)
 {
-	uae_char *addr;
-	struct in_addr ina;
-	uae_u32 scratchbuf;
-
-	*(uae_u32 *)&ina = htonl(in);
-
-	BSDTRACE((_T("Inet_NtoA(%x) -> "),in));
-
-	if ((addr = inet_ntoa(ina)) != NULL) {
-		scratchbuf = trap_get_areg(ctx, 6) + offsetof(struct UAEBSDBase,scratchbuf);
-		strncpyha(ctx, scratchbuf, addr, SCRATCHBUFSIZE);
-		if (ISBSDTRACE) {
-			TCHAR *s = au (addr);
-			BSDTRACE((_T("%s\n"),s));
-			xfree (s);
-		}
-		return scratchbuf;
-	} else
-		SETERRNO;
-
-	BSDTRACE((_T("failed (%d)\n"),sb->sb_errno));
-
-	return 0;
-}
-
-uae_u32 host_inet_addr(TrapContext *ctx, uae_u32 cp)
-{
-	uae_u32 addr;
-	char *cp_rp;
-
-	if (!trap_valid_address(ctx, cp, 4))
-		return 0;
-	cp_rp = trap_get_alloc_string(ctx, cp, 256);
-	addr = htonl(inet_addr(cp_rp));
-	if (ISBSDTRACE) {
-		TCHAR *s = au (cp_rp);
-		BSDTRACE((_T("inet_addr(%s) -> 0x%08lx\n"), s, addr));
-		xfree (s);
-	}
-	xfree(cp_rp);
-	return addr;
+	// Keep the native parser's legacy address syntax and return the numeric
+	// value expected by the big-endian Amiga, independent of host byte order.
+	return htonl(inet_addr(text));
 }
 
 #define GET_STATE_FREE 0
