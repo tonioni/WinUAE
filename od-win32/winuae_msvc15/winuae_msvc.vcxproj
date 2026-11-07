@@ -3344,6 +3344,7 @@
     <ClCompile Include="..\..\bsdsocket.cpp" />
     <ClCompile Include="..\..\catweasel.cpp" />
     <ClCompile Include="..\..\cd32_fmv.cpp" />
+    <ClCompile Include="..\..\od-generic\blkdev_ioctl_common.cpp" />
     <ClCompile Include="..\..\cda_play.cpp" />
     <ClCompile Include="..\..\cdrom.cpp" />
     <ClCompile Include="..\..\cdtv.cpp" />
@@ -3515,6 +3516,7 @@
     <ClInclude Include="..\..\include\serial_host.h" />
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
     <ClInclude Include="..\..\include\cfgfile_mount.h" />
+    <ClInclude Include="..\..\od-generic\blkdev_ioctl_common.h" />
     <ClInclude Include="..\..\include\cpu_selection.h" />
     <ClInclude Include="..\resources\resource.h" />
   </ItemGroup>

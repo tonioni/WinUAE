@@ -24,6 +24,7 @@
 #include <ntddscsi.h>
 
 #include "cda_play.h"
+#include "od-generic/blkdev_ioctl_common.h"
 
 #define INQUIRY_SIZE 36
 
@@ -62,25 +63,17 @@ static int unittable[MAX_TOTAL_SCSI_DEVICES];
 static int total_devices;
 static int bus_open;
 
-static int getunitnum (struct dev_info_spti *di)
+static int getunitnum(struct dev_info_spti *device)
 {
-	if (!di)
-		return -1;
-	int idx = addrdiff(di, &dev_info[0]);
-	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
-		if (unittable[i] - 1 == idx)
-			return i;
-	}
+    if (!device)
 	return -1;
+    return host_cd_unit_number(unittable, MAX_TOTAL_SCSI_DEVICES, (int)(device - &dev_info[0]));
 }
 
 static struct dev_info_spti *unitcheck (int unitnum)
 {
-	if (unitnum < 0 || unitnum >= MAX_TOTAL_SCSI_DEVICES)
-		return NULL;
-	if (unittable[unitnum] <= 0)
-		return NULL;
-	unitnum = unittable[unitnum] - 1;
+	unitnum = host_cd_unit_index(unittable, MAX_TOTAL_SCSI_DEVICES, unitnum);
+	if (unitnum < 0) return NULL;
 //	if (dev_info[unitnum].drvletter == 0)
 //		return NULL;
 	return &dev_info[unitnum];
@@ -971,70 +964,34 @@ static int rescan (void)
 /* pause/unpause CD audio */
 static int ioctl_command_pause(int unitnum, int paused)
 {
-	struct dev_info_spti *di = unitisopen(unitnum);
-	if (!di)
-		return -1;
-	int old = di->cda.cdda_paused;
-	if ((paused && di->cda.cdda_play) || !paused)
-		di->cda.cdda_paused = paused;
-	return old;
+    struct dev_info_spti *device = unitisopen(unitnum);
+    return host_cd_pause(device ? &device->cda : NULL, paused);
 }
 
 
 /* stop CD audio */
 static int ioctl_command_stop(int unitnum)
 {
-	struct dev_info_spti *di = unitisopen(unitnum);
-	if (!di)
-		return 0;
-
-	ciw_cdda_stop(&di->cda);
-
-	return 1;
+    struct dev_info_spti *device = unitisopen(unitnum);
+    return host_cd_stop(device ? &device->cda : NULL);
 }
 
 static uae_u32 ioctl_command_volume(int unitnum, uae_u16 volume_left, uae_u16 volume_right)
 {
-	struct dev_info_spti *di = unitisopen(unitnum);
-	if (!di)
-		return -1;
-	uae_u32 old = (di->cda.cdda_volume[1] << 16) | (di->cda.cdda_volume[0] << 0);
-	di->cda.cdda_volume[0] = volume_left;
-	di->cda.cdda_volume[1] = volume_right;
-	return old;
+    struct dev_info_spti *device = unitisopen(unitnum);
+    return host_cd_volume(device ? &device->cda : NULL, volume_left, volume_right);
 }
 
 /* play CD audio */
-static int ioctl_command_play(int unitnum, int startlsn, int endlsn, int scan, play_status_callback statusfunc, play_subchannel_callback subfunc)
+static int ioctl_command_play(int unitnum, int startlsn, int endlsn, int scan,
+			      play_status_callback statusfunc, play_subchannel_callback subfunc)
 {
-	struct dev_info_spti *di = unitisopen(unitnum);
-	if (!di)
-		return 0;
-
-	di->cda.di = &di->di;
-	di->cda.subcodevalid = false;
-	di->cda.cdda_play_finished = 0;
-	di->cda.cdda_subfunc = subfunc;
-	di->cda.cdda_statusfunc = statusfunc;
-	di->cda.cdda_scan = scan > 0 ? 10 : (scan < 0 ? 10 : 0);
-	di->cda.cdda_delay = ciw_cdda_setstate(&di->cda, -1, -1);
-	di->cda.cdda_delay_frames = ciw_cdda_setstate(&di->cda, -2, -1);
-	ciw_cdda_setstate(&di->cda, AUDIO_STATUS_NOT_SUPPORTED, -1);
-	di->cda.read_block = read_block_cda;
-
-	if (!isaudiotrack(&di->di.toc, startlsn)) {
-		ciw_cdda_setstate(&di->cda, AUDIO_STATUS_PLAY_ERROR, -1);
-		return 0;
-	}
-	if (!di->cda.cdda_play) {
-		uae_start_thread(_T("ioctl_cdda_play"), ciw_cdda_play, &di->cda, NULL);
-	}
-	di->cda.cdda_start = startlsn;
-	di->cda.cdda_end = endlsn;
-	di->cda.cd_last_pos = di->cda.cdda_start;
-	di->cda.cdda_play++;
-
-	return 1;
+    struct dev_info_spti *device = unitisopen(unitnum);
+    if (!device)
+	return 0;
+    host_cd_backend backend = {};
+    return host_cd_play(&device->cda, &device->di, backend, read_block_cda, startlsn, endlsn, scan,
+			statusfunc, subfunc, true);
 }
 
 /* read qcode */

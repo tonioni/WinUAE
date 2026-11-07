@@ -265,6 +265,9 @@
     <ClCompile Include="..\..\cd32_fmv.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\blkdev_ioctl_common.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\cda_play.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -2129,6 +2132,9 @@
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\serial_host.h">
+      <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\od-generic\blkdev_ioctl_common.h">
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\cpu_selection.h">
