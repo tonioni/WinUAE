@@ -7,6 +7,7 @@
   */
 
 #ifdef _WIN32_WCE
+#define TARGET_NAME_COMPAT _T("unix")
 #define TARGET_NAME "WinCE"
 #define DONT_PARSE_CMDLINE
 #else

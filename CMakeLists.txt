@@ -2211,13 +2211,14 @@ set(WINUAE_CORE_SOURCES
     softfloat/softfloat_fpsp.cpp
     od-generic/clipboard.cpp
     od-generic/focus.cpp
+    od-generic/hostcfg.cpp
+    od-generic/hostcfg_compat.cpp
     od-generic/mman.cpp
     od-generic/registry_ini.cpp
     od-generic/screenshot_common.cpp
     od-unix/charset.cpp
     od-unix/clipboard.cpp
     od-unix/config.cpp
-    od-unix/config_compat.cpp
     od-unix/driveclick.cpp
     od-unix/dlopen.cpp
     od-unix/filesys_host.cpp
@@ -2569,7 +2570,7 @@ if(WINUAE_UNIX_WITH_QT_UI)
         winuae_unix_register_test(winuae_unix_qt_drive_sound_sets_test)
 
         add_executable(winuae_unix_qt_gui_font_test EXCLUDE_FROM_ALL
-            od-unix/config_compat.cpp
+            od-generic/hostcfg_compat.cpp
             od-unix/qt/config.cpp
             od-unix/qt/drive_sound_sets.cpp
             od-unix/qt/launcher.cpp

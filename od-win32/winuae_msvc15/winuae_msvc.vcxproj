@@ -1071,6 +1071,8 @@
     <ClCompile Include="..\..\od-generic\focus.cpp" />
     <ClCompile Include="..\..\od-generic\screenshot_common.cpp" />
     <ClCompile Include="..\..\od-generic\uaenet.cpp" />
+    <ClCompile Include="..\..\od-generic\hostcfg.cpp" />
+    <ClCompile Include="..\..\od-generic\hostcfg_compat.cpp" />
     <ClCompile Include="..\..\od-generic\mman.cpp" />
     <ClCompile Include="..\..\od-generic\registry_ini.cpp" />
     <ClCompile Include="..\..\luascript.cpp" />
@@ -3504,6 +3506,8 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\include\hostcfg.h" />
+    <ClInclude Include="..\..\od-generic\hostcfg.def" />
     <ClInclude Include="..\..\include\serial_host.h" />
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
     <ClInclude Include="..\..\include\cfgfile_mount.h" />

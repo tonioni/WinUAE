@@ -44,6 +44,7 @@
 #include "path_utils.h"
 #include "tchar.h"
 #include "target.h"
+#include "hostcfg.h"
 #include "winuae_version.h"
 
 #ifndef WINUAE_UNIX_SOURCE_DIR
@@ -15910,18 +15911,18 @@ private:
         if (anyKeyboardLed) {
             settings.insert(QStringLiteral("keyboard_leds"), ledValues.join(QLatin1Char(',')));
         }
-        settings.insert(QStringLiteral("active_priority"), QString::number(extensionPriorityValue(extensionActivePriority)));
-        settings.insert(QStringLiteral("active_not_captured_pause"), extensionActivePause->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
-        settings.insert(QStringLiteral("active_not_captured_nosound"), extensionActiveNoSound->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
-        settings.insert(QStringLiteral("active_input"), QString::number((extensionActiveNoJoy->isChecked() ? 0 : 4) | (extensionActiveNoKeyboard->isChecked() ? 0 : 1)));
-        settings.insert(QStringLiteral("inactive_priority"), QString::number(extensionPriorityValue(extensionInactivePriority)));
-        settings.insert(QStringLiteral("inactive_pause"), extensionInactivePause->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
-        settings.insert(QStringLiteral("inactive_nosound"), extensionInactiveNoSound->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
-        settings.insert(QStringLiteral("inactive_input"), QString::number(extensionInactiveNoJoy->isChecked() ? 0 : 4));
-        settings.insert(QStringLiteral("iconified_priority"), QString::number(extensionPriorityValue(extensionMinimizedPriority)));
-        settings.insert(QStringLiteral("iconified_pause"), extensionMinimizedPause->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
-        settings.insert(QStringLiteral("iconified_nosound"), extensionMinimizedNoSound->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
-        settings.insert(QStringLiteral("iconified_input"), QString::number(extensionMinimizedNoJoy->isChecked() ? 0 : 4));
+        settings.insert(QStringLiteral("unix.active_priority"), QString::number(extensionPriorityValue(extensionActivePriority)));
+        settings.insert(QStringLiteral("unix.active_not_captured_pause"), extensionActivePause->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
+        settings.insert(QStringLiteral("unix.active_not_captured_nosound"), extensionActiveNoSound->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
+        settings.insert(QStringLiteral("unix.active_input"), QString::number((extensionActiveNoJoy->isChecked() ? 0 : 4) | (extensionActiveNoKeyboard->isChecked() ? 0 : 1)));
+        settings.insert(QStringLiteral("unix.inactive_priority"), QString::number(extensionPriorityValue(extensionInactivePriority)));
+        settings.insert(QStringLiteral("unix.inactive_pause"), extensionInactivePause->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
+        settings.insert(QStringLiteral("unix.inactive_nosound"), extensionInactiveNoSound->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
+        settings.insert(QStringLiteral("unix.inactive_input"), QString::number(extensionInactiveNoJoy->isChecked() ? 0 : 4));
+        settings.insert(QStringLiteral("unix.iconified_priority"), QString::number(extensionPriorityValue(extensionMinimizedPriority)));
+        settings.insert(QStringLiteral("unix.iconified_pause"), extensionMinimizedPause->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
+        settings.insert(QStringLiteral("unix.iconified_nosound"), extensionMinimizedNoSound->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
+        settings.insert(QStringLiteral("unix.iconified_input"), QString::number(extensionMinimizedNoJoy->isChecked() ? 0 : 4));
         /* Emit gfxcard_size unconditionally (0 when "None") so switching the RTG
          * board off clears a previously-configured board instead of leaving it. */
         settings.insert(QStringLiteral("gfxcard_size"), QString::number(megabytesFromText(rtgMem->currentText())));
@@ -16105,7 +16106,7 @@ private:
         settings.insert(QStringLiteral("input.mouse_speed"), QString::number(mouseSpeed->value()));
         settings.insert(QStringLiteral("input.autoswitch"), portAutoswitch->isChecked() ? QStringLiteral("true") : QStringLiteral("false"));
         const int untrapMode = mouseUntrapMode->currentIndex();
-        settings.insert(QStringLiteral("middle_mouse"), (untrapMode == 1 || untrapMode == 3) ? QStringLiteral("true") : QStringLiteral("false"));
+        settings.insert(QStringLiteral("unix.middle_mouse"), (untrapMode == 1 || untrapMode == 3) ? QStringLiteral("true") : QStringLiteral("false"));
         settings.insert(QStringLiteral("magic_mouse"), (untrapMode == 2 || untrapMode == 3) ? QStringLiteral("true") : QStringLiteral("false"));
         settings.insert(QStringLiteral("magic_mousecursor"), magicMouseCursorConfigValue(magicMouseCursor->currentText()));
         QString absoluteMouse = QStringLiteral("none");
@@ -16427,18 +16428,30 @@ private:
             QStringLiteral("statefile"),
             QStringLiteral("keyboard_leds"),
             QStringLiteral("active_priority"),
+            QStringLiteral("unix.active_priority"),
             QStringLiteral("activepriority"),
             QStringLiteral("active_not_captured_pause"),
+            QStringLiteral("unix.active_not_captured_pause"),
             QStringLiteral("active_not_captured_nosound"),
+            QStringLiteral("unix.active_not_captured_nosound"),
             QStringLiteral("active_input"),
+            QStringLiteral("unix.active_input"),
             QStringLiteral("inactive_priority"),
+            QStringLiteral("unix.inactive_priority"),
             QStringLiteral("inactive_pause"),
+            QStringLiteral("unix.inactive_pause"),
             QStringLiteral("inactive_nosound"),
+            QStringLiteral("unix.inactive_nosound"),
             QStringLiteral("inactive_input"),
+            QStringLiteral("unix.inactive_input"),
             QStringLiteral("iconified_priority"),
+            QStringLiteral("unix.iconified_priority"),
             QStringLiteral("iconified_pause"),
+            QStringLiteral("unix.iconified_pause"),
             QStringLiteral("iconified_nosound"),
+            QStringLiteral("unix.iconified_nosound"),
             QStringLiteral("iconified_input"),
+            QStringLiteral("unix.iconified_input"),
             QStringLiteral("gfxcard_size"),
             QStringLiteral("gfxcard_type"),
             QStringLiteral("gfxcard_options"),
@@ -16607,6 +16620,7 @@ private:
             QStringLiteral("input.mouse_speed"),
             QStringLiteral("input.autoswitch"),
             QStringLiteral("middle_mouse"),
+            QStringLiteral("unix.middle_mouse"),
             QStringLiteral("magic_mouse"),
             QStringLiteral("magic_mousecursor"),
             QStringLiteral("absolute_mouse"),
@@ -16643,7 +16657,21 @@ private:
         // expansion boards after normal settings and before controller mounts.
         config.applySettings(WinUaeQtConfig::Settings(), expansionKeys);
         config.applyRepeatedSettings(WinUaeQtConfig::OrderedSettings(), mountKeys);
-        config.applySettings(currentSettings(), uiOwnedKeys());
+        const QStringList ownedKeys = uiOwnedKeys();
+        // Append edited portable values after preserved foreign aliases so
+        // reloading the saved file cannot undo the user's changes.
+        QStringList portableOverrides;
+        for (const QString &key : ownedKeys) {
+            if (key.startsWith(QStringLiteral("unix."))) {
+                const QString option = key.mid(5);
+                if (hostcfg_is_compat_option(option.toUtf8().constData()) &&
+                    config.settings().contains(QStringLiteral("win32.") + option)) {
+                    portableOverrides.append(key);
+                }
+            }
+        }
+        config.applySettings(WinUaeQtConfig::Settings(), portableOverrides);
+        config.applySettings(currentSettings(), ownedKeys);
         config.applySettings(currentExpansionBoardSettings(), expansionKeys);
         config.applyRepeatedSettings(currentMountSettings(), mountKeys);
         moveQuickstartBeforeOverrides(config, expansionKeys, mountKeys);
@@ -16931,7 +16959,7 @@ private:
             return key;
         }
         const QString option = key.mid(compatPrefix.size());
-        if (!unix_config_is_compat_option(option.toUtf8().constData())) {
+        if (!hostcfg_is_compat_option(option.toUtf8().constData())) {
             return key;
         }
         return QStringLiteral("unix.") + option;
@@ -17632,39 +17660,39 @@ private:
                     keyboardLed[2]->setCurrentText(led);
                 }
             }
-        } else if (key == QStringLiteral("active_priority") || key == QStringLiteral("activepriority")) {
+        } else if (key == QStringLiteral("unix.active_priority") || key == QStringLiteral("active_priority") || key == QStringLiteral("activepriority")) {
             setExtensionPriorityValue(extensionActivePriority, value.toInt());
-        } else if (key == QStringLiteral("active_not_captured_pause")) {
+        } else if (key == QStringLiteral("unix.active_not_captured_pause") || key == QStringLiteral("active_not_captured_pause")) {
             extensionActivePause->setChecked(configBoolValue(value));
             updateExtensionActivityState();
-        } else if (key == QStringLiteral("active_not_captured_nosound")) {
+        } else if (key == QStringLiteral("unix.active_not_captured_nosound") || key == QStringLiteral("active_not_captured_nosound")) {
             extensionActiveNoSound->setChecked(configBoolValue(value));
             updateExtensionActivityState();
-        } else if (key == QStringLiteral("active_input")) {
+        } else if (key == QStringLiteral("unix.active_input") || key == QStringLiteral("active_input")) {
             const int mask = value.toInt();
             extensionActiveNoJoy->setChecked((mask & 4) == 0);
             extensionActiveNoKeyboard->setChecked((mask & 1) == 0);
             updateExtensionActivityState();
-        } else if (key == QStringLiteral("inactive_priority")) {
+        } else if (key == QStringLiteral("unix.inactive_priority") || key == QStringLiteral("inactive_priority")) {
             setExtensionPriorityValue(extensionInactivePriority, value.toInt());
-        } else if (key == QStringLiteral("inactive_pause")) {
+        } else if (key == QStringLiteral("unix.inactive_pause") || key == QStringLiteral("inactive_pause")) {
             extensionInactivePause->setChecked(configBoolValue(value));
             updateExtensionActivityState();
-        } else if (key == QStringLiteral("inactive_nosound")) {
+        } else if (key == QStringLiteral("unix.inactive_nosound") || key == QStringLiteral("inactive_nosound")) {
             extensionInactiveNoSound->setChecked(configBoolValue(value));
             updateExtensionActivityState();
-        } else if (key == QStringLiteral("inactive_input")) {
+        } else if (key == QStringLiteral("unix.inactive_input") || key == QStringLiteral("inactive_input")) {
             extensionInactiveNoJoy->setChecked((value.toInt() & 4) == 0);
             updateExtensionActivityState();
-        } else if (key == QStringLiteral("iconified_priority")) {
+        } else if (key == QStringLiteral("unix.iconified_priority") || key == QStringLiteral("iconified_priority")) {
             setExtensionPriorityValue(extensionMinimizedPriority, value.toInt());
-        } else if (key == QStringLiteral("iconified_pause")) {
+        } else if (key == QStringLiteral("unix.iconified_pause") || key == QStringLiteral("iconified_pause")) {
             extensionMinimizedPause->setChecked(configBoolValue(value));
             updateExtensionActivityState();
-        } else if (key == QStringLiteral("iconified_nosound")) {
+        } else if (key == QStringLiteral("unix.iconified_nosound") || key == QStringLiteral("iconified_nosound")) {
             extensionMinimizedNoSound->setChecked(configBoolValue(value));
             updateExtensionActivityState();
-        } else if (key == QStringLiteral("iconified_input")) {
+        } else if (key == QStringLiteral("unix.iconified_input") || key == QStringLiteral("iconified_input")) {
             extensionMinimizedNoJoy->setChecked((value.toInt() & 4) == 0);
             updateExtensionActivityState();
         } else if (key.startsWith(QStringLiteral("joyport")) && key.size() == 8) {
@@ -17710,7 +17738,7 @@ private:
             mouseSpeed->setValue(qBound(mouseSpeed->minimum(), value.toInt(), mouseSpeed->maximum()));
         } else if (key == QStringLiteral("input.autoswitch")) {
             portAutoswitch->setChecked(configBoolValue(value));
-        } else if (key == QStringLiteral("middle_mouse")) {
+        } else if (key == QStringLiteral("unix.middle_mouse") || key == QStringLiteral("middle_mouse")) {
             setMouseUntrapBit(true, configBoolValue(value));
         } else if (key == QStringLiteral("magic_mouse")) {
             setMouseUntrapBit(false, configBoolValue(value));
