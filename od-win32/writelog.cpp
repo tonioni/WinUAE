@@ -1,5 +1,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
+#include "od-generic/console.h"
 
 #include <windows.h>
 #include <sys/timeb.h>
@@ -375,30 +376,11 @@ static void flushconsole (void)
 	}
 }
 
-static TCHAR *console_buffer;
-static int console_buffer_size;
-
-TCHAR *setconsolemode (TCHAR *buffer, int maxlen)
+void target_console_out(const TCHAR *buffer, bool buffered)
 {
-	TCHAR *ret = NULL;
-	if (buffer) {
-		console_buffer = buffer;
-		console_buffer_size = maxlen;
-	} else {
-		ret = console_buffer;
-		console_buffer = NULL;
-	}
-	return ret;
-}
-
-static void console_put (const TCHAR *buffer)
-{
-	if (console_buffer) {
-		if (_tcslen (console_buffer) + _tcslen (buffer) < console_buffer_size)
-			_tcscat (console_buffer, buffer);
-	} else if (consoleopen) {
-		openconsole ();
-		writeconsole (buffer);
+	if (!buffered && consoleopen) {
+		openconsole();
+		writeconsole(buffer);
 	}
 	if (conlogfile) {
 		if (!conlogfilehandle) {
@@ -411,54 +393,10 @@ static void console_put (const TCHAR *buffer)
 	}
 }
 
-static int console_buf_len = 100000;
-
-void console_out_f (const TCHAR *format,...)
-{
-	int len;
-	va_list parms;
-	TCHAR *pbuf;
-	TCHAR buffer[WRITE_LOG_BUF_SIZE];
-	TCHAR *bigbuf = NULL;
-
-	pbuf = buffer;
-	va_start (parms, format);
-	len = _vsntprintf (pbuf, WRITE_LOG_BUF_SIZE - 1, format, parms);
-	if (!len)
-		return;
-	if (len < 0 || len >= WRITE_LOG_BUF_SIZE - 2) {
-		int buflen = console_buf_len;
-		for (;;) {
-			bigbuf = xmalloc(TCHAR, buflen);
-			if (!bigbuf)
-				return;
-			len = _vsntprintf(bigbuf, buflen - 1, format, parms);
-			if (!len)
-				return;
-			if (len > 0 && len < buflen - 2)
-				break;
-			xfree(bigbuf);
-			buflen += 100000;
-			if (buflen > 10000000)
-				return;
-		}
-		pbuf = bigbuf;
-		console_buf_len = buflen;
-	}
-	va_end (parms);
-	console_put (pbuf);
-	if (bigbuf)
-		xfree(bigbuf);
-}
-void console_out (const TCHAR *txt)
-{
-	console_put (txt);
-}
-
 bool console_isch (void)
 {
 	flushmsgpump();
-	if (console_buffer) {
+	if (console_is_buffered()) {
 		return 0;
 	} else if (realconsole) {
 		return false;
@@ -473,7 +411,7 @@ bool console_isch (void)
 TCHAR console_getch (void)
 {
 	flushmsgpump();
-	if (console_buffer) {
+	if (console_is_buffered()) {
 		return 0;
 	} else if (realconsole) {
 		return getwc (stdin);

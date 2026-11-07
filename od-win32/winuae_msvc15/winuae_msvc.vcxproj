@@ -1067,6 +1067,7 @@
     <ClCompile Include="..\..\kbmcu\m6805\m68_ops.cpp" />
     <ClCompile Include="..\..\logging.cpp" />
     <ClCompile Include="..\..\od-generic\midi_parser.cpp" />
+    <ClCompile Include="..\..\od-generic\console.cpp" />
     <ClCompile Include="..\..\od-generic\clipboard.cpp" />
     <ClCompile Include="..\..\od-generic\focus.cpp" />
     <ClCompile Include="..\..\od-generic\screenshot_common.cpp" />
@@ -3507,6 +3508,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\hostcfg.h" />
+    <ClInclude Include="..\..\od-generic\console.h" />
     <ClInclude Include="..\..\od-generic\hostcfg.def" />
     <ClInclude Include="..\..\include\serial_host.h" />
     <ClInclude Include="..\..\include\hardfile_defaults.h" />

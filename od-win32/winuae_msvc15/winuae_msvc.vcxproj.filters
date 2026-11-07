@@ -706,6 +706,9 @@
     <ClCompile Include="..\..\od-generic\midi_parser.cpp">
       <Filter>shared</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\console.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\od-generic\clipboard.cpp">
       <Filter>shared</Filter>
     </ClCompile>
@@ -2107,6 +2110,9 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\od-generic\console.h">
+      <Filter>shared</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\od-generic\hostcfg.def">
       <Filter>shared</Filter>
     </ClInclude>
