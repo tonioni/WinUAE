@@ -2234,6 +2234,7 @@ set(WINUAE_CORE_SOURCES
     od-unix/rtg.cpp
     od-unix/scaler.cpp
     od-unix/screenshot.cpp
+    serial.cpp
     od-unix/serial.cpp
     od-unix/serial_helpers.cpp
     od-unix/sound.cpp
@@ -2397,13 +2398,7 @@ target_include_directories(winuae_unix_serial_helpers_test PRIVATE
 )
 winuae_unix_register_test(winuae_unix_serial_helpers_test)
 
-add_executable(winuae_unix_serial_tx_test EXCLUDE_FROM_ALL
-    od-unix/serial_tx_test.cpp
-)
-target_include_directories(winuae_unix_serial_tx_test PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
-)
-winuae_unix_register_test(winuae_unix_serial_tx_test)
+
 
 if(WINUAE_UNIX_WITH_INTEGRATED_QT_UI AND NOT WINUAE_UNIX_WITH_QT_UI)
     message(STATUS

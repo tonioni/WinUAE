@@ -9,21 +9,11 @@
 
 #define PRTBUFSIZE 65536
 
-int setbaud(int baud, int origbaud);
-void getserstat(int *status);
-void setserstat(int mask, int onoff);
-int readser(int *buffer);
-int readseravail(bool*);
-void flushser(void);
-void writeser(int c);
-void writeser_flush(void);
-int openser(const TCHAR *sername);
-void closeser(void);
+#include "serial_host.h"
+
 void doserout(void);
 void closeprinter(void);
 void flushprinter(void);
-int checkserwrite(int spaceneeded);
-void serialuartbreak(int);
 
 void hsyncstuff(void);
 
@@ -31,15 +21,12 @@ void shmem_serial_delete(void);
 bool shmem_serial_create(void);
 int shmem_serial_state(void);
 
-#define SERIAL_INTERNAL _T("INTERNAL_SERIAL")
-#define SERIAL_LOOPBACK _T("LOOPBACK_SERIAL")
-
-#define TIOCM_CAR 1
-#define TIOCM_DSR 2
-#define TIOCM_RI 4
-#define TIOCM_DTR 8
-#define TIOCM_RTS 16
-#define TIOCM_CTS 32
+#define TIOCM_CAR SERIAL_HOST_CAR
+#define TIOCM_DSR SERIAL_HOST_DSR
+#define TIOCM_RI SERIAL_HOST_RI
+#define TIOCM_DTR SERIAL_HOST_DTR
+#define TIOCM_RTS SERIAL_HOST_RTS
+#define TIOCM_CTS SERIAL_HOST_CTS
 
 extern void unload_ghostscript (void);
 extern int load_ghostscript (void);
