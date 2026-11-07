@@ -16,6 +16,7 @@
 
 #include "options.h"
 #include "midi.h"
+#include "midi_parser.h"
 #ifdef WITH_MIDIEMU
 #include "midiemu.h"
 #endif
@@ -41,8 +42,7 @@ static std::vector<unix_midi_output_device> midi_outputs;
 static std::vector<unix_midi_output_device> midi_inputs;
 static bool midi_outputs_enumerated;
 static bool midi_inputs_enumerated;
-static MidiOutStatus out_status;
-static std::vector<uae_u8> sysex_buffer;
+static midi_parser output_parser;
 static std::deque<uae_u8> input_queue;
 static std::mutex input_queue_mutex;
 
@@ -61,21 +61,10 @@ static snd_midi_event_t *alsa_decoder;
 #endif
 static bool midi_in_ready;
 
-static const uae_u8 plen[128] = {
-    2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-    2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-    2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-    2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-    1,1,2,1,0,0,0,0,0,0,0,0,0,0,0,0
-};
 
 static void midi_reset_parser(void)
 {
-    memset(&out_status, 0, sizeof out_status);
-    sysex_buffer.clear();
+    midi_parser_reset(&output_parser);
 }
 
 static void midi_clear_input_queue(void)
@@ -534,62 +523,22 @@ static void poll_alsa_midi_input(void)
 }
 #endif
 
+static void midi_output_message(const uae_u8 *data, int length)
+{
+    if (data[0] == MIDI_SYSX) {
+        send_midi_bytes(data, length);
+    } else {
+        uae_u8 message[3] = {};
+        memcpy(message, data, length);
+        midi_apply_output_volume(message, length);
+        send_midi_bytes(message, length);
+    }
+}
+
 int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
 {
-    if (direction != midi_output || !dataptr) {
-        return 0;
-    }
-    const uae_u8 data = (uae_u8)*dataptr;
-    if (data >= 0x80) {
-        if (data < MIDI_CLOCK && out_status.sysex) {
-            sysex_buffer.push_back(MIDI_EOX);
-            send_midi_bytes(sysex_buffer.data(), (int)sysex_buffer.size());
-            sysex_buffer.clear();
-            out_status.sysex = 0;
-            out_status.unknown = 1;
-            if (data == MIDI_EOX) {
-                return 0;
-            }
-        }
-        out_status.status = data;
-        out_status.length = plen[data & 0x7f];
-        out_status.posn = 0;
-        out_status.unknown = 0;
-        if (data == MIDI_SYSX) {
-            out_status.sysex = 1;
-            sysex_buffer.clear();
-            sysex_buffer.push_back(data);
-            return 0;
-        }
-        if (out_status.length == 0) {
-            send_midi_bytes(&data, 1);
-        }
-        return 0;
-    }
-    if (out_status.sysex) {
-        if (sysex_buffer.size() < BUFFLEN) {
-            sysex_buffer.push_back(data);
-        }
-        return 0;
-    }
-    if (out_status.unknown) {
-        return 0;
-    }
-    if (++out_status.posn == 1) {
-        out_status.byte1 = data;
-    } else {
-        out_status.byte2 = data;
-    }
-    if (out_status.posn >= out_status.length) {
-        uae_u8 msg[3] = {
-            (uae_u8)out_status.status,
-            (uae_u8)out_status.byte1,
-            (uae_u8)out_status.byte2
-        };
-        const int len = 1 + out_status.length;
-        out_status.posn = 0;
-        midi_apply_output_volume(msg, len);
-        send_midi_bytes(msg, len);
+    if (direction == midi_output && dataptr) {
+        midi_parser_byte(&output_parser, *dataptr, midi_output_message);
     }
     return 0;
 }

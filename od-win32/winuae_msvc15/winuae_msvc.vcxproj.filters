@@ -691,6 +691,9 @@
     <ClCompile Include="..\..\logging.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\midi_parser.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\od-generic\clipboard.cpp">
       <Filter>common</Filter>
     </ClCompile>

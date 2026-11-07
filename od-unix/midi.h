@@ -32,18 +32,6 @@
 typedef int LONG;
 #endif
 
-typedef struct mos
-{
-    BYTE status;
-    BYTE byte1;
-    BYTE byte2;
-    int length;
-    int posn;
-    int sysex;
-    int timecode;
-    int unknown;
-} MidiOutStatus;
-
 typedef enum
 {
     midi_input,

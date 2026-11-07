@@ -24,6 +24,7 @@
 #include "resource.h"
 #include "options.h"
 #include "midi.h"
+#include "midi_parser.h"
 #include "registry.h"
 #include "win32gui.h"
 
@@ -56,7 +57,7 @@ static int in_allocated = 0;
 
 /* MIDI OUTPUT */
 
-static MidiOutStatus out_status;
+static midi_parser output_parser;
 static HMIDIOUT outHandle;
 static MIDIHDR midiout[MIDI_BUFFERS];
 
@@ -312,16 +313,6 @@ static void MidiIn_Free( void )
 	only_one_time = 0;
 }
 
-static const uae_u8 plen[128] = {
-	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-	1,1,2,1,0,0,0,0,0,0,0,0,0,0,0,0
-};
 
 #define DBGOUT_MIDI_BYTE(x) TRACE((_T("MIDI: 0x%02x\n"), (x) ))
 
@@ -343,90 +334,33 @@ static const uae_u8 plen[128] = {
 *   1999.08.02  1.0    Brian King             - Creation
 *
 */
+static void midi_output_message(const uae_u8 *data, int length)
+{
+	if (data[0] == MIDI_SYSX) {
+		if (out_allocated && outbuffer[outbufferselect]) {
+			memcpy(outbuffer[outbufferselect], data, length);
+			MidiOut_PrepareHeader(&midiout[outbufferselect],
+				(LPSTR)outbuffer[outbufferselect], length);
+			midiOutLongMsg(outHandle, &midiout[outbufferselect], sizeof(MIDIHDR));
+			outbufferselect = !outbufferselect;
+			midiOutUnprepareHeader(outHandle, &midiout[outbufferselect], sizeof(MIDIHDR));
+		}
+	} else {
+		DWORD message = data[0];
+		for (int i = 1; i < length; i++) {
+			message |= (DWORD)data[i] << (8 * i);
+		}
+		midiOutShortMsg(outHandle, message);
+	}
+}
+
 int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
 {
-	int result = 0;
-	static unsigned short bufferindex;
-	static uae_u8 *bufferpoint = 0;
-
-	if(direction == midi_output) {
-		BYTE data = *dataptr;
-		DBGOUT_MIDI_BYTE(data);
-		if(data >= 0x80) {
-			if(data >= MIDI_CLOCK) {
-				switch(data)
-				{
-				case MIDI_CLOCK:
-					TRACE((_T("MIDI: MIDI_CLOCK\n") ));
-					break;
-				case MIDI_START:
-					TRACE((_T("MIDI: MIDI_START\n") ));
-					break;
-				case MIDI_CONTINUE:
-					TRACE((_T("MIDI: MIDI_CONTINUE\n") ));
-					break;
-				case MIDI_STOP:
-					TRACE((_T("MIDI: MIDI_STOP\n") ));
-					break;
-				default:
-					break;
-				}
-			} else if(out_status.sysex) {
-				if(out_allocated) {
-					bufferpoint[bufferindex++] = (char)MIDI_EOX;
-					if(bufferindex >= BUFFLEN)
-						bufferindex = BUFFLEN - 1;
-					out_status.status = MIDI_SYSX;
-					// Flush this buffer using midiOutLongMsg
-					MidiOut_PrepareHeader(&midiout[outbufferselect], (LPSTR)bufferpoint, bufferindex);
-					midiOutLongMsg(outHandle, &midiout[outbufferselect], sizeof(MIDIHDR));
-					outbufferselect = !outbufferselect;
-					bufferpoint = outbuffer[outbufferselect];
-					midiOutUnprepareHeader(outHandle, &midiout[outbufferselect], sizeof(MIDIHDR));
-				}
-				out_status.sysex = 0; // turn off MIDI_SYSX mode
-				out_status.unknown = 1; // now in an unknown state
-				if(data == MIDI_EOX)
-					return 0;
-			}
-			out_status.status = data;
-			out_status.length = plen[data & 0x7F];
-			out_status.posn = 0;
-			out_status.unknown = 0;
-			if(data == MIDI_SYSX) {
-				out_status.sysex = 1; // turn on MIDI_SYSX mode
-				if(out_allocated) {
-					bufferindex = 0;
-					bufferpoint = outbuffer[outbufferselect];
-					bufferpoint[bufferindex++] = (char)MIDI_SYSX;
-				}
-				return 0;
-			}
-		} else if(out_status.sysex) {
-			if(out_allocated) {
-				bufferpoint[bufferindex++] = data;
-				if(bufferindex >= BUFFLEN)
-					bufferindex = BUFFLEN - 1;
-			}
-			return 0;
-		} else if(out_status.unknown) {
-			return 0;
-		} else if(++out_status.posn == 1) {
-			out_status.byte1 = data;
-		} else {
-			out_status.byte2 = data;
-		}
-		if(out_status.posn >= out_status.length) {
-			DWORD shortMsg;
-			out_status.posn = 0;
-			// flush the packet using midiOutShortMessage
-			shortMsg = MAKELONG(MAKEWORD(out_status.status, out_status.byte1), MAKEWORD(out_status.byte2, 0));
-			midiOutShortMsg(outHandle, shortMsg);
-		}
-	} else { // handle input-data
-
+	if (direction == midi_output && dataptr) {
+		DBGOUT_MIDI_BYTE(*dataptr);
+		midi_parser_byte(&output_parser, *dataptr, midi_output_message);
 	}
-	return result;
+	return 0;
 }
 
 static void putmidibytes(uae_u8 *data, int len)
@@ -668,6 +602,7 @@ int Midi_Open(void)
 		write_log (_T("MIDI OUT: error %s / %d while opening port %d\n"), getmidiouterr(err, result), result, currprefs.win32_midioutdev);
 		result = 0;
 	} else {
+		midi_parser_reset(&output_parser);
 		InitializeCriticalSection(&cs_proc);
 		MidiSetVolume(outHandle);
 		// We don't need input for output...
@@ -783,6 +718,7 @@ void Midi_Close(void)
 			exitin = 0;
 		}
 		midi_ready = FALSE;
+		midi_parser_reset(&output_parser);
 		write_log (_T("MIDI: closed.\n"));
 		DeleteCriticalSection(&cs_proc);
 	}
