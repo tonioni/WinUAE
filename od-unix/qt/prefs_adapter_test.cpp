@@ -121,10 +121,10 @@ static bool testLauncherPathsAndDevices()
     ok = require(!strcmp(prefs->statefile, "/states/test.uss"), "preview statefile") && ok;
     ok = require(!strcmp(prefs->statefile_path, "/states"), "preview statefile path") && ok;
     ok = require(!prefs->use_serial && !prefs->sername[0], "serial none") && ok;
-    ok = require(prefs->win32_soundcard == 7 && prefs->win32_samplersoundcard == 3,
+    ok = require(prefs->host_soundcard == 7 && prefs->host_samplersoundcard == 3,
         "preview must preserve device selection before enumeration") && ok;
-    ok = require(prefs->win32_midioutdev == 4 && prefs->win32_midiindev == 2, "MIDI selection") && ok;
-    ok = require(prefs->win32_uaescsimode == UAESCSI_SPTI && prefs->win32_rtgvblankrate == -1,
+    ok = require(prefs->host_midioutdev == 4 && prefs->host_midiindev == 2, "MIDI selection") && ok;
+    ok = require(prefs->host_uaescsimode == UAESCSI_SPTI && prefs->host_rtgvblankrate == -1,
         "launcher host aliases") && ok;
     return ok;
 }

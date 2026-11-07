@@ -886,8 +886,8 @@ void picasso_trigger_vblank(void)
 		return;
 	}
 	trap_put_long(ctx, uaegfx_base + CARD_IRQPTR, ABI_interrupt + PSSO_BoardInfo_SoftInterrupt);
-	trap_put_byte(ctx, uaegfx_base + CARD_IRQFLAG, currprefs.win32_rtgvblankrate ? 2 : 1);
-	if (currprefs.win32_rtgvblankrate != 0) {
+	trap_put_byte(ctx, uaegfx_base + CARD_IRQFLAG, currprefs.host_rtgvblankrate ? 2 : 1);
+	if (currprefs.host_rtgvblankrate != 0) {
 		INTREQ(0x8000 | 0x0008);
 	}
 }
@@ -1248,7 +1248,7 @@ void picasso_handle_vsync(void)
 	if (vsync < 0) {
 		p96hsync = 0;
 		picasso_handle_vsync2(mon);
-	} else if (currprefs.win32_rtgvblankrate == 0) {
+	} else if (currprefs.host_rtgvblankrate == 0) {
 		picasso_handle_vsync2(mon);
 	}
 }
@@ -1279,7 +1279,7 @@ static void picasso_handle_hsync(void)
 		return;
 	}
 
-	if (currprefs.win32_rtgvblankrate == 0)
+	if (currprefs.host_rtgvblankrate == 0)
 		return;
 
 	p96hsync++;
@@ -4069,16 +4069,16 @@ static uae_u32 REGPARAM2 picasso_SetDisplay(TrapContext* ctx)
 
 void init_hz_p96(int monid)
 {
-	if (currprefs.win32_rtgvblankrate < 0 || isvsync_rtg()) {
+	if (currprefs.host_rtgvblankrate < 0 || isvsync_rtg()) {
 		float rate = target_getcurrentvblankrate(monid);
 		if (rate < 0)
 			p96vblank = vblank_hz;
 		else
 			p96vblank = target_getcurrentvblankrate(monid);
-	} else if (currprefs.win32_rtgvblankrate == 0) {
+	} else if (currprefs.host_rtgvblankrate == 0) {
 		p96vblank = vblank_hz;
 	} else {
-		p96vblank = (float)currprefs.win32_rtgvblankrate;
+		p96vblank = (float)currprefs.host_rtgvblankrate;
 	}
 	if (p96vblank <= 0)
 		p96vblank = 60;

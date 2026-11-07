@@ -418,10 +418,10 @@ void setserstat(int mask, int onoff)
 int setbaud(int baud, int org_baud)
 {
 #ifdef WITH_MIDI
-	if (org_baud == 31400 && currprefs.win32_midioutdev >= -1) {
+	if (org_baud == 31400 && currprefs.host_midioutdev >= -1) {
 #ifdef WITH_MIDIEMU
-		if (currprefs.win32_midioutdev >= 0) {
-			const TCHAR *name = unix_midi_output_device_config_name_for_id(currprefs.win32_midioutdev);
+		if (currprefs.host_midioutdev >= 0) {
+			const TCHAR *name = unix_midi_output_device_config_name_for_id(currprefs.host_midioutdev);
 			if (!_tcsncmp(name, _T("Munt "), 5)) {
 				midi_emu_open(name);
 				return 1;

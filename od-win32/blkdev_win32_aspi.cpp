@@ -186,13 +186,13 @@ static int open_driver (SCSI *scgp)
 
 	nero = frog = 0;
 	_tcscpy (path, _T("WNASPI32"));
-	if (currprefs.win32_uaescsimode == UAESCSI_NEROASPI) {
+	if (currprefs.host_uaescsimode == UAESCSI_NEROASPI) {
 		const TCHAR *p = get_aspi_path (1);
 		if (p) {
 			_tcscpy (path, p);
 			nero = 1;
 		}
-	} else if (currprefs.win32_uaescsimode == UAESCSI_FROGASPI) {
+	} else if (currprefs.host_uaescsimode == UAESCSI_FROGASPI) {
 		const TCHAR *p = get_aspi_path (2);
 		if (p) {
 			_tcscpy (path, p);

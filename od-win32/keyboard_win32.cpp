@@ -418,19 +418,19 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 	
 	if (newstate) {
 		int defaultguikey = amode ? DIK_F12 : DIK_NUMLOCK;
-		if (currprefs.win32_guikey >= 0x100) {
+		if (currprefs.host_guikey >= 0x100) {
 			if (scancode_new == DIK_F12)
 				return true;
-		} else if (currprefs.win32_guikey > 0) {
-			if (scancode_new == defaultguikey && currprefs.win32_guikey != scancode_new) {
+		} else if (currprefs.host_guikey > 0) {
+			if (scancode_new == defaultguikey && currprefs.host_guikey != scancode_new) {
 				scancode = 0;
 				if (key_specialpressed () && key_ctrlpressed() && key_shiftpressed() && key_altpressed ())
 					inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
-			} else if (scancode_new == currprefs.win32_guikey ) {
+			} else if (scancode_new == currprefs.host_guikey ) {
 				inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 				scancode = 0;
 			}
-		} else if (currprefs.win32_guikey != 0 && !key_specialpressed () && !key_ctrlpressed() && !key_shiftpressed() && !key_altpressed () && scancode_new == defaultguikey) {
+		} else if (currprefs.host_guikey != 0 && !key_specialpressed () && !key_ctrlpressed() && !key_shiftpressed() && !key_altpressed () && scancode_new == defaultguikey) {
 			inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 			scancode = 0;
 		}

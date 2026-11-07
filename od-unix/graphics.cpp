@@ -1398,15 +1398,15 @@ void picasso_refresh(int monid)
 }
 void init_hz_p96(int monid)
 {
-    if (currprefs.win32_rtgvblankrate < 0 || isvsync_rtg()) {
+    if (currprefs.host_rtgvblankrate < 0 || isvsync_rtg()) {
         p96vblank = target_getcurrentvblankrate(monid);
         if (p96vblank < 0) {
             p96vblank = vblank_hz;
         }
-    } else if (currprefs.win32_rtgvblankrate == 0) {
+    } else if (currprefs.host_rtgvblankrate == 0) {
         p96vblank = vblank_hz;
     } else {
-        p96vblank = (float)currprefs.win32_rtgvblankrate;
+        p96vblank = (float)currprefs.host_rtgvblankrate;
     }
     if (p96vblank <= 0) {
         p96vblank = 60;

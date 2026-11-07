@@ -2048,12 +2048,12 @@ static int open_sound (void)
 
 	sdp->softvolume = -1;
 	num = enumerate_sound_devices();
-	if (currprefs.win32_soundcard >= num)
-		currprefs.win32_soundcard = changed_prefs.win32_soundcard = 0;
+	if (currprefs.host_soundcard >= num)
+		currprefs.host_soundcard = changed_prefs.host_soundcard = 0;
 	if (num == 0)
 		return 0;
 	ch = get_audio_nativechannels(active_sound_stereo);
-	ret = open_sound_device (sdp, currprefs.win32_soundcard, size, currprefs.sound_freq, ch);
+	ret = open_sound_device (sdp, currprefs.host_soundcard, size, currprefs.sound_freq, ch);
 	if (!ret)
 		return 0;
 	currprefs.sound_freq = changed_prefs.sound_freq = sdp->freq;
@@ -2145,8 +2145,8 @@ int init_sound (void)
 	reset_sound ();
 	resume_sound ();
 	if (!started &&
-		(currprefs.win32_start_minimized && currprefs.win32_iconified_nosound ||
-		currprefs.win32_start_uncaptured && currprefs.win32_inactive_nosound))
+		(currprefs.win32_start_minimized && currprefs.host_iconified_nosound ||
+		currprefs.win32_start_uncaptured && currprefs.host_inactive_nosound))
 		pause_sound ();
 	started = true;
 	return 1;
@@ -2892,11 +2892,11 @@ static void handle_reset(void)
 		if (sdp->resetcnt <= 0) {
 			write_log(_T("Reopen sound failed. Retrying with default device.\n"));
 			close_sound();
-			int type = sound_devices[currprefs.win32_soundcard]->type;
+			int type = sound_devices[currprefs.host_soundcard]->type;
 			int max = enumerate_sound_devices();
 			for (int i = 0; i < max; i++) {
 				if (sound_devices[i]->alname == NULL && sound_devices[i]->type == type) {
-					currprefs.win32_soundcard = changed_prefs.win32_soundcard = i;
+					currprefs.host_soundcard = changed_prefs.host_soundcard = i;
 					if (open_sound())
 						return;
 					break;

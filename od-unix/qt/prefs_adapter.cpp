@@ -278,12 +278,12 @@ static ApplySettingResult applyLauncherSetting(const WinUaeQtConfig::Settings &s
     }
     // Device indices are launcher selections. The target parser can clamp them
     // against an enumeration that is not yet available during a preview.
-    if (applyInt("midiout_device", &prefs->win32_midioutdev)
-        || applyInt("midi_device", &prefs->win32_midioutdev)
-        || applyInt("midiin_device", &prefs->win32_midiindev)
-        || applyInt("unix.soundcard", &prefs->win32_soundcard)
-        || applyInt("unix.samplersoundcard", &prefs->win32_samplersoundcard)
-        || applyInt("samplersoundcard", &prefs->win32_samplersoundcard)) {
+    if (applyInt("midiout_device", &prefs->host_midioutdev)
+        || applyInt("midi_device", &prefs->host_midioutdev)
+        || applyInt("midiin_device", &prefs->host_midiindev)
+        || applyInt("unix.soundcard", &prefs->host_soundcard)
+        || applyInt("unix.samplersoundcard", &prefs->host_samplersoundcard)
+        || applyInt("samplersoundcard", &prefs->host_samplersoundcard)) {
         return ApplySettingResult::Handled;
     }
     // Keep the launcher's order-sensitive CPU/JIT constraints until they
@@ -338,10 +338,10 @@ static ApplySettingResult applyLauncherSetting(const WinUaeQtConfig::Settings &s
     if (setting.key == QStringLiteral("midirouter")) {
 #ifdef WITH_MIDI
         if (textToBool(setting.value, &boolValue)) {
-            prefs->win32_midirouter = boolValue;
+            prefs->host_midirouter = boolValue;
         }
 #else
-        prefs->win32_midirouter = false;
+        prefs->host_midirouter = false;
 #endif
         return ApplySettingResult::Handled;
     }
@@ -377,17 +377,17 @@ static ApplySettingResult applyLauncherSetting(const WinUaeQtConfig::Settings &s
     }
     if (setting.key == QStringLiteral("uaescsimode") || setting.key == QStringLiteral("unix.uaescsimode")) {
         if (setting.value.compare(QStringLiteral("SPTI+SCSISCAN"), Qt::CaseInsensitive) == 0) {
-            prefs->win32_uaescsimode = UAESCSI_SPTISCAN;
+            prefs->host_uaescsimode = UAESCSI_SPTISCAN;
         } else if (setting.value.compare(QStringLiteral("SPTI"), Qt::CaseInsensitive) == 0) {
-            prefs->win32_uaescsimode = UAESCSI_SPTI;
+            prefs->host_uaescsimode = UAESCSI_SPTI;
         } else {
-            prefs->win32_uaescsimode = UAESCSI_CDEMU;
+            prefs->host_uaescsimode = UAESCSI_CDEMU;
         }
         return ApplySettingResult::Handled;
     }
     if (setting.key == QStringLiteral("rtg_vblank") || setting.key == QStringLiteral("unix.rtg_vblank")) {
         if (rtgVBlankValueToInt(setting.value, &value)) {
-            prefs->win32_rtgvblankrate = value;
+            prefs->host_rtgvblankrate = value;
         }
         return ApplySettingResult::Handled;
     }

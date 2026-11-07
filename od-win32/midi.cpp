@@ -365,7 +365,7 @@ int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
 
 static void putmidibytes(uae_u8 *data, int len)
 {
-	if (!currprefs.win32_midirouter || !midi_ready)
+	if (!currprefs.host_midirouter || !midi_ready)
 		return;
 	for (int i = 0; i < len; i++) {
 		BYTE b = data[i];
@@ -596,20 +596,20 @@ int Midi_Open(void)
 	MMRESULT result = 0;
 	TCHAR err[MAX_DPATH];
 
-	if (currprefs.win32_midioutdev < -1)
+	if (currprefs.host_midioutdev < -1)
 		return 0;
-	if((result = midiOutOpen(&outHandle, getmidioutdeviceid(currprefs.win32_midioutdev), 0, 0, CALLBACK_NULL))) {
-		write_log (_T("MIDI OUT: error %s / %d while opening port %d\n"), getmidiouterr(err, result), result, currprefs.win32_midioutdev);
+	if((result = midiOutOpen(&outHandle, getmidioutdeviceid(currprefs.host_midioutdev), 0, 0, CALLBACK_NULL))) {
+		write_log (_T("MIDI OUT: error %s / %d while opening port %d\n"), getmidiouterr(err, result), result, currprefs.host_midioutdev);
 		result = 0;
 	} else {
 		midi_parser_reset(&output_parser);
 		InitializeCriticalSection(&cs_proc);
 		MidiSetVolume(outHandle);
 		// We don't need input for output...
-		if(currprefs.win32_midiindev >= 0) {
-			result = midiInOpen(&inHandle, getmidiindeviceid(currprefs.win32_midiindev), (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION|MIDI_IO_STATUS);
+		if(currprefs.host_midiindev >= 0) {
+			result = midiInOpen(&inHandle, getmidiindeviceid(currprefs.host_midiindev), (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION|MIDI_IO_STATUS);
 			if (result) {
-				write_log (_T("MIDI IN: error %s / %d while opening port %d\n"), getmidiinerr(err, result), result, currprefs.win32_midiindev);
+				write_log (_T("MIDI IN: error %s / %d while opening port %d\n"), getmidiinerr(err, result), result, currprefs.host_midiindev);
 			}
 			result = midiInStart(inHandle);
 			if (result) {

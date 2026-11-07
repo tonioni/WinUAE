@@ -2150,8 +2150,8 @@ static void sendscancode(int num, int scancode, int pressed)
 	if (isfocus() < 2 && currprefs.input_tablet >= TABLET_MOUSEHACK && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) {
 		return;
 	}
-	if (!mouseactive && !(currprefs.win32_active_input & 1)) {
-		if ((currprefs.win32_guikey <= 0 && scancode == DIK_F12) || (scancode == currprefs.win32_guikey)) {
+	if (!mouseactive && !(currprefs.host_active_input & 1)) {
+		if ((currprefs.host_guikey <= 0 && scancode == DIK_F12) || (scancode == currprefs.host_guikey)) {
 			inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
 		}
 		return;
@@ -2425,7 +2425,7 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 		if (rp_isactive ())
 			return;
 #endif
-		if (!istest && !mouseactive && !(currprefs.win32_active_input & 4)) {
+		if (!istest && !mouseactive && !(currprefs.host_active_input & 4)) {
 			return;
 		}
 
@@ -4276,7 +4276,7 @@ static void read_joystick (void)
 	if (rp_isactive ())
 		return;
 #endif
-	if (!istest && !mouseactive && !(currprefs.win32_active_input & 4)) {
+	if (!istest && !mouseactive && !(currprefs.host_active_input & 4)) {
 		return;
 	}
 
@@ -4367,7 +4367,7 @@ static void read_joystick (void)
 			continue;
 		elements = DI_BUFFER;
 		hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
-		if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && (isfocus () || istest || (currprefs.win32_inactive_input & 4))) {
+		if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && (isfocus () || istest || (currprefs.host_inactive_input & 4))) {
 			for (j = 0; j < elements; j++) {
 				int dimofs = didod[j].dwOfs;
 				int data = didod[j].dwData;
