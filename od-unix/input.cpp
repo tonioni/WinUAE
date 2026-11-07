@@ -11,6 +11,8 @@
 #include "traps.h"
 #include "gui.h"
 #include "inputdevice.h"
+#include "od-generic/keymap.h"
+#include "od-generic/input_defaults.h"
 #include "input.h"
 
 int pause_emulation;
@@ -254,291 +256,123 @@ enum {
     UKEY_RGUI = 231
 };
 
-#define K(scancode, event) { scancode, { { event, 0 } } }
-#define KF(scancode, event, flags) { scancode, { { event, flags } } }
-#define K2(scancode, event1, flags1, event2, flags2) { scancode, { { event1, flags1 }, { event2, flags2 } } }
-#define K3(scancode, event1, flags1, event2, flags2, event3, flags3) { scancode, { { event1, flags1 }, { event2, flags2 }, { event3, flags3 } } }
-#define K4(scancode, event1, flags1, event2, flags2, event3, flags3, event4, flags4) { scancode, { { event1, flags1 }, { event2, flags2 }, { event3, flags3 }, { event4, flags4 } } }
-
-static uae_input_device_kbr_default keytrans_amiga[] = {
-    K(UKEY_ESCAPE, INPUTEVENT_KEY_ESC),
-
-    K3(UKEY_F1, INPUTEVENT_KEY_F1, 0, INPUTEVENT_SPC_FLOPPY0, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_EFLOPPY0, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT),
-    K3(UKEY_F2, INPUTEVENT_KEY_F2, 0, INPUTEVENT_SPC_FLOPPY1, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_EFLOPPY1, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT),
-    K3(UKEY_F3, INPUTEVENT_KEY_F3, 0, INPUTEVENT_SPC_FLOPPY2, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_EFLOPPY2, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT),
-    K3(UKEY_F4, INPUTEVENT_KEY_F4, 0, INPUTEVENT_SPC_FLOPPY3, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_EFLOPPY3, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT),
-    K3(UKEY_F5, INPUTEVENT_KEY_F5, 0, INPUTEVENT_SPC_CD0, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_ECD0, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT),
-    K3(UKEY_F6, INPUTEVENT_KEY_F6, 0, INPUTEVENT_SPC_STATERESTOREDIALOG, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_STATESAVEDIALOG, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT),
-    K(UKEY_F7, INPUTEVENT_KEY_F7),
-    K(UKEY_F8, INPUTEVENT_KEY_F8),
-    K2(UKEY_F9, INPUTEVENT_KEY_F9, 0, INPUTEVENT_SPC_TOGGLERTG, ID_FLAG_QUALIFIER_SPECIAL),
-    K(UKEY_F10, INPUTEVENT_KEY_F10),
-
-    K(UKEY_1, INPUTEVENT_KEY_1),
-    K(UKEY_2, INPUTEVENT_KEY_2),
-    K(UKEY_3, INPUTEVENT_KEY_3),
-    K(UKEY_4, INPUTEVENT_KEY_4),
-    K(UKEY_5, INPUTEVENT_KEY_5),
-    K(UKEY_6, INPUTEVENT_KEY_6),
-    K(UKEY_7, INPUTEVENT_KEY_7),
-    K(UKEY_8, INPUTEVENT_KEY_8),
-    K(UKEY_9, INPUTEVENT_KEY_9),
-    K(UKEY_0, INPUTEVENT_KEY_0),
-
-    K(UKEY_TAB, INPUTEVENT_KEY_TAB),
-    K(UKEY_A, INPUTEVENT_KEY_A),
-    K(UKEY_B, INPUTEVENT_KEY_B),
-    K(UKEY_C, INPUTEVENT_KEY_C),
-    K(UKEY_D, INPUTEVENT_KEY_D),
-    K(UKEY_E, INPUTEVENT_KEY_E),
-    K(UKEY_F, INPUTEVENT_KEY_F),
-    K(UKEY_G, INPUTEVENT_KEY_G),
-    K(UKEY_H, INPUTEVENT_KEY_H),
-    K(UKEY_I, INPUTEVENT_KEY_I),
-    K2(UKEY_J, INPUTEVENT_KEY_J, 0, INPUTEVENT_SPC_SWAPJOYPORTS, ID_FLAG_QUALIFIER_SPECIAL),
-    K(UKEY_K, INPUTEVENT_KEY_K),
-    K(UKEY_L, INPUTEVENT_KEY_L),
-    K(UKEY_M, INPUTEVENT_KEY_M),
-    K(UKEY_N, INPUTEVENT_KEY_N),
-    K(UKEY_O, INPUTEVENT_KEY_O),
-    K(UKEY_P, INPUTEVENT_KEY_P),
-    K(UKEY_Q, INPUTEVENT_KEY_Q),
-    K(UKEY_R, INPUTEVENT_KEY_R),
-    K(UKEY_S, INPUTEVENT_KEY_S),
-    K(UKEY_T, INPUTEVENT_KEY_T),
-    K(UKEY_U, INPUTEVENT_KEY_U),
-    K(UKEY_V, INPUTEVENT_KEY_V),
-    K(UKEY_W, INPUTEVENT_KEY_W),
-    K(UKEY_X, INPUTEVENT_KEY_X),
-    K(UKEY_Y, INPUTEVENT_KEY_Y),
-    K(UKEY_Z, INPUTEVENT_KEY_Z),
-
-    KF(UKEY_CAPSLOCK, INPUTEVENT_KEY_CAPS_LOCK, ID_FLAG_TOGGLE),
-
-    K(UKEY_KP_1, INPUTEVENT_KEY_NP_1),
-    K(UKEY_KP_2, INPUTEVENT_KEY_NP_2),
-    K(UKEY_KP_3, INPUTEVENT_KEY_NP_3),
-    K(UKEY_KP_4, INPUTEVENT_KEY_NP_4),
-    K(UKEY_KP_5, INPUTEVENT_KEY_NP_5),
-    K(UKEY_KP_6, INPUTEVENT_KEY_NP_6),
-    K(UKEY_KP_7, INPUTEVENT_KEY_NP_7),
-    K(UKEY_KP_8, INPUTEVENT_KEY_NP_8),
-    K(UKEY_KP_9, INPUTEVENT_KEY_NP_9),
-    K(UKEY_KP_0, INPUTEVENT_KEY_NP_0),
-    K(UKEY_KP_PERIOD, INPUTEVENT_KEY_NP_PERIOD),
-    K4(UKEY_KP_PLUS, INPUTEVENT_KEY_NP_ADD, 0, INPUTEVENT_SPC_VOLUME_UP, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_MASTER_VOLUME_UP, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_CONTROL, INPUTEVENT_SPC_INCREASE_REFRESHRATE, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT),
-    K4(UKEY_KP_MINUS, INPUTEVENT_KEY_NP_SUB, 0, INPUTEVENT_SPC_VOLUME_DOWN, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_MASTER_VOLUME_DOWN, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_CONTROL, INPUTEVENT_SPC_DECREASE_REFRESHRATE, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT),
-    K3(UKEY_KP_MULTIPLY, INPUTEVENT_KEY_NP_MUL, 0, INPUTEVENT_SPC_VOLUME_MUTE, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_MASTER_VOLUME_MUTE, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_CONTROL),
-    K2(UKEY_KP_DIVIDE, INPUTEVENT_KEY_NP_DIV, 0, INPUTEVENT_SPC_STATEREWIND, ID_FLAG_QUALIFIER_SPECIAL),
-    K(UKEY_KP_ENTER, INPUTEVENT_KEY_ENTER),
-
-    K(UKEY_MINUS, INPUTEVENT_KEY_SUB),
-    K(UKEY_EQUALS, INPUTEVENT_KEY_EQUALS),
-    K(UKEY_BACKSPACE, INPUTEVENT_KEY_BACKSPACE),
-    K(UKEY_RETURN, INPUTEVENT_KEY_RETURN),
-    K(UKEY_SPACE, INPUTEVENT_KEY_SPACE),
-
-    K2(UKEY_LSHIFT, INPUTEVENT_KEY_SHIFT_LEFT, 0, INPUTEVENT_SPC_QUALIFIER_SHIFT, 0),
-    K2(UKEY_LCTRL, INPUTEVENT_KEY_CTRL, 0, INPUTEVENT_SPC_QUALIFIER_CONTROL, 0),
-    K2(UKEY_LGUI, INPUTEVENT_KEY_AMIGA_LEFT, 0, INPUTEVENT_SPC_QUALIFIER_WIN, 0),
-    K2(UKEY_LALT, INPUTEVENT_KEY_ALT_LEFT, 0, INPUTEVENT_SPC_QUALIFIER_ALT, 0),
-    K2(UKEY_RALT, INPUTEVENT_KEY_ALT_RIGHT, 0, INPUTEVENT_SPC_QUALIFIER_ALT, 0),
-    K2(UKEY_RGUI, INPUTEVENT_KEY_AMIGA_RIGHT, 0, INPUTEVENT_SPC_QUALIFIER_WIN, 0),
-    K2(UKEY_APPLICATION, INPUTEVENT_KEY_AMIGA_RIGHT, 0, INPUTEVENT_SPC_QUALIFIER_WIN, 0),
-    K2(UKEY_RCTRL, INPUTEVENT_KEY_CTRL, 0, INPUTEVENT_SPC_QUALIFIER_CONTROL, 0),
-    K2(UKEY_RSHIFT, INPUTEVENT_KEY_SHIFT_RIGHT, 0, INPUTEVENT_SPC_QUALIFIER_SHIFT, 0),
-
-    K(UKEY_UP, INPUTEVENT_KEY_CURSOR_UP),
-    K(UKEY_DOWN, INPUTEVENT_KEY_CURSOR_DOWN),
-    K2(UKEY_LEFT, INPUTEVENT_KEY_CURSOR_LEFT, 0, INPUTEVENT_SPC_PAUSE, ID_FLAG_QUALIFIER_SPECIAL),
-    K2(UKEY_RIGHT, INPUTEVENT_KEY_CURSOR_RIGHT, 0, INPUTEVENT_SPC_WARP, ID_FLAG_QUALIFIER_SPECIAL),
-
-    K2(UKEY_INSERT, INPUTEVENT_KEY_AMIGA_LEFT, 0, INPUTEVENT_SPC_PASTE, ID_FLAG_QUALIFIER_SPECIAL),
-    K(UKEY_DELETE, INPUTEVENT_KEY_DEL),
-    K(UKEY_HOME, INPUTEVENT_KEY_AMIGA_RIGHT),
-    K(UKEY_PAGEDOWN, INPUTEVENT_KEY_HELP),
-    K(UKEY_PAGEUP, INPUTEVENT_SPC_FREEZEBUTTON),
-
-    K(UKEY_LEFTBRACKET, INPUTEVENT_KEY_LEFTBRACKET),
-    K(UKEY_RIGHTBRACKET, INPUTEVENT_KEY_RIGHTBRACKET),
-    K(UKEY_SEMICOLON, INPUTEVENT_KEY_SEMICOLON),
-    K(UKEY_APOSTROPHE, INPUTEVENT_KEY_SINGLEQUOTE),
-    K(UKEY_GRAVE, INPUTEVENT_KEY_BACKQUOTE),
-    K(UKEY_BACKSLASH, INPUTEVENT_KEY_NUMBERSIGN),
-    K(UKEY_NONUSHASH, INPUTEVENT_KEY_BACKSLASH),
-    K(UKEY_NONUSBACKSLASH, INPUTEVENT_KEY_30),
-    K(UKEY_COMMA, INPUTEVENT_KEY_COMMA),
-    K(UKEY_PERIOD, INPUTEVENT_KEY_PERIOD),
-    K(UKEY_SLASH, INPUTEVENT_KEY_DIV),
-
-    K(UKEY_F11, INPUTEVENT_KEY_BACKSLASH),
-    K(UKEY_F13, INPUTEVENT_KEY_BACKSLASH),
-    K(UKEY_F14, INPUTEVENT_KEY_NP_LPAREN),
-    K(UKEY_F15, INPUTEVENT_KEY_NP_RPAREN),
-    K2(UKEY_PRINTSCREEN, INPUTEVENT_SPC_SCREENSHOT_CLIPBOARD, 0, INPUTEVENT_SPC_SCREENSHOT, ID_FLAG_QUALIFIER_SPECIAL),
-    K(UKEY_END, INPUTEVENT_SPC_QUALIFIER_SPECIAL),
-    K4(UKEY_PAUSE, INPUTEVENT_SPC_PAUSE, 0, INPUTEVENT_SPC_SINGLESTEP, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_CONTROL, INPUTEVENT_SPC_IRQ7, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT, INPUTEVENT_SPC_WARP, ID_FLAG_QUALIFIER_SPECIAL),
-    K4(UKEY_F12, INPUTEVENT_SPC_ENTERGUI, 0, INPUTEVENT_SPC_ENTERDEBUGGER, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_ENTERDEBUGGER, ID_FLAG_QUALIFIER_SHIFT, INPUTEVENT_SPC_TOGGLEDEFAULTSCREEN, ID_FLAG_QUALIFIER_CONTROL),
-
-    K(UKEY_AUDIOSTOP, INPUTEVENT_KEY_CDTV_STOP),
-    K(UKEY_AUDIOPLAY, INPUTEVENT_KEY_CDTV_PLAYPAUSE),
-    K(UKEY_AUDIOPREV, INPUTEVENT_KEY_CDTV_PREV),
-    K(UKEY_AUDIONEXT, INPUTEVENT_KEY_CDTV_NEXT),
-
-    { -1, { { 0, 0 } } }
-};
-
-static uae_input_device_kbr_default keytrans_pc[] = {
-    K(UKEY_ESCAPE, INPUTEVENT_KEY_ESC),
-
-    K(UKEY_F1, INPUTEVENT_KEY_F1),
-    K(UKEY_F2, INPUTEVENT_KEY_F2),
-    K(UKEY_F3, INPUTEVENT_KEY_F3),
-    K(UKEY_F4, INPUTEVENT_KEY_F4),
-    K(UKEY_F5, INPUTEVENT_KEY_F5),
-    K(UKEY_F6, INPUTEVENT_KEY_F6),
-    K(UKEY_F7, INPUTEVENT_KEY_F7),
-    K(UKEY_F8, INPUTEVENT_KEY_F8),
-    K(UKEY_F9, INPUTEVENT_KEY_F9),
-    K(UKEY_F10, INPUTEVENT_KEY_F10),
-    K(UKEY_F11, INPUTEVENT_KEY_F11),
-    K(UKEY_F12, INPUTEVENT_KEY_F12),
-
-    K(UKEY_1, INPUTEVENT_KEY_1),
-    K(UKEY_2, INPUTEVENT_KEY_2),
-    K(UKEY_3, INPUTEVENT_KEY_3),
-    K(UKEY_4, INPUTEVENT_KEY_4),
-    K(UKEY_5, INPUTEVENT_KEY_5),
-    K(UKEY_6, INPUTEVENT_KEY_6),
-    K(UKEY_7, INPUTEVENT_KEY_7),
-    K(UKEY_8, INPUTEVENT_KEY_8),
-    K(UKEY_9, INPUTEVENT_KEY_9),
-    K(UKEY_0, INPUTEVENT_KEY_0),
-
-    K(UKEY_TAB, INPUTEVENT_KEY_TAB),
-    K(UKEY_A, INPUTEVENT_KEY_A),
-    K(UKEY_B, INPUTEVENT_KEY_B),
-    K(UKEY_C, INPUTEVENT_KEY_C),
-    K(UKEY_D, INPUTEVENT_KEY_D),
-    K(UKEY_E, INPUTEVENT_KEY_E),
-    K(UKEY_F, INPUTEVENT_KEY_F),
-    K(UKEY_G, INPUTEVENT_KEY_G),
-    K(UKEY_H, INPUTEVENT_KEY_H),
-    K(UKEY_I, INPUTEVENT_KEY_I),
-    K(UKEY_J, INPUTEVENT_KEY_J),
-    K(UKEY_K, INPUTEVENT_KEY_K),
-    K(UKEY_L, INPUTEVENT_KEY_L),
-    K(UKEY_M, INPUTEVENT_KEY_M),
-    K(UKEY_N, INPUTEVENT_KEY_N),
-    K(UKEY_O, INPUTEVENT_KEY_O),
-    K(UKEY_P, INPUTEVENT_KEY_P),
-    K(UKEY_Q, INPUTEVENT_KEY_Q),
-    K(UKEY_R, INPUTEVENT_KEY_R),
-    K(UKEY_S, INPUTEVENT_KEY_S),
-    K(UKEY_T, INPUTEVENT_KEY_T),
-    K(UKEY_U, INPUTEVENT_KEY_U),
-    K(UKEY_V, INPUTEVENT_KEY_V),
-    K(UKEY_W, INPUTEVENT_KEY_W),
-    K(UKEY_X, INPUTEVENT_KEY_X),
-    K(UKEY_Y, INPUTEVENT_KEY_Y),
-    K(UKEY_Z, INPUTEVENT_KEY_Z),
-
-    KF(UKEY_CAPSLOCK, INPUTEVENT_KEY_CAPS_LOCK, ID_FLAG_TOGGLE),
-
-    K(UKEY_KP_1, INPUTEVENT_KEY_NP_1),
-    K(UKEY_KP_2, INPUTEVENT_KEY_NP_2),
-    K(UKEY_KP_3, INPUTEVENT_KEY_NP_3),
-    K(UKEY_KP_4, INPUTEVENT_KEY_NP_4),
-    K(UKEY_KP_5, INPUTEVENT_KEY_NP_5),
-    K(UKEY_KP_6, INPUTEVENT_KEY_NP_6),
-    K(UKEY_KP_7, INPUTEVENT_KEY_NP_7),
-    K(UKEY_KP_8, INPUTEVENT_KEY_NP_8),
-    K(UKEY_KP_9, INPUTEVENT_KEY_NP_9),
-    K(UKEY_KP_0, INPUTEVENT_KEY_NP_0),
-    K(UKEY_KP_PERIOD, INPUTEVENT_KEY_NP_PERIOD),
-    K(UKEY_KP_PLUS, INPUTEVENT_KEY_NP_ADD),
-    K(UKEY_KP_MINUS, INPUTEVENT_KEY_NP_SUB),
-    K(UKEY_KP_MULTIPLY, INPUTEVENT_KEY_NP_MUL),
-    K(UKEY_KP_DIVIDE, INPUTEVENT_KEY_NP_DIV),
-    K(UKEY_KP_ENTER, INPUTEVENT_KEY_ENTER),
-
-    K(UKEY_MINUS, INPUTEVENT_KEY_SUB),
-    K(UKEY_EQUALS, INPUTEVENT_KEY_EQUALS),
-    K(UKEY_BACKSPACE, INPUTEVENT_KEY_BACKSPACE),
-    K(UKEY_RETURN, INPUTEVENT_KEY_RETURN),
-    K(UKEY_SPACE, INPUTEVENT_KEY_SPACE),
-
-    K(UKEY_LSHIFT, INPUTEVENT_KEY_SHIFT_LEFT),
-    K(UKEY_LCTRL, INPUTEVENT_KEY_CTRL),
-    K(UKEY_LGUI, INPUTEVENT_KEY_AMIGA_LEFT),
-    K(UKEY_LALT, INPUTEVENT_KEY_ALT_LEFT),
-    K(UKEY_RALT, INPUTEVENT_KEY_ALT_RIGHT),
-    K(UKEY_RGUI, INPUTEVENT_KEY_AMIGA_RIGHT),
-    K(UKEY_APPLICATION, INPUTEVENT_KEY_APPS),
-    K(UKEY_RCTRL, INPUTEVENT_KEY_CTRL),
-    K(UKEY_RSHIFT, INPUTEVENT_KEY_SHIFT_RIGHT),
-
-    K(UKEY_UP, INPUTEVENT_KEY_CURSOR_UP),
-    K(UKEY_DOWN, INPUTEVENT_KEY_CURSOR_DOWN),
-    K(UKEY_LEFT, INPUTEVENT_KEY_CURSOR_LEFT),
-    K(UKEY_RIGHT, INPUTEVENT_KEY_CURSOR_RIGHT),
-
-    K(UKEY_LEFTBRACKET, INPUTEVENT_KEY_LEFTBRACKET),
-    K(UKEY_RIGHTBRACKET, INPUTEVENT_KEY_RIGHTBRACKET),
-    K(UKEY_SEMICOLON, INPUTEVENT_KEY_SEMICOLON),
-    K(UKEY_APOSTROPHE, INPUTEVENT_KEY_SINGLEQUOTE),
-    K(UKEY_GRAVE, INPUTEVENT_KEY_BACKQUOTE),
-    K(UKEY_BACKSLASH, INPUTEVENT_KEY_2B),
-    K(UKEY_NONUSHASH, INPUTEVENT_KEY_BACKSLASH),
-    K(UKEY_NONUSBACKSLASH, INPUTEVENT_KEY_30),
-    K(UKEY_COMMA, INPUTEVENT_KEY_COMMA),
-    K(UKEY_PERIOD, INPUTEVENT_KEY_PERIOD),
-    K(UKEY_SLASH, INPUTEVENT_KEY_DIV),
-
-    K(UKEY_INSERT, INPUTEVENT_KEY_INSERT),
-    K(UKEY_DELETE, INPUTEVENT_KEY_DEL),
-    K(UKEY_HOME, INPUTEVENT_KEY_HOME),
-    K(UKEY_END, INPUTEVENT_KEY_END),
-    K(UKEY_PAGEUP, INPUTEVENT_KEY_PAGEUP),
-    K(UKEY_PAGEDOWN, INPUTEVENT_KEY_PAGEDOWN),
-    K(UKEY_SCROLLLOCK, INPUTEVENT_KEY_HELP),
-    K(UKEY_PRINTSCREEN, INPUTEVENT_KEY_SYSRQ),
-    K(UKEY_PAUSE, INPUTEVENT_KEY_PAUSE),
-
-    K(UKEY_AUDIOSTOP, INPUTEVENT_KEY_CDTV_STOP),
-    K(UKEY_AUDIOPLAY, INPUTEVENT_KEY_CDTV_PLAYPAUSE),
-    K(UKEY_AUDIOPREV, INPUTEVENT_KEY_CDTV_PREV),
-    K(UKEY_AUDIONEXT, INPUTEVENT_KEY_CDTV_NEXT),
-
-    { -1, { { 0, 0 } } }
-};
-
-#undef K4
-#undef K3
-#undef K2
-#undef KF
-#undef K
-
-static uae_input_device_kbr_default *keytrans[] = {
-    keytrans_amiga,
-    keytrans_pc,
-    keytrans_pc
-};
-static int kb_np[] = { UKEY_KP_4, -1, UKEY_KP_6, -1, UKEY_KP_8, -1, UKEY_KP_2, -1, UKEY_KP_0, UKEY_KP_5, -1, UKEY_KP_PERIOD, -1, UKEY_KP_ENTER, -1, -1 };
-static int kb_ck[] = { UKEY_LEFT, -1, UKEY_RIGHT, -1, UKEY_UP, -1, UKEY_DOWN, -1, UKEY_RCTRL, UKEY_RALT, -1, UKEY_RSHIFT, -1, -1 };
-static int kb_se[] = { UKEY_A, -1, UKEY_D, -1, UKEY_W, -1, UKEY_S, -1, UKEY_LALT, -1, UKEY_LSHIFT, -1, -1 };
-static int kb_np3[] = { UKEY_KP_4, -1, UKEY_KP_6, -1, UKEY_KP_8, -1, UKEY_KP_2, -1, UKEY_KP_0, UKEY_KP_5, -1, UKEY_KP_PERIOD, -1, UKEY_KP_ENTER, -1, -1 };
-static int kb_ck3[] = { UKEY_LEFT, -1, UKEY_RIGHT, -1, UKEY_UP, -1, UKEY_DOWN, -1, UKEY_RCTRL, -1, UKEY_RSHIFT, -1, UKEY_RALT, -1, -1 };
-static int kb_se3[] = { UKEY_A, -1, UKEY_D, -1, UKEY_W, -1, UKEY_S, -1, UKEY_LALT, -1, UKEY_LSHIFT, -1, UKEY_LCTRL, -1, -1 };
-static int kb_cd32_np[] = { UKEY_KP_4, -1, UKEY_KP_6, -1, UKEY_KP_8, -1, UKEY_KP_2, -1, UKEY_KP_0, UKEY_KP_5, UKEY_KP_1, -1, UKEY_KP_PERIOD, UKEY_KP_3, -1, UKEY_KP_7, -1, UKEY_KP_9, -1, UKEY_KP_DIVIDE, -1, UKEY_KP_MINUS, -1, UKEY_KP_MULTIPLY, -1, -1 };
-static int kb_cd32_ck[] = { UKEY_LEFT, -1, UKEY_RIGHT, -1, UKEY_UP, -1, UKEY_DOWN, -1, UKEY_RCTRL, UKEY_RALT, UKEY_RSHIFT, -1, UKEY_KP_7, -1, UKEY_KP_9, -1, UKEY_KP_DIVIDE, -1, UKEY_KP_MINUS, -1, UKEY_KP_MULTIPLY, -1, -1 };
-static int kb_cd32_se[] = { UKEY_A, -1, UKEY_D, -1, UKEY_W, -1, UKEY_S, -1, -1, UKEY_LALT, -1, UKEY_LSHIFT, -1, UKEY_KP_7, -1, UKEY_KP_9, -1, UKEY_KP_DIVIDE, -1, UKEY_KP_MINUS, -1, UKEY_KP_MULTIPLY, -1, -1 };
-static int kb_arcadia[] = { UKEY_F2, -1, UKEY_1, -1, UKEY_2, -1, UKEY_5, -1, UKEY_6, -1, -1 };
-static int kb_cdtv[] = { UKEY_KP_1, -1, UKEY_KP_3, -1, UKEY_KP_7, -1, UKEY_KP_9, -1, -1 };
-static int *keymaps[] = {
-    kb_np, kb_ck, kb_se, kb_np3, kb_ck3, kb_se3,
-    kb_cd32_np, kb_cd32_ck, kb_cd32_se,
-    kb_arcadia, kb_cdtv
+static host_keymap keymap;
+static const int native_keys[HOST_KEY_COUNT] = {
+ -1, // HOST_KEY_NONE
+ UKEY_ESCAPE, // HOST_KEY_ESCAPE
+ UKEY_F1, // HOST_KEY_F1
+ UKEY_F2, // HOST_KEY_F2
+ UKEY_F3, // HOST_KEY_F3
+ UKEY_F4, // HOST_KEY_F4
+ UKEY_F5, // HOST_KEY_F5
+ UKEY_F6, // HOST_KEY_F6
+ UKEY_F7, // HOST_KEY_F7
+ UKEY_F8, // HOST_KEY_F8
+ UKEY_F9, // HOST_KEY_F9
+ UKEY_F10, // HOST_KEY_F10
+ UKEY_1, // HOST_KEY_1
+ UKEY_2, // HOST_KEY_2
+ UKEY_3, // HOST_KEY_3
+ UKEY_4, // HOST_KEY_4
+ UKEY_5, // HOST_KEY_5
+ UKEY_6, // HOST_KEY_6
+ UKEY_7, // HOST_KEY_7
+ UKEY_8, // HOST_KEY_8
+ UKEY_9, // HOST_KEY_9
+ UKEY_0, // HOST_KEY_0
+ UKEY_TAB, // HOST_KEY_TAB
+ UKEY_A, // HOST_KEY_A
+ UKEY_B, // HOST_KEY_B
+ UKEY_C, // HOST_KEY_C
+ UKEY_D, // HOST_KEY_D
+ UKEY_E, // HOST_KEY_E
+ UKEY_F, // HOST_KEY_F
+ UKEY_G, // HOST_KEY_G
+ UKEY_H, // HOST_KEY_H
+ UKEY_I, // HOST_KEY_I
+ UKEY_J, // HOST_KEY_J
+ UKEY_K, // HOST_KEY_K
+ UKEY_L, // HOST_KEY_L
+ UKEY_M, // HOST_KEY_M
+ UKEY_N, // HOST_KEY_N
+ UKEY_O, // HOST_KEY_O
+ UKEY_P, // HOST_KEY_P
+ UKEY_Q, // HOST_KEY_Q
+ UKEY_R, // HOST_KEY_R
+ UKEY_S, // HOST_KEY_S
+ UKEY_T, // HOST_KEY_T
+ UKEY_U, // HOST_KEY_U
+ UKEY_W, // HOST_KEY_W
+ UKEY_V, // HOST_KEY_V
+ UKEY_X, // HOST_KEY_X
+ UKEY_Y, // HOST_KEY_Y
+ UKEY_Z, // HOST_KEY_Z
+ UKEY_CAPSLOCK, // HOST_KEY_CAPITAL
+ UKEY_KP_1, // HOST_KEY_NUMPAD1
+ UKEY_KP_2, // HOST_KEY_NUMPAD2
+ UKEY_KP_3, // HOST_KEY_NUMPAD3
+ UKEY_KP_4, // HOST_KEY_NUMPAD4
+ UKEY_KP_5, // HOST_KEY_NUMPAD5
+ UKEY_KP_6, // HOST_KEY_NUMPAD6
+ UKEY_KP_7, // HOST_KEY_NUMPAD7
+ UKEY_KP_8, // HOST_KEY_NUMPAD8
+ UKEY_KP_9, // HOST_KEY_NUMPAD9
+ UKEY_KP_0, // HOST_KEY_NUMPAD0
+ UKEY_KP_PERIOD, // HOST_KEY_DECIMAL
+ UKEY_KP_PLUS, // HOST_KEY_ADD
+ UKEY_KP_MINUS, // HOST_KEY_SUBTRACT
+ UKEY_KP_MULTIPLY, // HOST_KEY_MULTIPLY
+ UKEY_KP_DIVIDE, // HOST_KEY_DIVIDE
+ UKEY_KP_ENTER, // HOST_KEY_NUMPADENTER
+ UKEY_MINUS, // HOST_KEY_MINUS
+ UKEY_EQUALS, // HOST_KEY_EQUALS
+ UKEY_BACKSPACE, // HOST_KEY_BACK
+ UKEY_RETURN, // HOST_KEY_RETURN
+ UKEY_SPACE, // HOST_KEY_SPACE
+ UKEY_LSHIFT, // HOST_KEY_LSHIFT
+ UKEY_LCTRL, // HOST_KEY_LCONTROL
+ UKEY_LGUI, // HOST_KEY_LWIN
+ UKEY_LALT, // HOST_KEY_LMENU
+ UKEY_RALT, // HOST_KEY_RMENU
+ UKEY_RGUI, // HOST_KEY_RWIN
+ UKEY_APPLICATION, // HOST_KEY_APPS
+ UKEY_RCTRL, // HOST_KEY_RCONTROL
+ UKEY_RSHIFT, // HOST_KEY_RSHIFT
+ UKEY_UP, // HOST_KEY_UP
+ UKEY_DOWN, // HOST_KEY_DOWN
+ UKEY_LEFT, // HOST_KEY_LEFT
+ UKEY_RIGHT, // HOST_KEY_RIGHT
+ UKEY_INSERT, // HOST_KEY_INSERT
+ UKEY_DELETE, // HOST_KEY_DELETE
+ UKEY_HOME, // HOST_KEY_HOME
+ UKEY_PAGEDOWN, // HOST_KEY_NEXT
+ UKEY_PAGEUP, // HOST_KEY_PRIOR
+ UKEY_LEFTBRACKET, // HOST_KEY_LBRACKET
+ UKEY_RIGHTBRACKET, // HOST_KEY_RBRACKET
+ UKEY_SEMICOLON, // HOST_KEY_SEMICOLON
+ UKEY_APOSTROPHE, // HOST_KEY_APOSTROPHE
+ UKEY_GRAVE, // HOST_KEY_GRAVE
+ UKEY_BACKSLASH, // HOST_KEY_BACKSLASH
+ UKEY_COMMA, // HOST_KEY_COMMA
+ UKEY_PERIOD, // HOST_KEY_PERIOD
+ UKEY_SLASH, // HOST_KEY_SLASH
+ UKEY_NONUSBACKSLASH, // HOST_KEY_OEM_102
+ UKEY_F11, // HOST_KEY_F11
+ UKEY_F13, // HOST_KEY_F13
+ UKEY_F14, // HOST_KEY_F14
+ UKEY_F15, // HOST_KEY_F15
+ UKEY_PRINTSCREEN, // HOST_KEY_SYSRQ
+ UKEY_END, // HOST_KEY_END
+ UKEY_PAUSE, // HOST_KEY_PAUSE
+ -1, // HOST_KEY_PAUSE_RELEASE
+ UKEY_F12, // HOST_KEY_F12
+ UKEY_AUDIOSTOP, // HOST_KEY_MEDIASTOP
+ UKEY_AUDIOPLAY, // HOST_KEY_PLAYPAUSE
+ UKEY_AUDIOPREV, // HOST_KEY_PREVTRACK
+ UKEY_AUDIONEXT, // HOST_KEY_NEXTTRACK
+ UKEY_SCROLLLOCK, // HOST_KEY_SCROLL
+ UKEY_NUMLOCKCLEAR, // HOST_KEY_NUMLOCK
+ UKEY_NONUSHASH, // HOST_KEY_NONUSHASH
 };
 
 static const int keyboard_keycodes[] = {
@@ -563,7 +397,8 @@ static const int keyboard_keycodes[] = {
 
 static int input_init(void)
 {
-    inputdevice_setkeytranslation(keytrans, keymaps);
+    host_keymap_init(&keymap, native_keys, true);
+    inputdevice_setkeytranslation(keymap.translations, keymap.mappings);
     return 1;
 }
 static void input_close(void) {}
@@ -1140,54 +975,6 @@ inputdevice_functions inputdevicefunc_keyboard = {
     keyboard_get_flags
 };
 
-static int nextsub(struct uae_input_device *uid, int dev, int slot, int sub)
-{
-    if (currprefs.input_advancedmultiinput) {
-        while (uid[dev].eventid[slot][sub] > 0) {
-            sub++;
-            if (sub >= MAX_INPUT_SUB_EVENT) {
-                return -1;
-            }
-        }
-    }
-    return sub;
-}
-
-static void setid(struct uae_input_device *uid, int dev, int slot, int sub, int port, int evt, bool gp)
-{
-    sub = nextsub(uid, dev, slot, sub);
-    if (sub < 0 || evt <= 0) {
-        return;
-    }
-    if (gp && sub == 0) {
-        inputdevice_sparecopy(&uid[dev], slot, sub);
-    }
-    uid[dev].eventid[slot][sub] = evt;
-    uid[dev].port[slot][sub] = port + 1;
-}
-
-static void setid(struct uae_input_device *uid, int dev, int slot, int sub, int port, int evt, int af, bool gp)
-{
-    sub = nextsub(uid, dev, slot, sub);
-    if (sub < 0) {
-        return;
-    }
-    setid(uid, dev, slot, sub, port, evt, gp);
-    uid[dev].flags[slot][sub] &= ~ID_FLAG_AUTOFIRE_MASK;
-    if (af >= JPORT_AF_NORMAL) {
-        uid[dev].flags[slot][sub] |= ID_FLAG_AUTOFIRE;
-    }
-    if (af == JPORT_AF_TOGGLE) {
-        uid[dev].flags[slot][sub] |= ID_FLAG_TOGGLE;
-    }
-    if (af == JPORT_AF_ALWAYS) {
-        uid[dev].flags[slot][sub] |= ID_FLAG_INVERTTOGGLE;
-    }
-    if (af == JPORT_AF_TOGGLENOAF) {
-        uid[dev].flags[slot][sub] |= ID_FLAG_INVERT;
-    }
-}
-
 void unix_input_mouse_motion(int dx, int dy)
 {
     if (dx) {
@@ -1240,7 +1027,12 @@ void unix_input_keyboard_key(int scancode, bool pressed, int lockstate)
     }
 
     keyboard_state[scancode] = pressed;
-    inputdevice_translatekeycode(0, scancode, pressed ? 1 : 0, false);
+    if (!host_keyboard_hotkey(0, scancode,
+            host_key_from_native(native_keys, scancode),
+            currprefs.input_keyboard_type == 0 ? UKEY_F12 : UKEY_NUMLOCKCLEAR,
+            UKEY_F12, pressed ? 1 : 0)) {
+        inputdevice_translatekeycode(0, scancode, pressed ? 1 : 0, false);
+    }
 }
 
 void unix_input_release_keys(void)
@@ -1262,135 +1054,43 @@ int input_get_default_keyboard(int num)
     }
     return num == 0 ? 1 : 0;
 }
+static bool default_button(void *context, int button)
+{
+ int dev = (int)(intptr_t)context;
+ return dev < 0 ? button < 3 : joystick_has_button(dev, button);
+}
+static bool default_hat(void *context, int axis)
+{
+ int dev = (int)(intptr_t)context;
+ return dev >= 0 && joystick_axis_is_dpad_or_hat(dev, axis) &&
+  joystick_axis_is_dpad_or_hat(dev, axis + 1);
+}
 int input_get_default_mouse(uae_input_device *uid, int dev, int port, int af, bool gp, bool wheel, bool joymouseswap)
 {
-    if (joymouseswap || dev != 0) {
-        return 0;
-    }
-
-    setid(uid, dev, ID_AXIS_OFFSET + 0, 0, port, port ? INPUTEVENT_MOUSE2_HORIZ : INPUTEVENT_MOUSE1_HORIZ, gp);
-    setid(uid, dev, ID_AXIS_OFFSET + 1, 0, port, port ? INPUTEVENT_MOUSE2_VERT : INPUTEVENT_MOUSE1_VERT, gp);
-    if (wheel && port == 0) {
-        setid(uid, dev, ID_AXIS_OFFSET + 2, 0, port, INPUTEVENT_MOUSE1_WHEEL, gp);
-    }
-    setid(uid, dev, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_FIRE_BUTTON : INPUTEVENT_JOY1_FIRE_BUTTON, af, gp);
-    setid(uid, dev, ID_BUTTON_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_2ND_BUTTON : INPUTEVENT_JOY1_2ND_BUTTON, gp);
-    setid(uid, dev, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
-
-    return 1;
+ if (joymouseswap || dev != 0)
+  return 0;
+ int axes = 3;
+ host_input_device device = { (void *)(intptr_t)-1, default_button, default_hat, axes, false, true };
+ return input_default_mouse(uid, dev, port, af, gp, wheel, joymouseswap, device);
 }
-int input_get_default_lightpen(uae_input_device *, int, int, int, bool, bool, int) { return 0; }
 int input_get_default_joystick(uae_input_device *uid, int dev, int port, int af, int mode, bool gp, bool joymouseswap, bool default_osk)
 {
-    if (joymouseswap || dev < 0 || dev >= joystick_get_num()) {
-        return 0;
-    }
-
-    int h;
-    int v;
-    if (mode == JSEM_MODE_MOUSE_CDTV) {
-        h = INPUTEVENT_MOUSE_CDTV_HORIZ;
-        v = INPUTEVENT_MOUSE_CDTV_VERT;
-    } else if (port >= 2) {
-        h = port == 3 ? INPUTEVENT_PAR_JOY2_HORIZ : INPUTEVENT_PAR_JOY1_HORIZ;
-        v = port == 3 ? INPUTEVENT_PAR_JOY2_VERT : INPUTEVENT_PAR_JOY1_VERT;
-    } else {
-        h = port ? INPUTEVENT_JOY2_HORIZ : INPUTEVENT_JOY1_HORIZ;
-        v = port ? INPUTEVENT_JOY2_VERT : INPUTEVENT_JOY1_VERT;
-    }
-
-    setid(uid, dev, ID_AXIS_OFFSET + 0, 0, port, h, gp);
-    setid(uid, dev, ID_AXIS_OFFSET + 1, 0, port, v, gp);
-    int first_button = joystick_get_widget_first(dev, IDEV_WIDGET_BUTTON);
-    if (first_button < 0) {
-        first_button = joystick_get_widget_num(dev);
-    }
-    for (int axis = 2; axis < first_button; axis++) {
-        if (!joystick_axis_is_dpad_or_hat(dev, axis) || axis + 1 >= first_button) {
-            continue;
-        }
-        if (joystick_axis_is_dpad_or_hat(dev, axis + 1)) {
-            setid(uid, dev, ID_AXIS_OFFSET + axis, 0, port, h, gp);
-            setid(uid, dev, ID_AXIS_OFFSET + axis + 1, 0, port, v, gp);
-            axis++;
-        }
-    }
-
-    if (port >= 2) {
-        setid(uid, dev, ID_BUTTON_OFFSET + 0, 0, port,
-            port == 3 ? INPUTEVENT_PAR_JOY2_FIRE_BUTTON : INPUTEVENT_PAR_JOY1_FIRE_BUTTON, af, gp);
-    } else {
-        setid(uid, dev, ID_BUTTON_OFFSET + 0, 0, port,
-            port ? INPUTEVENT_JOY2_FIRE_BUTTON : INPUTEVENT_JOY1_FIRE_BUTTON, af, gp);
-        if (joystick_has_button(dev, 1)) {
-            setid(uid, dev, ID_BUTTON_OFFSET + 1, 0, port,
-                port ? INPUTEVENT_JOY2_2ND_BUTTON : INPUTEVENT_JOY1_2ND_BUTTON, gp);
-        }
-        if (mode != JSEM_MODE_JOYSTICK && joystick_has_button(dev, 2)) {
-            setid(uid, dev, ID_BUTTON_OFFSET + 2, 0, port,
-                port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
-        }
-        if (default_osk && joystick_has_button(dev, 3)) {
-            setid(uid, dev, ID_BUTTON_OFFSET + 3, 0, port, INPUTEVENT_SPC_OSK, gp);
-        }
-    }
-
-    if (mode == JSEM_MODE_JOYSTICK_CD32) {
-        setid(uid, dev, ID_BUTTON_OFFSET + 0, 0, port,
-            port ? INPUTEVENT_JOY2_CD32_RED : INPUTEVENT_JOY1_CD32_RED, af, gp);
-        if (joystick_has_button(dev, 1)) {
-            setid(uid, dev, ID_BUTTON_OFFSET + 1, 0, port,
-                port ? INPUTEVENT_JOY2_CD32_BLUE : INPUTEVENT_JOY1_CD32_BLUE, gp);
-        }
-        if (joystick_has_button(dev, 2)) {
-            setid(uid, dev, ID_BUTTON_OFFSET + 2, 0, port,
-                port ? INPUTEVENT_JOY2_CD32_GREEN : INPUTEVENT_JOY1_CD32_GREEN, gp);
-        }
-        if (joystick_has_button(dev, 3)) {
-            setid(uid, dev, ID_BUTTON_OFFSET + 3, 0, port,
-                port ? INPUTEVENT_JOY2_CD32_YELLOW : INPUTEVENT_JOY1_CD32_YELLOW, gp);
-        }
-        if (joystick_has_button(dev, 4)) {
-            setid(uid, dev, ID_BUTTON_OFFSET + 4, 0, port,
-                port ? INPUTEVENT_JOY2_CD32_RWD : INPUTEVENT_JOY1_CD32_RWD, gp);
-        }
-        if (joystick_has_button(dev, 5)) {
-            setid(uid, dev, ID_BUTTON_OFFSET + 5, 0, port,
-                port ? INPUTEVENT_JOY2_CD32_FFW : INPUTEVENT_JOY1_CD32_FFW, gp);
-        }
-        if (joystick_has_button(dev, 6)) {
-            setid(uid, dev, ID_BUTTON_OFFSET + 6, 0, port,
-                port ? INPUTEVENT_JOY2_CD32_PLAY : INPUTEVENT_JOY1_CD32_PLAY, gp);
-        }
-    }
-
-    return dev == 0 ? 1 : 0;
+ if (joymouseswap || dev < 0 || dev >= joystick_get_num())
+  return 0;
+ int axes = joystick_get_widget_first(dev, IDEV_WIDGET_BUTTON);
+ if (axes < 0) axes = joystick_get_widget_num(dev);
+ host_input_device device = { (void *)(intptr_t)dev, default_button, default_hat, axes, false, true };
+ return input_default_joystick(uid, dev, port, af, mode, gp, joymouseswap, default_osk, device);
 }
-
 int input_get_default_joystick_analog(uae_input_device *uid, int dev, int port, int af, bool gp, bool joymouseswap, bool default_osk)
 {
-    if (joymouseswap || dev < 0 || dev >= joystick_get_num()) {
-        return 0;
-    }
-
-    setid(uid, dev, ID_AXIS_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_HORIZ_POT : INPUTEVENT_JOY1_HORIZ_POT, gp);
-    setid(uid, dev, ID_AXIS_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_VERT_POT : INPUTEVENT_JOY1_VERT_POT, gp);
-    setid(uid, dev, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_LEFT : INPUTEVENT_JOY1_LEFT, af, gp);
-    if (joystick_has_button(dev, 1)) {
-        setid(uid, dev, ID_BUTTON_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_RIGHT : INPUTEVENT_JOY1_RIGHT, gp);
-    }
-    if (joystick_has_button(dev, 2)) {
-        setid(uid, dev, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_UP : INPUTEVENT_JOY1_UP, gp);
-    }
-    if (joystick_has_button(dev, 3)) {
-        setid(uid, dev, ID_BUTTON_OFFSET + 3, 0, port, port ? INPUTEVENT_JOY2_DOWN : INPUTEVENT_JOY1_DOWN, gp);
-    }
-    if (default_osk && joystick_has_button(dev, 4)) {
-        setid(uid, dev, ID_BUTTON_OFFSET + 4, 0, port, INPUTEVENT_SPC_OSK, gp);
-    }
-
-    return dev == 0 ? 1 : 0;
+ if (joymouseswap || dev < 0 || dev >= joystick_get_num())
+  return 0;
+ int axes = 2;
+ host_input_device device = { (void *)(intptr_t)dev, default_button, default_hat, axes, false, true };
+ return input_default_joystick_analog(uid, dev, port, af, gp, joymouseswap, default_osk, device);
 }
+int input_get_default_lightpen(uae_input_device *, int, int, int, bool, bool, int) { return 0; }
 int is_tablet(void) { return 0; }
 bool ismouseactive(void) { return unix_input_get_mouse_active(); }
 void setmouseactive(int, int active) { unix_input_set_mouse_active(active != 0); }

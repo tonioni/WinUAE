@@ -745,6 +745,15 @@
     <ClCompile Include="..\..\od-generic\uaenet.cpp">
       <Filter>shared</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\input_defaults.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\od-generic\input_hotkeys.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\od-generic\keymap.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\od-generic\hostcfg.cpp">
       <Filter>shared</Filter>
     </ClCompile>
@@ -2135,6 +2144,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\od-generic\console.h">
+      <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\od-generic\input_defaults.h">
+      <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\od-generic\keymap.h">
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\..\od-generic\hostcfg.def">
