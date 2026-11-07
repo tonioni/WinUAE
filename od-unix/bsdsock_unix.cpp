@@ -35,6 +35,7 @@
 #include "threaddep/thread.h"
 #include "native2amiga.h"
 #include "bsdsocket.h"
+#include "bsdsocket_results.h"
 #include "uae.h"
 
 #include <sys/types.h>
@@ -1157,102 +1158,24 @@ static void drop_hostent(SB)
 /*
  * Copy a hostent object from native space to amiga space
  */
-static void copyHostent(TrapContext* ctx, const unix_hostent_copy* hostent, SB)
+static void copyHostent(TrapContext *ctx, const unix_hostent_copy *hostent, SB)
 {
-	int size = 28;
-	int i;
-	int numaddr = (int)hostent->addrs.size();
-	int numaliases = (int)hostent->aliases.size();
-	uae_u32 aptr;
-
-	size += hostent->name.size() + 1;
-	for (i = 0; i < numaliases; i++)
-		size += hostent->aliases[i].size() + 5;
-	size += numaddr * (hostent->length + 4);
-
-	// The buffer starts at 1024 bytes; grow it for larger results
-	if (sb->hostent && sb->hostentsize < size) {
-		uae_FreeMem(ctx, sb->hostent, sb->hostentsize, sb->sysbase);
-		sb->hostent = 0;
-		sb->hostentsize = 0;
+	std::vector<const char*> aliases, addresses;
+	for (const std::string &alias : hostent->aliases) {
+		aliases.push_back(alias.c_str());
 	}
-
-	if (!sb->hostent) {
-		sb->hostent = uae_AllocMem(ctx, size, 0, sb->sysbase);
-		if (!sb->hostent) {
-			write_log("BSDSOCK: WARNING - copyHostent() ran out of Amiga memory (couldn't allocate %d bytes)\n", size);
-			bsdsocklib_seterrno(ctx, sb, 12); // ENOMEM
-			return;
-		}
-		sb->hostentsize = size;
+	for (const std::string &address : hostent->addrs) {
+		addresses.push_back(address.data());
 	}
-
-	aptr = sb->hostent + 28 + numaliases * 4 + numaddr * 4;
-
-	// transfer hostent to Amiga memory
-	trap_put_long(ctx, sb->hostent + 4, sb->hostent + 20);
-	trap_put_long(ctx, sb->hostent + 8, hostent->addrtype);
-	trap_put_long(ctx, sb->hostent + 12, hostent->length);
-	trap_put_long(ctx, sb->hostent + 16, sb->hostent + 24 + numaliases * 4);
-
-	for (i = 0; i < numaliases; i++)
-		trap_put_long(ctx, sb->hostent + 20 + i * 4, addstr(ctx, &aptr, hostent->aliases[i].c_str()));
-	trap_put_long(ctx, sb->hostent + 20 + numaliases * 4, 0);
-
-	for (i = 0; i < numaddr; i++) {
-		trap_put_long(ctx, sb->hostent + 24 + (numaliases + i) * 4, addmem(ctx, &aptr, hostent->addrs[i].data(), hostent->length));
-	}
-	trap_put_long(ctx, sb->hostent + 24 + numaliases * 4 + numaddr * 4, 0);
-	trap_put_long(ctx, sb->hostent, aptr);
-	addstr(ctx, &aptr, hostent->name.c_str());
-
-	bsdsocklib_seterrno(ctx, sb, 0);
+	aliases.push_back(NULL);
+	addresses.push_back(NULL);
+	bsdsock_copy_hostent(ctx, sb, hostent->name.c_str(), aliases.data(),
+		hostent->addrtype, hostent->length, addresses.data());
 }
 
-/*
- * Copy a protoent object from native space to Amiga space
- */
-static void copyProtoent(TrapContext* ctx, SB, const struct protoent* p)
+static void copyProtoent(TrapContext *ctx, SB, const struct protoent *p)
 {
-	int size = 16;
-	int numaliases = 0;
-	int i;
-	uae_u32 aptr;
-
-	// compute total size of protoent
-	if (p->p_name != NULL)
-		size += strlen(p->p_name) + 1;
-
-	if (p->p_aliases != NULL)
-		while (p->p_aliases[numaliases])
-			size += strlen(p->p_aliases[numaliases++]) + 5;
-
-	if (sb->protoent) {
-		uae_FreeMem(ctx, sb->protoent, sb->protoentsize, sb->sysbase);
-	}
-
-	sb->protoent = uae_AllocMem(ctx, size, 0, sb->sysbase);
-
-	if (!sb->protoent) {
-		write_log("BSDSOCK: WARNING - copyProtoent() ran out of Amiga memory (couldn't allocate %d bytes)\n", size);
-		bsdsocklib_seterrno(ctx, sb, 12); // ENOMEM
-		return;
-	}
-
-	sb->protoentsize = size;
-
-	aptr = sb->protoent + 16 + numaliases * 4;
-
-	// transfer protoent to Amiga memory
-	trap_put_long(ctx, sb->protoent + 4, sb->protoent + 12);
-	trap_put_long(ctx, sb->protoent + 8, p->p_proto);
-
-	for (i = 0; i < numaliases; i++)
-		trap_put_long(ctx, sb->protoent + 12 + i * 4, addstr(ctx, &aptr, p->p_aliases[i]));
-	trap_put_long(ctx, sb->protoent + 12 + numaliases * 4, 0);
-	trap_put_long(ctx, sb->protoent, aptr);
-	addstr(ctx, &aptr, p->p_name);
-	bsdsocklib_seterrno(ctx, sb, 0);
+	bsdsock_copy_protoent(ctx, sb, p->p_name, p->p_aliases, p->p_proto);
 }
 
 uae_u32 bsdthr_Accept_2 (SB)
@@ -2685,56 +2608,14 @@ void host_getservbynameport(TrapContext *ctx, SB, uae_u32 nameport, uae_u32 prot
 		getservbyport (htons((unsigned short)nameport), (char *)get_real_address (proto)) :
 		getservbyname ((char *)get_real_address (nameport), (char *)get_real_address (proto));
 #endif
-	int size;
-	int numaliases = 0;
-	uae_u32 aptr;
-	int i;
 	if (type) {
 		write_log("Getservbyport(%d, %s) = %p\n", nameport, get_real_address (proto), s);
 	} else {
 		write_log("Getservbyname(%s, %s) = %p\n", get_real_address (nameport), get_real_address (proto), s);
 	}
 	if (s != NULL) {
-		// compute total size of servent
-		size = 20;
-		if (s->s_name != NULL)
-			size += strlen (s->s_name) + 1;
-		if (s->s_proto != NULL)
-			size += strlen (s->s_proto) + 1;
-
-		if (s->s_aliases != NULL)
-			while (s->s_aliases[numaliases])
-				size += strlen (s->s_aliases[numaliases++]) + 5;
-
-		if (sb->servent) {
-			uae_FreeMem(ctx, sb->servent, sb->serventsize, sb->sysbase);
-		}
-
-		sb->servent = uae_AllocMem (ctx, size, 0, sb->sysbase);
-
-		if (!sb->servent) {
-			write_log ("BSDSOCK: WARNING - getservby%s() ran out of Amiga memory (couldn't allocate %d bytes)\n",type ? "port" : "name", size);
-			bsdsocklib_seterrno (ctx, sb, 12); // ENOMEM
-			return;
-		}
-
-		sb->serventsize = size;
-
-		aptr = sb->servent + 20 + numaliases * 4;
-
-		// transfer servent to Amiga memory
-		trap_put_long(ctx, sb->servent + 4, sb->servent + 16);
-		trap_put_long(ctx, sb->servent + 8, (unsigned short)htons (s->s_port));
-
-		for (i = 0; i < numaliases; i++)
-			trap_put_long(ctx, sb->servent + 16 + i * 4, addstr_ansi(ctx, &aptr, s->s_aliases[i]));
-		trap_put_long(ctx, sb->servent + 16 + numaliases * 4, 0);
-		trap_put_long(ctx, sb->servent, aptr);
-		addstr_ansi(ctx, &aptr, s->s_name);
-		trap_put_long(ctx, sb->servent + 12, aptr);
-		addstr_ansi(ctx, &aptr, s->s_proto);
-
-		bsdsocklib_seterrno (ctx, sb,0);
+		bsdsock_copy_servent(ctx, sb, s->s_name, s->s_aliases,
+			(unsigned short)ntohs(s->s_port), s->s_proto);
 	} else {
 		// Free previous allocation and clear so Amiga side returns NULL
 		if (sb->servent) {
