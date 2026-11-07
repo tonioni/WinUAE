@@ -709,6 +709,9 @@
     <ClCompile Include="..\..\od-generic\clipboard.cpp">
       <Filter>shared</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\target_defaults.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\od-generic\focus.cpp">
       <Filter>shared</Filter>
     </ClCompile>

@@ -5,6 +5,10 @@
 // Also read the settings that WinUAE for Windows saves as win32.*.
 #define TARGET_NAME_COMPAT _T("win32")
 
+#ifdef DEBUGGER
+#define TARGET_HAS_DEBUG_INFO
+#endif
+
 #define OPTIONSFILENAME _T("default.uae")
 
 #include "winuae_version.h"

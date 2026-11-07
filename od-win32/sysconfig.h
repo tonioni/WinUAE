@@ -172,6 +172,7 @@
 // Beam racing support
 #define WITH_BEAMRACER
 
+#define WITH_ARCHIVES
 #define A_ZIP
 #define A_RAR
 #define A_7Z
