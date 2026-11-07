@@ -10,6 +10,7 @@
 
 #include "options.h"
 #include "filesys.h"
+#include "hardfile_cache.h"
 #include "blkdev.h"
 #include "registry.h"
 #include "win32gui.h"
@@ -87,7 +88,7 @@ struct uae_driveinfo {
 #define HDF_HANDLE_ZFILE 3
 #define HDF_HANDLE_UNKNOWN 4
 
-#define CACHE_SIZE 16384
+#define CACHE_SIZE HDF_HOST_CACHE_SIZE
 #define CACHE_FLUSH_TIME 5
 
 /* safety check: only accept drives that:
@@ -493,7 +494,6 @@ static int isharddrive (const TCHAR *name)
 	return -1;
 }
 
-static const TCHAR *hdz[] = { _T("hdz"), _T("zip"), _T("rar"), _T("7z"), NULL };
 
 static INT_PTR CALLBACK ProgressDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -2220,15 +2220,7 @@ emptyreal:
 			hfd->emptyname = my_strdup (name);
 		}
 	} else {
-		int zmode = 0;
-		TCHAR *ext = _tcsrchr (name, '.');
-		if (ext != NULL) {
-			ext++;
-			for (i = 0; hdz[i]; i++) {
-				if (!_tcsicmp (ext, hdz[i]))
-					zmode = 1;
-			}
-		}
+		bool zmode = hdf_compressed_name(name);
 		h = CreateFile (name, GENERIC_READ | (hfd->ci.readonly ? 0 : GENERIC_WRITE), hfd->ci.readonly ? FILE_SHARE_READ : 0, NULL,
 			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
 		if (h == INVALID_HANDLE_VALUE && !hfd->ci.readonly) {
@@ -2452,172 +2444,28 @@ static void poscheck(struct hardfiledata *hfd, int len)
 	}
 }
 
-static int isincache (struct hardfiledata *hfd, uae_u64 offset, int len)
+static int hdf_read_host(struct hardfiledata *hfd, void *buffer,
+	uae_u64 offset, int len, uae_u32 *error)
 {
-	if (!hfd->cache_valid)
-		return -1;
-	if (offset >= hfd->cache_offset && offset + len <= hfd->cache_offset + CACHE_SIZE)
-		return (int)(offset - hfd->cache_offset);
-	return -1;
-}
-
-#if 0
-void hfd_flush_cache (struct hardfiledata *hfd, int now)
-{
-	DWORD outlen = 0;
-	if (!hfd->cache_needs_flush || !hfd->cache_valid)
-		return;
-	if (now || time (NULL) > hfd->cache_needs_flush + CACHE_FLUSH_TIME) {
-		hdf_log ("flushed %d %d %d\n", now, time(NULL), hfd->cache_needs_flush);
-		hdf_seek (hfd, hfd->cache_offset);
-		poscheck (hfd, CACHE_SIZE);
-		WriteFile (hfd->handle, hfd->cache, CACHE_SIZE, &outlen, NULL);
-		hfd->cache_needs_flush = 0;
-	}
-}
-#endif
-
-#if 0
-
-static int hdf_rw (struct hardfiledata *hfd, void *bufferp, uae_u64 offset, int len, int dowrite)
-{
-	DWORD outlen = 0, outlen2;
-	uae_u8 *buffer = bufferp;
-	int soff, size, mask, bs;
-
-	bs = hfd->ci.blocksize;
-	mask = hfd->ci.blocksize - 1;
-	hfd->cache_valid = 0;
-	if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
-		if (dowrite)
-			outlen = zfile_fwrite (buffer, len, 1, hfd->handle);
-		else
-			outlen = zfile_fread (buffer, len, 1, hfd->handle);
-	} else {
-		soff = offset & mask;
-		if (soff > 0) { /* offset not aligned to blocksize */
-			size = bs - soff;
-			if (size > len)
-				size = len;
-			hdf_seek (hfd, offset & ~mask, dowrite != 0);
-			poscheck (hfd, len);
-			if (dowrite)
-				WriteFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
-			else
-				ReadFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
-			if (outlen2 != hfd->ci.blocksize)
-				goto end;
-			outlen += size;
-			memcpy (buffer, hfd->cache + soff,  size);
-			buffer += size;
-			offset += size;
-			len -= size;
-		}
-		while (len >= bs) { /* aligned access */
-			hdf_seek (hfd, offset, dowrite != 0);
-			poscheck (hfd, len);
-			size = len & ~mask;
-			if (size > CACHE_SIZE)
-				size = CACHE_SIZE;
-			if (dowrite) {
-				WriteFile (hfd->handle, hfd->cache, size, &outlen2, NULL);
-			} else {
-				int coff = isincache(hfd, offset, size);
-				if (coff >= 0) {
-					memcpy (buffer, hfd->cache + coff, size);
-					outlen2 = size;
-				} else {
-					ReadFile (hfd->handle, hfd->cache, size, &outlen2, NULL);
-					if (outlen2 == size)
-						memcpy (buffer, hfd->cache, size);
-				}
-			}
-			if (outlen2 != size)
-				goto end;
-			outlen += outlen2;
-			buffer += size;
-			offset += size;
-			len -= size;
-		}
-		if (len > 0) { /* len > 0 && len < bs */
-			hdf_seek (hfd, offset, dowrite != 0);
-			poscheck (hfd, len);
-			if (dowrite)
-				WriteFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
-			else
-				ReadFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
-			if (outlen2 != bs)
-				goto end;
-			outlen += len;
-			memcpy (buffer, hfd->cache, len);
-		}
-	}
-end:
-	return outlen;
-}
-
-int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
-{
-	return hdf_rw (hfd, buffer, offset, len, 0);
-}
-int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
-{
-	return hdf_rw (hfd, buffer, offset, len, 1);
-}
-
-#else
-
-static int hdf_read_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
-{
-	DWORD outlen = 0;
-	int coffset;
-
-	if (len == 0) {
-		return 0;
-	}
-	if (offset == 0) {
-		hfd->cache_valid = 0;
-	}
-	coffset = isincache (hfd, offset, len);
-	if (coffset >= 0) {
-		memcpy (buffer, hfd->cache + coffset, len);
-		return len;
-	}
-	hfd->cache_offset = offset;
-	if (offset + CACHE_SIZE > hfd->offset + hfd->physsize) {
-		hfd->cache_offset = hfd->offset + hfd->physsize - CACHE_SIZE;
-	}
-	if (hdf_seek(hfd, hfd->cache_offset, false)) {
+	DWORD got = 0;
+	if (hdf_seek(hfd, offset, false)) {
 		*error = 45;
 		return 0;
 	}
-	poscheck (hfd, CACHE_SIZE);
+	poscheck(hfd, len);
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
-		HD_ReadFile(hfd->handle->h, hfd->cache, CACHE_SIZE, &outlen, hfd->cache_offset);
+		HD_ReadFile(hfd->handle->h, buffer, len, &got, offset);
 	} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
-		outlen = (DWORD)zfile_fread(hfd->cache, 1, CACHE_SIZE, hfd->handle->zf);
+		got = (DWORD)zfile_fread(buffer, 1, len, hfd->handle->zf);
 	}
-	hfd->cache_valid = 0;
-	if (outlen != CACHE_SIZE) {
+	if (got != len) {
 		*error = 45;
-		return 0;
 	}
-	hfd->cache_valid = 1;
-	coffset = isincache (hfd, offset, len);
-	if (coffset >= 0) {
-		memcpy (buffer, hfd->cache + coffset, len);
-		return len;
-	}
-	write_log (_T("hdf_read: cache bug! offset=%I64d len=%d\n"), offset, len);
-	hfd->cache_valid = 0;
-	*error = 45;
-	return 0;
+	return got;
 }
 
 int hdf_read_target(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
 {
-	int got = 0;
-	uae_u8 *p = (uae_u8*)buffer;
 	uae_u32 error2 = 0;
 
 	if (error) {
@@ -2642,34 +2490,7 @@ int hdf_read_target(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int 
 		return len2;
 	}
 
-	while (len > 0) {
-		int maxlen;
-		DWORD ret;
-		if (hfd->physsize < CACHE_SIZE) {
-			hfd->cache_valid = 0;
-			if (hdf_seek(hfd, offset, false))
-				return got;
-			if (hfd->physsize)
-				poscheck (hfd, len);
-			if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
-				HD_ReadFile(hfd->handle->h, hfd->cache, len, &ret, offset);
-				memcpy (buffer, hfd->cache, ret);
-			} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
-				ret = (DWORD)zfile_fread (buffer, 1, len, hfd->handle->zf);
-			}
-			maxlen = len;
-		} else {
-			maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
-			ret = hdf_read_2 (hfd, p, offset, maxlen, error);
-		}
-		got += ret;
-		if (ret != maxlen)
-			return got;
-		offset += maxlen;
-		p += maxlen;
-		len -= maxlen;
-	}
-	return got;
+	return hdf_read_cached(hfd, buffer, offset, len, error, hdf_read_host);
 }
 
 static int hdf_write_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
@@ -2771,6 +2592,11 @@ int hdf_write_target(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 	if (hfd->drive_empty || hfd->physsize == 0)
 		return 0;
 
+	if (!hdf_check_bounds(hfd, offset, len)) {
+		*error = 45;
+		return 0;
+	}
+
 	while (len > 0) {
 		int maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
 		int ret = hdf_write_2(hfd, p, offset, maxlen, error);
@@ -2804,14 +2630,13 @@ int hdf_resize_target (struct hardfiledata *hfd, uae_u64 newsize)
 	}
 	if (SetEndOfFile (hfd->handle->h)) {
 		hfd->physsize = newsize;
+		hfd->cache_valid = 0;
 		return 1;
 	}
 	err = GetLastError ();
 	write_log (_T("hdf_resize_target: SetEndOfFile() %d\n"), err);
 	return 0;
 }
-
-#endif
 
 #ifdef WINDDK
 
