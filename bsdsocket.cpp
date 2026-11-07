@@ -978,14 +978,51 @@ static uae_u32 REGPARAM2 bsdsocklib_SetErrnoPtr (TrapContext *ctx)
 /* Inet_NtoA(in)(d0) */
 static uae_u32 REGPARAM2 bsdsocklib_Inet_NtoA (TrapContext *ctx)
 {
-	struct socketbase *sb = get_socketbase (ctx);
-	return host_Inet_NtoA(ctx, sb, trap_get_dreg(ctx, 0));
+	uae_u32 in = trap_get_dreg(ctx, 0);
+	char text[16];
+	snprintf(text, sizeof text, "%u.%u.%u.%u",
+		(unsigned int)(in >> 24), (unsigned int)((in >> 16) & 255),
+		(unsigned int)((in >> 8) & 255), (unsigned int)(in & 255));
+	uaecptr scratchbuf = trap_get_areg(ctx, 6) +
+		offsetof(struct UAEBSDBase, scratchbuf);
+	strncpyha(ctx, scratchbuf, text, SCRATCHBUFSIZE);
+	if (ISBSDTRACE) {
+		TCHAR *s = au(text);
+		BSDTRACE((_T("Inet_NtoA(%08x) -> %s\n"), in, s));
+		xfree(s);
+	}
+	return scratchbuf;
+}
+
+static uae_u32 parse_ipv4_address(TrapContext *ctx, uaecptr address)
+{
+	if (!trap_valid_address(ctx, address, 4))
+		return 0;
+
+	// trap_get_alloc_string() does not bound the direct-memory copy. Keep
+	// address strings within the existing 256-byte limit, including the NUL.
+	char text[256];
+	for (unsigned int i = 0; i < sizeof text; i++) {
+		if (!trap_valid_address(ctx, address + i, 1))
+			return 0;
+		text[i] = trap_get_byte(ctx, address + i);
+		if (!text[i]) {
+			uae_u32 result = host_inet_addr(text);
+			if (ISBSDTRACE) {
+				TCHAR *s = au(text);
+				BSDTRACE((_T("inet_addr(%s) -> 0x%08x\n"), s, result));
+				xfree(s);
+			}
+			return result;
+		}
+	}
+	return 0xffffffff; // INADDR_NONE: no terminator within the buffer.
 }
 
 /* inet_addr(cp)(a0) */
 static uae_u32 REGPARAM2 bsdsocklib_inet_addr (TrapContext *ctx)
 {
-	return host_inet_addr(ctx, trap_get_areg(ctx, 0));
+	return parse_ipv4_address(ctx, trap_get_areg(ctx, 0));
 }
 
 /* Inet_LnaOf(in)(d0) */
@@ -1012,7 +1049,7 @@ static uae_u32 REGPARAM2 bsdsocklib_Inet_MakeAddr (TrapContext *ctx)
 /* inet_network(cp)(a0) */
 static uae_u32 REGPARAM2 bsdsocklib_inet_network (TrapContext *ctx)
 {
-	return host_inet_addr(ctx, trap_get_areg(ctx, 0));
+	return parse_ipv4_address(ctx, trap_get_areg(ctx, 0));
 }
 
 /* *------ gethostbyname etc */
