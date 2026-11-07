@@ -187,6 +187,9 @@
     <ClCompile Include="..\serial_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\serial.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\sounddep\sound.cpp">
       <Filter>win32</Filter>
     </ClCompile>
@@ -2082,6 +2085,9 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\include\serial_host.h">
+      <Filter>common</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
     <ClInclude Include="..\..\include\cfgfile_mount.h" />
     <ClInclude Include="..\..\include\cpu_selection.h" />

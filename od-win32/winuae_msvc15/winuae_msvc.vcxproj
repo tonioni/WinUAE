@@ -3312,6 +3312,7 @@
     <ClCompile Include="..\rp.cpp" />
     <ClCompile Include="..\screenshot.cpp" />
     <ClCompile Include="..\serial_win32.cpp" />
+    <ClCompile Include="..\..\serial.cpp" />
     <ClCompile Include="..\sounddep\sound.cpp" />
     <ClCompile Include="..\statusline_win32.cpp" />
     <ClCompile Include="..\unicode.cpp" />
@@ -3502,6 +3503,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\include\serial_host.h" />
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
     <ClInclude Include="..\..\include\cfgfile_mount.h" />
     <ClInclude Include="..\..\include\cpu_selection.h" />
