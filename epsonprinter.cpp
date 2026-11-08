@@ -616,7 +616,6 @@ static void prt_thread(void *p)
 			}
 			sleep_millis(10);
 		} else if (pd) {
-			Bit16u x, y;
 			int Tpage_w = pd->page_w;
 			int Tpage_h = pd->page_h;
 			int Tpage_pitch = pd->page_pitch;

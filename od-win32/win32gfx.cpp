@@ -642,7 +642,6 @@ int getrefreshrate(int monid, int width, int height)
 
 static void addmode (struct MultiDisplay *md, DEVMODE *dm, int rawmode)
 {
-	int i, j;
 	int w = dm->dmPelsWidth;
 	int h = dm->dmPelsHeight;
 	int d = dm->dmBitsPerPel;
