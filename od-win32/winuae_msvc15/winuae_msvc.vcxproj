@@ -3293,6 +3293,7 @@
     <ClCompile Include="..\ahidsound_dsonly.cpp" />
     <ClCompile Include="..\ahidsound_new.cpp" />
     <ClCompile Include="..\avioutput.cpp" />
+    <ClCompile Include="..\blkdev_host.cpp" />
     <ClCompile Include="..\blkdev_win32_ioctl.cpp" />
     <ClCompile Include="..\blkdev_win32_spti.cpp" />
     <ClCompile Include="..\bsdsock.cpp" />

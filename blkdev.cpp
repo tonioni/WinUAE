@@ -248,11 +248,7 @@ void blkdev_fix_prefs (struct uae_prefs *p)
 			continue;
 		if (p->cdslots[i].inuse || p->cdslots[i].name[0]) {
 			TCHAR *name = p->cdslots[i].name;
-#ifdef _WIN32
-			if (_tcslen (name) == 3 && name[1] == ':' && name[2] == '\\') {
-#else
-			if (name[0] == '/' && name[1] == 'd' && name[2] == 'e' && name[3] == 'v' && name[4] == '/') {
-#endif
+			if (host_cd_is_device(name)) {
 				if (currprefs.scsi && (currprefs.host_uaescsimode == UAESCSI_SPTI || currprefs.host_uaescsimode == UAESCSI_SPTISCAN))
 					cdscsidevicetype[i] = SCSI_UNIT_SPTI;
 				else
@@ -339,15 +335,14 @@ static int sys_command_open_internal (int unitnum, const TCHAR *ident, cd_standa
 	return ret;
 }
 
-static int getunitinfo (int unitnum, int drive, cd_standard_unit csu, int *isaudio)
+static int getunitinfo (int unitnum, cd_standard_unit csu, bool *isaudio)
 {
 	struct device_info di;
 	if (sys_command_info (unitnum, &di, 0)) {
 		write_log (_T("Scanning drive %s: "), di.label);
 		if (di.media_inserted) {
 			if (isaudiotrack (&di.toc, 0)) {
-				if (*isaudio == 0)
-					*isaudio = drive;
+				*isaudio = true;
 				write_log (_T("CDA"));
 			}
 			uae_u8 buffer[2048];
@@ -382,7 +377,9 @@ static int getunitinfo (int unitnum, int drive, cd_standard_unit csu, int *isaud
 static int get_standard_cd_unit2 (struct uae_prefs *p, cd_standard_unit csu)
 {
 	int unitnum = 0;
-	int isaudio = 0;
+	TCHAR name[MAX_DPATH];
+	TCHAR audio_name[MAX_DPATH] = { 0 };
+	int cursor = 0;
 	if (p->cdslots[unitnum].name[0] || p->cdslots[unitnum].inuse) {
 		if (p->cdslots[unitnum].name[0]) {
 			device_func_init (SCSI_UNIT_IOCTL);
@@ -397,25 +394,22 @@ static int get_standard_cd_unit2 (struct uae_prefs *p, cd_standard_unit csu)
 		return unitnum;
 	}
 	device_func_init (SCSI_UNIT_IOCTL);
-#ifdef _WIN32
-	for (int drive = 'C'; drive <= 'Z'; ++drive) {
-		TCHAR vol[100];
-		_stprintf (vol, _T("%c:\\"), drive);
-		int drivetype = GetDriveType (vol);
-		if (drivetype == DRIVE_CDROM) {
-			if (sys_command_open_internal (unitnum, vol, csu)) {
-				if (getunitinfo (unitnum, drive, csu, &isaudio))
-					return unitnum;
-				sys_command_close (unitnum);
+	while ((cursor = host_cd_next_device(cursor, name, sizeof name / sizeof(TCHAR))) > 0) {
+		if (sys_command_open_internal(unitnum, name, csu)) {
+			bool isaudio = false;
+			if (getunitinfo(unitnum, csu, &isaudio)) {
+				return unitnum;
 			}
+			if (isaudio && !audio_name[0]) {
+				_tcscpy(audio_name, name);
+			}
+			sys_command_close(unitnum);
 		}
 	}
-#endif
-	if (isaudio) {
-		TCHAR vol[100];
-		_stprintf (vol, _T("%c:\\"), isaudio);
-		if (sys_command_open_internal (unitnum, vol, csu)) 
+	if (audio_name[0]) {
+		if (sys_command_open_internal(unitnum, audio_name, csu)) {
 			return unitnum;
+		}
 	}
 fallback:
 	device_func_init (SCSI_UNIT_IMAGE);

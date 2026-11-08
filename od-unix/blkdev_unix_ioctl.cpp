@@ -1392,6 +1392,24 @@ static void close_device(int unitnum)
 
 static int total_devices;
 
+int host_cd_next_device(int cursor, TCHAR *name, int name_size)
+{
+	if (!name || name_size <= 0) {
+		return 0;
+	}
+	name[0] = 0;
+	if (cursor < 0 || cursor >= total_devices) {
+		return 0;
+	}
+	const TCHAR *device = ciw32[cursor].drvlettername;
+	if (_tcslen(device) >= (size_t)name_size) {
+		return 0;
+	}
+	_tcscpy(name, device);
+	return cursor + 1;
+}
+
+
 static void close_bus(void)
 {
 	if (!bus_open) {
