@@ -1124,7 +1124,9 @@ static void unix_fill_mode_info(TrapContext *ctx, uaecptr ptr, struct LibResolut
     trap_put_word(ctx, ptr + PSSO_ModeInfo_VerSyncSize, 2);
     trap_put_byte(ctx, ptr + PSSO_ModeInfo_first_union, 98);
     trap_put_byte(ctx, ptr + PSSO_ModeInfo_second_union, 14);
-    trap_put_long(ctx, ptr + PSSO_ModeInfo_PixelClock, width * height * 60);
+    /* Include the blanking above, at the RTG refresh rate, like Windows. */
+    int freq = abs(currprefs.gfx_apmode[GF_RTG].gfx_refreshrate);
+    trap_put_long(ctx, ptr + PSSO_ModeInfo_PixelClock, (width + 8) * (height + 8) * (freq ? freq : 60));
 }
 
 static bool unix_add_mode(TrapContext *ctx, uaecptr board_info, uaecptr *amem, int width, int height, int index)
