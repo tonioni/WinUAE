@@ -340,6 +340,9 @@
     <ClCompile Include="..\..\enforcer.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\printer_host.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\epsonprinter.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -2181,6 +2184,9 @@
     </ClInclude>
     <ClInclude Include="..\..\include\hardfile_defaults.h">
       <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\printer_host.h">
+      <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\serial_host.h">
       <Filter>shared</Filter>

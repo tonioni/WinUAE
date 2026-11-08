@@ -868,7 +868,8 @@ void uae_restart(struct uae_prefs *p, int opengui, const TCHAR *cfgfile)
 	target_restart ();
 }
 
-extern int console_logging, pngprint, log_scsi, log_scsiemu;
+int pngprint = 0;
+extern int console_logging, log_scsi, log_scsiemu;
 extern int enable_ds_partition_hdf, log_filesys, log_net, log_sercon;
 extern int log_a2065, a2065_promiscuous, log_uaeserial, log_vsync;
 extern int log_bsd, clipboard_debug, clipboard_log, log_dsp, log_cd32;

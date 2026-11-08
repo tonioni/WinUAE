@@ -35,16 +35,6 @@
 #define PARALLEL_MATRIX_EPSON48 4
 #endif
 
-#ifndef WINFONT
-#include "ft2build.h"
-#include FT_FREETYPE_H
-#endif
-
-#if defined (WIN32)
-#include <windows.h>
-#include <winspool.h>
-#endif
-
 #define STYLE_PROP 0x01
 #define STYLE_CONDENSED 0x02
 #define STYLE_BOLD 0x04

@@ -605,7 +605,7 @@ if(WINUAE_UNIX_WITH_PRINTER_EMULATION)
     endif()
     target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_PRINTER_EMULATION=1)
     list(APPEND WINUAE_UNIX_EXTRA_LIBRARIES ${WINUAE_FREETYPE_TARGET})
-    list(APPEND WINUAE_UNIX_EXTRA_SOURCES epsonprinter.cpp)
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES epsonprinter.cpp od-unix/printer_host.cpp)
 endif()
 
 set(WINUAE_UNIX_ENABLE_UAESCSI OFF)

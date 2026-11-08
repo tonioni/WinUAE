@@ -3377,6 +3377,7 @@
     <ClCompile Include="..\..\drawing.cpp" />
     <ClCompile Include="..\..\driveclick.cpp" />
     <ClCompile Include="..\..\enforcer.cpp" />
+    <ClCompile Include="..\printer_host.cpp" />
     <ClCompile Include="..\..\epsonprinter.cpp" />
     <ClCompile Include="..\..\expansion.cpp" />
     <ClCompile Include="..\..\fdi2raw.cpp" />
@@ -3535,6 +3536,7 @@
     <ClInclude Include="..\..\od-generic\input_defaults.h" />
     <ClInclude Include="..\..\od-generic\keymap.h" />
     <ClInclude Include="..\..\od-generic\hostcfg.def" />
+    <ClInclude Include="..\..\include\printer_host.h" />
     <ClInclude Include="..\..\include\serial_host.h" />
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
     <ClInclude Include="..\..\include\cfgfile_mount.h" />
