@@ -22,9 +22,7 @@
 #include "qemuvga/qemuaudio.h"
 #include "rommgr.h"
 #include "devices.h"
-#ifndef _WIN32
 #include "sndboard_host.h"
-#endif
 
 #define DEBUG_SNDDEV 0
 #define DEBUG_SNDDEV_READ 0
@@ -33,10 +31,6 @@
 
 static void snd_init(void);
 static void sndboard_rethink(void);
-static uae_u8 *sndboard_get_buffer(int *frames);
-static void sndboard_release_buffer(uae_u8 *buffer, int frames);
-static void sndboard_free_capture(int owner);
-static bool sndboard_init_capture(int freq, int owner);
 static void uaesndboard_reset(int hardreset);
 static void sndboard_reset(int hardreset);
 
@@ -57,9 +51,6 @@ static float base_event_clock;
 #define UAESND_ERR_INVALID_SET 1
 #define UAESND_ERR_STREAM_ALLOC 2
 #define UAESND_ERR_CAPTURE_BLOCK_ADDRESS 3
-#define SNDBOARD_CAPTURE_OWNER_NONE 0
-#define SNDBOARD_CAPTURE_OWNER_TOCCATA 1
-#define SNDBOARD_CAPTURE_OWNER_UAESND 2
 #define UAESND_CAPTURE_REG_DATA 0xc0
 #define UAESND_CAPTURE_REG_OVERRUNS 0xc4
 #define UAESND_CAPTURE_REG_INTREQ 0xc8
@@ -162,7 +153,6 @@ struct uaesndboard_data
 };
 
 static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
-static int capture_owner = SNDBOARD_CAPTURE_OWNER_NONE;
 
 static void uaesnd_update_info(struct uaesndboard_data *data)
 {
@@ -224,7 +214,7 @@ static void uaesnd_capture_start(struct uaesndboard_data *data)
 	data->capture.buffer = xcalloc(uae_u8, data->capture.buffer_size);
 	uaesnd_capture_reset_buffer(&data->capture);
 	data->capture.control |= UAESND_CAPTURE_CONTROL_ENABLE;
-	if (!sndboard_init_capture(data->capture.frequency, SNDBOARD_CAPTURE_OWNER_UAESND)) {
+	if (!host_sndboard_init_capture(data->capture.frequency, SNDBOARD_CAPTURE_OWNER_UAESND)) {
 		xfree(data->capture.buffer);
 		data->capture.buffer = NULL;
 		data->capture.buffer_size = 0;
@@ -237,7 +227,7 @@ static void uaesnd_capture_start(struct uaesndboard_data *data)
 static void uaesnd_capture_stop(struct uaesndboard_data *data)
 {
 	if (data->capture.status & UAESND_CAPTURE_STATUS_ACTIVE)
-		sndboard_free_capture(SNDBOARD_CAPTURE_OWNER_UAESND);
+		host_sndboard_free_capture(SNDBOARD_CAPTURE_OWNER_UAESND);
 	xfree(data->capture.buffer);
 	data->capture.buffer = NULL;
 	data->capture.buffer_size = 0;
@@ -274,7 +264,7 @@ static void uaesnd_capture_process(struct uaesndboard_data *data)
 	if (!(data->capture.status & UAESND_CAPTURE_STATUS_ACTIVE))
 		return;
 	int frames = 0;
-	uae_u8 *buffer = sndboard_get_buffer(&frames);
+	uae_u8 *buffer = host_sndboard_get_buffer(&frames);
 	if (buffer && frames > 0) {
 		data->capture.frame_count += frames;
 		int samples = frames * 2;
@@ -285,7 +275,7 @@ static void uaesnd_capture_process(struct uaesndboard_data *data)
 		if ((data->capture.control & UAESND_CAPTURE_CONTROL_IRQ_ENABLE) && data->capture.threshold > 0 && data->capture.available >= data->capture.threshold)
 			data->capture.intreq = 1;
 	}
-	sndboard_release_buffer(buffer, frames);
+	host_sndboard_release_buffer(buffer, frames);
 }
 
 static bool uaesnd_capture_rethink(struct uaesndboard_data *data)
@@ -2132,7 +2122,7 @@ static void codec_start(struct snddev_data *data)
 	if (data->snddev_active & STATUS_FIFO_RECORD) {
 		data->capture_buffer_size = 48000 * 2 * 2; // 1s at 48000/stereo/16bit
 		data->capture_buffer = xcalloc(uae_u8, data->capture_buffer_size);
-		if (!sndboard_init_capture(data->freq_adjusted, SNDBOARD_CAPTURE_OWNER_TOCCATA)) {
+		if (!host_sndboard_init_capture(data->freq_adjusted, SNDBOARD_CAPTURE_OWNER_TOCCATA)) {
 			write_log(_T("SNDDEV capture unavailable, recording disabled\n"));
 			data->snddev_active &= ~STATUS_FIFO_RECORD;
 			xfree(data->capture_buffer);
@@ -2147,7 +2137,7 @@ static void codec_stop(struct snddev_data *data)
 		return;
 	write_log(_T("CODEC stop\n"));
 	data->snddev_active = 0;
-	sndboard_free_capture(SNDBOARD_CAPTURE_OWNER_TOCCATA);
+	host_sndboard_free_capture(SNDBOARD_CAPTURE_OWNER_TOCCATA);
 	int streamid = data->streamid;
 	data->streamid = 0;
 	audio_enable_stream(false, streamid, 0, NULL, NULL);
@@ -2177,7 +2167,7 @@ static void sndboard_rethink(void)
 static void sndboard_process_capture(struct snddev_data *data)
 {
 	int frames;
-	uae_u8 *buffer = sndboard_get_buffer(&frames);
+	uae_u8 *buffer = host_sndboard_get_buffer(&frames);
 	if (buffer && frames) {
 		uae_u8 *p = buffer;
 		int bytes = frames * 4;
@@ -2192,7 +2182,7 @@ static void sndboard_process_capture(struct snddev_data *data)
 			data->capture_write_index += bytes;
 		}
 	}
-	sndboard_release_buffer(buffer, frames);
+	host_sndboard_release_buffer(buffer, frames);
 }
 
 static void check_prelude_interrupt(struct snddev_data *data)
@@ -3526,218 +3516,3 @@ static void snd_init(void)
 	device_add_exit(sndboard_free, NULL);
 	device_add_exit(uaesndboard_free, NULL);
 }
-
-
-#ifdef _WIN32
-
-#include <mmdeviceapi.h>
-#include <Audioclient.h>
-
-#define REFTIMES_PER_SEC  10000000
-
-static const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
-static const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
-static const IID IID_IAudioClient = __uuidof(IAudioClient);
-static const IID IID_IAudioCaptureClient = __uuidof(IAudioCaptureClient);
-
-#define EXIT_ON_ERROR(hres) if (FAILED(hres)) { goto Exit; }
-#define SAFE_RELEASE(punk)  if ((punk) != NULL) { (punk)->Release(); (punk) = NULL; }
-
-static IMMDeviceEnumerator *pEnumerator = NULL;
-static IMMDevice *pDevice = NULL;
-static IAudioClient *pAudioClient = NULL;
-static IAudioCaptureClient *pCaptureClient = NULL;
-static bool capture_started;
-static int capture_read_count;
-static bool capture_nonzero_seen;
-
-static uae_u8 *sndboard_get_buffer(int *frames)
-{	
-	HRESULT hr;
-	UINT32 numFramesAvailable;
-	BYTE *pData;
-	DWORD flags = 0;
-
-	*frames = -1;
-	if (!capture_started)
-		return NULL;
-	hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, NULL, NULL);
-	if (FAILED(hr)) {
-		write_log(_T("GetBuffer failed %08x\n"), hr);
-		return NULL;
-	}
-	*frames = numFramesAvailable;
-	if (numFramesAvailable > 0) {
-		capture_read_count++;
-		if (flags & AUDCLNT_BUFFERFLAGS_SILENT) {
-			if (capture_read_count <= 5)
-				write_log(_T("sndboard capture read %u silent frames from host input\n"), numFramesAvailable);
-		} else if (!capture_nonzero_seen) {
-			bool has_signal = false;
-			int bytes = numFramesAvailable * 4;
-			for (int i = 0; i < bytes; i++) {
-				if (pData[i] != 0) {
-					has_signal = true;
-					break;
-				}
-			}
-			if (has_signal) {
-				capture_nonzero_seen = true;
-				write_log(_T("sndboard capture received first non-silent buffer after %d reads\n"), capture_read_count);
-			} else if (capture_read_count <= 5) {
-				write_log(_T("sndboard capture read %u silent frames from host input\n"), numFramesAvailable);
-			}
-		}
-	}
-	return pData;
-}
-
-static void sndboard_release_buffer(uae_u8 *buffer, int frames)
-{
-	HRESULT hr;
-	if (!capture_started || frames < 0)
-		return;
-	hr = pCaptureClient->ReleaseBuffer(frames);
-	if (FAILED(hr)) {
-		write_log(_T("ReleaseBuffer failed %08x\n"), hr);
-	}
-}
-
-static void sndboard_free_capture(int owner)
-{
-	if (capture_owner != owner)
-		return;
-	if (capture_started)
-		pAudioClient->Stop();
-	capture_started = false;
-	capture_read_count = 0;
-	capture_nonzero_seen = false;
-	capture_owner = SNDBOARD_CAPTURE_OWNER_NONE;
-	SAFE_RELEASE(pEnumerator)
-	SAFE_RELEASE(pDevice)
-	SAFE_RELEASE(pAudioClient)
-	SAFE_RELEASE(pCaptureClient)
-}
-
-static bool sndboard_init_capture(int freq, int owner)
-{
-	HRESULT hr;
-	WAVEFORMATEX wavfmtsrc;
-	WAVEFORMATEX *wavfmt2;
-	WAVEFORMATEX *wavfmt;
-	bool init = false;
-
-	if (capture_started && capture_owner != owner)
-		return false;
-	if (capture_started)
-		sndboard_free_capture(owner);
-	capture_owner = owner;
-
-	wavfmt2 = NULL;
-
-	hr = CoCreateInstance(
-		CLSID_MMDeviceEnumerator, NULL,
-		CLSCTX_ALL, IID_IMMDeviceEnumerator,
-		(void**)&pEnumerator);
-	EXIT_ON_ERROR(hr)
-
-	hr = pEnumerator->GetDefaultAudioEndpoint(eCapture, eConsole, &pDevice);
-	EXIT_ON_ERROR(hr)
-
-	hr = pDevice->Activate(IID_IAudioClient, CLSCTX_ALL, NULL, (void**)&pAudioClient);
-	EXIT_ON_ERROR(hr)
-
-	memset (&wavfmtsrc, 0, sizeof wavfmtsrc);
-	wavfmtsrc.nChannels = 2;
-	wavfmtsrc.nSamplesPerSec = freq;
-	wavfmtsrc.wBitsPerSample = 16;
-	wavfmtsrc.wFormatTag = WAVE_FORMAT_PCM;
-	wavfmtsrc.cbSize = 0;
-	wavfmtsrc.nBlockAlign = wavfmtsrc.wBitsPerSample / 8 * wavfmtsrc.nChannels;
-	wavfmtsrc.nAvgBytesPerSec = wavfmtsrc.nBlockAlign * wavfmtsrc.nSamplesPerSec;
-
-	AUDCLNT_SHAREMODE exc;
-	for (int mode = 0; mode < 2; mode++) {
-		exc = mode == 0 ? AUDCLNT_SHAREMODE_EXCLUSIVE : AUDCLNT_SHAREMODE_SHARED;
-		int time = mode == 0 ? 0 : REFTIMES_PER_SEC / 50;
-
-		wavfmt = &wavfmtsrc;
-		hr = pAudioClient->IsFormatSupported(exc, &wavfmtsrc, &wavfmt2);
-		if (SUCCEEDED(hr)) {
-			hr = pAudioClient->Initialize(exc, 0, time, 0, wavfmt, NULL);
-			if (SUCCEEDED(hr)) {
-				init = true;
-				break;
-			}
-		}
-	
-		if (hr == S_FALSE && wavfmt2) {
-			wavfmt = wavfmt2;
-			if (wavfmt->wFormatTag == WAVE_FORMAT_PCM && wavfmt->nChannels == 2 && wavfmt->wBitsPerSample == 16) {
-				hr = pAudioClient->Initialize(exc, 0, time, 0, wavfmt, NULL);
-				if (SUCCEEDED(hr)) {
-					init = true;
-					break;
-				}
-			}
-		}
-	}
-
-	if (!init) {
-		write_log(_T("sndboard capture init, freq=%d, failed\n"), freq);
-		goto Exit;
-	}
-
-
-	hr = pAudioClient->GetService(IID_IAudioCaptureClient, (void**)&pCaptureClient);
-	EXIT_ON_ERROR(hr)
-		
-	hr = pAudioClient->Start();
-	EXIT_ON_ERROR(hr)
-	capture_started = true;
-	capture_read_count = 0;
-	capture_nonzero_seen = false;
-
-	CoTaskMemFree(wavfmt2);
-
-	write_log(_T("sndboard capture started: freq=%d mode=%s\n"), freq, exc == AUDCLNT_SHAREMODE_EXCLUSIVE ? _T("exclusive") : _T("shared"));
-
-	return true;
-Exit:;
-	CoTaskMemFree(wavfmt2);
-	write_log(_T("sndboard capture init failed %08x\n"), hr);
-	sndboard_free_capture(owner);
-	return false;
-}
-
-#else
-
-static uae_u8 *sndboard_get_buffer(int *frames)
-{
-	return unix_sndboard_get_buffer(frames);
-}
-
-static void sndboard_release_buffer(uae_u8 *buffer, int frames)
-{
-	unix_sndboard_release_buffer(buffer, frames);
-}
-
-static void sndboard_free_capture(int owner)
-{
-	if (capture_owner != owner)
-		return;
-	unix_sndboard_free_capture();
-	capture_owner = SNDBOARD_CAPTURE_OWNER_NONE;
-}
-
-static bool sndboard_init_capture(int freq, int owner)
-{
-	if (capture_owner != SNDBOARD_CAPTURE_OWNER_NONE)
-		return capture_owner == owner;
-	if (!unix_sndboard_init_capture(freq))
-		return false;
-	capture_owner = owner;
-	return true;
-}
-
-#endif

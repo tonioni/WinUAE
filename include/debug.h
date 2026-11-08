@@ -19,6 +19,10 @@
 #define bug write_log
 #endif
 
+// Optional host debugger views; targets without these views use no-ops.
+void update_disassembly(uae_u32 addr);
+void update_memdump(uae_u32 addr);
+
 int getregidx(TCHAR **c);
 uae_u32 returnregx(int regid);
 

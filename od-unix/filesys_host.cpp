@@ -340,6 +340,19 @@ void my_canonicalize_path(const TCHAR *path, TCHAR *out, int size)
     }
 }
 
+bool my_getcurrentdir(TCHAR *path, int size)
+{
+	if (!path || size <= 0) {
+		return false;
+	}
+	path[0] = 0;
+	if (getcwd(path, size) != NULL) {
+		return true;
+	}
+	path[0] = 0;
+	return false;
+}
+
 int my_setcurrentdir(const TCHAR *curdir, TCHAR *oldcur)
 {
     if (oldcur) {

@@ -1,7 +1,7 @@
 /*
  * UAE shared-library loading interface (declarations only).
  *
- * The implementation lives in dlopen.cpp, with the Unix plugin search
+ * The native loaders live in od-win32 and od-unix, with the Unix search
  * (target_dlopen_plugin) in od-unix/dlopen.cpp. All functions keep C++
  * linkage. floppybridge/floppybridge_lib.cpp includes this header only on
  * non-Windows builds.
@@ -36,6 +36,9 @@ void *uae_dlsym(UAE_DLHANDLE handle, const char *symbol);
 
 /* Close a library obtained from uae_dlopen/uae_dlopen_plugin. */
 void uae_dlclose(UAE_DLHANDLE handle);
+
+// Report the native library filename when available; clear path on failure.
+bool uae_dlpath(UAE_DLHANDLE handle, TCHAR *path, int size);
 
 /* Search the plugin directories for `name` (no extension), append the
  * platform suffix (LT_MODULE_EXT) and load it. */

@@ -29,7 +29,7 @@ static bool ensure_audio(void)
 	return true;
 }
 
-uae_u8 *unix_sndboard_get_buffer(int *frames)
+static uae_u8 *unix_sndboard_get_buffer(int *frames)
 {
 	int available;
 	int bytes;
@@ -64,11 +64,11 @@ uae_u8 *unix_sndboard_get_buffer(int *frames)
 	return capture_buffer;
 }
 
-void unix_sndboard_release_buffer(uae_u8 *buffer, int frames)
+static void unix_sndboard_release_buffer(uae_u8 *buffer, int frames)
 {
 }
 
-void unix_sndboard_free_capture(void)
+static void unix_sndboard_free_capture(void)
 {
 	if (capture_stream) {
 		SDL_DestroyAudioStream(capture_stream);
@@ -77,7 +77,7 @@ void unix_sndboard_free_capture(void)
 	memset(&capture_spec, 0, sizeof capture_spec);
 }
 
-bool unix_sndboard_init_capture(int freq)
+static bool unix_sndboard_init_capture(int freq)
 {
 	unix_sndboard_free_capture();
 	if (!ensure_audio()) {
@@ -99,7 +99,7 @@ bool unix_sndboard_init_capture(int freq)
 
 #else
 
-uae_u8 *unix_sndboard_get_buffer(int *frames)
+static uae_u8 *unix_sndboard_get_buffer(int *frames)
 {
 	if (frames) {
 		*frames = 0;
@@ -107,17 +107,47 @@ uae_u8 *unix_sndboard_get_buffer(int *frames)
 	return NULL;
 }
 
-void unix_sndboard_release_buffer(uae_u8 *buffer, int frames)
+static void unix_sndboard_release_buffer(uae_u8 *buffer, int frames)
 {
 }
 
-void unix_sndboard_free_capture(void)
+static void unix_sndboard_free_capture(void)
 {
 }
 
-bool unix_sndboard_init_capture(int freq)
+static bool unix_sndboard_init_capture(int freq)
 {
 	return false;
 }
 
 #endif
+
+static int capture_owner = SNDBOARD_CAPTURE_OWNER_NONE;
+
+uae_u8 *host_sndboard_get_buffer(int *frames)
+{
+	return unix_sndboard_get_buffer(frames);
+}
+
+void host_sndboard_release_buffer(uae_u8 *buffer, int frames)
+{
+	unix_sndboard_release_buffer(buffer, frames);
+}
+
+void host_sndboard_free_capture(int owner)
+{
+	if (capture_owner != owner)
+		return;
+	unix_sndboard_free_capture();
+	capture_owner = SNDBOARD_CAPTURE_OWNER_NONE;
+}
+
+bool host_sndboard_init_capture(int freq, int owner)
+{
+	if (capture_owner != SNDBOARD_CAPTURE_OWNER_NONE)
+		return capture_owner == owner;
+	if (!unix_sndboard_init_capture(freq))
+		return false;
+	capture_owner = owner;
+	return true;
+}
