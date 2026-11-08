@@ -3376,6 +3376,7 @@
     <ClCompile Include="..\..\gayle.cpp" />
     <ClCompile Include="..\..\gdb_monitor.cpp" />
     <ClCompile Include="..\..\gdb_protocol.cpp" />
+    <ClCompile Include="..\..\od-generic\gdb_transport.cpp" />
     <ClCompile Include="..\..\gdb_server.cpp" />
     <ClCompile Include="..\..\gdb_target.cpp" />
     <ClCompile Include="..\..\gfxutil.cpp" />
@@ -3509,6 +3510,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\uae\caps.h" />
+    <ClInclude Include="..\..\include\gdb_transport.h" />
     <ClInclude Include="..\..\include\target_dlopen.h" />
     <ClInclude Include="..\..\include\hostcfg.h" />
     <ClInclude Include="..\..\od-generic\hostcfg.def" />
