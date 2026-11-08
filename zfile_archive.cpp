@@ -11,10 +11,7 @@
 
 #ifdef WITH_ARCHIVES
 
-#ifdef _WIN32
-#include <windows.h>
 #include "uae/dlopen.h"
-#endif
 
 #include "options.h"
 #include "zfile.h"
@@ -529,26 +526,24 @@ static void SzFree(void *p, void *address)
 static ISzAlloc allocImp;
 static ISzAlloc allocTempImp;
 
+struct ZFileInStream
+{
+	ISeekInStream s;
+	struct zfile *file;
+};
+
 static SRes SzFileReadImp (void *object, void *buffer, size_t *size)
 {
-	CFileInStream *s = (CFileInStream *)object;
-#ifdef _WIN32
-	struct zfile *zf = (struct zfile*)s->file.myhandle;
-#else
-	struct zfile *zf = (struct zfile*)s->file.file;
-#endif
+	ZFileInStream *s = (ZFileInStream *)object;
+	struct zfile *zf = s->file;
 	*size = zfile_fread (buffer, 1, *size, zf);
 	return SZ_OK;
 }
 
 static SRes SzFileSeekImp(void *object, Int64 *pos, ESzSeek origin)
 {
-	CFileInStream *s = (CFileInStream *)object;
-#ifdef _WIN32
-	struct zfile *zf = (struct zfile*)s->file.myhandle;
-#else
-	struct zfile *zf =(struct zfile*) s->file.file;
-#endif
+	ZFileInStream *s = (ZFileInStream *)object;
+	struct zfile *zf = s->file;
 	int org = 0;
 	switch (origin)
 	{
@@ -624,7 +619,7 @@ static TCHAR *sevenzip_get_name(const CSzArEx *db, UInt32 index)
 struct SevenZContext
 {
 	CSzArEx db;
-	CFileInStream archiveStream;
+	ZFileInStream archiveStream;
 	CLookToRead lookStream;
 	Byte *outBuffer;
 	size_t outBufferSize;
@@ -654,11 +649,7 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 	ctx->blockIndex = 0xffffffff;
 	ctx->archiveStream.s.Read = SzFileReadImp;
 	ctx->archiveStream.s.Seek = SzFileSeekImp;
-#ifdef _WIN32
-	ctx->archiveStream.file.myhandle = (void*)z;
-#else
-	ctx->archiveStream.file.file = (FILE*)z;
-#endif
+	ctx->archiveStream.file = z;
 	LookToRead_CreateVTable (&ctx->lookStream, False);
 	ctx->lookStream.realStream = &ctx->archiveStream.s;
 	LookToRead_Init (&ctx->lookStream);
@@ -761,15 +752,15 @@ static struct zfile *archive_access_7z (struct znode *zn)
 /* copy and paste job? you are only imagining it! */
 static struct zfile *rarunpackzf; /* stupid unrar.dll */
 #include <unrar.h>
-typedef HANDLE (_stdcall* RAROPENARCHIVEEX)(struct RAROpenArchiveDataEx*);
+typedef void *(_stdcall* RAROPENARCHIVEEX)(struct RAROpenArchiveDataEx*);
 static RAROPENARCHIVEEX pRAROpenArchiveEx;
-typedef int (_stdcall* RARREADHEADEREX)(HANDLE,struct RARHeaderDataEx*);
+typedef int (_stdcall* RARREADHEADEREX)(void *,struct RARHeaderDataEx*);
 static RARREADHEADEREX pRARReadHeaderEx;
-typedef int (_stdcall* RARPROCESSFILE)(HANDLE,int,char*,char*);
+typedef int (_stdcall* RARPROCESSFILE)(void *,int,char*,char*);
 static RARPROCESSFILE pRARProcessFile;
-typedef int (_stdcall* RARCLOSEARCHIVE)(HANDLE);
+typedef int (_stdcall* RARCLOSEARCHIVE)(void *);
 static RARCLOSEARCHIVE pRARCloseArchive;
-typedef void (_stdcall* RARSETCALLBACK)(HANDLE,UNRARCALLBACK,LONG);
+typedef void (_stdcall* RARSETCALLBACK)(void *,UNRARCALLBACK,LONG);
 static RARSETCALLBACK pRARSetCallback;
 typedef int (_stdcall* RARGETDLLVERSION)(void);
 static RARGETDLLVERSION pRARGetDllVersion;
@@ -780,21 +771,21 @@ static int canrar (void)
 
 	if (israr == 0) {
 		israr = -1;
-#ifdef _WIN32
+#ifdef TARGET_HAS_ARCHIVE_PLUGINS
 		{
-			HMODULE rarlib;
+			UAE_DLHANDLE rarlib;
 
 			rarlib = uae_dlopen_plugin(_T("unrar"));
 			if (rarlib) {
 				TCHAR tmp[MAX_DPATH];
 				tmp[0] = 0;
-				GetModuleFileName (rarlib, tmp, sizeof tmp / sizeof (TCHAR));
-				pRAROpenArchiveEx = (RAROPENARCHIVEEX)GetProcAddress (rarlib, "RAROpenArchiveEx");
-				pRARReadHeaderEx = (RARREADHEADEREX)GetProcAddress (rarlib, "RARReadHeaderEx");
-				pRARProcessFile = (RARPROCESSFILE)GetProcAddress (rarlib, "RARProcessFile");
-				pRARCloseArchive = (RARCLOSEARCHIVE)GetProcAddress (rarlib, "RARCloseArchive");
-				pRARSetCallback = (RARSETCALLBACK)GetProcAddress (rarlib, "RARSetCallback");
-				pRARGetDllVersion = (RARGETDLLVERSION)GetProcAddress (rarlib, "RARGetDllVersion");
+				uae_dlpath(rarlib, tmp, sizeof tmp / sizeof(TCHAR));
+				pRAROpenArchiveEx = (RAROPENARCHIVEEX)uae_dlsym (rarlib, "RAROpenArchiveEx");
+				pRARReadHeaderEx = (RARREADHEADEREX)uae_dlsym (rarlib, "RARReadHeaderEx");
+				pRARProcessFile = (RARPROCESSFILE)uae_dlsym (rarlib, "RARProcessFile");
+				pRARCloseArchive = (RARCLOSEARCHIVE)uae_dlsym (rarlib, "RARCloseArchive");
+				pRARSetCallback = (RARSETCALLBACK)uae_dlsym (rarlib, "RARSetCallback");
+				pRARGetDllVersion = (RARGETDLLVERSION)uae_dlsym (rarlib, "RARGetDllVersion");
 				if (pRAROpenArchiveEx && pRARReadHeaderEx && pRARProcessFile && pRARCloseArchive && pRARSetCallback) {
 					int version = -1;
 					israr = 1;
@@ -827,7 +818,7 @@ struct RARContext
 {
 	struct RAROpenArchiveDataEx OpenArchiveData;
 	struct RARHeaderDataEx HeaderData;
-	HANDLE hArcData;
+	void *hArcData;
 };
 
 static void archive_close_rar (void *ctx)
@@ -953,13 +944,13 @@ static aapGetFileInfo aaGetFileInfo;
 static aapExtract aaExtract;
 static aapCloseArchive aaCloseArchive;
 
-#ifdef _WIN32
-static HMODULE arcacc_mod;
+#ifdef TARGET_HAS_ARCHIVE_PLUGINS
+static UAE_DLHANDLE arcacc_mod;
 
 static void arcacc_free (void)
 {
 	if (arcacc_mod)
-		FreeLibrary (arcacc_mod);
+		uae_dlclose (arcacc_mod);
 	arcacc_mod = NULL;
 }
 
@@ -972,11 +963,11 @@ static int arcacc_init (struct zfile *zf)
 		write_log (_T("failed to open archiveaccess.dll ('%s')\n"), zfile_getname (zf));
 		return 0;
 	}
-	aaOpenArchive = (aapOpenArchive) GetProcAddress (arcacc_mod, "aaOpenArchive");
-	aaGetFileCount = (aapGetFileCount) GetProcAddress (arcacc_mod, "aaGetFileCount");
-	aaGetFileInfo = (aapGetFileInfo) GetProcAddress (arcacc_mod, "aaGetFileInfo");
-	aaExtract = (aapExtract) GetProcAddress (arcacc_mod, "aaExtract");
-	aaCloseArchive = (aapCloseArchive) GetProcAddress (arcacc_mod, "aaCloseArchive");
+	aaOpenArchive = (aapOpenArchive) uae_dlsym (arcacc_mod, "aaOpenArchive");
+	aaGetFileCount = (aapGetFileCount) uae_dlsym (arcacc_mod, "aaGetFileCount");
+	aaGetFileInfo = (aapGetFileInfo) uae_dlsym (arcacc_mod, "aaGetFileInfo");
+	aaExtract = (aapExtract) uae_dlsym (arcacc_mod, "aaExtract");
+	aaCloseArchive = (aapCloseArchive) uae_dlsym (arcacc_mod, "aaCloseArchive");
 	if (!aaOpenArchive || !aaGetFileCount || !aaGetFileInfo || !aaExtract || !aaCloseArchive) {
 		write_log (_T("Missing functions in archiveaccess.dll. Old version?\n"));
 		arcacc_free ();

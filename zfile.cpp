@@ -16,6 +16,7 @@
 #include "uae.h"
 #include "options.h"
 #include "zfile.h"
+#include "zfile_host.h"
 #include "disk.h"
 #include "crc32.h"
 #include "fsdb.h"
@@ -1843,116 +1844,33 @@ static struct zfile *zfile_fopen_x (const TCHAR *name, const TCHAR *mode, int ma
 	return l;
 }
 
-#ifdef _WIN32
-static int isinternetfile (const TCHAR *name)
+static struct zfile *zfile_fopen_internet(const TCHAR *name, const TCHAR *mode, int mask)
 {
-	if (!_tcsnicmp (name, _T("http://"), 7) || !_tcsnicmp (name, _T("https://"), 8))
-		return 1;
-	if (!_tcsnicmp (name, _T("ftp://"), 6))
-		return -1;
-	return 0;
-}
-#include <wininet.h>
-#define INETBUFFERLEN 1000000
-static struct zfile *zfile_fopen_internet (const TCHAR *name, const TCHAR *mode, int mask)
-{
-	static HINTERNET hi;
-	HINTERNET i = NULL;
-	TCHAR tmp[MAX_DPATH];
-	DWORD ierr = 0;
-	DWORD outbuf = sizeof tmp / sizeof (TCHAR);
-	uae_u8 *data = 0;
-	int bufferlen = INETBUFFERLEN;
-	int datalen;
-	DWORD didread;
-	struct zfile *zf = NULL;
-
-	if (_tcschr (mode, 'w') || _tcschr (mode, 'a'))
+	if (_tcschr(mode, 'w') || _tcschr(mode, 'a')) {
 		return NULL;
-	tmp[0] = 0;
-	if (!hi) {
-		hi = InternetOpen (WINUAEAPPNAME, INTERNET_OPEN_TYPE_PRECONFIG_WITH_NO_AUTOPROXY, NULL, NULL, 0);
-		if (hi == NULL) {
-			write_log (_T("InternetOpen() failed, %d\n"), GetLastError ());
-			return NULL;
-		}
 	}
-	i = InternetOpenUrl (hi, name, NULL, 0, INTERNET_FLAG_NO_COOKIES, 0);
-	if (i == NULL) {
-		DWORD err = GetLastError ();
-		if (err == ERROR_INTERNET_EXTENDED_ERROR)
-			InternetGetLastResponseInfo (&ierr, tmp, &outbuf);
-		write_log (_T("InternetOpenUrl(%s) failed %d (%d,%s)\n"), name, err, ierr, tmp);
-		goto end;
+	uae_u8 *data = NULL;
+	int size = 0;
+	if (!host_read_internet_file(name, (mask & ZFD_CHECKONLY) != 0, &data, &size)) {
+		return NULL;
 	}
-
-	if (isinternetfile (name) > 0) {
-		DWORD statuscode;
-		DWORD hindex = 0;
-		DWORD size = sizeof statuscode;
-		if (!HttpQueryInfo (i, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &statuscode, &size, &hindex)) {
-			DWORD err = GetLastError ();
-			write_log (_T("HttpQueryInfo(%s) failed %d\n"), name, err);
-			goto end;
-		}
-		if (statuscode != 200) {
-			write_log (_T("HttpQueryInfo(%s)=%d\n"), name, statuscode);
-			goto end;
-		}
+	struct zfile *zf = zfile_create(NULL, name);
+	if (zf) {
+		zf->size = size;
+		zf->data = data;
+	} else {
+		xfree(data);
 	}
-
-	if (mask & ZFD_CHECKONLY) {
-		zf = zfile_create (NULL, name);
-		goto end;
-	}
-
-	datalen = 0;
-	data = xmalloc (uae_u8, bufferlen);
-	for (;;) {
-		if (!InternetReadFile (i, data + datalen, INETBUFFERLEN, &didread)) {
-			DWORD err = GetLastError ();
-			if (err == ERROR_INTERNET_EXTENDED_ERROR)
-				InternetGetLastResponseInfo (&ierr, tmp, &outbuf);
-			write_log (_T("InternetReadFile(%s) failed %d (%d,%s)\n"), name, err, ierr, tmp);
-			break;
-		}
-		if (didread == 0)
-			break;
-		datalen += didread;
-		if (datalen > bufferlen - INETBUFFERLEN) {
-			bufferlen += INETBUFFERLEN;
-			data = xrealloc (uae_u8, data, bufferlen);
-			if (!data) {
-				datalen = 0;
-				break;
-			}
-		}
-	}
-	if (datalen > 0) {
-		zf = zfile_create (NULL, name);
-		if (zf) {
-			zf->size = datalen;
-			zf->data = data;
-			data = NULL;
-		}
-	}
-end:
-	if (i)
-		InternetCloseHandle (i);
-	free (data);
 	return zf;
 }
-#endif
 
 static struct zfile *zfile_fopenx2 (const TCHAR *name, const TCHAR *mode, int mask, int index)
 {
 	struct zfile *f;
 	TCHAR tmp[MAX_DPATH];
 
-#ifdef _WIN32
-	if (isinternetfile (name))
-		return zfile_fopen_internet (name, mode, mask);
-#endif
+	if (host_internet_file_type(name))
+		return zfile_fopen_internet(name, mode, mask);
 	f = zfile_fopen_x (name, mode, mask, index);
 	if (f)
 		return f;

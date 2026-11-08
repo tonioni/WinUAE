@@ -11,11 +11,6 @@
 #include "custom.h"
 #include "consolehook.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
 
 extern int consoleopen;
 
@@ -137,11 +132,7 @@ void consolehook_config (struct uae_prefs *p, const TCHAR *custom_path)
 		// Use current working directory as before
 		TCHAR cwd[MAX_DPATH];
 		cwd[0] = 0;
-#ifdef _WIN32
-		GetCurrentDirectory(MAX_DPATH, cwd);
-#else
-		getcwd(cwd, MAX_DPATH);
-#endif
+		my_getcurrentdir(cwd, MAX_DPATH);
 		if (cwd[0])
 			my_canonicalize_path(cwd, ci.rootdir, MAX_DPATH);
 		else

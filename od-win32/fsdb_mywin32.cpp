@@ -33,6 +33,20 @@ void my_setfilehidden (const TCHAR *path, bool hidden)
 	SetFileAttributes (path, attr);
 }
 
+bool my_getcurrentdir(TCHAR *path, int size)
+{
+	if (!path || size <= 0) {
+		return false;
+	}
+	path[0] = 0;
+	DWORD len = GetCurrentDirectory(size, path);
+	if (len > 0 && len < (DWORD)size) {
+		return true;
+	}
+	path[0] = 0;
+	return false;
+}
+
 int my_setcurrentdir (const TCHAR *curdir, TCHAR *oldcur)
 {
 	int ret = 0;

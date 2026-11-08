@@ -16,6 +16,7 @@
 #include "statusline.h"
 #include "uae.h"
 #include "xwin.h"
+#include "zfile_host.h"
 
 #ifndef TARGET_HAS_MACHDEP_FREE
 void machdep_free(void) {}
@@ -69,4 +70,19 @@ int is_touch_lightpen(void) { return 0; }
 
 #ifndef TARGET_HAS_DEBUG_INFO
 void update_debug_info(void) {}
+#endif
+
+#ifndef TARGET_HAS_DEBUG_VIEWS
+void update_disassembly(uae_u32) {}
+void update_memdump(uae_u32) {}
+#endif
+
+#ifndef TARGET_HAS_INTERNET_FILES
+int host_internet_file_type(const TCHAR *) { return 0; }
+bool host_read_internet_file(const TCHAR *, bool, uae_u8 **data, int *size)
+{
+	*data = NULL;
+	*size = 0;
+	return false;
+}
 #endif

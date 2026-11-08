@@ -3397,6 +3397,9 @@
     <ClCompile Include="..\..\readcpu.cpp" />
     <ClCompile Include="..\..\rommgr.cpp" />
     <ClCompile Include="..\..\od-generic\sampler_common.cpp" />
+    <ClCompile Include="..\zfile_host.cpp" />
+    <ClCompile Include="..\sndboard_host.cpp" />
+    <ClCompile Include="..\dlopen.cpp" />
     <ClCompile Include="..\sampler.cpp" />
     <ClCompile Include="..\..\sana2.cpp" />
     <ClCompile Include="..\..\savestate.cpp" />
@@ -3515,6 +3518,8 @@
   <ItemGroup>
     <ClInclude Include="..\..\include\uae\caps.h" />
     <ClInclude Include="..\..\include\gdb_transport.h" />
+    <ClInclude Include="..\..\include\sndboard_host.h" />
+    <ClInclude Include="..\..\include\zfile_host.h" />
     <ClInclude Include="..\..\include\target_dlopen.h" />
     <ClInclude Include="..\..\include\hostcfg.h" />
     <ClInclude Include="..\..\od-generic\console.h" />

@@ -155,6 +155,7 @@ extern int my_rmdir (const TCHAR*);
 extern int my_mkdir (const TCHAR*);
 extern int my_unlink (const TCHAR*, bool);
 extern int my_rename (const TCHAR*, const TCHAR*);
+extern bool my_getcurrentdir(TCHAR *path, int size);
 extern int my_setcurrentdir (const TCHAR *curdir, TCHAR *oldcur);
 bool my_isfilehidden (const TCHAR *path);
 void my_setfilehidden (const TCHAR *path, bool hidden);

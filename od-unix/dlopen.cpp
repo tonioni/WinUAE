@@ -172,3 +172,39 @@ bool target_dlopen_plugin(const TCHAR *name, TCHAR *loaded_path,
 	write_log(_T("DLOPEN: Could not find plugin \"%s\"\n"), name);
 	return true;
 }
+
+UAE_DLHANDLE uae_dlopen(const TCHAR *path)
+{
+	if (!path || !path[0]) {
+		write_log(_T("DLOPEN: No path given\n"));
+		return NULL;
+	}
+	UAE_DLHANDLE result = dlopen(path, RTLD_NOW);
+	const char *error = dlerror();
+	if (error) {
+		write_log("DLOPEN: %s\n", error);
+	}
+	if (!result) {
+		write_log(_T("DLOPEN: Failed to open %s\n"), path);
+	}
+	return result;
+}
+
+void *uae_dlsym(UAE_DLHANDLE handle, const char *name)
+{
+	return dlsym(handle, name);
+}
+
+void uae_dlclose(UAE_DLHANDLE handle)
+{
+	dlclose(handle);
+}
+
+bool uae_dlpath(UAE_DLHANDLE, TCHAR *path, int size)
+{
+	// POSIX does not provide a portable query from a dlopen handle.
+	if (path && size > 0) {
+		path[0] = 0;
+	}
+	return false;
+}

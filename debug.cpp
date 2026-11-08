@@ -7510,13 +7510,10 @@ static bool debug_line_2(TCHAR *input)
 				} else if (*inptr == 't') {
 					next_char (&inptr);
 					debugtest_set (&inptr);
-#ifdef _WIN32
 				} else if (*inptr == 'g') {
-					extern void update_disassembly (uae_u32);
 					next_char (&inptr);
 					if (more_params (&inptr))
 						update_disassembly(readhex (&inptr, NULL));
-#endif
 				} else {
 					uae_u32 daddr;
 					int count;
@@ -7766,9 +7763,7 @@ static bool debug_line_2(TCHAR *input)
 			{
 				uae_u32 maddr;
 				int lines;
-#ifdef _WIN32
 				if (*inptr == 'g') {
-					extern void update_memdump (uae_u32);
 					next_char (&inptr);
 					if (more_params(&inptr)) {
 						uaecptr addr = readhex(&inptr, &err);
@@ -7778,7 +7773,6 @@ static bool debug_line_2(TCHAR *input)
 					}
 					break;
 				}
-#endif
 				if (*inptr == 'm' && inptr[1] == 'u') {
 					inptr += 2;
 					if (inptr[0] == 'd') {
