@@ -541,176 +541,47 @@ static uae_u32 uniquecolors[256] = { 0 };
 static int uniquecolorcount, uniquecolordepth;
 static uae_u8 *palettebm;
 
+static uae_u32 windows_palette_pixel(void *context, int x, int y)
+{
+	int width = bi->bmiHeader.biWidth;
+	const uae_u8 *pixel = (const uae_u8 *)context +
+		(size_t)y * ((((width * 24) + 31) & ~31) / 8) + x * 3;
+	return (pixel[0] << 16) | (pixel[1] << 8) | pixel[2];
+}
+
 static void count_colors(bool alpha)
 {
-	int h = bi->bmiHeader.biHeight;
-	int w = bi->bmiHeader.biWidth;
-	int d = bi->bmiHeader.biBitCount;
-	uae_u32 customcolors[256] = { 0 };
-	bool uniquecolorsa[256] = { 0 };
-	bool palettea[256] = { 0 };
-	uae_u32 palette[256] = { 0 };
-	uae_u8 indextab[256] = { 0 };
-	int palettecount = 0;
-
 	uniquecolorcount = 0;
 	if (!screenshot_paletteindexed || alpha) {
 		uniquecolorcount = -1;
 		return;
 	}
-	if (d <= 8) {
+	if (bi->bmiHeader.biBitCount <= 8)
 		return;
-	}
-	palettebm = xcalloc(uae_u8, w * h);
-	if (!palettebm) {
-		return;
-	}
-	palettecount = 0;
-	uae_u8 r, g, b;
-	if (get_custom_color_reg(0, &r, &g, &b)) {
-		palettea[palettecount] = true;
-		palette[palettecount] = (b << 16) | (g << 8) | r;
-		palettecount++;
-	}
-	for (int i = 0; i < h; i++) {
-		uae_u8 *p = (uae_u8*)lpvBits + i * ((((w * 24) + 31) & ~31) / 8);
-		for (int j = 0; j < w; j++) {
-			uae_u32 co = (p[0] << 16) | (p[1] << 8) | (p[2] << 0);
-			p += 3;
-			int c = 0;
-			if (palettecount >= 1 && co == palette[palettecount - 1]) {
-				c = palettecount - 1;
-			} else {
-				for (c = 0; c < palettecount; c++) {
-					if (palette[c] == co) {
-						break;
-					}
-				}
-			}
-			if (c >= palettecount) {
-				if (palettecount >= 256) {
-					// run out of palette slots
-					write_log("Run out of palette slots when counting colors.\n");
-					uniquecolorcount = -1;
-					xfree(palettebm);
-					palettebm = NULL;
-					return;
-				}
-				palettea[palettecount] = true;
-				palette[palettecount] = co;
-				palettecount++;
-			}
-		}
-	}
-	write_log("Screenshot color count: %d\n", palettecount);
-
-	// get custom colors
+	uae_u32 preferred[256];
+	int preferred_count = 0;
 	for (int i = 0; i < 256; i++) {
-		uniquecolors[i] = 0;
-		uniquecolorsa[i] = false;
-	}
-	int customcolorcnt = 0;
-	for (int i = 0; i < 256; i++) {
+		uae_u8 r, g, b;
 		if (!get_custom_color_reg(i, &r, &g, &b))
 			break;
-		uae_u32 co = (b << 16) | (g << 8) | r;
-		int j = 0;
-		for (j = 0; j < customcolorcnt; j++) {
-			if (uniquecolors[i] == co)
-				break;
-		}
-		if (j >= customcolorcnt) {
-			uniquecolors[i] = co;
-			customcolorcnt++;
-		}
+		preferred[preferred_count++] = (b << 16) | (g << 8) | r;
 	}
-	// find matching colors from bitmap and allocate colors
-	int match = 0;
-	for (int i = 0; i < palettecount; i++) {
-		if (palettea[i]) {
-			uae_u32 cc = palette[i];
-			for (int j = 0; j < customcolorcnt; j++) {
-				uae_u32 cc2 = uniquecolors[j];
-				if (!uniquecolorsa[j] && cc == cc2) {
-					uniquecolorsa[j] = true;
-					if (j >= uniquecolorcount) {
-						uniquecolorcount = j + 1;
-					}
-					palettea[i] = false;
-					match++;
-					break;
-				}
-			}
-		}
+	screenshot_palette indexed;
+	if (!screenshot_build_palette(&indexed, bi->bmiHeader.biWidth,
+		bi->bmiHeader.biHeight, windows_palette_pixel, lpvBits,
+		preferred, preferred_count, screenshotmode == 2 ? 0 : 32)) {
+		uniquecolorcount = -1;
+		return;
 	}
-	write_log("Screenshot custom register color matches: %d\n", match);
-	// add remaining colors not yet matched
-	match = 0;
-	// use all unused colors if IFF mode to keep total colors as small as possible
-	// if not iff: try to preserve first 32 colors.
-	int safecolors = screenshotmode == 2 ? 0 : 32;
-	if (uniquecolorcount < safecolors) {
-		uniquecolorcount = safecolors;
+	palettebm = xmalloc(uae_u8, indexed.indices.size());
+	if (!palettebm) {
+		uniquecolorcount = -1;
+		return;
 	}
-	for (int i = 0; i < palettecount; i++) {
-		if (palettea[i]) {
-			int j = 0;
-			for (j = safecolors; j < 256 + safecolors; j++) {
-				int jj = j & 255;
-				if (!uniquecolorsa[jj]) {
-					uniquecolors[jj] = palette[i];
-					uniquecolorsa[jj] = true;
-					palettea[i] = false;
-					if (jj > uniquecolorcount) {
-						uniquecolorcount = jj + 1;
-					}
-					match++;
-					break;
-				}
-			}
-			if (j >= 256 + safecolors) {
-				// run out of palette slots
-				write_log("Run out of palette slots when adding remaining colors.");
-				uniquecolorcount = -1;
-				xfree(palettebm);
-				palettebm = NULL;
-				return;
-			}
-		}
-	}
-	write_log("Screenshot non-custom register matched colors: %d\n", match);
-	// create image
-	int prevc = -1;
-	for (int i = 0; i < h; i++) {
-		uae_u8 *p = (uae_u8 *)lpvBits + i * ((((w * 24) + 31) & ~31) / 8);
-		uae_u8 *dp = palettebm + w * i;
-		for (int j = 0; j < w; j++) {
-			uae_u32 co = (p[0] << 16) | (p[1] << 8) | (p[2] << 0);
-			p += 3;
-			int c = 0;
-			if (prevc >= 0 && co == uniquecolors[prevc]) {
-				c = prevc;
-			} else {
-				for (c = 0; c < 256; c++) {
-					if (uniquecolors[c] == co) {
-						prevc = c;
-						if (c > uniquecolorcount) {
-							uniquecolorcount = c + 1;
-						}
-						break;
-					}
-				}
-			}
-			*dp++ = (uae_u8)c;
-		}
-	}
-	// select depth
-	uniquecolordepth = 1;
-	for (int i = 0; i < 8; i++) {
-		if (uniquecolorcount > (1 << i)) {
-			uniquecolordepth = i + 1;
-		}
-	}
+	memcpy(palettebm, indexed.indices.data(), indexed.indices.size());
+	memcpy(uniquecolors, indexed.colors, sizeof uniquecolors);
+	uniquecolorcount = indexed.count;
+	uniquecolordepth = indexed.depth;
 }
 
 #if PNG_SCREENSHOTS > 0
