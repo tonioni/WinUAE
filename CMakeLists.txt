@@ -2074,7 +2074,8 @@ endif()
 if(WINUAE_UNIX_WITH_SAMPLER AND (WINUAE_UNIX_SDL3_TARGET OR SDL3_FOUND))
     set(WINUAE_UNIX_ENABLE_SAMPLER ON)
     target_compile_definitions(winuae_unix_core_defs INTERFACE WINUAE_UNIX_WITH_SAMPLER=1)
-    list(APPEND WINUAE_UNIX_EXTRA_SOURCES od-unix/sampler_sdl.cpp)
+    list(APPEND WINUAE_UNIX_EXTRA_SOURCES
+        od-generic/sampler_common.cpp od-unix/sampler_sdl.cpp)
 endif()
 
 set(WINUAE_CORE_SOURCES

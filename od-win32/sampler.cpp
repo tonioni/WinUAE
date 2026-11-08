@@ -31,7 +31,6 @@ static int recordbufferframes;
 static float clockspersample;
 static int vsynccnt;
 static int safediff;
-float sampler_evtime;
 
 static int capture_init (void)
 {
@@ -105,7 +104,7 @@ static void capture_free (void)
 static evt_t oldcycles;
 static int oldoffset;
 
-uae_u8 sampler_getsample (int channel)
+bool host_sampler_getsample(int channel, int *value)
 {
 #if 0
 	int cur_pos;
@@ -121,9 +120,6 @@ uae_u8 sampler_getsample (int channel)
 	int sample, samplecnt;
 	float doffset;
 	int offset;
-
-	if (!currprefs.sampler_stereo)
-		channel = 0;
 
 	if (!inited) {
 		DWORD pos;
@@ -256,17 +252,8 @@ uae_u8 sampler_getsample (int channel)
 
 	if (samplecnt > 0)
 		sample /= samplecnt;
-#if 1
-	 /* yes, not 256, without this max recording volume would still be too quiet on my sound cards */
-	sample /= 128;
-	if (sample < -128)
-		sample = 0;
-	else if (sample > 127)
-		sample = 127;
-	return (uae_u8)(sample - 128);
-#else
-	return (Uae_u8)((sample / 256) - 128);
-#endif
+	*value = sample;
+	return true;
 }
 
 int sampler_init (void)
