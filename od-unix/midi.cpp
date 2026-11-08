@@ -17,9 +17,7 @@
 #include "options.h"
 #include "midi.h"
 #include "midi_parser.h"
-#ifdef WITH_MIDIEMU
 #include "midiemu.h"
-#endif
 
 extern int serdev;
 
@@ -710,6 +708,16 @@ LONG getmidibyte(void)
     LONG value = input_queue.front();
     input_queue.pop_front();
     return value;
+}
+
+const TCHAR *host_midiemu_output_name(int device)
+{
+	return unix_midi_output_device_config_name_for_id(device);
+}
+
+bool host_midiemu_rom_path(TCHAR *, int)
+{
+	return false;
 }
 
 #endif

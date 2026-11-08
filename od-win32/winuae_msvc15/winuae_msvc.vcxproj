@@ -974,6 +974,8 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\od-generic\prowizard_host.cpp" />
+    <ClCompile Include="..\midiemu_host.cpp" />
     <ClCompile Include="..\..\archivers\chd\astring.cpp" />
     <ClCompile Include="..\..\archivers\chd\chd.cpp" />
     <ClCompile Include="..\..\archivers\chd\chdcdrom.cpp" />

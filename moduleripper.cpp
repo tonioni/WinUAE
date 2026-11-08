@@ -14,7 +14,6 @@
 #include "options.h"
 #include "uae/io.h"
 #include "memory.h"
-#include "uae/seh.h"
 #include "moduleripper.h"
 #include "gui.h"
 #include "uae.h"
@@ -29,12 +28,6 @@ static void mc (uae_u8 *d, uaecptr s, int size)
 		d[i] = get_byte (s++);
 }
 
-#ifdef _WIN32
-static LONG WINAPI ExceptionFilter (struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
-{
-	return EXCEPTION_EXECUTE_HANDLER;
-}
-#endif
 
 void moduleripper (void)
 {
@@ -71,15 +64,7 @@ void moduleripper (void)
 
 	got = 0;
 	canceled = 0;
-#ifdef _WIN32
-	__try {
-#endif
-		prowizard_search (buf, size);
-#ifdef _WIN32
-	} __except(ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
-		write_log (_T("prowizard scan crashed\n"));
-	}
-#endif
+	host_prowizard_search(buf, size);
 	if (!got)
 		notify_user (NUMSG_MODRIP_NOTFOUND);
 	else if (!canceled)
