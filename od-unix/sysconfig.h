@@ -24,9 +24,9 @@
 #define MAX_AMIGAMONITORS 4
 #define MAX_AMIGADISPLAYS 4
 #define NATMEM_OFFSET natmem_offset
-/* Direct JIT fault recovery is supported on ARM64 and Linux x86-64.
+/* Direct JIT fault recovery is supported on ARM64 and Linux/macOS x86-64.
  * Other Unix targets retain indirect memory access. */
-#if !defined(__aarch64__) && !(defined(__linux__) && defined(__x86_64__))
+#if !defined(__aarch64__) && !((defined(__linux__) || defined(UAE_HOST_DARWIN)) && defined(__x86_64__))
 #define NATMEM_NO_JIT_DIRECT 1
 #endif
 #define PACKAGE_STRING "WinUAE Unix"
