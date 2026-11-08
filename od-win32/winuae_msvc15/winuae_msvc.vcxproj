@@ -3392,6 +3392,7 @@
     <ClCompile Include="..\..\newcpu.cpp" />
     <ClCompile Include="..\..\readcpu.cpp" />
     <ClCompile Include="..\..\rommgr.cpp" />
+    <ClCompile Include="..\..\od-generic\sampler_common.cpp" />
     <ClCompile Include="..\sampler.cpp" />
     <ClCompile Include="..\..\sana2.cpp" />
     <ClCompile Include="..\..\savestate.cpp" />

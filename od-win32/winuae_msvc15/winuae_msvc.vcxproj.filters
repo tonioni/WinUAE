@@ -409,6 +409,9 @@
     <ClCompile Include="..\..\rommgr.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\sampler_common.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
     <ClCompile Include="..\sampler.cpp">
       <Filter>win32</Filter>
     </ClCompile>

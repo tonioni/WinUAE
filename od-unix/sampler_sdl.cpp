@@ -16,7 +16,6 @@
 #define UNIX_SAMPLER_MAX_DEVICES 100
 #define UNIX_SAMPLER_FRAME_BYTES 4
 
-float sampler_evtime;
 
 struct unix_sampler_device {
 	SDL_AudioDeviceID id;
@@ -219,22 +218,11 @@ static void update_sampler_frame(void)
 	}
 }
 
-uae_u8 sampler_getsample(int channel)
+bool host_sampler_getsample(int channel, int *value)
 {
-	int sample;
-
-	if (!currprefs.sampler_stereo) {
-		channel = 0;
-	}
-	channel = channel ? 1 : 0;
 	update_sampler_frame();
-	sample = sampler_last[channel] / 128;
-	if (sample < -128) {
-		sample = 0;
-	} else if (sample > 127) {
-		sample = 127;
-	}
-	return (uae_u8)(sample - 128);
+	*value = sampler_last[channel];
+	return true;
 }
 
 void sampler_vsync(void)
