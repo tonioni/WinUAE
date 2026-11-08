@@ -721,6 +721,9 @@
     <ClCompile Include="..\..\od-generic\focus.cpp">
       <Filter>shared</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\avsync.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\od-generic\screenshot_common.cpp">
       <Filter>shared</Filter>
     </ClCompile>
@@ -2135,6 +2138,9 @@
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\serial_host.h">
+      <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\od-generic\avsync.h">
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\cpu_selection.h">

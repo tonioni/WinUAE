@@ -32,6 +32,7 @@ Copyright(c) 2001 - 2002; §ane
 #include "gfxfilter.h"
 #include "xwin.h"
 #include "avioutput.h"
+#include "od-generic/avsync.h"
 #include "registry.h"
 #include "fsdb.h"
 #include "threaddep/thread.h"
@@ -107,7 +108,7 @@ static int FirstAudio;
 static bool audio_validated;
 static DWORD dwAudioInputRemaining;
 static unsigned int StreamSizeAudio; // audio write position
-static float StreamSizeAudioExpected, StreamSizeAudioGot;
+static avi_audio_clock audio_clock;
 static PAVISTREAM AVIAudioStream = NULL; // compressed stream pointer
 static HACMSTREAM has = NULL; // stream handle that can be used to perform conversions
 static ACMSTREAMHEADER ash;
@@ -175,8 +176,9 @@ static void freeavientry (struct avientry *ae)
 static struct avientry *allocavientry_audio (uae_u8 *snd, int size, int expectedsize)
 {
 	struct avientry *ae = xcalloc (struct avientry, 1);
-	ae->lpAudio = xmalloc (uae_u8, size);
-	memcpy (ae->lpAudio, snd, size);
+	ae->lpAudio = xmalloc (uae_u8, size ? size : 1);
+	if (size)
+		memcpy (ae->lpAudio, snd, size);
 	ae->sndsize = size;
 	ae->expectedsize = expectedsize;
 	return ae;
@@ -814,7 +816,7 @@ static void AVIOuput_AVIWriteAudio (uae_u8 *sndbuffer, int sndbufsize, int expec
 		AVIOutput_End ();
 		return;
 	}
-	if (!sndbufsize)
+	if (!sndbufsize && !expectedsize)
 		return;
 	checkAVIsize(false, true);
 	if (avioutput_needs_restart)
@@ -825,25 +827,22 @@ static void AVIOuput_AVIWriteAudio (uae_u8 *sndbuffer, int sndbufsize, int expec
 }
 
 
-typedef short          HWORD;
-typedef unsigned short UHWORD;
-typedef int            LWORD;
-typedef unsigned int   ULWORD;
-static int resampleFast(float factor, HWORD *in, HWORD *out, int inCount, int outCount, int nChans);
-
 static uae_u8 *hack_resample(uae_u8 *srcbuffer, int gotSize, int wantedSize)
 {
-	uae_u8 *outbuf;
-	int ch = wfxSrc.Format.nChannels;
-	int bytesperframe = ch * 2;
-
-	int gotSamples = gotSize / bytesperframe;
-	int wantedSamples = wantedSize / bytesperframe;
-
-	float factor = (float)wantedSamples / gotSamples;
-	outbuf = xmalloc(uae_u8, wantedSize + bytesperframe);
-	resampleFast(factor, (HWORD*)srcbuffer, (HWORD*)outbuf, gotSamples, wantedSamples, ch);
-	return outbuf;
+	int channels = wfxSrc.Format.nChannels;
+	int stride = channels * (int)sizeof(uae_s16);
+	if (stride <= 0 || gotSize < 0 || wantedSize <= 0 ||
+		gotSize % stride || wantedSize % stride)
+		return NULL;
+	uae_u8 *output = xmalloc(uae_u8, wantedSize);
+	if (!output)
+		return NULL;
+	if (!avi_audio_resample((uae_s16 *)srcbuffer, gotSize / stride,
+		(uae_s16 *)output, wantedSize / stride, channels)) {
+		xfree(output);
+		return NULL;
+	}
+	return output;
 }
 
 static int AVIOutput_AVIWriteAudio_Thread (struct avientry *ae)
@@ -867,6 +866,8 @@ static int AVIOutput_AVIWriteAudio_Thread (struct avientry *ae)
 		// size didn't match, resample it to keep AV sync.
 		if (ae->expectedsize && ae->expectedsize != ae->sndsize) {
 			srcbuffer = hack_resample(srcbuffer, ae->sndsize, ae->expectedsize);
+			if (!srcbuffer)
+				goto error;
 			srcbuffersize = ae->expectedsize;
 			freebuffer = srcbuffer;
 		}
@@ -1405,8 +1406,7 @@ static void AVIOutput_End2(bool fullrestart)
 	}
 
 	StreamSizeAudio = frame_count = 0;
-	StreamSizeAudioExpected = 0;
-	StreamSizeAudioGot = 0;
+	audio_clock = avi_audio_clock{};
 	if (fullrestart) {
 		partcnt = 0;
 		avi_sndbuffered = 0;
@@ -1856,22 +1856,10 @@ bool frame_drawn(int monid)
 		if (first_frame == 0 || first_frame == -1) {
 			int bytesperframe;
 			bytesperframe = wfxSrc.Format.nChannels * 2;
-			StreamSizeAudioGot += avi_sndbuffered / bytesperframe;
-			unsigned int lastexpected = (unsigned int)StreamSizeAudioExpected;
-			StreamSizeAudioExpected += ((float)wfxSrc.Format.nSamplesPerSec) / fps_in_use;
-			if (avioutput_video) {
-				int idiff = (int)(StreamSizeAudioGot - StreamSizeAudioExpected);
-				if ((vsync_counter % 5) == 0)
-					write_log(_T("%.1f %.1f %d\n"), StreamSizeAudioExpected, StreamSizeAudioGot, idiff);
-				if (idiff) {
-					StreamSizeAudioGot = StreamSizeAudioExpected;
-					AVIOuput_AVIWriteAudio(avi_sndbuffer, avi_sndbuffered, (int)(StreamSizeAudioExpected - lastexpected) * bytesperframe);
-				} else {
-					AVIOuput_AVIWriteAudio(avi_sndbuffer, avi_sndbuffered, 0);
-				}
-			} else {
-				AVIOuput_AVIWriteAudio(avi_sndbuffer, avi_sndbuffered, 0);
-			}
+			int expected = avioutput_video ? avi_audio_samples(&audio_clock,
+				(int)wfxSrc.Format.nSamplesPerSec, fps_in_use) : 0;
+			AVIOuput_AVIWriteAudio(avi_sndbuffer, avi_sndbuffered,
+				expected > 0 ? expected * bytesperframe : 0);
 		}
 		avi_sndbuffered = 0;
 	}
@@ -1889,178 +1877,4 @@ bool frame_drawn(int monid)
 
 	AVIOutput_WriteVideo();
 	return true;
-}
-
-/* Resampler from:
- * Digital Audio Resampling Home Page located at
- * http://ccrma.stanford.edu/~jos/resample/.
- */
-
-#define Nhc       8
-#define Na        7
-#define Np       (Nhc+Na)
-#define Npc      (1<<Nhc)
-#define Amask    ((1<<Na)-1)
-#define Pmask    ((1<<Np)-1)
-#define Nh       16
-#define Nb       16
-#define Nhxn     14
-#define Nhg      (Nh-Nhxn)
-#define NLpScl   13
-
-#define MAX_HWORD (32767)
-#define MIN_HWORD (-32768)
-
-STATIC_INLINE HWORD WordToHword(LWORD v, int scl)
-{
-	HWORD out;
-	LWORD llsb = (1 << (scl - 1));
-	v += llsb;          /* round */
-	v >>= scl;
-	if (v > MAX_HWORD) {
-		v = MAX_HWORD;
-	} else if (v < MIN_HWORD) {
-		v = MIN_HWORD;
-	}
-	out = (HWORD)v;
-	return out;
-}
-
-static int SrcLinear(HWORD X[], HWORD Y[], float factor, ULWORD *Time, UHWORD Nx)
-{
-	HWORD iconst;
-	HWORD *Xp, *Ystart;
-	LWORD v, x1, x2;
-
-	float dt;                  /* Step through input signal */
-	ULWORD dtb;                  /* Fixed-point version of Dt */
-	ULWORD endTime;              /* When Time reaches EndTime, return to user */
-
-	dt = 1.0f / factor;            /* Output sampling period */
-	dtb = (ULWORD)(dt*(1 << Np) + 0.5);     /* Fixed-point representation */
-
-	Ystart = Y;
-	endTime = *Time + (1 << Np)*(LWORD)Nx;
-	while (*Time < endTime) {
-		iconst = (*Time) & Pmask;
-		Xp = &X[(*Time) >> Np];      /* Ptr to current input sample */
-		x1 = *Xp++;
-		x2 = *Xp;
-		x1 *= ((1 << Np) - iconst);
-		x2 *= iconst;
-		v = x1 + x2;
-		*Y++ = WordToHword(v, Np);   /* Deposit output */
-		*Time += dtb;               /* Move to next sample by time increment */
-	}
-	return (int)(Y - Ystart);            /* Return number of output samples */
-}
-
-#define IBUFFSIZE 4096                         /* Input buffer size */
-#define OBUFFSIZE 8192                         /* Output buffer size */
-
-static int resampleFast(  /* number of output samples returned */
-	float factor,              /* factor = Sndout/Sndin */
-	HWORD *in,                   /* input and output file descriptors */
-	HWORD *out,
-	int inCount,                /* number of input samples to convert */
-	int outCount,               /* number of output samples to compute */
-	int nChans)                 /* number of sound channels (1 or 2) */
-{
-	ULWORD Time, Time2;          /* Current time/pos in input sample */
-	UHWORD Xp, Ncreep, Xoff, Xread;
-	HWORD X1[IBUFFSIZE], Y1[OBUFFSIZE]; /* I/O buffers */
-	HWORD X2[IBUFFSIZE], Y2[OBUFFSIZE]; /* I/O buffers */
-	UHWORD Nout, Nx;
-	int i, Ycount, last;
-	int inseekpos = 0;
-	int outseekpos = 0;
-
-	Xoff = 10;
-
-	Nx = IBUFFSIZE - 2 * Xoff;     /* # of samples to process each iteration */
-	last = 0;                   /* Have not read last input sample yet */
-	Ycount = 0;                 /* Current sample and length of output file */
-
-	Xp = Xoff;                  /* Current "now"-sample pointer for input */
-	Xread = Xoff;               /* Position in input array to read into */
-	Time = (Xoff << Np);          /* Current-time pointer for converter */
-
-	for (i = 0; i<Xoff; X1[i++] = 0); /* Need Xoff zeros at begining of sample */
-	for (i = 0; i<Xoff; X2[i++] = 0); /* Need Xoff zeros at begining of sample */
-
-	do {
-		if (!last)              /* If haven't read last sample yet */
-		{
-			int idx = Xread;
-			while (inCount > 0 && idx < IBUFFSIZE) {
-				if (nChans == 2) {
-					X1[idx] = in[inseekpos * 2 + 0];
-					X2[idx] = in[inseekpos * 2 + 1];
-				} else {
-					X1[idx] = in[inseekpos];
-				}
-				inCount--;
-				idx++;
-				inseekpos++;
-			}
-			if (inCount == 0)
-				last = idx;
-			if (last && (last - Xoff<Nx)) { /* If last sample has been read... */
-				Nx = last - Xoff; /* ...calc last sample affected by filter */
-				if (Nx <= 0)
-					break;
-			}
-		}
-
-		/* Resample stuff in input buffer */
-		Time2 = Time;
-		Nout = SrcLinear(X1, Y1, factor, &Time, Nx);
-		if (nChans == 2)
-			Nout = SrcLinear(X2, Y2, factor, &Time2, Nx);
-
-		Time -= (Nx << Np);       /* Move converter Nx samples back in time */
-		Xp += Nx;               /* Advance by number of samples processed */
-		Ncreep = (Time >> Np) - Xoff; /* Calc time accumulation in Time */
-		if (Ncreep) {
-			Time -= (Ncreep << Np);    /* Remove time accumulation */
-			Xp += Ncreep;            /* and add it to read pointer */
-		}
-		for (i = 0; i<IBUFFSIZE - Xp + Xoff; i++) { /* Copy part of input signal */
-			X1[i] = X1[i + Xp - Xoff]; /* that must be re-used */
-			if (nChans == 2)
-				X2[i] = X2[i + Xp - Xoff]; /* that must be re-used */
-		}
-		if (last) {             /* If near end of sample... */
-			last -= Xp;         /* ...keep track were it ends */
-			if (!last)          /* Lengthen input by 1 sample if... */
-				last++;           /* ...needed to keep flag TRUE */
-		}
-		Xread = i;              /* Pos in input buff to read new data into */
-		Xp = Xoff;
-
-		Ycount += Nout;
-		if (Ycount>outCount) {
-			Nout -= (Ycount - outCount);
-			Ycount = outCount;
-		}
-
-		if (Nout > OBUFFSIZE) /* Check to see if output buff overflowed */
-			return -1;
-
-		if (nChans == 1) {
-			for (i = 0; i < Nout; i++) {
-				out[outseekpos] = Y1[i];
-				outseekpos++;
-			}
-		} else {
-			for (i = 0; i < Nout; i++) {
-				out[outseekpos * 2 + 0] = Y1[i];
-				out[outseekpos * 2 + 1] = Y2[i];
-				outseekpos++;
-			}
-		}
-
-	} while (Ycount<outCount); /* Continue until done */
-
-	return(Ycount);             /* Return # of samples in output file */
 }

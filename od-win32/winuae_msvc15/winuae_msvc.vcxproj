@@ -1071,6 +1071,7 @@
     <ClCompile Include="..\..\od-generic\clipboard.cpp" />
     <ClCompile Include="..\..\od-generic\target_defaults.cpp" />
     <ClCompile Include="..\..\od-generic\focus.cpp" />
+    <ClCompile Include="..\..\od-generic\avsync.cpp" />
     <ClCompile Include="..\..\od-generic\screenshot_common.cpp" />
     <ClCompile Include="..\..\od-generic\uaenet.cpp" />
     <ClCompile Include="..\..\od-generic\hostcfg.cpp" />
@@ -3517,6 +3518,7 @@
     <ClInclude Include="..\..\include\serial_host.h" />
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
     <ClInclude Include="..\..\include\cfgfile_mount.h" />
+    <ClInclude Include="..\..\od-generic\avsync.h" />
     <ClInclude Include="..\..\include\cpu_selection.h" />
     <ClInclude Include="..\resources\resource.h" />
   </ItemGroup>
