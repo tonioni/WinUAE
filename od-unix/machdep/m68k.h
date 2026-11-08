@@ -54,7 +54,7 @@ extern struct flag_struct regflags;
 #define FLAGBIT_Z 14
 #define FLAGBIT_C 8
 #define FLAGBIT_V 0
-#define FLAGBIT_X 8
+#define FLAGBIT_X 0 /* The x86 JIT stores carry with SETcc. */
 
 #define FLAGVAL_N (1 << FLAGBIT_N)
 #define FLAGVAL_Z (1 << FLAGBIT_Z)
@@ -78,7 +78,7 @@ extern struct flag_struct regflags;
 #define GET_CZNV() (regflags.cznv)
 #define IOR_CZNV(X) (regflags.cznv |= (X))
 #define SET_CZNV(X) (regflags.cznv = (X))
-#define COPY_CARRY() (regflags.x = regflags.cznv)
+#define COPY_CARRY() (regflags.x = regflags.cznv >> (FLAGBIT_C - FLAGBIT_X))
 #endif
 
 static inline int cctrue(int cc)
