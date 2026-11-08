@@ -468,7 +468,18 @@ void *uae_vm_reserve(size_t size, int flags)
 	if (flags & UAE_VM_32BIT) {
 		address = vm_reserve_probe_downward(size, flags);
 	} else {
-		address = vm_reserve_at(nullptr, size, flags);
+
+#if defined(__APPLE__) && defined(CPU_x86_64)
+		/* Leave the address space near globals available for RIP-relative
+		 * JIT code and block pools. An OS-chosen natmem reservation can
+		 * otherwise consume that whole window above the executable. */
+		static int reservation_anchor;
+		uintptr_t hint = reinterpret_cast<uintptr_t>(&reservation_anchor)
+			+ 0x100000000ULL;
+		address = vm_reserve_at(reinterpret_cast<void *>(hint), size, flags);
+#endif
+		if (address == nullptr)
+			address = vm_reserve_at(nullptr, size, flags);
 	}
 #else
 	/* 32-bit host: the downward probe normally lands on the first hint;
