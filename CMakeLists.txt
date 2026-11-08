@@ -2158,6 +2158,7 @@ set(WINUAE_CORE_SOURCES
     gdb_monitor.cpp
     gdb_protocol.cpp
     gdb_server.cpp
+    od-generic/gdb_transport.cpp
     gdb_target.cpp
     gfxlib.cpp
     gfxutil.cpp

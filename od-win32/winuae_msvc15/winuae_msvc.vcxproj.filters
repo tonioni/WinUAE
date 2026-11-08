@@ -364,6 +364,9 @@
     <ClCompile Include="..\..\gdb_protocol.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\gdb_transport.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\gdb_server.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -2129,6 +2132,9 @@
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\uae\caps.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\gdb_transport.h">
       <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\target_dlopen.h">
