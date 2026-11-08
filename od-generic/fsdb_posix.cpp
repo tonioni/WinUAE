@@ -79,6 +79,32 @@ std::string fsdb_posix_encode(const char *name, bool ascii)
     }
     return out;
 }
+static unsigned char compose_latin1(unsigned char base, unsigned int mark)
+{
+    // HFS+ exposes decomposed UTF-8 names. These are the canonical
+    // base/combining-mark pairs representable in the guest character set.
+    static const struct {
+	unsigned int mark;
+	const char *bases;
+	const char *composed;
+    } pairs[] = {
+	{0x0300, "AEIOUaeiou", "\xc0\xc8\xcc\xd2\xd9\xe0\xe8\xec\xf2\xf9"},
+	{0x0301, "AEIOUYaeiouy", "\xc1\xc9\xcd\xd3\xda\xdd\xe1\xe9\xed\xf3\xfa\xfd"},
+	{0x0302, "AEIOUaeiou", "\xc2\xca\xce\xd4\xdb\xe2\xea\xee\xf4\xfb"},
+	{0x0303, "ANOano", "\xc3\xd1\xd5\xe3\xf1\xf5"},
+	{0x0308, "AEIOUaeiouy", "\xc4\xcb\xcf\xd6\xdc\xe4\xeb\xef\xf6\xfc\xff"},
+	{0x030a, "Aa", "\xc5\xe5"},
+	{0x0327, "Cc", "\xc7\xe7"},
+    };
+    for (const auto &pair : pairs) {
+	if (pair.mark == mark) {
+	    const char *p = strchr(pair.bases, base);
+	    if (p)
+		return (unsigned char)pair.composed[p - pair.bases];
+	}
+    }
+    return 0;
+}
 std::string fsdb_posix_decode(const char *name, bool noconvert)
 {
     std::string in = name ? name : "", latin, out;
@@ -87,9 +113,20 @@ std::string fsdb_posix_decode(const char *name, bool noconvert)
 	unsigned char c = (unsigned char)in[i];
 	if (c < 128)
 	    latin += (char)c;
-	else if ((c == 0xc2 || c == 0xc3) && i + 1 < in.size() &&
+	else if (c >= 0xc2 && c <= 0xdf && i + 1 < in.size() &&
 		 ((unsigned char)in[i + 1] & 0xc0) == 0x80) {
-	    latin += (char)(((c & 3) << 6) | ((unsigned char)in[++i] & 63));
+	    unsigned int code = ((c & 31) << 6) | ((unsigned char)in[++i] & 63);
+	    if (code <= 255) {
+		latin += (char)code;
+	    } else {
+		unsigned char composed = latin.empty() ? 0 :
+		    compose_latin1((unsigned char)latin.back(), code);
+		if (!composed) {
+		    valid = false;
+		    break;
+		}
+		latin.back() = (char)composed;
+	    }
 	} else {
 	    valid = false;
 	    break;

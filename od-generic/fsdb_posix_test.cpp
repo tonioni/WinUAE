@@ -50,6 +50,70 @@ int main()
     }
     assert(fsdb_posix_decode("bad%0g%00%") == "bad%0g%00%");
     assert(same_aname("\xc4GER", "\xe4ger"));
+    // Canonical Unicode decompositions of every Latin-1 accented letter.
+    const struct { const char *name; unsigned char latin; } decomposed[] = {
+        {"\x41\xcc\x80", 0xc0},
+        {"\x41\xcc\x81", 0xc1},
+        {"\x41\xcc\x82", 0xc2},
+        {"\x41\xcc\x83", 0xc3},
+        {"\x41\xcc\x88", 0xc4},
+        {"\x41\xcc\x8a", 0xc5},
+        {"\x43\xcc\xa7", 0xc7},
+        {"\x45\xcc\x80", 0xc8},
+        {"\x45\xcc\x81", 0xc9},
+        {"\x45\xcc\x82", 0xca},
+        {"\x45\xcc\x88", 0xcb},
+        {"\x49\xcc\x80", 0xcc},
+        {"\x49\xcc\x81", 0xcd},
+        {"\x49\xcc\x82", 0xce},
+        {"\x49\xcc\x88", 0xcf},
+        {"\x4e\xcc\x83", 0xd1},
+        {"\x4f\xcc\x80", 0xd2},
+        {"\x4f\xcc\x81", 0xd3},
+        {"\x4f\xcc\x82", 0xd4},
+        {"\x4f\xcc\x83", 0xd5},
+        {"\x4f\xcc\x88", 0xd6},
+        {"\x55\xcc\x80", 0xd9},
+        {"\x55\xcc\x81", 0xda},
+        {"\x55\xcc\x82", 0xdb},
+        {"\x55\xcc\x88", 0xdc},
+        {"\x59\xcc\x81", 0xdd},
+        {"\x61\xcc\x80", 0xe0},
+        {"\x61\xcc\x81", 0xe1},
+        {"\x61\xcc\x82", 0xe2},
+        {"\x61\xcc\x83", 0xe3},
+        {"\x61\xcc\x88", 0xe4},
+        {"\x61\xcc\x8a", 0xe5},
+        {"\x63\xcc\xa7", 0xe7},
+        {"\x65\xcc\x80", 0xe8},
+        {"\x65\xcc\x81", 0xe9},
+        {"\x65\xcc\x82", 0xea},
+        {"\x65\xcc\x88", 0xeb},
+        {"\x69\xcc\x80", 0xec},
+        {"\x69\xcc\x81", 0xed},
+        {"\x69\xcc\x82", 0xee},
+        {"\x69\xcc\x88", 0xef},
+        {"\x6e\xcc\x83", 0xf1},
+        {"\x6f\xcc\x80", 0xf2},
+        {"\x6f\xcc\x81", 0xf3},
+        {"\x6f\xcc\x82", 0xf4},
+        {"\x6f\xcc\x83", 0xf5},
+        {"\x6f\xcc\x88", 0xf6},
+        {"\x75\xcc\x80", 0xf9},
+        {"\x75\xcc\x81", 0xfa},
+        {"\x75\xcc\x82", 0xfb},
+        {"\x75\xcc\x88", 0xfc},
+        {"\x79\xcc\x81", 0xfd},
+        {"\x79\xcc\x88", 0xff},
+    };
+    for (const auto &entry : decomposed) {
+        assert(fsdb_posix_decode(entry.name) == std::string(1, (char)entry.latin));
+        assert(fsdb_posix_decode(entry.name, true) == entry.name);
+    }
+    assert(fsdb_posix_decode("cafe\xcc\x81%25") == "caf\xe9%");
+    assert(fsdb_posix_decode("x\xcc\x81") == "x\xcc\x81");
+    assert(fsdb_posix_decode("\xc0\x80") == "\xc0\x80");
+    assert(fsdb_posix_decode("\xe2\x82\xac") == "\xe2\x82\xac");
     char temp[] = "/tmp/winuae-fsdb-test-XXXXXX";
     assert(mkdtemp(temp));
     std::string path = std::string(temp) + "/MiXeD";
