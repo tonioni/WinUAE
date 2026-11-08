@@ -3399,7 +3399,7 @@
     <ClCompile Include="..\..\od-generic\sampler_common.cpp" />
     <ClCompile Include="..\zfile_host.cpp" />
     <ClCompile Include="..\sndboard_host.cpp" />
-    <ClCompile Include="..\dlopen.cpp" />
+    <ClCompile Include="..\dlopen_host.cpp" />
     <ClCompile Include="..\sampler.cpp" />
     <ClCompile Include="..\..\sana2.cpp" />
     <ClCompile Include="..\..\savestate.cpp" />

@@ -424,7 +424,7 @@
     <ClCompile Include="..\sndboard_host.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\dlopen.cpp">
+    <ClCompile Include="..\dlopen_host.cpp">
       <Filter>win32</Filter>
     </ClCompile>
     <ClCompile Include="..\sampler.cpp">
