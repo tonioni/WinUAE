@@ -2472,6 +2472,16 @@ target_include_directories(winuae_unix_scaler_test PRIVATE
 )
 winuae_unix_register_test(winuae_unix_scaler_test)
 
+add_executable(winuae_unix_picasso96_abi_test EXCLUDE_FROM_ALL
+    od-generic/picasso96_abi_test.cpp
+)
+target_include_directories(winuae_unix_picasso96_abi_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_picasso96_abi_test)
+
 add_executable(winuae_unix_uaenet_test EXCLUDE_FROM_ALL
     od-generic/uaenet.cpp
     od-generic/uaenet_test.cpp
