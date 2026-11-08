@@ -41,6 +41,7 @@
 #include "serial.h"
 #include "avioutput.h"
 #include "gfxfilter.h"
+#include "od-generic/scaler.h"
 #include "parser.h"
 #include "lcd.h"
 #include "sampler.h"
@@ -665,90 +666,12 @@ static void addmode (struct MultiDisplay *md, DEVMODE *dm, int rawmode)
 		lace = (dm->dmDisplayFlags & DM_INTERLACED) != 0;
 	}
 
-	i = 0;
-	while (md->DisplayModes[i].inuse) {
-		if (md->DisplayModes[i].res.width == w && md->DisplayModes[i].res.height == h) {
-			for (j = 0; j < MAX_REFRESH_RATES; j++) {
-				if (md->DisplayModes[i].refresh[j] == 0 || md->DisplayModes[i].refresh[j] == freq)
-					break;
-			}
-			if (j < MAX_REFRESH_RATES) {
-				md->DisplayModes[i].refresh[j] = freq;
-				md->DisplayModes[i].refreshtype[j] = (lace ? REFRESH_RATE_LACE : 0) | (rawmode ? REFRESH_RATE_RAW : 0);
-				md->DisplayModes[i].refresh[j + 1] = 0;
-				if (!lace)
-					md->DisplayModes[i].lace = false;
-				return;
-			}
-		}
-		i++;
-	}
-	i = 0;
-	while (md->DisplayModes[i].inuse) {
-		i++;
-	}
-	if (i >= MAX_PICASSO_MODES - 1) {
-		return;
-	}
-	md->DisplayModes[i].inuse = true;
-	md->DisplayModes[i].rawmode = rawmode;
-	md->DisplayModes[i].lace = lace;
-	md->DisplayModes[i].res.width = w;
-	md->DisplayModes[i].res.height = h;
-	md->DisplayModes[i].refresh[0] = freq;
-	md->DisplayModes[i].refreshtype[0] = (lace ? REFRESH_RATE_LACE : 0) | (rawmode ? REFRESH_RATE_RAW : 0);
-	md->DisplayModes[i].refresh[1] = 0;
-	_stprintf (md->DisplayModes[i].name, _T("%dx%d%s"),
-		md->DisplayModes[i].res.width, md->DisplayModes[i].res.height,
-		lace ? _T("i") : _T(""));
+    host_display_mode_add(md->DisplayModes, MAX_PICASSO_MODES, w, h, freq, rawmode, lace);
 }
 
-static int _cdecl resolution_compare (const void *a, const void *b)
+static void sortmodes(MultiDisplay *md)
 {
-	struct PicassoResolution *ma = (struct PicassoResolution *)a;
-	struct PicassoResolution *mb = (struct PicassoResolution *)b;
-	if (ma->res.width < mb->res.width)
-		return -1;
-	if (ma->res.width > mb->res.width)
-		return 1;
-	if (ma->res.height < mb->res.height)
-		return -1;
-	if (ma->res.height > mb->res.height)
-		return 1;
-	return 0;
-}
-
-static void sortmodes (struct MultiDisplay *md)
-{
-	int	i, idx = -1;
-	int pw = -1, ph = -1;
-
-	i = 0;
-	while (md->DisplayModes[i].inuse) {
-		i++;
-	}
-	qsort (md->DisplayModes, i, sizeof (struct PicassoResolution), resolution_compare);
-	for (i = 0; md->DisplayModes[i].inuse; i++) {
-		int j, k;
-		for (j = 0; md->DisplayModes[i].refresh[j]; j++) {
-			for (k = j + 1; md->DisplayModes[i].refresh[k]; k++) {
-				if (md->DisplayModes[i].refresh[j] > md->DisplayModes[i].refresh[k]) {
-					int t = md->DisplayModes[i].refresh[j];
-					md->DisplayModes[i].refresh[j] = md->DisplayModes[i].refresh[k];
-					md->DisplayModes[i].refresh[k] = t;
-					t = md->DisplayModes[i].refreshtype[j];
-					md->DisplayModes[i].refreshtype[j] = md->DisplayModes[i].refreshtype[k];
-					md->DisplayModes[i].refreshtype[k] = t;
-				}
-			}
-		}
-		if (md->DisplayModes[i].res.height != ph || md->DisplayModes[i].res.width != pw) {
-			ph = md->DisplayModes[i].res.height;
-			pw = md->DisplayModes[i].res.width;
-			idx++;
-		}
-		md->DisplayModes[i].residx = idx;
-	}
+    host_display_modes_sort(md->DisplayModes, MAX_PICASSO_MODES, true);
 }
 
 #if 0
@@ -1437,163 +1360,18 @@ void flush_clear_screen (struct vidbuffer *vb)
 	}
 }
 
-float filterrectmult(int v1, float v2, int dmode)
+void getrtgfilterdata(int monid, displayscale *ds)
 {
-	float v = v1 / v2;
-	int vv = (int)(v + 0.5f);
-	if (v > 1.5f && vv * v2 <= v1 && vv * (v2 + vv - 1) >= v1) {
-		return (float)vv;
-	}
-	if (!dmode) {
-		return v;
-	}
-	if (v > 0.2f && v < 0.3f) {
-		return 0.25f;
-	}
-	if (v > 0.4f && v < 0.6f) {
-		return 0.5f;
-	}
-	return (float)(int)(v + 0.5f);
-}
-
-void getrtgfilterdata(int monid, struct displayscale *ds)
-{
-	struct AmigaMonitor *mon = &AMonitors[monid];
-	struct amigadisplay *ad = &adisplays[monid];
-	struct picasso96_state_struct *state = &picasso96_state[monid];
-
-	picasso_offset_x = 0;
-	picasso_offset_y = 0;
-	picasso_offset_mx = 1.0;
-	picasso_offset_my = 1.0;
-
-	ds->mode = 0;
-	ds->outwidth = mon->currentmode.native_width;
-	ds->outheight = mon->currentmode.native_height;
-
-	if (!ad->picasso_on)
-		return;
-
-	if (currprefs.gf[GF_RTG].gfx_filter_horiz_zoom_mult > 0) {
-		picasso_offset_mx *= currprefs.gf[GF_RTG].gfx_filter_horiz_zoom_mult;
-	}
-	if (currprefs.gf[GF_RTG].gfx_filter_vert_zoom_mult > 0) {
-		picasso_offset_my *= currprefs.gf[GF_RTG].gfx_filter_vert_zoom_mult;
-	}
-
-	if (!mon->scalepicasso || currprefs.host_rtgnonsquarepixels)
-		return;
-
-	int srcratio, dstratio;
-	int srcwidth, srcheight;
-	int outwidth, outheight;
-
-	srcwidth = state->Width;
-	srcheight = state->Height;
-	if (!srcwidth || !srcheight)
-		return;
-
-	float mx = (float)mon->currentmode.native_width / srcwidth;
-	float my = (float)mon->currentmode.native_height / srcheight;
-
-	if (mon->scalepicasso == RTG_MODE_INTEGER_SCALE) {
-		float fdivx = (float)mon->currentmode.native_width / srcwidth;
-		float fdivy = (float)mon->currentmode.native_height / srcheight;
-		float fmul = (float)(fdivx < 1.0 || fdivy < 1.0 ? 1 : (fdivx > fdivy ? fdivy : fdivx));
-		int mul = (int)(fmul * (1 << (currprefs.gf[GF_RTG].gfx_filter_integerscalelimit)));
-		fmul = (float)mul / (1 << (currprefs.gf[GF_RTG].gfx_filter_integerscalelimit));
-		if (fdivx < 1.0 || fdivy < 1.0) {
-			float adjust = 0.5f / (1 << (currprefs.gf[GF_RTG].gfx_filter_integerscalelimit));
-			fmul = 1.0f;
-			float prevfmul = fmul;
-			for(;;) {
-				if (fmul <= adjust) {
-					adjust /= 2.0f;
-					if (adjust < 0.10f) {
-						break;
-					}
-				}
-				fmul -= adjust;
-				if (fmul < 0.10f) {
-					fmul = 0.10f;
-					break;
-				}
-				if ((float)mon->currentmode.native_width / srcwidth > 2 * fmul || ((float)mon->currentmode.native_height / srcheight > 2 * fmul)) {
-					fmul = prevfmul;
-					break;
-				}
-				prevfmul = fmul;
-			}
-#if 0
-			if ((float)mon->currentmode.native_width / srcwidth <= 0.95f || ((float)mon->currentmode.native_height / srcheight <= 0.95f)) {
-				fmul = 1.0f / 2.0f;
-			}
-			if ((float)mon->currentmode.native_width / srcwidth <= 0.45f || ((float)mon->currentmode.native_height / srcheight <= 0.45f)) {
-				fmul = 1.0f / 4.0f;
-			}
-#endif
-		}
-		ds->outwidth = (int)(mon->currentmode.native_width / fmul);
-		ds->outheight = (int)(mon->currentmode.native_height / fmul);
-		int xx = (int)((mon->currentmode.native_width / fmul - srcwidth) / 2);
-		int yy = (int)((mon->currentmode.native_height / fmul - srcheight) / 2);
-		picasso_offset_x = -xx;
-		picasso_offset_y = -yy;
-		mx = fmul;
-		my = fmul;
-		outwidth = srcwidth;
-		outheight = srcheight;
-		ds->mode = 1;
-	} else if (mon->scalepicasso == RTG_MODE_CENTER) {
-		int xx = (mon->currentmode.native_width - srcwidth) / 2;
-		int yy = (mon->currentmode.native_height - srcheight) / 2;
-		picasso_offset_x = -xx;
-		picasso_offset_y = -yy;
-		ds->outwidth = mon->currentmode.native_width;
-		ds->outheight = mon->currentmode.native_height;
-		outwidth = ds->outwidth;
-		outheight = ds->outheight;
-		mx = my = 1.0;
-	} else {
-		if (currprefs.host_rtgscaleaspectratio < 0) {
-			// automatic
-			srcratio = srcwidth * ASPECTMULT / srcheight;
-			dstratio = mon->currentmode.native_width * ASPECTMULT / mon->currentmode.native_height;
-		} else if (currprefs.host_rtgscaleaspectratio == 0) {
-			// none
-			srcratio = dstratio = 0;
-		} else {
-			// manual
-			dstratio = (currprefs.host_rtgscaleaspectratio / ASPECTMULT) * ASPECTMULT / (currprefs.host_rtgscaleaspectratio & (ASPECTMULT - 1));
-			srcratio = srcwidth * ASPECTMULT / srcheight;
-		}
-
-		if (srcratio == dstratio) {
-			ds->outwidth = srcwidth;
-			ds->outheight = srcheight;
-		} else if (srcratio > dstratio) {
-			int yy = srcheight * srcratio / dstratio;
-			ds->outwidth = srcwidth;
-			ds->outheight = yy;
-			picasso_offset_y = (state->Height - yy) / 2;
-		} else {
-			int xx = srcwidth * dstratio / srcratio;
-			ds->outwidth = xx;
-			ds->outheight = srcheight;
-			picasso_offset_x = (state->Width - xx) / 2;
-		}
-		outwidth = ds->outwidth;
-		outheight = ds->outheight;
-	}
-
-	ds->xoffset += picasso_offset_x;
-	ds->yoffset += picasso_offset_y;
-
-	picasso_offset_x /= state->HLineDBL;
-	picasso_offset_y /= state->VLineDBL;
-
-	picasso_offset_mx = (float)(srcwidth * mx * state->HLineDBL) / outwidth;
-	picasso_offset_my = (float)(srcheight * my * state->VLineDBL) / outheight;
+ AmigaMonitor *mon = &AMonitors[monid];
+ const picasso96_state_struct *state = &picasso96_state[monid];
+ host_rtg_offset offset;
+ host_rtg_filterdata(ds, mon->currentmode.native_width, mon->currentmode.native_height,
+  state->Width, state->Height, state->HLineDBL, state->VLineDBL,
+  mon->scalepicasso, adisplays[monid].picasso_on, &offset);
+ picasso_offset_x = offset.x;
+ picasso_offset_y = offset.y;
+ picasso_offset_mx = offset.mx;
+ picasso_offset_my = offset.my;
 }
 
 static uae_u8 *gfx_lock_picasso2(int monid, bool fullupdate)

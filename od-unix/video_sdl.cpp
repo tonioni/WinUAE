@@ -26,6 +26,8 @@
 #include "clipboard.h"
 #include "disk.h"
 #include "gfxfilter.h"
+#include "od-generic/scaler.h"
+#include "od-generic/display_modes.h"
 #include "gui.h"
 #include "input.h"
 #include "options.h"
@@ -376,32 +378,15 @@ static int rounded_refresh_rate_from_mode(const SDL_DisplayMode *mode)
     return refresh > 0.0f ? (int)(refresh + 0.5f) : 0;
 }
 
-static void add_display_mode(struct unix_video_display_mode *modes, int max_modes, int *count,
+static void add_display_mode(PicassoResolution *modes, int max_modes, int *count,
     int width, int height, int refresh_rate)
 {
-    if (!modes || !count || width <= 0 || height <= 0) {
-        return;
-    }
-
-    for (int i = 0; i < *count; i++) {
-        if (modes[i].width == width && modes[i].height == height) {
-            if (!modes[i].refresh_rate && refresh_rate) {
-                modes[i].refresh_rate = refresh_rate;
-            }
-            return;
-        }
-    }
-    if (*count >= max_modes) {
-        return;
-    }
-
-    modes[*count].width = width;
-    modes[*count].height = height;
-    modes[*count].refresh_rate = refresh_rate;
-    (*count)++;
+    host_display_mode_add(modes, max_modes, width, height, refresh_rate, 0, false);
+    *count = 0;
+    while (*count < max_modes && modes[*count].inuse) (*count)++;
 }
 
-static void add_sdl_display_modes(SDL_DisplayID display, struct unix_video_display_mode *modes, int max_modes, int *count)
+static void add_sdl_display_modes(SDL_DisplayID display, PicassoResolution *modes, int max_modes, int *count)
 {
     if (!display) {
         return;
@@ -712,19 +697,20 @@ static bool make_video_layout(const struct unix_video_frame *frame, const struct
     SDL_FRect dst = {};
     int mode = frame->filter_index == GF_RTG && filter ? filter->gfx_filter_autoscale : 0;
 
-    if (frame->filter_index == GF_RTG && mode == 2) { /* center */
-        dst.w = source_rect.w * layout->pixel_scale_x;
-        dst.h = source_rect.h * layout->pixel_scale_y;
-        dst.x = ((float)output_width - dst.w) / 2.0f + source_rect.x * layout->pixel_scale_x;
-        dst.y = ((float)frame_area_height - dst.h) / 2.0f + source_rect.y * layout->pixel_scale_y;
-    } else if (frame->filter_index == GF_RTG && mode == 3) { /* integer */
-        int ix = std::max(1, output_width / frame->width);
-        int iy = std::max(1, frame_area_height / frame->height);
-        int scale = std::max(1, std::min(ix, iy));
-        dst.w = source_rect.w * scale;
-        dst.h = source_rect.h * scale;
-        dst.x = ((float)output_width - (float)frame->width * scale) / 2.0f + source_rect.x * scale;
-        dst.y = ((float)frame_area_height - (float)frame->height * scale) / 2.0f + source_rect.y * scale;
+    if (frame->filter_index == GF_RTG && mode >= 1 && mode <= 3) {
+        displayscale ds = {};
+        host_rtg_offset offset;
+        // Centered SDL content uses logical pixels; scaling uses output pixels.
+        int width = mode == 2 ? (int)(output_width / layout->pixel_scale_x) : output_width;
+        int height = mode == 2 ? (int)(frame_area_height / layout->pixel_scale_y) : frame_area_height;
+        host_rtg_filterdata(&ds, width, height, frame->width, frame->height,
+            1, 1, mode, true, &offset);
+        float mx = (float)output_width / ds.outwidth;
+        float my = (float)frame_area_height / ds.outheight;
+        dst.w = source_rect.w * mx;
+        dst.h = source_rect.h * my;
+        dst.x = ((float)output_width - frame->width * mx) / 2.0f + source_rect.x * mx;
+        dst.y = ((float)frame_area_height - frame->height * my) / 2.0f + source_rect.y * my;
     } else if (frame->filter_index != GF_RTG && frame->source_w > 0.0f && frame->source_h > 0.0f) {
         /* getfilterdata() picked the part of the frame that fills the
            area; centre it with the multipliers direct3d11.cpp uses. */
@@ -740,9 +726,6 @@ static bool make_video_layout(const struct unix_video_frame *frame, const struct
         float draw_sx = sx;
         float draw_sy = sy;
 
-        if (frame->filter_index == GF_RTG && mode == 1 && currprefs.host_rtgscaleaspectratio) {
-            draw_sx = draw_sy = std::min(sx, sy);
-        }
         dst.w = source_rect.w * draw_sx;
         dst.h = source_rect.h * draw_sy;
         dst.x = ((float)output_width - (float)frame->width * draw_sx) / 2.0f + source_rect.x * draw_sx;
@@ -2189,15 +2172,16 @@ int unix_video_get_display_modes(int display_index, struct unix_video_display_mo
         return 0;
     }
 
+    std::vector<PicassoResolution> common((size_t)max_modes + 1);
     int count = 0;
     int display_count = 0;
     SDL_DisplayID *displays = get_sdl_displays(&display_count);
     if (displays && display_count > 0) {
         if (display_index > 0 && display_index <= display_count) {
-            add_sdl_display_modes(displays[display_index - 1], modes, max_modes, &count);
+            add_sdl_display_modes(displays[display_index - 1], common.data(), max_modes + 1, &count);
         } else {
             for (int i = 0; i < display_count; i++) {
-                add_sdl_display_modes(displays[i], modes, max_modes, &count);
+                add_sdl_display_modes(displays[i], common.data(), max_modes + 1, &count);
             }
         }
     }
@@ -2205,7 +2189,13 @@ int unix_video_get_display_modes(int display_index, struct unix_video_display_mo
         SDL_free(displays);
     }
     if (!count) {
-        add_sdl_display_modes(SDL_GetPrimaryDisplay(), modes, max_modes, &count);
+        add_sdl_display_modes(SDL_GetPrimaryDisplay(), common.data(), max_modes + 1, &count);
+    }
+    count = host_display_modes_sort(common.data(), max_modes + 1, false);
+    for (int i = 0; i < count; i++) {
+        modes[i].width = common[i].res.width;
+        modes[i].height = common[i].res.height;
+        modes[i].refresh_rate = common[i].refresh[0];
     }
     return count;
 }

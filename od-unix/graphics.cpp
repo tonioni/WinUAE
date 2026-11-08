@@ -613,12 +613,15 @@ void target_spin(int)
     }
 }
 
-void getgfxoffset(int, float *dxp, float *dyp, float *mxp, float *myp)
+void getgfxoffset(int monid, float *dxp, float *dyp, float *mxp, float *myp)
 {
-    if (dxp) *dxp = 0;
-    if (dyp) *dyp = 0;
-    if (mxp) *mxp = 1;
-    if (myp) *myp = 1;
+    float dx, dy, mx, my;
+    getfilteroffset(monid, &dx, &dy, &mx, &my);
+    if (adisplays[monid].picasso_on) { dx = dy = 0; mx = my = 1; }
+    if (dxp) *dxp = dx;
+    if (dyp) *dyp = dy;
+    if (mxp) *mxp = mx ? 1.0f / mx : 1.0f;
+    if (myp) *myp = my ? 1.0f / my : 1.0f;
 }
 
 float target_getcurrentvblankrate(int monid)
