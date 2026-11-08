@@ -36,7 +36,7 @@
 #include <math.h>
 
 //#define DEBUGPRINT _T("C:\\Users\\twilen\\Desktop\\CMD_file.1")
-int pngprint = 0;
+extern int pngprint;
 
 #ifdef C_LIBPNG
 #include <zlib.h>
