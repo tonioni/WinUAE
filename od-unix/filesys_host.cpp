@@ -8,8 +8,10 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+#include <vector>
 
 #include "fsdb.h"
+#include "od-generic/fsdb_posix.h"
 #include "fsusage.h"
 #include "uae/io.h"
 #include "uae/string.h"
@@ -21,6 +23,8 @@ struct my_opendir_s {
 
 struct my_openfile_s {
     int fd;
+    TCHAR *path;
+    bool modified;
 };
 
 bool my_issamepath(const TCHAR *path1, const TCHAR *path2);
@@ -100,7 +104,7 @@ int my_readdir(my_opendir_s *mod, TCHAR *name)
         if (!de) {
             return 0;
         }
-        if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, "..")) {
+        if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, "..") || fsdb_posix_hidden(de->d_name)) {
             continue;
         }
         uae_tcslcpy(name, de->d_name, MAX_DPATH);
@@ -108,11 +112,52 @@ int my_readdir(my_opendir_s *mod, TCHAR *name)
     }
 }
 
-int my_rmdir(const TCHAR *name) { return rmdir(name); }
+int my_rmdir(const TCHAR *name)
+{
+    DIR *dir = opendir(name);
+    if (!dir) return -1;
+    std::vector<std::string> metadata;
+    bool empty = true;
+    while (dirent *entry = readdir(dir)) {
+        if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
+        if (!fsdb_posix_hidden(entry->d_name)) { empty = false; break; }
+        metadata.push_back(std::string(name) + "/" + entry->d_name);
+    }
+    closedir(dir);
+    if (!empty) { errno = ENOTEMPTY; return -1; }
+    for (const auto &path : metadata) if (unlink(path.c_str())) return -1;
+    int ret = rmdir(name);
+    if (!ret) unlink((std::string(name) + ".uaem").c_str());
+    return ret;
+}
 int my_mkdir(const TCHAR *name) { return mkdir(name, 0777); }
-int my_unlink(const TCHAR *name, bool) { return unlink(name); }
-int my_rename(const TCHAR *oldname, const TCHAR *newname) { return rename(oldname, newname); }
-int my_truncate(const TCHAR *name, uae_u64 len) { return truncate(name, (off_t)len); }
+int my_unlink(const TCHAR *name, bool)
+{
+    int ret = unlink(name);
+    if (!ret) unlink((std::string(name) + ".uaem").c_str());
+    return ret;
+}
+int my_rename(const TCHAR *oldname, const TCHAR *newname)
+{
+    std::string oldmeta = std::string(oldname) + ".uaem";
+    std::string newmeta = std::string(newname) + ".uaem";
+    bool hasmeta = access(oldmeta.c_str(), F_OK) == 0;
+    if (rename(oldname, newname)) return -1;
+    if (hasmeta && rename(oldmeta.c_str(), newmeta.c_str())) {
+        int error = errno;
+        rename(newname, oldname);
+        errno = error;
+        return -1;
+    }
+    if (!hasmeta) unlink(newmeta.c_str());
+    return 0;
+}
+int my_truncate(const TCHAR *name, uae_u64 len)
+{
+    int ret = truncate(name, (off_t)len);
+    if (!ret) fsdb_posix_sync_time(name, NULL);
+    return ret;
+}
 
 my_openfile_s *my_open(const TCHAR *name, int flags)
 {
@@ -122,6 +167,8 @@ my_openfile_s *my_open(const TCHAR *name, int flags)
     }
     my_openfile_s *out = xcalloc(my_openfile_s, 1);
     out->fd = fd;
+    out->path = my_strdup(name);
+    out->modified = (flags & O_TRUNC) != 0;
     return out;
 }
 
@@ -132,7 +179,9 @@ void my_close(my_openfile_s *mos)
     }
     if (mos->fd >= 0) {
         close(mos->fd);
+        if (mos->modified) fsdb_posix_sync_time(mos->path, NULL);
     }
+    xfree(mos->path);
     xfree(mos);
 }
 
@@ -159,6 +208,7 @@ unsigned int my_read(my_openfile_s *mos, void *b, unsigned int size)
 unsigned int my_write(my_openfile_s *mos, void *b, unsigned int size)
 {
     ssize_t ret = mos ? write(mos->fd, b, size) : -1;
+    if (ret > 0) mos->modified = true;
     return ret < 0 ? 0 : (unsigned int)ret;
 }
 
@@ -222,6 +272,8 @@ bool my_stat(const TCHAR *name, struct mystat *ms)
 #else
     ms->mtime.tv_usec = (uae_s32)(st.st_mtim.tv_nsec / 1000);
 #endif
+    fsdb_posix_info info;
+    if (fsdb_posix_read(name, &info) == 1) ms->mtime = info.time;
     return true;
 }
 
@@ -231,13 +283,17 @@ bool my_utime(const TCHAR *name, struct mytimeval *tv)
         return false;
     }
     if (!tv) {
-        return utimes(name, NULL) == 0;
+        bool ok = utimes(name, NULL) == 0;
+        if (ok) fsdb_posix_sync_time(name, NULL);
+        return ok;
     }
     struct timeval times[2];
     times[0].tv_sec = unix_local_to_utc((time_t)tv->tv_sec);
     times[0].tv_usec = tv->tv_usec;
     times[1] = times[0];
-    return utimes(name, times) == 0;
+    bool ok = utimes(name, times) == 0;
+    if (ok) fsdb_posix_sync_time(name, tv);
+    return ok;
 }
 
 bool my_chmod(const TCHAR *name, uae_u32 mode)
@@ -327,7 +383,7 @@ void makesafefilename(TCHAR *s, bool)
 
 int my_getvolumeinfo(const TCHAR *)
 {
-    return 0;
+    return MYVOLUMEINFO_STREAMS;
 }
 
 int get_fs_usage(const TCHAR *path, const TCHAR *, struct fs_usage *fsp)
