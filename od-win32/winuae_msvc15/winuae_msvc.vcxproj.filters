@@ -1009,9 +1009,6 @@
     <ClCompile Include="..\hq2x_d3d.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\atonce.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\86box\video\vid_cl54xx.cpp">
       <Filter>86box\video</Filter>
     </ClCompile>
@@ -2026,6 +2023,9 @@
     <ClCompile Include="..\..\86box\cpu\x87_timings.cpp">
       <Filter>86box\cpu</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\atonce.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">
@@ -2134,15 +2134,6 @@
     <ClInclude Include="..\..\od-generic\hostcfg.def">
       <Filter>shared</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\uae\caps.h">
-      <Filter>common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\gdb_transport.h">
-      <Filter>common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\target_dlopen.h">
-      <Filter>common</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\hostcfg.h">
       <Filter>shared</Filter>
     </ClInclude>
@@ -2153,6 +2144,8 @@
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\..\od-generic\blkdev_ioctl_common.h">
+      <Filter>shared</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\od-generic\avsync.h">
       <Filter>shared</Filter>
     </ClInclude>
@@ -2164,6 +2157,15 @@
     </ClInclude>
     <ClInclude Include="..\resources\resource.h">
       <Filter>win32\Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\target_dlopen.h">
+      <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\gdb_transport.h">
+      <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\uae\caps.h">
+      <Filter>shared</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
