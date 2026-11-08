@@ -1076,6 +1076,9 @@
     <ClCompile Include="..\..\od-generic\avsync.cpp" />
     <ClCompile Include="..\..\od-generic\screenshot_common.cpp" />
     <ClCompile Include="..\..\od-generic\uaenet.cpp" />
+    <ClCompile Include="..\..\od-generic\input_defaults.cpp" />
+    <ClCompile Include="..\..\od-generic\input_hotkeys.cpp" />
+    <ClCompile Include="..\..\od-generic\keymap.cpp" />
     <ClCompile Include="..\..\od-generic\hostcfg.cpp" />
     <ClCompile Include="..\..\od-generic\hostcfg_compat.cpp" />
     <ClCompile Include="..\..\od-generic\mman.cpp" />
@@ -3523,6 +3526,8 @@
     <ClInclude Include="..\..\include\target_dlopen.h" />
     <ClInclude Include="..\..\include\hostcfg.h" />
     <ClInclude Include="..\..\od-generic\console.h" />
+    <ClInclude Include="..\..\od-generic\input_defaults.h" />
+    <ClInclude Include="..\..\od-generic\keymap.h" />
     <ClInclude Include="..\..\od-generic\hostcfg.def" />
     <ClInclude Include="..\..\include\serial_host.h" />
     <ClInclude Include="..\..\include\hardfile_defaults.h" />

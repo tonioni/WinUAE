@@ -42,6 +42,7 @@ int key_swap_end_pgup = 0;
 #include "options.h"
 #include "rp.h"
 #include "inputdevice.h"
+#include "od-generic/input_defaults.h"
 #include "xwin.h"
 #include "uae.h"
 #include "catweasel.h"
@@ -4607,229 +4608,50 @@ int input_get_default_keyboard (int i)
 	return 0;
 }
 
-static int nextsub(struct uae_input_device *uid, int i, int slot, int sub)
+static bool default_button(void *context, int button)
 {
-	if (currprefs.input_advancedmultiinput) {
-		while (uid[i].eventid[slot][sub] > 0) {
-			sub++;
-			if (sub >= MAX_INPUT_SUB_EVENT) {
-				return -1;
-			}
-		}
-	}
-	return sub;
+ return isrealbutton((didata *)context, button);
 }
-
-static bool isemptyslot(struct uae_input_device *uid, int i, int slot, int sub, int port)
+static bool default_hat(void *context, int axis)
 {
-	return uid[i].eventid[slot][sub] == 0;
+ return ((didata *)context)->axistype[axis] == AXISTYPE_POV_X;
 }
-
-static void setid (struct uae_input_device *uid, int i, int slot, int sub, int port, int evt, bool gp)
-{
-	sub = nextsub(uid, i, slot, sub);
-	if (sub < 0) {
-		return;
-	}
-	if (gp && sub == 0) {
-		inputdevice_sparecopy (&uid[i], slot, sub);
-	}
-	uid[i].eventid[slot][sub] = evt;
-	uid[i].port[slot][sub] = port + 1;
-}
-static void setid (struct uae_input_device *uid, int i, int slot, int sub, int port, int evt, int af, bool gp)
-{
-	sub = nextsub(uid, i, slot, sub);
-	if (sub < 0) {
-		return;
-	}
-	setid (uid, i, slot, sub, port, evt, gp);
-	uid[i].flags[slot][sub] &= ~ID_FLAG_AUTOFIRE_MASK;
-	if (af >= JPORT_AF_NORMAL)
-		uid[i].flags[slot][sub] |= ID_FLAG_AUTOFIRE;
-	if (af == JPORT_AF_TOGGLE)
-		uid[i].flags[slot][sub] |= ID_FLAG_TOGGLE;
-	if (af == JPORT_AF_ALWAYS)
-		uid[i].flags[slot][sub] |= ID_FLAG_INVERTTOGGLE;
-	if (af == JPORT_AF_TOGGLENOAF)
-		uid[i].flags[slot][sub] |= ID_FLAG_INVERT;
-}
-
 int input_get_default_mouse (struct uae_input_device *uid, int i, int port, int af, bool gp, bool wheel, bool joymouseswap)
 {
-	struct didata *did = NULL;
-
-	if (!joymouseswap) {
-		if (i >= num_mouse)
-			return 0;
-		did = &di_mouse[i];
-	} else {
-		if (i >= num_joystick)
-			return 0;
-		did = &di_joystick[i];
-	}
-	setid (uid, i, ID_AXIS_OFFSET + 0, 0, port, port ? INPUTEVENT_MOUSE2_HORIZ : INPUTEVENT_MOUSE1_HORIZ, gp);
-	setid (uid, i, ID_AXIS_OFFSET + 1, 0, port, port ? INPUTEVENT_MOUSE2_VERT : INPUTEVENT_MOUSE1_VERT, gp);
-	if (wheel)
-		setid (uid, i, ID_AXIS_OFFSET + 2, 0, port, port ? 0 : INPUTEVENT_MOUSE1_WHEEL, gp);
-	setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_FIRE_BUTTON : INPUTEVENT_JOY1_FIRE_BUTTON, af, gp);
-	setid (uid, i, ID_BUTTON_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_2ND_BUTTON : INPUTEVENT_JOY1_2ND_BUTTON, gp);
-	setid (uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
-	if (wheel && port == 0) { /* map back and forward to ALT+LCUR and ALT+RCUR */
-		if (isrealbutton (did, 3)) {
-			setid (uid, i, ID_BUTTON_OFFSET + 3, 0, port, INPUTEVENT_KEY_ALT_LEFT, gp);
-			setid (uid, i, ID_BUTTON_OFFSET + 3, 1, port, INPUTEVENT_KEY_CURSOR_LEFT, gp);
-			if (isrealbutton (did, 4)) {
-				setid (uid, i, ID_BUTTON_OFFSET + 4, 0, port, INPUTEVENT_KEY_ALT_LEFT, gp);
-				setid (uid, i, ID_BUTTON_OFFSET + 4, 1, port, INPUTEVENT_KEY_CURSOR_RIGHT, gp);
-			}
-		}
-	}
-	if (i == 0)
-		return 1;
-	return 0;
+ bool mouse = !joymouseswap;
+ if (i < 0 || i >= (mouse ? num_mouse : num_joystick))
+  return 0;
+ host_input_device device = { mouse ? &di_mouse[i] : &di_joystick[i], default_button, default_hat, MAX_MAPPINGS, true, false };
+ return input_default_mouse(uid, i, port, af, gp, wheel, joymouseswap, device);
 }
 
 int input_get_default_lightpen (struct uae_input_device *uid, int i, int port, int af, bool gp, bool joymouseswap, int submode)
 {
-	struct didata *did = NULL;
-
-	if (!joymouseswap) {
-		if (i >= num_mouse)
-			return 0;
-		did = &di_mouse[i];
-	} else {
-		if (i >= num_joystick)
-			return 0;
-		did = &di_joystick[i];
-	}
-	setid (uid, i, ID_AXIS_OFFSET + 0, 0, port, INPUTEVENT_LIGHTPEN_HORIZ, gp);
-	setid (uid, i, ID_AXIS_OFFSET + 1, 0, port, INPUTEVENT_LIGHTPEN_VERT, gp);
-	int button = port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON;
-	switch (submode)
-	{
-	case 1:
-		button = port ? INPUTEVENT_JOY2_LEFT : INPUTEVENT_JOY1_LEFT;
-		break;
-	}
-	setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, button, gp);
-	if (i == 0)
-		return 1;
-	return 0;
+ bool mouse = !joymouseswap;
+ if (i < 0 || i >= (mouse ? num_mouse : num_joystick))
+  return 0;
+ host_input_device device = { mouse ? &di_mouse[i] : &di_joystick[i], default_button, default_hat, MAX_MAPPINGS, true, false };
+ return input_default_lightpen(uid, i, port, af, gp, joymouseswap, submode, device);
 }
 
 int input_get_default_joystick (struct uae_input_device *uid, int i, int port, int af, int mode, bool gp, bool joymouseswap, bool default_osk)
 {
-	int j;
-	struct didata *did = NULL;
-	int h, v;
-
-	if (joymouseswap) {
-		if (i >= num_mouse)
-			return 0;
-		did = &di_mouse[i];
-	} else {
-		if (i >= num_joystick)
-			return 0;
-		did = &di_joystick[i];
-	}
-	if (mode == JSEM_MODE_MOUSE_CDTV) {
-		h = INPUTEVENT_MOUSE_CDTV_HORIZ;
-		v = INPUTEVENT_MOUSE_CDTV_VERT;
-	} else if (port >= 2) {
-		h = port == 3 ? INPUTEVENT_PAR_JOY2_HORIZ : INPUTEVENT_PAR_JOY1_HORIZ;
-		v = port == 3 ? INPUTEVENT_PAR_JOY2_VERT : INPUTEVENT_PAR_JOY1_VERT;
-	} else {
-		h = port ? INPUTEVENT_JOY2_HORIZ : INPUTEVENT_JOY1_HORIZ;;
-		v = port ? INPUTEVENT_JOY2_VERT : INPUTEVENT_JOY1_VERT;
-	}
-	setid (uid, i, ID_AXIS_OFFSET + 0, 0, port, h, gp);
-	setid (uid, i, ID_AXIS_OFFSET + 1, 0, port, v, gp);
-
-	if (port >= 2) {
-		setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, port == 3 ? INPUTEVENT_PAR_JOY2_FIRE_BUTTON : INPUTEVENT_PAR_JOY1_FIRE_BUTTON, af, gp);
-	} else {
-		setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_FIRE_BUTTON : INPUTEVENT_JOY1_FIRE_BUTTON, af, gp);
-		if (isrealbutton (did, 1))
-			setid (uid, i, ID_BUTTON_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_2ND_BUTTON : INPUTEVENT_JOY1_2ND_BUTTON, gp);
-		if (mode != JSEM_MODE_JOYSTICK) {
-			if (isrealbutton (did, 2))
-				setid (uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
-		}
-		if (isrealbutton(did, 3) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 3, 0, port) && default_osk) {
-			setid(uid, i, ID_BUTTON_OFFSET + 3, 0, port, INPUTEVENT_SPC_OSK, gp);
-		}
-	}
-
-	for (j = 2; j < MAX_MAPPINGS - 1; j++) {
-		int type = did->axistype[j];
-		if (type == AXISTYPE_POV_X) {
-			setid (uid, i, ID_AXIS_OFFSET + j + 0, 0, port, h, gp);
-			setid (uid, i, ID_AXIS_OFFSET + j + 1, 0, port, v, gp);
-			j++;
-		}
-	}
-
-	if (mode == JSEM_MODE_JOYSTICK_CD32) {
-		setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_CD32_RED : INPUTEVENT_JOY1_CD32_RED, af, gp);
-		if (isrealbutton (did, 1)) {
-			setid (uid, i, ID_BUTTON_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_CD32_BLUE : INPUTEVENT_JOY1_CD32_BLUE, gp);
-		}
-		if (isrealbutton (did, 2))
-			setid (uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_CD32_GREEN : INPUTEVENT_JOY1_CD32_GREEN, gp);
-		if (isrealbutton (did, 3))
-			setid (uid, i, ID_BUTTON_OFFSET + 3, 0, port, port ? INPUTEVENT_JOY2_CD32_YELLOW : INPUTEVENT_JOY1_CD32_YELLOW, gp);
-		if (isrealbutton (did, 4))
-			setid (uid, i, ID_BUTTON_OFFSET + 4, 0, port, port ? INPUTEVENT_JOY2_CD32_RWD : INPUTEVENT_JOY1_CD32_RWD, gp);
-		if (isrealbutton (did, 5))
-			setid (uid, i, ID_BUTTON_OFFSET + 5, 0, port, port ? INPUTEVENT_JOY2_CD32_FFW : INPUTEVENT_JOY1_CD32_FFW, gp);
-		if (isrealbutton (did, 6))
-			setid (uid, i, ID_BUTTON_OFFSET + 6, 0, port, port ? INPUTEVENT_JOY2_CD32_PLAY :  INPUTEVENT_JOY1_CD32_PLAY, gp);
-	}
-	if (i == 0)
-		return 1;
-	return 0;
+ bool mouse = joymouseswap;
+ if (i < 0 || i >= (mouse ? num_mouse : num_joystick))
+  return 0;
+ host_input_device device = { mouse ? &di_mouse[i] : &di_joystick[i], default_button, default_hat, MAX_MAPPINGS, true, false };
+ return input_default_joystick(uid, i, port, af, mode, gp, joymouseswap, default_osk, device);
 }
 
 int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int port, int af, bool gp, bool joymouseswap, bool default_osk)
 {
-	int j;
-	struct didata *did;
-
-	if (joymouseswap) {
-		if (i >= num_mouse)
-			return 0;
-		did = &di_mouse[i];
-	} else {
-		if (i >= num_joystick)
-			return 0;
-		did = &di_joystick[i];
-	}
-	setid (uid, i, ID_AXIS_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_HORIZ_POT : INPUTEVENT_JOY1_HORIZ_POT, gp);
-	setid (uid, i, ID_AXIS_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_VERT_POT : INPUTEVENT_JOY1_VERT_POT, gp);
-	setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_LEFT : INPUTEVENT_JOY1_LEFT, af, gp);
-	if (isrealbutton(did, 1))
-		setid(uid, i, ID_BUTTON_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_RIGHT : INPUTEVENT_JOY1_RIGHT, gp);
-	if (isrealbutton(did, 2))
-		setid(uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_UP : INPUTEVENT_JOY1_UP, gp);
-	if (isrealbutton(did, 3))
-		setid(uid, i, ID_BUTTON_OFFSET + 3, 0, port, port ? INPUTEVENT_JOY2_DOWN : INPUTEVENT_JOY1_DOWN, gp);
-	if (isrealbutton(did, 4) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 4, 0, port) && default_osk)
-		setid(uid, i, ID_BUTTON_OFFSET + 4, 0, port, INPUTEVENT_SPC_OSK, gp);
-
-	for (j = 2; j < MAX_MAPPINGS - 1; j++) {
-		int type = did->axistype[j];
-		if (type == AXISTYPE_POV_X) {
-			setid (uid, i, ID_AXIS_OFFSET + j + 0, 0, port, port ? INPUTEVENT_JOY2_HORIZ_POT : INPUTEVENT_JOY1_HORIZ_POT, gp);
-			setid (uid, i, ID_AXIS_OFFSET + j + 1, 0, port, port ? INPUTEVENT_JOY2_VERT_POT : INPUTEVENT_JOY1_VERT_POT, gp);
-			j++;
-		}
-	}
-
-	if (i == 0)
-		return 1;
-	return 0;
+ bool mouse = joymouseswap;
+ if (i < 0 || i >= (mouse ? num_mouse : num_joystick))
+  return 0;
+ host_input_device device = { mouse ? &di_mouse[i] : &di_joystick[i], default_button, default_hat, MAX_MAPPINGS, true, false };
+ return input_default_joystick_analog(uid, i, port, af, gp, joymouseswap, default_osk, device);
 }
+
 
 #ifdef RETROPLATFORM
 #include "cloanto/RetroPlatformIPC.h"
