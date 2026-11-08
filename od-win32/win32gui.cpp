@@ -3966,6 +3966,10 @@ static void writeconfigcache (const TCHAR *path)
 	getconfigcache (cachepath, path);
 	bool hidden = my_isfilehidden (cachepath);
 	my_setfilehidden (cachepath, false);
+	if (!configstoresize) {
+		_wunlink(cachepath);
+		return;
+	}
 	zcache = _tfopen (cachepath, _T("w, ccs=UTF-8"));
 	if (!zcache)
 		return;
