@@ -84,7 +84,7 @@ static void enqueue_midi_input_bytes(const uae_u8 *data, int len)
             input_queue.pop_front();
         }
         input_queue.push_back(data[i]);
-        if (currprefs.win32_midirouter && midi_ready) {
+        if (currprefs.host_midirouter && midi_ready) {
             BYTE out = data[i];
             Midi_Parse(midi_output, &out);
         }
@@ -548,13 +548,13 @@ int Midi_Open(void)
     if (midi_ready) {
         return 1;
     }
-    if (currprefs.win32_midioutdev < -1) {
+    if (currprefs.host_midioutdev < -1) {
         return 0;
     }
-    unix_midi_output_device *outdev = find_midi_output(currprefs.win32_midioutdev);
-    unix_midi_output_device *indev = currprefs.win32_midiindev >= 0 ? find_midi_input(currprefs.win32_midiindev) : NULL;
+    unix_midi_output_device *outdev = find_midi_output(currprefs.host_midioutdev);
+    unix_midi_output_device *indev = currprefs.host_midiindev >= 0 ? find_midi_input(currprefs.host_midiindev) : NULL;
     if (!outdev) {
-        write_log(_T("MIDI OUT: no output device for id %d\n"), currprefs.win32_midioutdev);
+        write_log(_T("MIDI OUT: no output device for id %d\n"), currprefs.host_midioutdev);
         return 0;
     }
     if (outdev->emulated) {

@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <errno.h>
-#include <unordered_map>
 #include <vector>
 
 #ifdef UAE_UNIX_WITH_SDL3
@@ -206,43 +205,9 @@ static void unix_png_flush_data(png_structp)
 {
 }
 
-static uae_u32 unix_rgb_key_from_pixel(const struct vidbuffer *vb, int x, int y)
+static uae_u32 unix_palette_pixel(void *context, int x, int y)
 {
-    return unix_screenshot_get_pixel(vb, x, y) & 0x00ffffff;
-}
-
-static bool unix_collect_png_palette(const struct vidbuffer *vb, std::vector<uae_u32> *colors,
-    std::vector<uae_u8> *indices)
-{
-    if (!vb || !colors || !indices || vb->outwidth <= 0 || vb->outheight <= 0) {
-        return false;
-    }
-
-    colors->clear();
-    indices->assign((size_t)vb->outwidth * (size_t)vb->outheight, 0);
-
-    std::unordered_map<uae_u32, uae_u8> palette_index;
-    for (int y = 0; y < vb->outheight; y++) {
-        for (int x = 0; x < vb->outwidth; x++) {
-            uae_u32 color = unix_rgb_key_from_pixel(vb, x, y);
-            auto it = palette_index.find(color);
-            if (it == palette_index.end()) {
-                if (colors->size() >= 256) {
-                    colors->clear();
-                    indices->clear();
-                    return false;
-                }
-                uae_u8 index = (uae_u8)colors->size();
-                colors->push_back(color);
-                palette_index[color] = index;
-                (*indices)[(size_t)y * (size_t)vb->outwidth + (size_t)x] = index;
-            } else {
-                (*indices)[(size_t)y * (size_t)vb->outwidth + (size_t)x] = it->second;
-            }
-        }
-    }
-
-    return !colors->empty();
+    return unix_screenshot_get_pixel((const vidbuffer *)context, x, y) & 0x00ffffff;
 }
 
 static bool unix_encode_png(std::vector<uae_u8> *png, const struct vidbuffer *vb)
@@ -275,23 +240,23 @@ static bool unix_encode_png(std::vector<uae_u8> *png, const struct vidbuffer *vb
     UnixPngBuffer buffer = { png };
     png_set_write_fn(png_ptr, &buffer, unix_png_write_data, unix_png_flush_data);
 
-    std::vector<uae_u32> palette_colors;
-    std::vector<uae_u8> palette_indices;
+    screenshot_palette indexed;
     const bool use_palette = screenshot_paletteindexed &&
-        unix_collect_png_palette(vb, &palette_colors, &palette_indices);
+        screenshot_build_palette(&indexed, width, height, unix_palette_pixel,
+            (void *)vb, NULL, 0, 0);
 
     png_set_IHDR(png_ptr, info_ptr, width, height, 8,
         use_palette ? PNG_COLOR_TYPE_PALETTE : PNG_COLOR_TYPE_RGB,
         PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
     if (use_palette) {
         png_color palette[256];
-        for (size_t i = 0; i < palette_colors.size(); i++) {
-            uae_u32 color = palette_colors[i];
+        for (size_t i = 0; i < indexed.count; i++) {
+            uae_u32 color = indexed.colors[i];
             palette[i].red = (color >> 16) & 0xff;
             palette[i].green = (color >> 8) & 0xff;
             palette[i].blue = color & 0xff;
         }
-        png_set_PLTE(png_ptr, info_ptr, palette, (int)palette_colors.size());
+        png_set_PLTE(png_ptr, info_ptr, palette, (int)indexed.count);
     }
     png_write_info(png_ptr, info_ptr);
 
@@ -299,7 +264,7 @@ static bool unix_encode_png(std::vector<uae_u8> *png, const struct vidbuffer *vb
     for (int y = 0; y < height; y++) {
         const uae_u8 *src = vb->bufmem + (size_t)y * (size_t)vb->rowbytes;
         if (use_palette) {
-            memcpy(row.data(), palette_indices.data() + (size_t)y * (size_t)width, (size_t)width);
+            memcpy(row.data(), indexed.indices.data() + (size_t)y * (size_t)width, (size_t)width);
         } else {
             for (int x = 0; x < width; x++) {
                 uae_u8 r, g, b;

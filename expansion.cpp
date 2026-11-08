@@ -2427,7 +2427,7 @@ static uaecptr check_boot_rom (struct uae_prefs *p, int *boot_rom_type)
 	if (nr_directory_units (p))
 		return b;
 #ifdef WIN32
-	if (p->win32_automount_drives || p->win32_automount_cddrives || p->win32_automount_netdrives || p->win32_automount_removable)
+	if (p->host_automount_drives || p->host_automount_cddrives || p->host_automount_netdrives || p->host_automount_removable)
 		return b;
 #endif
 	if (p->socket_emu)
@@ -2442,7 +2442,7 @@ static uaecptr check_boot_rom (struct uae_prefs *p, int *boot_rom_type)
 		return b;
 	if (p->rtgboards[0].rtgmem_size && p->rtgboards[0].rtgmem_type < GFXBOARD_HARDWARE)
 		return b;
-	if (p->win32_automount_removable)
+	if (p->host_automount_removable)
 		return b;
 	if (p->chipmem.size > 2 * 1024 * 1024)
 		return b;

@@ -1831,7 +1831,7 @@ static int canstretch(struct AmigaMonitor *mon)
 			return 0;
 		return 1;
 	} else {
-		if (currprefs.win32_rtgallowscaling || currprefs.gf[GF_RTG].gfx_filter_autoscale)
+		if (currprefs.host_rtgallowscaling || currprefs.gf[GF_RTG].gfx_filter_autoscale)
 			return 1;
 	}
 	return 0;
@@ -2185,7 +2185,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			}
 		} else {
 			int scancode = (lParam >> 16) & 0xff;
-			if (((currprefs.win32_guikey > 0 && scancode == currprefs.win32_guikey) || (currprefs.win32_guikey < 0 && scancode == DIK_F12))) {
+			if (((currprefs.host_guikey > 0 && scancode == currprefs.host_guikey) || (currprefs.host_guikey < 0 && scancode == DIK_F12))) {
 				SetForegroundWindow(hGUIWnd);
 			} else if (wParam == VK_ESCAPE) {
 				SendMessage(hGUIWnd, WM_CLOSE, 0, 0);
@@ -2223,7 +2223,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 					SendMessage(mon->hAmigaWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
 					return 0;
 				}
-				if (!pause_emulation || currprefs.win32_active_nocapture_pause)
+				if (!pause_emulation || currprefs.host_active_nocapture_pause)
 					setmouseactive(mon->monitor_id, (message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
 			} else if (dinput_winmouse() >= 0 && isfocus()) {
 				if (log_winmouse)
@@ -4344,28 +4344,28 @@ void target_quit (void)
 
 void target_fixup_options (struct uae_prefs *p)
 {
-	if (p->win32_automount_cddrives && !p->scsi)
+	if (p->host_automount_cddrives && !p->scsi)
 		p->scsi = 1;
-	if (p->win32_uaescsimode > UAESCSI_LAST)
-		p->win32_uaescsimode = UAESCSI_SPTI;
+	if (p->host_uaescsimode > UAESCSI_LAST)
+		p->host_uaescsimode = UAESCSI_SPTI;
 	bool paused = false;
 	bool nosound = false;
 	bool nojoy = true;
 	if (!paused) {
-		paused = p->win32_active_nocapture_pause;
-		nosound = p->win32_active_nocapture_nosound;
+		paused = p->host_active_nocapture_pause;
+		nosound = p->host_active_nocapture_nosound;
 	} else {
-		p->win32_active_nocapture_pause = p->win32_active_nocapture_nosound = true;
+		p->host_active_nocapture_pause = p->host_active_nocapture_nosound = true;
 		nosound = true;
 		nojoy = false;
 	}
 	if (!paused) {
-		paused = p->win32_inactive_pause;
-		nosound = p->win32_inactive_nosound;
-		nojoy = (p->win32_inactive_input & 4) == 0;
+		paused = p->host_inactive_pause;
+		nosound = p->host_inactive_nosound;
+		nojoy = (p->host_inactive_input & 4) == 0;
 	} else {
-		p->win32_inactive_pause = p->win32_inactive_nosound = true;
-		p->win32_inactive_input = 0;
+		p->host_inactive_pause = p->host_inactive_nosound = true;
+		p->host_inactive_input = 0;
 		nosound = true;
 		nojoy = true;
 	}
@@ -4395,8 +4395,8 @@ void target_fixup_options (struct uae_prefs *p)
 		}
 	}
 	if ((p->gfx_apmode[0].gfx_vsyncmode || p->gfx_apmode[1].gfx_vsyncmode) ) {
-		if (p->produce_sound && sound_devices[p->win32_soundcard]->type == SOUND_DEVICE_DS) {
-			p->win32_soundcard = 0;
+		if (p->produce_sound && sound_devices[p->host_soundcard]->type == SOUND_DEVICE_DS) {
+			p->host_soundcard = 0;
 		}
 	}
 
@@ -4408,48 +4408,48 @@ void target_default_options (struct uae_prefs *p, int type)
 	TCHAR buf[MAX_DPATH];
 	if (type == 2 || type == 0 || type == 3) {
 		p->win32_logfile = 0;
-		p->win32_active_nocapture_pause = 0;
-		p->win32_active_nocapture_nosound = 0;
-		p->win32_active_input = 1 | 2 | 4;
-		p->win32_iconified_nosound = 1;
-		p->win32_iconified_pause = 1;
-		p->win32_iconified_input = 0;
-		p->win32_inactive_nosound = 0;
-		p->win32_inactive_pause = 0;
-		p->win32_inactive_input = 0;
+		p->host_active_nocapture_pause = 0;
+		p->host_active_nocapture_nosound = 0;
+		p->host_active_input = 1 | 2 | 4;
+		p->host_iconified_nosound = 1;
+		p->host_iconified_pause = 1;
+		p->host_iconified_input = 0;
+		p->host_inactive_nosound = 0;
+		p->host_inactive_pause = 0;
+		p->host_inactive_input = 0;
 		p->win32_ctrl_F11_is_quit = 0;
-		p->win32_soundcard = 0;
-		p->win32_samplersoundcard = -1;
+		p->host_soundcard = 0;
+		p->host_samplersoundcard = -1;
 		p->win32_minimize_inactive = 0;
 		p->win32_capture_always = false;
 		p->win32_start_minimized = false;
 		p->win32_start_uncaptured = false;
-		p->win32_active_capture_priority = 1;
+		p->host_active_capture_priority = 1;
 		//p->win32_active_nocapture_priority = 1;
-		p->win32_inactive_priority = 2;
-		p->win32_iconified_priority = 3;
+		p->host_inactive_priority = 2;
+		p->host_iconified_priority = 3;
 		p->win32_notaskbarbutton = false;
 		p->win32_nonotificationicon = false;
 		p->win32_main_alwaysontop = false;
 		p->win32_gui_alwaysontop = false;
-		p->win32_guikey = -1;
-		p->win32_automount_removable = 0;
-		p->win32_automount_drives = 0;
-		p->win32_automount_removabledrives = 0;
-		p->win32_automount_cddrives = 0;
-		p->win32_automount_netdrives = 0;
+		p->host_guikey = -1;
+		p->host_automount_removable = 0;
+		p->host_automount_drives = 0;
+		p->host_automount_removabledrives = 0;
+		p->host_automount_cddrives = 0;
+		p->host_automount_netdrives = 0;
 		p->win32_kbledmode = 1;
-		p->win32_uaescsimode = UAESCSI_CDEMU;
+		p->host_uaescsimode = UAESCSI_CDEMU;
 		p->win32_borderless = 0;
 		p->win32_blankmonitors = false;
 		p->win32_powersavedisabled = true;
 		p->win32_gui_control = false;
 		p->sana2 = 0;
 		p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_SCALE;
-		p->win32_rtgallowscaling = 0;
-		p->win32_rtgscaleaspectratio = -1;
-		p->win32_rtgnonsquarepixels = false;
-		p->win32_rtgvblankrate = 0;
+		p->host_rtgallowscaling = 0;
+		p->host_rtgscaleaspectratio = -1;
+		p->host_rtgnonsquarepixels = false;
+		p->host_rtgvblankrate = 0;
 		p->rtg_hardwaresprite = true;
 		p->rtg_overlay = true;
 		p->rtg_vgascreensplit = true;
@@ -4470,15 +4470,15 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->aviout_yoffset = -1;
 	}
 	if (type == 1 || type == 0 || type == 3) {
-		p->win32_uaescsimode = UAESCSI_CDEMU;
-		p->win32_midioutdev = -2;
-		p->win32_midiindev = 0;
-		p->win32_midirouter = false;
-		p->win32_automount_removable = 0;
-		p->win32_automount_drives = 0;
-		p->win32_automount_removabledrives = 0;
-		p->win32_automount_cddrives = 0;
-		p->win32_automount_netdrives = 0;
+		p->host_uaescsimode = UAESCSI_CDEMU;
+		p->host_midioutdev = -2;
+		p->host_midiindev = 0;
+		p->host_midirouter = false;
+		p->host_automount_removable = 0;
+		p->host_automount_drives = 0;
+		p->host_automount_removabledrives = 0;
+		p->host_automount_cddrives = 0;
+		p->host_automount_netdrives = 0;
 		p->picasso96_modeflags = RGBFF_CLUT | RGBFF_R5G6B5PC | RGBFF_B8G8R8A8;
 		p->win32_filesystem_mangle_reserved_names = true;
 	}
@@ -4504,11 +4504,11 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	hostcfg_save_options(f, p);
 
 	cfgfile_target_dwrite_bool (f, _T("logfile"), p->win32_logfile);
-	cfgfile_target_dwrite_bool (f, _T("map_drives"), p->win32_automount_drives);
-	cfgfile_target_dwrite_bool (f, _T("map_drives_auto"), p->win32_automount_removable);
-	cfgfile_target_dwrite_bool (f, _T("map_cd_drives"), p->win32_automount_cddrives);
-	cfgfile_target_dwrite_bool (f, _T("map_net_drives"), p->win32_automount_netdrives);
-	cfgfile_target_dwrite_bool (f, _T("map_removable_drives"), p->win32_automount_removabledrives);
+	cfgfile_target_dwrite_bool (f, _T("map_drives"), p->host_automount_drives);
+	cfgfile_target_dwrite_bool (f, _T("map_drives_auto"), p->host_automount_removable);
+	cfgfile_target_dwrite_bool (f, _T("map_cd_drives"), p->host_automount_cddrives);
+	cfgfile_target_dwrite_bool (f, _T("map_net_drives"), p->host_automount_netdrives);
+	cfgfile_target_dwrite_bool (f, _T("map_removable_drives"), p->host_automount_removabledrives);
 	serdevtoname (p->sername);
 	cfgfile_target_dwrite_str(f, _T("serial_port"), p->sername[0] ? p->sername : _T("none"));
 	sernametodev (p->sername);
@@ -4522,41 +4522,41 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 
 	cfgfile_target_dwrite_bool (f, _T("ctrl_f11_is_quit"), p->win32_ctrl_F11_is_quit);
 
-	cfgfile_target_dwrite (f, _T("midiout_device"), _T("%d"), p->win32_midioutdev);
-	cfgfile_target_dwrite (f, _T("midiin_device"), _T("%d"), p->win32_midiindev);
+	cfgfile_target_dwrite (f, _T("midiout_device"), _T("%d"), p->host_midioutdev);
+	cfgfile_target_dwrite (f, _T("midiin_device"), _T("%d"), p->host_midiindev);
 
-	midp = getmidiport (midioutportinfo, p->win32_midioutdev);
-	if (p->win32_midioutdev < -1)
+	midp = getmidiport (midioutportinfo, p->host_midioutdev);
+	if (p->host_midioutdev < -1)
 		cfgfile_target_dwrite_str_escape(f, _T("midiout_device_name"), _T("none"));
-	else if (p->win32_midioutdev == -1 || midp == NULL)
+	else if (p->host_midioutdev == -1 || midp == NULL)
 		cfgfile_target_dwrite_str_escape(f, _T("midiout_device_name"), _T("default"));
 	else
 		cfgfile_target_dwrite_str_escape(f, _T("midiout_device_name"), midp->name);
 
-	midp = getmidiport (midiinportinfo, p->win32_midiindev);
-	if (p->win32_midiindev < 0 || midp == NULL)
+	midp = getmidiport (midiinportinfo, p->host_midiindev);
+	if (p->host_midiindev < 0 || midp == NULL)
 		cfgfile_target_dwrite_str_escape(f, _T("midiin_device_name"), _T("none"));
 	else
 		cfgfile_target_dwrite_str_escape(f, _T("midiin_device_name"), midp->name);
-	cfgfile_target_dwrite_bool (f, _T("midirouter"), p->win32_midirouter);
+	cfgfile_target_dwrite_bool (f, _T("midirouter"), p->host_midirouter);
 			
 	cfgfile_target_dwrite_bool(f, _T("rtg_scale_small"), p->gf[GF_RTG].gfx_filter_autoscale == 1);
 	cfgfile_target_dwrite_bool(f, _T("rtg_scale_center"), p->gf[GF_RTG].gfx_filter_autoscale == 2);
-	cfgfile_target_dwrite_bool(f, _T("rtg_scale_allow"), p->win32_rtgallowscaling);
-	cfgfile_target_dwrite_bool(f, _T("rtg_scale_nonsquarepixels"), p->win32_rtgnonsquarepixels);
+	cfgfile_target_dwrite_bool(f, _T("rtg_scale_allow"), p->host_rtgallowscaling);
+	cfgfile_target_dwrite_bool(f, _T("rtg_scale_nonsquarepixels"), p->host_rtgnonsquarepixels);
 	cfgfile_target_dwrite (f, _T("rtg_scale_aspect_ratio"), _T("%d:%d"),
-		p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio / ASPECTMULT) : -1,
-		p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio & (ASPECTMULT - 1)) : -1);
+		p->host_rtgscaleaspectratio >= 0 ? (p->host_rtgscaleaspectratio / ASPECTMULT) : -1,
+		p->host_rtgscaleaspectratio >= 0 ? (p->host_rtgscaleaspectratio & (ASPECTMULT - 1)) : -1);
 	cfgfile_target_dwrite_bool (f, _T("borderless"), p->win32_borderless);
 	cfgfile_target_dwrite_bool (f, _T("blank_monitors"), p->win32_blankmonitors);
 	cfgfile_target_dwrite_str (f, _T("statusbar"), statusbarmode[p->win32_statusbar]);
-	cfgfile_target_write (f, _T("soundcard"), _T("%d"), p->win32_soundcard);
-	if (p->win32_soundcard >= 0 && p->win32_soundcard < MAX_SOUND_DEVICES && sound_devices[p->win32_soundcard])
-		cfgfile_target_write_str (f, _T("soundcardname"), sound_devices[p->win32_soundcard]->cfgname);
-	if (p->win32_samplersoundcard >= 0 && p->win32_samplersoundcard < MAX_SOUND_DEVICES) {
-		cfgfile_target_write (f, _T("samplersoundcard"), _T("%d"), p->win32_samplersoundcard);
-		if (record_devices[p->win32_samplersoundcard])
-			cfgfile_target_write_str (f, _T("samplersoundcardname"), record_devices[p->win32_samplersoundcard]->cfgname);
+	cfgfile_target_write (f, _T("soundcard"), _T("%d"), p->host_soundcard);
+	if (p->host_soundcard >= 0 && p->host_soundcard < MAX_SOUND_DEVICES && sound_devices[p->host_soundcard])
+		cfgfile_target_write_str (f, _T("soundcardname"), sound_devices[p->host_soundcard]->cfgname);
+	if (p->host_samplersoundcard >= 0 && p->host_samplersoundcard < MAX_SOUND_DEVICES) {
+		cfgfile_target_write (f, _T("samplersoundcard"), _T("%d"), p->host_samplersoundcard);
+		if (record_devices[p->host_samplersoundcard])
+			cfgfile_target_write_str (f, _T("samplersoundcardname"), record_devices[p->host_samplersoundcard]->cfgname);
 	}
 
 	cfgfile_target_dwrite_bool (f, _T("notaskbarbutton"), p->win32_notaskbarbutton);
@@ -4564,8 +4564,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool (f, _T("always_on_top"), p->win32_main_alwaysontop);
 	cfgfile_target_dwrite_bool (f, _T("gui_always_on_top"), p->win32_gui_alwaysontop);
 	cfgfile_target_dwrite_bool (f, _T("no_recyclebin"), p->win32_norecyclebin);
-	if (p->win32_guikey >= 0)
-		cfgfile_target_dwrite (f, _T("guikey"), _T("0x%x"), p->win32_guikey);
+	if (p->host_guikey >= 0)
+		cfgfile_target_dwrite (f, _T("guikey"), _T("0x%x"), p->host_guikey);
 	cfgfile_target_dwrite (f, _T("kbledmode"), _T("%d"), p->win32_kbledmode);
 	cfgfile_target_dwrite_bool (f, _T("powersavedisabled"), p->win32_powersavedisabled);
 	cfgfile_target_dwrite_str (f, _T("exec_before"), p->win32_commandpathstart);
@@ -4639,22 +4639,22 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 		hostcfg_parse_option(p, option, value, HOSTCFG_WINDOWS))
 		return 1;
 
-	if (cfgfile_yesno(option, value, _T("map_drives"), &p->win32_automount_drives)
-		|| cfgfile_yesno(option, value, _T("map_drives_auto"), &p->win32_automount_removable)
-		|| cfgfile_yesno(option, value, _T("map_cd_drives"), &p->win32_automount_cddrives)
-		|| cfgfile_yesno(option, value, _T("map_net_drives"), &p->win32_automount_netdrives)
-		|| cfgfile_yesno(option, value, _T("map_removable_drives"), &p->win32_automount_removabledrives)
+	if (cfgfile_yesno(option, value, _T("map_drives"), &p->host_automount_drives)
+		|| cfgfile_yesno(option, value, _T("map_drives_auto"), &p->host_automount_removable)
+		|| cfgfile_yesno(option, value, _T("map_cd_drives"), &p->host_automount_cddrives)
+		|| cfgfile_yesno(option, value, _T("map_net_drives"), &p->host_automount_netdrives)
+		|| cfgfile_yesno(option, value, _T("map_removable_drives"), &p->host_automount_removabledrives)
 		|| cfgfile_yesno(option, value, _T("logfile"), &p->win32_logfile)
 		|| cfgfile_yesno(option, value, _T("networking"), &p->socket_emu)
 		|| cfgfile_yesno(option, value, _T("borderless"), &p->win32_borderless)
 		|| cfgfile_yesno(option, value, _T("blank_monitors"), &p->win32_blankmonitors)
 		|| cfgfile_yesno(option, value, _T("ctrl_f11_is_quit"), &p->win32_ctrl_F11_is_quit)
 		|| cfgfile_yesno(option, value, _T("no_recyclebin"), &p->win32_norecyclebin)
-		|| cfgfile_intval(option, value, _T("midi_device"), &p->win32_midioutdev, 1)
-		|| cfgfile_intval(option, value, _T("midiout_device"), &p->win32_midioutdev, 1)
-		|| cfgfile_intval(option, value, _T("midiin_device"), &p->win32_midiindev, 1)
-		|| cfgfile_yesno(option, value, _T("midirouter"), &p->win32_midirouter)
-		|| cfgfile_intval(option, value, _T("samplersoundcard"), &p->win32_samplersoundcard, 1)
+		|| cfgfile_intval(option, value, _T("midi_device"), &p->host_midioutdev, 1)
+		|| cfgfile_intval(option, value, _T("midiout_device"), &p->host_midioutdev, 1)
+		|| cfgfile_intval(option, value, _T("midiin_device"), &p->host_midiindev, 1)
+		|| cfgfile_yesno(option, value, _T("midirouter"), &p->host_midirouter)
+		|| cfgfile_intval(option, value, _T("samplersoundcard"), &p->host_samplersoundcard, 1)
 		|| cfgfile_yesno(option, value, _T("notaskbarbutton"), &p->win32_notaskbarbutton)
 		|| cfgfile_yesno(option, value, _T("nonotificationicon"), &p->win32_nonotificationicon)
 		|| cfgfile_yesno(option, value, _T("always_on_top"), &p->win32_main_alwaysontop)
@@ -4666,7 +4666,7 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 		|| cfgfile_string(option, value, _T("parjoyport1"), p->win32_parjoyport1, sizeof p->win32_parjoyport1 / sizeof(TCHAR))
 		|| cfgfile_string(option, value, _T("gui_page"), p->win32_guipage, sizeof p->win32_guipage / sizeof(TCHAR))
 		|| cfgfile_string(option, value, _T("gui_active_page"), p->win32_guiactivepage, sizeof p->win32_guiactivepage / sizeof(TCHAR))
-		|| cfgfile_intval(option, value, _T("guikey"), &p->win32_guikey, 1)
+		|| cfgfile_intval(option, value, _T("guikey"), &p->host_guikey, 1)
 		|| cfgfile_intval(option, value, _T("kbledmode"), &p->win32_kbledmode, 1)
 		|| cfgfile_yesno(option, value, _T("filesystem_mangle_reserved_names"), &p->win32_filesystem_mangle_reserved_names)
 		|| cfgfile_yesno(option, value, _T("right_control_is_right_win"), &p->right_control_is_right_win_key)
@@ -4701,39 +4701,39 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 			p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_CENTER;
 		return 1;
 	}
-	if (cfgfile_yesno(option, value, _T("rtg_scale_allow"), &p->win32_rtgallowscaling))
+	if (cfgfile_yesno(option, value, _T("rtg_scale_allow"), &p->host_rtgallowscaling))
 		return 1;
-	if (cfgfile_yesno(option, value, _T("rtg_scale_nonsquarepixels"), &p->win32_rtgnonsquarepixels))
+	if (cfgfile_yesno(option, value, _T("rtg_scale_nonsquarepixels"), &p->host_rtgnonsquarepixels))
 		return 1;
 
-	if (cfgfile_intval(option, value, _T("soundcard"), &p->win32_soundcard, 1)) {
-		if (p->win32_soundcard < 0 || p->win32_soundcard >= MAX_SOUND_DEVICES || sound_devices[p->win32_soundcard] == NULL)
-			p->win32_soundcard = 0;
+	if (cfgfile_intval(option, value, _T("soundcard"), &p->host_soundcard, 1)) {
+		if (p->host_soundcard < 0 || p->host_soundcard >= MAX_SOUND_DEVICES || sound_devices[p->host_soundcard] == NULL)
+			p->host_soundcard = 0;
 		return 1;
 	}
 
 	if (cfgfile_string(option, value, _T("soundcardname"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
 		int num;
 
-		num = p->win32_soundcard;
-		p->win32_soundcard = -1;
+		num = p->host_soundcard;
+		p->host_soundcard = -1;
 		for (int i = 0; i < MAX_SOUND_DEVICES && sound_devices[i] ; i++) {
 			if (i < num)
 				continue;
 			if (!_tcscmp(sound_devices[i]->cfgname, tmpbuf)) {
-				p->win32_soundcard = i;
+				p->host_soundcard = i;
 				break;
 			}
 		}
-		if (p->win32_soundcard < 0) {
+		if (p->host_soundcard < 0) {
 			for (int i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
 				if (!_tcscmp(sound_devices[i]->cfgname, tmpbuf)) {
-					p->win32_soundcard = i;
+					p->host_soundcard = i;
 					break;
 				}
 			}
 		}
-		if (p->win32_soundcard < 0) {
+		if (p->host_soundcard < 0) {
 			for (int i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
 				if (!sound_devices[i]->prefix)
 					continue;
@@ -4743,33 +4743,33 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 					!_tcsncmp(sound_devices[i]->prefix, tmpbuf, prefixlen) &&
 					((tmplen > prefixlen && tmpbuf[prefixlen] == ':')
 					|| tmplen == prefixlen)) {
-					p->win32_soundcard = i;
+					p->host_soundcard = i;
 					break;
 				}
 			}
 
 		}
-		if (p->win32_soundcard < 0)
-			p->win32_soundcard = num;
+		if (p->host_soundcard < 0)
+			p->host_soundcard = num;
 		return 1;
 	}
 	if (cfgfile_string(option, value, _T("samplersoundcardname"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
 		int num;
 
-		num = p->win32_samplersoundcard;
-		p->win32_samplersoundcard = -1;
+		num = p->host_samplersoundcard;
+		p->host_samplersoundcard = -1;
 		for (int i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
 			if (i < num)
 				continue;
 			if (!_tcscmp(record_devices[i]->cfgname, tmpbuf)) {
-				p->win32_samplersoundcard = i;
+				p->host_samplersoundcard = i;
 				break;
 			}
 		}
-		if (p->win32_samplersoundcard < 0) {
+		if (p->host_samplersoundcard < 0) {
 			for (int i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
 				if (!_tcscmp(record_devices[i]->cfgname, tmpbuf)) {
-					p->win32_samplersoundcard = i;
+					p->host_samplersoundcard = i;
 					break;
 				}
 			}
@@ -4781,17 +4781,17 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 		int v1, v2;
 		TCHAR *s;
 
-		p->win32_rtgscaleaspectratio = -1;
+		p->host_rtgscaleaspectratio = -1;
 		v1 = _tstol(tmpbuf);
 		s = _tcschr(tmpbuf, ':');
 		if (s) {
 			v2 = _tstol(s + 1);
 			if (v1 < 0 || v2 < 0)
-				p->win32_rtgscaleaspectratio = -1;
+				p->host_rtgscaleaspectratio = -1;
 			else if (v1 == 0 || v2 == 0)
-				p->win32_rtgscaleaspectratio = 0;
+				p->host_rtgscaleaspectratio = 0;
 			else
-				p->win32_rtgscaleaspectratio = v1 * ASPECTMULT + v2;
+				p->host_rtgscaleaspectratio = v1 * ASPECTMULT + v2;
 		}
 		return 1;
 	}
@@ -4835,22 +4835,22 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 	}
 
 	if (cfgfile_string_escape(option, value, _T("midiout_device_name"), tmpbuf, sizeof(tmpbuf) / sizeof(TCHAR))) {
-		p->win32_midioutdev = -2;
+		p->host_midioutdev = -2;
 		if (!_tcsicmp (tmpbuf, _T("default"))) {
-			p->win32_midioutdev = -1;
+			p->host_midioutdev = -1;
 		}
 		for (int i = 0; i < MAX_MIDI_PORTS && midioutportinfo[i]; i++) {
 			if (!_tcsicmp (midioutportinfo[i]->name, tmpbuf)) {
-				p->win32_midioutdev = midioutportinfo[i]->devid;
+				p->host_midioutdev = midioutportinfo[i]->devid;
 			}
 		}
 		return 1;
 	}
 	if (cfgfile_string_escape(option, value, _T("midiin_device_name"), tmpbuf, sizeof(tmpbuf) / sizeof(TCHAR))) {
-		p->win32_midiindev = -1;
+		p->host_midiindev = -1;
 		for (int i = 0; i < MAX_MIDI_PORTS && midiinportinfo[i]; i++) {
 			if (!_tcsicmp (midiinportinfo[i]->name, tmpbuf)) {
-				p->win32_midiindev = midiinportinfo[i]->devid;
+				p->host_midiindev = midiinportinfo[i]->devid;
 			}
 		}
 		return 1;

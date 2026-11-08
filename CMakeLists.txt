@@ -2210,6 +2210,7 @@ set(WINUAE_CORE_SOURCES
     softfloat/softfloat.cpp
     softfloat/softfloat_decimal.cpp
     softfloat/softfloat_fpsp.cpp
+    od-generic/console.cpp
     od-generic/clipboard.cpp
     od-generic/focus.cpp
     od-generic/target_defaults.cpp
@@ -2217,6 +2218,7 @@ set(WINUAE_CORE_SOURCES
     od-generic/hostcfg_compat.cpp
     od-generic/mman.cpp
     od-generic/registry_ini.cpp
+    od-generic/avsync.cpp
     od-generic/screenshot_common.cpp
     od-unix/charset.cpp
     od-unix/clipboard.cpp
@@ -2391,6 +2393,17 @@ target_include_directories(winuae_unix_clipboard_test PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 winuae_unix_register_test(winuae_unix_clipboard_test)
+add_executable(winuae_unix_console_test EXCLUDE_FROM_ALL
+    od-generic/console.cpp
+    od-generic/console_test.cpp
+)
+target_include_directories(winuae_unix_console_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_console_test)
+
 add_executable(winuae_unix_screenshot_common_test EXCLUDE_FROM_ALL
     od-generic/screenshot_common.cpp
     od-unix/screenshot_common_test.cpp
@@ -2401,6 +2414,17 @@ target_include_directories(winuae_unix_screenshot_common_test PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 winuae_unix_register_test(winuae_unix_screenshot_common_test)
+
+add_executable(winuae_unix_avsync_test EXCLUDE_FROM_ALL
+    od-generic/avsync.cpp
+    od-generic/avsync_test.cpp
+)
+target_include_directories(winuae_unix_avsync_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_avsync_test)
 
 add_executable(winuae_unix_uaenet_test EXCLUDE_FROM_ALL
     od-generic/uaenet.cpp

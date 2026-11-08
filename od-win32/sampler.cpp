@@ -44,7 +44,7 @@ static int capture_init (void)
 	if (currprefs.sampler_freq)
 		samplerate = currprefs.sampler_freq;
 
-	name = record_devices[currprefs.win32_samplersoundcard]->name;
+	name = record_devices[currprefs.host_samplersoundcard]->name;
 
 	wavfmt.wFormatTag = WAVE_FORMAT_PCM;
 	wavfmt.nChannels = 2;
@@ -60,7 +60,7 @@ static int capture_init (void)
 	if (currprefs.sampler_buffer)
 		recordbufferframes = currprefs.sampler_buffer;
 
-	hr = DirectSoundCaptureCreate (&record_devices[currprefs.win32_samplersoundcard]->guid, &lpDS2r, NULL);
+	hr = DirectSoundCaptureCreate (&record_devices[currprefs.host_samplersoundcard]->guid, &lpDS2r, NULL);
 	if (FAILED (hr)) {
 		write_log (_T("SAMPLER: DirectSoundCaptureCreate('%s') failure: %s\n"), name, DXError (hr));
 		return 0;
@@ -271,7 +271,7 @@ uae_u8 sampler_getsample (int channel)
 
 int sampler_init (void)
 {
-	if (currprefs.win32_samplersoundcard < 0)
+	if (currprefs.host_samplersoundcard < 0)
 		return 0;
 	return 1;
 }

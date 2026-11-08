@@ -333,13 +333,13 @@ int target_parse_option(struct uae_prefs *p, const TCHAR *option, const TCHAR *v
         if (parsed < 0 || parsed >= unix_sound_device_count()) {
             parsed = 0;
         }
-        p->win32_soundcard = parsed;
+        p->host_soundcard = parsed;
         return 1;
     }
     if (!_tcsicmp(option, _T("soundcardname"))) {
         int index = unix_sound_device_index_from_config_name(value);
         if (index >= 0) {
-            p->win32_soundcard = index;
+            p->host_soundcard = index;
         }
         return 1;
     }
@@ -351,46 +351,46 @@ int target_parse_option(struct uae_prefs *p, const TCHAR *option, const TCHAR *v
         if (parsed < 0 || parsed >= unix_sampler_device_count()) {
             parsed = -1;
         }
-        p->win32_samplersoundcard = parsed;
+        p->host_samplersoundcard = parsed;
         return 1;
     }
     if (!_tcsicmp(option, _T("samplersoundcardname")) || !_tcsicmp(option, _T("sampler_soundcardname"))) {
         int index = unix_sampler_device_index_from_config_name(value);
         if (index >= 0) {
-            p->win32_samplersoundcard = index;
+            p->host_samplersoundcard = index;
         }
         return 1;
     }
-    if (cfgfile_intval(option, value, _T("midi_device"), &p->win32_midioutdev, 1)
-        || cfgfile_intval(option, value, _T("midiout_device"), &p->win32_midioutdev, 1)) {
+    if (cfgfile_intval(option, value, _T("midi_device"), &p->host_midioutdev, 1)
+        || cfgfile_intval(option, value, _T("midiout_device"), &p->host_midioutdev, 1)) {
         return 1;
     }
-    if (cfgfile_intval(option, value, _T("midiin_device"), &p->win32_midiindev, 1)) {
+    if (cfgfile_intval(option, value, _T("midiin_device"), &p->host_midiindev, 1)) {
 #ifndef WITH_MIDI
-        p->win32_midiindev = -1;
+        p->host_midiindev = -1;
 #endif
         return 1;
     }
-    if (cfgfile_yesno(option, value, _T("midirouter"), &p->win32_midirouter)) {
+    if (cfgfile_yesno(option, value, _T("midirouter"), &p->host_midirouter)) {
 #ifndef WITH_MIDI
-        p->win32_midirouter = false;
+        p->host_midirouter = false;
 #endif
         return 1;
     }
     TCHAR tmpbuf[256];
     if (cfgfile_string_escape(option, value, _T("midiout_device_name"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
 #ifdef WITH_MIDI
-        p->win32_midioutdev = unix_midi_output_device_id_from_config_name(tmpbuf);
+        p->host_midioutdev = unix_midi_output_device_id_from_config_name(tmpbuf);
 #else
-        p->win32_midioutdev = !_tcsicmp(tmpbuf, _T("default")) ? -1 : -2;
+        p->host_midioutdev = !_tcsicmp(tmpbuf, _T("default")) ? -1 : -2;
 #endif
         return 1;
     }
     if (cfgfile_string_escape(option, value, _T("midiin_device_name"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
 #ifdef WITH_MIDI
-        p->win32_midiindev = unix_midi_input_device_id_from_config_name(tmpbuf);
+        p->host_midiindev = unix_midi_input_device_id_from_config_name(tmpbuf);
 #else
-        p->win32_midiindev = -1;
+        p->host_midiindev = -1;
 #endif
         return 1;
     }
@@ -439,7 +439,7 @@ void target_save_options(struct zfile *f, struct uae_prefs *p)
         }
     }
 
-    int index = p->win32_soundcard;
+    int index = p->host_soundcard;
     if (index < 0 || index >= unix_sound_device_count()) {
         index = 0;
     }
@@ -448,23 +448,23 @@ void target_save_options(struct zfile *f, struct uae_prefs *p)
     if (name && name[0]) {
         cfgfile_target_write_str(f, _T("soundcardname"), name);
     }
-    if (p->win32_samplersoundcard >= 0 && p->win32_samplersoundcard < unix_sampler_device_count()) {
-        cfgfile_target_write(f, _T("samplersoundcard"), _T("%d"), p->win32_samplersoundcard);
-        const TCHAR *sampler_name = unix_sampler_device_config_name(p->win32_samplersoundcard);
+    if (p->host_samplersoundcard >= 0 && p->host_samplersoundcard < unix_sampler_device_count()) {
+        cfgfile_target_write(f, _T("samplersoundcard"), _T("%d"), p->host_samplersoundcard);
+        const TCHAR *sampler_name = unix_sampler_device_config_name(p->host_samplersoundcard);
         if (sampler_name && sampler_name[0]) {
             cfgfile_target_write_str(f, _T("samplersoundcardname"), sampler_name);
         }
     }
-    cfgfile_target_dwrite(f, _T("midiout_device"), _T("%d"), p->win32_midioutdev);
-    cfgfile_target_dwrite(f, _T("midiin_device"), _T("%d"), p->win32_midiindev);
+    cfgfile_target_dwrite(f, _T("midiout_device"), _T("%d"), p->host_midioutdev);
+    cfgfile_target_dwrite(f, _T("midiin_device"), _T("%d"), p->host_midiindev);
 #ifdef WITH_MIDI
-    cfgfile_target_dwrite_str_escape(f, _T("midiout_device_name"), unix_midi_output_device_config_name_for_id(p->win32_midioutdev));
-    cfgfile_target_dwrite_str_escape(f, _T("midiin_device_name"), unix_midi_input_device_config_name_for_id(p->win32_midiindev));
+    cfgfile_target_dwrite_str_escape(f, _T("midiout_device_name"), unix_midi_output_device_config_name_for_id(p->host_midioutdev));
+    cfgfile_target_dwrite_str_escape(f, _T("midiin_device_name"), unix_midi_input_device_config_name_for_id(p->host_midiindev));
 #else
-    cfgfile_target_dwrite_str_escape(f, _T("midiout_device_name"), p->win32_midioutdev == -1 ? _T("default") : _T("none"));
+    cfgfile_target_dwrite_str_escape(f, _T("midiout_device_name"), p->host_midioutdev == -1 ? _T("default") : _T("none"));
     cfgfile_target_dwrite_str_escape(f, _T("midiin_device_name"), _T("none"));
 #endif
-    cfgfile_target_dwrite_bool(f, _T("midirouter"), p->win32_midirouter);
+    cfgfile_target_dwrite_bool(f, _T("midirouter"), p->host_midirouter);
     hostcfg_save_options(f, p);
 #ifdef AVIOUTPUT
     cfgfile_target_dwrite_bool(f, _T("screenshot_original_size"), screenshot_originalsize != 0);
@@ -520,18 +520,18 @@ void target_default_options(struct uae_prefs *p, int type)
     }
     if (type == 2 || type == 0 || type == 3) {
         // Window focus defaults, as on Windows: pause when minimized.
-        p->win32_active_nocapture_pause = false;
-        p->win32_active_nocapture_nosound = false;
-        p->win32_active_input = 1 | 2 | 4;
-        p->win32_iconified_nosound = true;
-        p->win32_iconified_pause = true;
-        p->win32_iconified_input = 0;
-        p->win32_inactive_nosound = false;
-        p->win32_inactive_pause = false;
-        p->win32_inactive_input = 0;
-        p->win32_active_capture_priority = 1;
-        p->win32_inactive_priority = 2;
-        p->win32_iconified_priority = 3;
+        p->host_active_nocapture_pause = false;
+        p->host_active_nocapture_nosound = false;
+        p->host_active_input = 1 | 2 | 4;
+        p->host_iconified_nosound = true;
+        p->host_iconified_pause = true;
+        p->host_iconified_input = 0;
+        p->host_inactive_nosound = false;
+        p->host_inactive_pause = false;
+        p->host_inactive_input = 0;
+        p->host_active_capture_priority = 1;
+        p->host_inactive_priority = 2;
+        p->host_iconified_priority = 3;
     }
     path_configuration[0] = 0;
     path_nvram[0] = 0;
@@ -547,21 +547,21 @@ void target_default_options(struct uae_prefs *p, int type)
     unix_romscan_mark_dirty();
     p->rtg_dacswitch = true;
     p->rtg_hardwaresprite = true;
-    p->win32_rtgvblankrate = 0;
-    p->win32_samplersoundcard = -1;
-    p->win32_midioutdev = -2;
-    p->win32_midiindev = -1;
-    p->win32_midirouter = false;
+    p->host_rtgvblankrate = 0;
+    p->host_samplersoundcard = -1;
+    p->host_midioutdev = -2;
+    p->host_midiindev = -1;
+    p->host_midirouter = false;
 }
 
 void target_fixup_options(struct uae_prefs *p)
 {
 #ifndef WITH_MIDI
-    p->win32_midiindev = -1;
-    p->win32_midirouter = false;
+    p->host_midiindev = -1;
+    p->host_midirouter = false;
 #endif
-    if (p->win32_uaescsimode > UAESCSI_LAST) {
-        p->win32_uaescsimode = UAESCSI_SPTI;
+    if (p->host_uaescsimode > UAESCSI_LAST) {
+        p->host_uaescsimode = UAESCSI_SPTI;
     }
     unix_romscan_refresh(p, false);
 }

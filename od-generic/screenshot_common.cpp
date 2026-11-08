@@ -143,3 +143,82 @@ bool screenshot_get_filename(TCHAR *out, int size, const TCHAR *path, const TCHA
 	out[size - 1] = 0;
 	return true;
 }
+
+
+#include <unordered_map>
+
+bool screenshot_build_palette(screenshot_palette *out, int width, int height,
+	screenshot_read_pixel read_pixel, void *context,
+	const uae_u32 *preferred, int preferred_count, int reserved)
+{
+	if (!out)
+		return false;
+	*out = screenshot_palette{};
+	if (width <= 0 || height <= 0 || !read_pixel || preferred_count < 0 ||
+		preferred_count > 256 || reserved < 0 || reserved > 256 ||
+		(preferred_count && !preferred) || (size_t)width > SIZE_MAX / (size_t)height)
+		return false;
+
+	std::vector<uae_u32> colors;
+	std::unordered_map<uae_u32, int> found;
+	// Windows reserves the background color even when absent from the image.
+	if (preferred_count) {
+		colors.push_back(preferred[0]);
+		found[preferred[0]] = 0;
+	}
+	out->indices.resize((size_t)width * height);
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			uae_u32 color = read_pixel(context, x, y);
+			auto entry = found.find(color);
+			if (entry == found.end()) {
+				if (colors.size() == 256) {
+					out->indices.clear();
+					return false;
+				}
+				entry = found.emplace(color, (int)colors.size()).first;
+				colors.push_back(color);
+			}
+			out->indices[(size_t)y * width + x] = (uae_u8)entry->second;
+		}
+	}
+
+	bool used[256] = {};
+	int mapping[256];
+	for (int i = 0; i < preferred_count; i++)
+		out->colors[i] = preferred[i];
+	out->count = reserved;
+	// Claim all matching registers before placing unmatched image colors.
+	for (size_t i = 0; i < colors.size(); i++) {
+		mapping[i] = -1;
+		for (int j = 0; j < preferred_count; j++) {
+			if (!used[j] && preferred[j] == colors[i]) {
+				mapping[i] = j;
+				used[j] = true;
+				break;
+			}
+		}
+	}
+	for (size_t i = 0; i < colors.size(); i++) {
+		int slot = mapping[i];
+		if (slot < 0) {
+			for (int j = 0; j < 256; j++) {
+				slot = (reserved + j) & 255;
+				if (!used[slot]) {
+					used[slot] = true;
+					mapping[i] = slot;
+					out->colors[slot] = colors[i];
+					break;
+				}
+			}
+		}
+		if (slot >= out->count)
+			out->count = slot + 1;
+	}
+	for (uae_u8 &index : out->indices)
+		index = (uae_u8)mapping[index];
+	out->depth = 1;
+	while ((1 << out->depth) < out->count)
+		out->depth++;
+	return true;
+}

@@ -234,10 +234,10 @@ static int selected_sound_device(void)
     if (devices <= 0) {
         return -1;
     }
-    if (currprefs.win32_soundcard < 0 || currprefs.win32_soundcard >= devices) {
-        currprefs.win32_soundcard = changed_prefs.win32_soundcard = 0;
+    if (currprefs.host_soundcard < 0 || currprefs.host_soundcard >= devices) {
+        currprefs.host_soundcard = changed_prefs.host_soundcard = 0;
     }
-    return currprefs.win32_soundcard;
+    return currprefs.host_soundcard;
 }
 
 static bool open_sound_device(void)

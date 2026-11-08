@@ -712,6 +712,9 @@
     <ClCompile Include="..\..\od-generic\midi_parser.cpp">
       <Filter>shared</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\console.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\od-generic\clipboard.cpp">
       <Filter>shared</Filter>
     </ClCompile>
@@ -719,6 +722,9 @@
       <Filter>shared</Filter>
     </ClCompile>
     <ClCompile Include="..\..\od-generic\focus.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\od-generic\avsync.cpp">
       <Filter>shared</Filter>
     </ClCompile>
     <ClCompile Include="..\..\od-generic\screenshot_common.cpp">
@@ -2116,6 +2122,9 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\od-generic\console.h">
+      <Filter>shared</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\od-generic\hostcfg.def">
       <Filter>shared</Filter>
     </ClInclude>
@@ -2135,6 +2144,7 @@
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\..\od-generic\blkdev_ioctl_common.h">
+    <ClInclude Include="..\..\od-generic\avsync.h">
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\cpu_selection.h">

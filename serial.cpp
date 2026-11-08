@@ -1229,7 +1229,7 @@ void serial_open (void)
 		sermap_enabled = true;
 	} else if (!_tcsicmp(currprefs.sername, SERIAL_LOOPBACK)) {
 		serloop_enabled = true;
-	} else if (!currprefs.sername[0] && currprefs.win32_midioutdev < -1 && currprefs.win32_midiindev < 0) {
+	} else if (!currprefs.sername[0] && currprefs.host_midioutdev < -1 && currprefs.host_midiindev < 0) {
 		serempty_enabled = true;
 	} else {
 		if(currprefs.sername[0] && !openser(currprefs.sername)) {

@@ -28,4 +28,24 @@ void screenshot_get_name(TCHAR *name);
  * 'number' is past the last screenshot number. */
 bool screenshot_get_filename(TCHAR *out, int size, const TCHAR *path, const TCHAR *name, int number, bool multi, const TCHAR *ext);
 
+
+#include <vector>
+
+struct screenshot_palette
+{
+	uae_u32 colors[256];
+	int count, depth;
+	std::vector<uae_u8> indices;
+};
+
+typedef uae_u32 (*screenshot_read_pixel)(void *context, int x, int y);
+
+// Colors are opaque 24-bit keys; each writer retains its channel order.
+// Preferred colors retain their register slots. Unmatched colors fill from
+// reserved onward, wrapping to unused lower slots when necessary.
+// With no preferred colors or reservation, use first-encounter order.
+bool screenshot_build_palette(screenshot_palette *out, int width, int height,
+	screenshot_read_pixel read_pixel, void *context,
+	const uae_u32 *preferred, int preferred_count, int reserved);
+
 #endif /* OD_GENERIC_SCREENSHOT_COMMON_H */

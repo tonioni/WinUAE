@@ -55,6 +55,54 @@ static bool check_name(const char *label, const TCHAR *got, const TCHAR *expecte
 	return false;
 }
 
+static uae_u32 palette_pixel(void *context, int x, int)
+{
+	return ((uae_u32 *)context)[x];
+}
+
+static bool test_palettes(void)
+{
+	screenshot_palette result;
+	uae_u32 pixels[257], preferred[256];
+	for (int i = 0; i < 257; i++)
+		pixels[i] = (uae_u32)i * 65793;
+	for (int i = 0; i < 256; i++)
+		preferred[i] = pixels[255 - i];
+	for (int count = 1; count <= 257; count++) {
+		for (int mode = 0; mode < 3; mode++) {
+			bool built = screenshot_build_palette(&result, count, 1,
+				palette_pixel, pixels, mode ? preferred : NULL,
+				mode ? 256 : 0, mode == 2 ? 32 : 0);
+			// The Windows policies reserve an absent background color too.
+			int unique = count + (mode && count < 256 ? 1 : 0);
+			if (built != (unique <= 256))
+				return false;
+			if (!built) {
+				if (!result.indices.empty()) return false;
+				continue;
+			}
+			for (int i = 0; i < count; i++) {
+				int index = result.indices[i];
+				if (index >= result.count || index >= (1 << result.depth) ||
+					result.colors[index] != pixels[i])
+					return false;
+				if (!mode && index != i) return false;
+			}
+		}
+	}
+	// Duplicate black registers must not hide a later used register.
+	memset(preferred, 0, sizeof preferred);
+	preferred[80] = 0xabcdef;
+	pixels[0] = 0xabcdef; pixels[1] = 0x123456;
+	if (!screenshot_build_palette(&result, 2, 1, palette_pixel, pixels,
+		preferred, 256, 32) || result.indices[0] != 80 ||
+		result.colors[result.indices[1]] != pixels[1]) return false;
+	// The first unreserved slot must be included in the palette count.
+	if (!screenshot_build_palette(&result, 2, 1, palette_pixel, pixels,
+		NULL, 0, 32) || result.count != 34 || result.depth != 6) return false;
+	return !screenshot_build_palette(&result, 0, 1, palette_pixel, pixels, NULL, 0, 0);
+}
+
 int main()
 {
 	bool ok = true;
@@ -164,5 +212,6 @@ int main()
 	screenshot_get_name(name);
 	ok = check_name("cd", name, _T("demo")) && ok;
 
+	if (!test_palettes()) { fprintf(stderr, "palette regression failed\n"); ok = false; }
 	return ok ? 0 : 1;
 }

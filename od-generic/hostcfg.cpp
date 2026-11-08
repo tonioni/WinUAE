@@ -128,9 +128,9 @@ int hostcfg_parse_option(struct uae_prefs *p, const TCHAR *option,
 				priority_index(number, entry.fallback) : number;
 			// Windows resets these when reading the active priority.
 			if (style == HOSTCFG_WINDOWS &&
-				entry.number == &uae_prefs::win32_active_capture_priority) {
-				p->win32_active_nocapture_pause = false;
-				p->win32_active_nocapture_nosound = false;
+				entry.number == &uae_prefs::host_active_capture_priority) {
+				p->host_active_nocapture_pause = false;
+				p->host_active_nocapture_nosound = false;
 			}
 			break;
 		case value_type::scsi:
@@ -138,7 +138,7 @@ int hostcfg_parse_option(struct uae_prefs *p, const TCHAR *option,
 				&(p->*(entry.number)), scsi_modes, 0);
 			if (style == HOSTCFG_WINDOWS &&
 				p->config_version < ((2 << 16) | (3 << 8)))
-				p->win32_uaescsimode = UAESCSI_CDEMU;
+				p->host_uaescsimode = UAESCSI_CDEMU;
 			break;
 		case value_type::multiplier:
 			cfgfile_strval(entry.name, value, entry.name,
@@ -152,7 +152,7 @@ int hostcfg_parse_option(struct uae_prefs *p, const TCHAR *option,
 				return style == HOSTCFG_UNIX ? !_tcsicmp(text, name) :
 					!_tcscmp(text, name);
 			};
-			p->win32_rtgvblankrate = matches(_T("real")) ? -1 :
+			p->host_rtgvblankrate = matches(_T("real")) ? -1 :
 				matches(_T("disabled")) ? -2 :
 				matches(_T("chipset")) ? 0 : _tstol(text);
 			break;

@@ -1486,11 +1486,11 @@ void setserstat (int mask, int onoff)
 
 int setbaud(int baud, int org_baud)
 {
-	if(org_baud == 31400 && currprefs.win32_midioutdev >= -1) {
+	if(org_baud == 31400 && currprefs.host_midioutdev >= -1) {
 		/* MIDI baud-rate */
 #ifdef WITH_MIDIEMU
-		if (currprefs.win32_midioutdev >= 0) {
-			TCHAR *name = midioutportinfo[currprefs.win32_midioutdev]->name;
+		if (currprefs.host_midioutdev >= 0) {
+			TCHAR *name = midioutportinfo[currprefs.host_midioutdev]->name;
 			if (!_tcsncmp(name, _T("Munt "), 5)) {
 				midi_emu_open(name);
 				return 1;

@@ -2223,13 +2223,13 @@ void picasso_trigger_vblank(void)
 {
     TrapContext *ctx = NULL;
     if (!unix_uaegfx_abi_interrupt || !unix_uaegfx_base || !unix_uaegfx_interrupt_enabled ||
-        !currprefs.rtg_hardwareinterrupt || currprefs.win32_rtgvblankrate == -2) {
+        !currprefs.rtg_hardwareinterrupt || currprefs.host_rtgvblankrate == -2) {
         return;
     }
     trap_put_long(ctx, unix_uaegfx_base + UNIX_CARD_IRQPTR,
         unix_uaegfx_abi_interrupt + PSSO_BoardInfo_SoftInterrupt);
-    trap_put_byte(ctx, unix_uaegfx_base + UNIX_CARD_IRQFLAG, currprefs.win32_rtgvblankrate ? 2 : 1);
-    if (currprefs.win32_rtgvblankrate != 0) {
+    trap_put_byte(ctx, unix_uaegfx_base + UNIX_CARD_IRQFLAG, currprefs.host_rtgvblankrate ? 2 : 1);
+    if (currprefs.host_rtgvblankrate != 0) {
         INTREQ(0x8000 | 0x0008);
     }
 }

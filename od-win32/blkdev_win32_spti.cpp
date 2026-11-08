@@ -952,7 +952,7 @@ static int rescan (void)
 			}
 		}
 	}
-	if (currprefs.win32_uaescsimode == UAESCSI_SPTISCAN) {
+	if (currprefs.host_uaescsimode == UAESCSI_SPTISCAN) {
 		write_log (_T("SCSI adapter enumeration..\n"));
 		scanscsi ();
 		write_log (_T("SCSI adapter enumeration ends\n"));
