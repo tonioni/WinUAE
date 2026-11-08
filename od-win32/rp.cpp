@@ -1104,8 +1104,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			}
 		}
 
-		p->win32_rtgallowscaling = false;
-		p->win32_rtgscaleaspectratio = keepaspect ? -1 : 0;
+		p->host_rtgallowscaling = false;
+		p->host_rtgscaleaspectratio = keepaspect ? -1 : 0;
 		if (interpolation_v102) {
 			p->gf[GF_RTG].gfx_filter_bilinear = (sm->dwScreenMode & RP_SCREENMODE_INTERPOLATION) != 0;
 		} else {
@@ -1121,7 +1121,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			gm->gfx_size_win.width = sm->lTargetWidth;
 			gm->gfx_size_win.height = sm->lTargetHeight;
 			p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_SCALE;
-			p->win32_rtgallowscaling = true;
+			p->host_rtgallowscaling = true;
 		}
 
 		hmult = (float)m;

@@ -740,7 +740,7 @@ static bool make_video_layout(const struct unix_video_frame *frame, const struct
         float draw_sx = sx;
         float draw_sy = sy;
 
-        if (frame->filter_index == GF_RTG && mode == 1 && currprefs.win32_rtgscaleaspectratio) {
+        if (frame->filter_index == GF_RTG && mode == 1 && currprefs.host_rtgscaleaspectratio) {
             draw_sx = draw_sy = std::min(sx, sy);
         }
         dst.w = source_rect.w * draw_sx;
@@ -818,7 +818,7 @@ static void auto_resize_window_for_rtg(const struct unix_video_frame *frame,
 
     switch (mode) {
     case 1: /* scale */
-        if (have_configured && currprefs.win32_rtgallowscaling) {
+        if (have_configured && currprefs.host_rtgallowscaling) {
             desired_width = configured_width;
             desired_height = configured_height;
         } else if (have_configured) {
@@ -828,7 +828,7 @@ static void auto_resize_window_for_rtg(const struct unix_video_frame *frame,
         break;
     case 2: /* center */
         if (have_configured &&
-            (currprefs.win32_rtgallowscaling ||
+            (currprefs.host_rtgallowscaling ||
              (configured_width >= source_width && configured_height >= source_height))) {
             desired_width = configured_width;
             desired_height = configured_height;

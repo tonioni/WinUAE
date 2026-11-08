@@ -157,8 +157,8 @@ void filesys_addexternals (void)
 	int drvnum = 0;
 	int cnt = 0;
 
-	if (!currprefs.win32_automount_cddrives && !currprefs.win32_automount_netdrives
-		&& !currprefs.win32_automount_drives && !currprefs.win32_automount_removabledrives)
+	if (!currprefs.host_automount_cddrives && !currprefs.host_automount_netdrives
+		&& !currprefs.host_automount_drives && !currprefs.host_automount_removabledrives)
 		return;
 
 	write_log("Mouting drives...\n");
@@ -177,11 +177,11 @@ void filesys_addexternals (void)
 
 			int drivetype = GetDriveType (ci.rootdir);
 			for (;;) {
-				if (drivetype == DRIVE_REMOTE && currprefs.win32_automount_netdrives)
+				if (drivetype == DRIVE_REMOTE && currprefs.host_automount_netdrives)
 					break;
-				if (drivetype == DRIVE_FIXED && currprefs.win32_automount_drives)
+				if (drivetype == DRIVE_FIXED && currprefs.host_automount_drives)
 					break;
-				if (drivetype == DRIVE_REMOVABLE && currprefs.win32_automount_removabledrives)
+				if (drivetype == DRIVE_REMOVABLE && currprefs.host_automount_removabledrives)
 					break;
 				nok = TRUE;
 				break;
@@ -206,7 +206,7 @@ void filesys_addexternals (void)
 			else
 				_tcscat (ci.rootdir, _T(".."));
 #if 0
-			if (currprefs.win32_automount_drives > 1) {
+			if (currprefs.host_automount_drives > 1) {
 				devname[0] = drive;
 				devname[1] = 0;
 			}

@@ -390,9 +390,9 @@ static int ahi_init_sound_win32 (void)
 	return 0;
 
     num = enumerate_sound_devices ();
-    if (currprefs.win32_soundcard >= num)
-	currprefs.win32_soundcard = changed_prefs.win32_soundcard = 0;
-    ret = open_sound_device (sdp, currprefs.win32_soundcard, amigablksize * AMIGASAMPLESIZE, sound_freq_ahi, sound_channels_ahi);
+    if (currprefs.host_soundcard >= num)
+	currprefs.host_soundcard = changed_prefs.host_soundcard = 0;
+    ret = open_sound_device (sdp, currprefs.host_soundcard, amigablksize * AMIGASAMPLESIZE, sound_freq_ahi, sound_channels_ahi);
     if (!ret)
 	return 0;
 
@@ -408,10 +408,10 @@ static int ahi_init_sound_win32 (void)
     wavfmt.cbSize = 0;
 
 #if 0
-    if (sound_devices[currprefs.win32_soundcard].type != SOUND_DEVICE_DS)
+    if (sound_devices[currprefs.host_soundcard].type != SOUND_DEVICE_DS)
 	hr = DirectSoundCreate (NULL, &lpDS2, NULL);
     else
-	hr = DirectSoundCreate (&sound_devices[currprefs.win32_soundcard].guid, &lpDS2, NULL);
+	hr = DirectSoundCreate (&sound_devices[currprefs.host_soundcard].guid, &lpDS2, NULL);
     if (FAILED (hr)) {
 	write_log (_T("AHI: DirectSoundCreate() failure: %s\n"), DXError (hr));
 	return 0;

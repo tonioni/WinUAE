@@ -1958,7 +1958,7 @@ static uae_u8 ReadCIAA(uae_u32 addr, uae_u32 *flags)
 		} else if (arcadia_bios) {
 			tmp = arcadia_parport(0, c->prb, c->drb);
 #endif
-		} else if (currprefs.win32_samplersoundcard >= 0) {
+		} else if (currprefs.host_samplersoundcard >= 0) {
 
 			if (flags) {
 				tmp = sampler_getsample((c->pra & 4) ? 1 : 0);

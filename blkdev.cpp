@@ -177,7 +177,7 @@ static void install_driver (int flags)
 				st->scsiemu = true;
 				break;
 				case SCSI_UNIT_SPTI:
-				if (currprefs.win32_uaescsimode == UAESCSI_CDEMU) {
+				if (currprefs.host_uaescsimode == UAESCSI_CDEMU) {
 					st->device_func = devicetable[SCSI_UNIT_IOCTL];
 					st->scsiemu = true;
 				} else {
@@ -186,7 +186,7 @@ static void install_driver (int flags)
 				break;
 			}
 			// do not default to image mode if unit 1+ and automount
-			if (i == 0 || !currprefs.win32_automount_cddrives) {
+			if (i == 0 || !currprefs.host_automount_cddrives) {
 				// use image mode if driver disabled
 				for (int j = 1; j < NUM_DEVICE_TABLE_ENTRIES; j++) {
 					if (devicetable[j] == st->device_func && driver_installed[j] < 0) {
@@ -244,7 +244,7 @@ void blkdev_fix_prefs (struct uae_prefs *p)
 	}
 
 	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
-		if (cdscsidevicetype[i] != SCSI_UNIT_DEFAULT && (currprefs.scsi == 0 || currprefs.win32_uaescsimode < UAESCSI_SPTI))
+		if (cdscsidevicetype[i] != SCSI_UNIT_DEFAULT && (currprefs.scsi == 0 || currprefs.host_uaescsimode < UAESCSI_SPTI))
 			continue;
 		if (p->cdslots[i].inuse || p->cdslots[i].name[0]) {
 			TCHAR *name = p->cdslots[i].name;
@@ -253,7 +253,7 @@ void blkdev_fix_prefs (struct uae_prefs *p)
 #else
 			if (name[0] == '/' && name[1] == 'd' && name[2] == 'e' && name[3] == 'v' && name[4] == '/') {
 #endif
-				if (currprefs.scsi && (currprefs.win32_uaescsimode == UAESCSI_SPTI || currprefs.win32_uaescsimode == UAESCSI_SPTISCAN))
+				if (currprefs.scsi && (currprefs.host_uaescsimode == UAESCSI_SPTI || currprefs.host_uaescsimode == UAESCSI_SPTISCAN))
 					cdscsidevicetype[i] = SCSI_UNIT_SPTI;
 				else
 					cdscsidevicetype[i] = SCSI_UNIT_IOCTL;
@@ -261,7 +261,7 @@ void blkdev_fix_prefs (struct uae_prefs *p)
 				cdscsidevicetype[i] = SCSI_UNIT_IMAGE;
 			}
 		} else if (currprefs.scsi) {
-			if (currprefs.win32_uaescsimode == UAESCSI_CDEMU)
+			if (currprefs.host_uaescsimode == UAESCSI_CDEMU)
 				cdscsidevicetype[i] = SCSI_UNIT_IOCTL;
 			else
 				cdscsidevicetype[i] = SCSI_UNIT_SPTI;
