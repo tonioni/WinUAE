@@ -2028,13 +2028,12 @@ static void unix_picasso_update_sprite_colors(unix_rtg_sprite_state *sprite)
     }
 }
 
-static uae_u32 REGPARAM2 unix_picasso_set_sprite_position(TrapContext *ctx)
+static void unix_picasso_update_sprite_position(TrapContext *ctx, uaecptr board_info)
 {
     int monid = unix_rtg_monitor_id();
     struct picasso96_state_struct *state = &picasso96_state[monid];
     struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
     unix_rtg_sprite_state *sprite = &unix_rtg_sprites[monid];
-    uaecptr board_info = trap_get_areg(ctx, 0);
 
     int x = (uae_s16)trap_get_word(ctx, board_info + PSSO_BoardInfo_MouseX) - state->XOffset;
     int y = (uae_s16)trap_get_word(ctx, board_info + PSSO_BoardInfo_MouseY) - state->YOffset;
@@ -2045,7 +2044,12 @@ static uae_u32 REGPARAM2 unix_picasso_set_sprite_position(TrapContext *ctx)
     sprite->x = x - sprite->xoffset;
     sprite->y = y - sprite->yoffset;
     atomic_or(&vidinfo->picasso_state_change, UNIX_PICASSO_STATE_SPRITE);
-    return sprite->enabled ? 1 : 0;
+}
+
+static uae_u32 REGPARAM2 unix_picasso_set_sprite_position(TrapContext *ctx)
+{
+    unix_picasso_update_sprite_position(ctx, trap_get_areg(ctx, 0));
+    return unix_rtg_sprites[unix_rtg_monitor_id()].enabled ? 1 : 0;
 }
 
 static uae_u32 REGPARAM2 unix_picasso_set_sprite_color(TrapContext *ctx)
@@ -2787,6 +2791,12 @@ void restore_p96_finish(void)
             vidinfo->splitypos = (uae_s16)trap_get_word(NULL,
                 unix_picasso_boardinfo + PSSO_BoardInfo_YSplit) - 1;
         }
+        unix_rtg_sprite_state *sprite = &unix_rtg_sprites[monid];
+        if (sprite->visible) {
+            /* The image and position live in guest memory; colours were restored. */
+            unix_picasso_load_sprite_image(NULL, unix_picasso_boardinfo);
+            unix_picasso_update_sprite_position(NULL, unix_picasso_boardinfo);
+        }
         ad->picasso_requested_on = (unix_p96_restored_flags & 1) != 0;
         vidinfo->picasso_active = ad->picasso_requested_on;
         atomic_or(&vidinfo->picasso_state_change, UNIX_PICASSO_STATE_SETGC |
@@ -2827,9 +2837,15 @@ uae_u8 *restore_p96(uae_u8 *src)
     unix_uaegfx_rom = restore_u32();
     unix_picasso_boardinfo = restore_u32();
 
+    unix_rtg_sprite_state *sprite = &unix_rtg_sprites[monid];
+    *sprite = unix_rtg_sprite_state();
+    sprite->enabled = (unix_p96_restored_flags & 8) != 0;
+    sprite->visible = (unix_p96_restored_flags & 16) != 0;
+    unix_uaegfx_interrupt_enabled = (unix_p96_restored_flags & 32) != 0;
     for (int i = 0; i < 4; i++) {
-        restore_u32();
+        sprite->colors[i] = restore_u32() & 0x00ffffff;
     }
+    unix_picasso_update_sprite_colors(sprite);
     if (unix_p96_restored_flags & 64) {
         for (int i = 0; i < 256; i++) {
             state->CLUT[i].Red = restore_u8();
@@ -2908,9 +2924,13 @@ uae_u8 *save_p96(size_t *len, uae_u8 *dstptr)
         dstbak = dst = xmalloc(uae_u8, 2048);
     }
 
+    const unix_rtg_sprite_state *sprite = &unix_rtg_sprites[monid];
     uae_u32 flags = (ad->picasso_on ? 1 : 0) |
         ((state->Width && state->Height) ? 2 : 0) |
         (vidinfo->set_panning_called ? 4 : 0) |
+        (sprite->enabled ? 8 : 0) |
+        (sprite->visible ? 16 : 0) |
+        (unix_uaegfx_interrupt_enabled ? 32 : 0) |
         64 | 128;
 
     save_u32(2);
@@ -2932,7 +2952,7 @@ uae_u8 *save_p96(size_t *len, uae_u8 *dstptr)
     save_u32(unix_uaegfx_rom);
     save_u32(unix_picasso_boardinfo);
     for (int i = 0; i < 4; i++) {
-        save_u32(0);
+        save_u32(sprite->colors[i] & 0x00ffffff);
     }
     for (int i = 0; i < 256; i++) {
         save_u8(state->CLUT[i].Red);
