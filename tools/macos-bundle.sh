@@ -19,10 +19,19 @@ Environment:
                               Do not check bundled Mach-O deployment targets.
   WINUAE_SKIP_CODESIGN=1     Do not ad-hoc codesign the bundle.
   WINUAE_CODESIGN_IDENTITY   codesign identity. Defaults to "-" for ad-hoc.
-  WINUAE_CODESIGN_OPTIONS    Extra options passed to codesign, for example
-                              "--options runtime --timestamp".
+                              Any other identity (for example "Developer ID
+                              Application: Name (TEAMID)") signs every
+                              nested Mach-O inside-out, as notarization
+                              requires.
+  WINUAE_CODESIGN_OPTIONS    Extra options passed to codesign. Defaults to
+                              "--options runtime --timestamp" for
+                              non-ad-hoc identities.
   WINUAE_CODESIGN_ENTITLEMENTS
-                              Optional entitlements plist passed to codesign.
+                              Entitlements plist for the main executable.
+                              Non-ad-hoc identities default to a generated
+                              hardened-runtime plist (JIT, camera, audio
+                              input).
+  WINUAE_CODESIGN_KEYCHAIN   Optional keychain passed to codesign.
   WINUAE_QEMU_UAE_PLUGIN      Optional qemu-uae.so path to copy into
                               Contents/PlugIns.
   WINUAE_BUNDLE_QEMU_UAE_PLUGIN
@@ -306,6 +315,8 @@ cat > "${contents_dir}/Info.plist" <<EOF
     <true/>
     <key>NSCameraUsageDescription</key>
     <string>WinUAE uses camera input for genlock capture-device emulation.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>WinUAE uses audio input for sampler and sound card recording emulation.</string>
     <key>CFBundleDocumentTypes</key>
     <array>
         <dict>
@@ -444,15 +455,93 @@ fi
 
 require_ffmpeg_bundle
 
-if [[ "${WINUAE_SKIP_CODESIGN:-0}" != "1" ]] && command -v codesign >/dev/null 2>&1; then
-    codesign_identity="${WINUAE_CODESIGN_IDENTITY:--}"
-    codesign_args=(--force --deep --sign "${codesign_identity}")
-    split_extra_args "${WINUAE_CODESIGN_OPTIONS:-}"
-    codesign_args+=(${extra_args[@]+"${extra_args[@]}"})
-    if [[ -n "${WINUAE_CODESIGN_ENTITLEMENTS:-}" ]]; then
-        codesign_args+=(--entitlements "${WINUAE_CODESIGN_ENTITLEMENTS}")
+write_hardened_runtime_entitlements() {
+    local plist="$1"
+    local unsigned_exec_memory=""
+
+    # The ARM64 JIT, 86Box dynarec and QEMU TCG use MAP_JIT, which only
+    # needs allow-jit. The x86-64 JIT maps RWX memory without MAP_JIT.
+    if lipo -archs "${macos_dir}/WinUAE" 2>/dev/null | grep -qw x86_64; then
+        unsigned_exec_memory="    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>"
     fi
-    codesign "${codesign_args[@]}" "${app_dir}"
+
+    cat > "${plist}" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+${unsigned_exec_memory}
+    <key>com.apple.security.device.camera</key>
+    <true/>
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+</dict>
+</plist>
+EOF
+}
+
+is_macho() {
+    file -b "$1" 2>/dev/null | grep -q '^Mach-O'
+}
+
+codesign_bundle() {
+    local identity="${WINUAE_CODESIGN_IDENTITY:--}"
+    local entitlements="${WINUAE_CODESIGN_ENTITLEMENTS:-}"
+    local sign_args=(--force --sign "${identity}")
+    local path
+
+    if [[ -n "${WINUAE_CODESIGN_KEYCHAIN:-}" ]]; then
+        sign_args+=(--keychain "${WINUAE_CODESIGN_KEYCHAIN}")
+    fi
+
+    if [[ "${identity}" == "-" ]]; then
+        split_extra_args "${WINUAE_CODESIGN_OPTIONS:-}"
+        sign_args+=(${extra_args[@]+"${extra_args[@]}"})
+        if [[ -n "${entitlements}" ]]; then
+            sign_args+=(--entitlements "${entitlements}")
+        fi
+        codesign --deep "${sign_args[@]}" "${app_dir}"
+        return
+    fi
+
+    split_extra_args "${WINUAE_CODESIGN_OPTIONS:---options runtime --timestamp}"
+    sign_args+=(${extra_args[@]+"${extra_args[@]}"})
+    if [[ -z "${entitlements}" ]]; then
+        entitlements="${output_dir}/WinUAE.entitlements"
+        write_hardened_runtime_entitlements "${entitlements}"
+    fi
+
+    # Sign inside-out: loose dylibs and plugins first, then framework
+    # bundles, then the app with the entitlements on the main executable.
+    # --deep would also apply the app's entitlements to nested code and
+    # misses Mach-O files outside the standard code locations.
+    while IFS= read -r -d '' path; do
+        if is_macho "${path}"; then
+            codesign "${sign_args[@]}" "${path}"
+        fi
+    done < <(find "${contents_dir}/Frameworks" "${contents_dir}/PlugIns" \
+        -type f -not -path '*.framework/*' -print0 2>/dev/null)
+
+    while IFS= read -r -d '' path; do
+        codesign "${sign_args[@]}" "${path}"
+    done < <(find "${contents_dir}/Frameworks" -maxdepth 1 -type d \
+        -name '*.framework' -print0 2>/dev/null)
+
+    while IFS= read -r -d '' path; do
+        if [[ "${path}" != "${macos_dir}/WinUAE" ]] && is_macho "${path}"; then
+            codesign "${sign_args[@]}" "${path}"
+        fi
+    done < <(find "${macos_dir}" "${resources_dir}" -type f -print0 2>/dev/null)
+
+    codesign "${sign_args[@]}" --entitlements "${entitlements}" "${app_dir}"
+    codesign --verify --strict --deep --verbose=2 "${app_dir}" >&2
+}
+
+if [[ "${WINUAE_SKIP_CODESIGN:-0}" != "1" ]] && command -v codesign >/dev/null 2>&1; then
+    codesign_bundle
 fi
 
 echo "${app_dir}"
