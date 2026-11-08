@@ -1,12 +1,15 @@
 /*
  * UAE - The Un*x Amiga Emulator
- * POSIX directory-drive names and Amiberry metadata.
+ * POSIX directory-drive names and .uaem metadata.
  *
- * Filename and metadata format based on Amiberry osdep/fsdb_host.cpp.
+ * The .uaem metadata scheme was invented and implemented by Frode Solheim
+ * for FS-UAE, and later adopted by Amiberry. This implementation follows
+ * the Amiberry variant, including its escaped-comment encoding, using
+ * Amiberry osdep/fsdb_host.cpp as the compatibility reference.
  * Copyright 1997 Mathias Ortmann
  * Copyright 1999 Bernd Schmidt
- * Copyright 2025 Dimitris Panokostas
  * Copyright 2012 Frode Solheim
+ * Copyright 2025 Dimitris Panokostas
  */
 #include "sysconfig.h"
 #include "sysdeps.h"
