@@ -1,5 +1,6 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
+#include "od-generic/console.h"
 
 #include "debug.h"
 #include "host.h"
@@ -31,8 +32,6 @@ static constexpr size_t LOG_CAPTURE_LIMIT = 256 * 1024;
 
 static std::mutex log_capture_mutex;
 static std::string log_capture;
-static TCHAR *console_buffer;
-static int console_buffer_size;
 static int debugger_type = -1;
 
 static void capture_log_bytes(const char *text, size_t len)
@@ -155,17 +154,9 @@ static void openconsole(void)
     }
 }
 
-static void console_put(const TCHAR *text)
+void target_console_out(const TCHAR *text, bool buffered)
 {
-    if (!text) {
-        return;
-    }
-    if (console_buffer) {
-        const size_t used = _tcslen(console_buffer);
-        const size_t len = _tcslen(text);
-        if (used + len < size_t(console_buffer_size)) {
-            _tcscat(console_buffer, text);
-        }
+    if (buffered) {
         return;
     }
 
@@ -274,20 +265,6 @@ void log_close(FILE *f)
     }
 }
 
-TCHAR *setconsolemode(TCHAR *buffer, int maxlen)
-{
-    TCHAR *ret = NULL;
-    if (buffer) {
-        console_buffer = buffer;
-        console_buffer_size = maxlen;
-    } else {
-        ret = console_buffer;
-        console_buffer = NULL;
-        console_buffer_size = 0;
-    }
-    return ret;
-}
-
 void close_console(void)
 {
     if (consoleopen > 0) {
@@ -323,27 +300,6 @@ void activate_console(void)
 void deactivate_console(void) {}
 void set_console_input_mode(int) {}
 bool is_console_open(void) { return consoleopen != 0; }
-void console_out(const TCHAR *s)
-{
-    console_put(s);
-}
-void console_out_f(const TCHAR *format, ...)
-{
-    va_list size_args;
-    va_start(size_args, format);
-    const int needed = vsnprintf(NULL, 0, format, size_args);
-    va_end(size_args);
-    if (needed <= 0) {
-        return;
-    }
-
-    std::vector<char> buffer(size_t(needed) + 1);
-    va_list format_args;
-    va_start(format_args, format);
-    vsnprintf(buffer.data(), buffer.size(), format, format_args);
-    va_end(format_args);
-    console_put(buffer.data());
-}
 void console_flush(void)
 {
     fflush(stderr);
@@ -358,7 +314,7 @@ int console_get(TCHAR *out, int maxlen)
         return 0;
     }
     out[0] = 0;
-    if (console_buffer) {
+    if (console_is_buffered()) {
         return 0;
     }
     open_console();
@@ -397,7 +353,7 @@ int console_get(TCHAR *out, int maxlen)
 
 bool console_isch(void)
 {
-    if (console_buffer || !terminal_console_available()) {
+    if (console_is_buffered() || !terminal_console_available()) {
         return false;
     }
     fd_set set;
@@ -409,7 +365,7 @@ bool console_isch(void)
 
 TCHAR console_getch(void)
 {
-    if (console_buffer || !terminal_console_available()) {
+    if (console_is_buffered() || !terminal_console_available()) {
         return 0;
     }
     char ch = 0;
