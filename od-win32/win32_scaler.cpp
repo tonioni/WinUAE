@@ -379,6 +379,12 @@ void getfilterdata(int monid, struct displayscale *ds)
 							ch += 20 << currprefs.gfx_vresolution;
 						}
 					}
+					filter_horiz_zoom_mult = 1.0f;
+					filter_vert_zoom_mult = 1.0f;
+					filter_horiz_zoom = 0.0f;
+					filter_vert_zoom = 0.0f;
+					filter_horiz_offset = 0.0f;
+					filter_vert_offset = 0.0f;
 				}
 				if (scalemode != AUTOSCALE_INTEGER && scalemode != AUTOSCALE_INTEGER_AUTOSCALE) {
 					set_custom_limits (cw, ch, cx, cy);
