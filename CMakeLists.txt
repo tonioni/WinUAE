@@ -2096,6 +2096,7 @@ set(WINUAE_CORE_SOURCES
     calc.cpp
     cd32_fmv.cpp
     cd32_fmv_genlock.cpp
+    od-generic/blkdev_ioctl_common.cpp
     cda_play.cpp
     cdrom.cpp
     cdtv.cpp
@@ -2436,6 +2437,17 @@ target_include_directories(winuae_unix_uaenet_test PRIVATE
 )
 target_link_libraries(winuae_unix_uaenet_test PRIVATE pthread)
 winuae_unix_register_test(winuae_unix_uaenet_test)
+
+add_executable(winuae_unix_cd_ioctl_test EXCLUDE_FROM_ALL
+    od-generic/blkdev_ioctl_common.cpp
+    od-generic/blkdev_ioctl_common_test.cpp
+)
+target_include_directories(winuae_unix_cd_ioctl_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_cd_ioctl_test)
 
 add_executable(winuae_unix_serial_helpers_test EXCLUDE_FROM_ALL
     od-unix/serial_helpers.cpp

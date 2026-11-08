@@ -25,6 +25,7 @@
 #include <winioctl.h>
 
 #include "cda_play.h"
+#include "od-generic/blkdev_ioctl_common.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -68,25 +69,17 @@ static void reseterrormode (struct dev_info_ioctl *ciw)
 static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum);
 static void sys_cddev_close (struct dev_info_ioctl *ciw, int unitnum);
 
-static int getunitnum (struct dev_info_ioctl *ciw)
+static int getunitnum(struct dev_info_ioctl *device)
 {
-	if (!ciw)
-		return -1;
-	int idx = (int)(ciw - &ciw32[0]);
-	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
-		if (unittable[i] - 1 == idx)
-			return i;
-	}
+    if (!device)
 	return -1;
+    return host_cd_unit_number(unittable, MAX_TOTAL_SCSI_DEVICES, (int)(device - &ciw32[0]));
 }
 
 static struct dev_info_ioctl *unitcheck (int unitnum)
 {
-	if (unitnum < 0 || unitnum >= MAX_TOTAL_SCSI_DEVICES)
-		return NULL;
-	if (unittable[unitnum] <= 0)
-		return NULL;
-	unitnum = unittable[unitnum] - 1;
+	unitnum = host_cd_unit_index(unittable, MAX_TOTAL_SCSI_DEVICES, unitnum);
+	if (unitnum < 0) return NULL;
 	if (ciw32[unitnum].drvletter == 0)
 		return NULL;
 	return &ciw32[unitnum];
@@ -312,7 +305,6 @@ retry:
 		if (!ciw->usesptiread && sectorsize == 2048 && ciw->trackmode[track] == 0) {
 			if (read2048 (ciw, sector) == 2048) {
 				memcpy (data, p, 2048);
-				sector++;
 				data += sectorsize;
 				ret += sectorsize;
 				got = true;
@@ -329,7 +321,7 @@ retry:
 			if (DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, p, IOCTL_DATA_BUFFER, &len, NULL)) {
 				reseterrormode (ciw);
 				if (data) {
-					uae_u8 mode = data[15];
+					uae_u8 mode = p[15];
 					uae_u8 oldmode = ciw->trackmode[track];
 					ciw->trackmode[track] = mode;
 					if (oldmode == 0xff && mode == 0 && sectorsize == 2048) {
@@ -361,7 +353,7 @@ retry:
 		}
 		if (!got) {
 			int len = spti_read (ciw, unitnum, data, sector, sectorsize);
-			if (len) {
+			if (len == sectorsize) {
 				if (data) {
 					memcpy (data, p, sectorsize);
 					data += sectorsize;
@@ -380,12 +372,10 @@ retry:
 				encode_l2 (data, sector + 150);
 				if (sectorsize > 2352)
 					memset (data + 2352, 0, sectorsize - 2352);
-				sector++;
 				data += sectorsize;
 				ret += sectorsize;
 			} else if (sectorsize == 2048) {
 				memcpy (data, p, 2048);
-				sector++;
 				data += sectorsize;
 				ret += sectorsize;
 			}
@@ -402,76 +392,50 @@ static int read_block_cda(struct cda_play *cda, int unitnum, uae_u8 *data, int s
 	return read_block(&ciw32[unitnum], unitnum, data, sector, size, sectorsize);
 }
 
-/* pause/unpause CD audio */
-static int ioctl_command_pause (int unitnum, int paused)
+struct ioctl_request { dev_info_ioctl *device; int unit; };
+static int common_open(void *context)
 {
-	struct dev_info_ioctl *ciw = unitisopen (unitnum);
-	if (!ciw)
-		return -1;
-	int old = ciw->cda.cdda_paused;
-	if ((paused && ciw->cda.cdda_play) || !paused)
-		ciw->cda.cdda_paused = paused;
-	return old;
+    ioctl_request *request = (ioctl_request *)context;
+    return open_createfile(request->device, 0);
+}
+static int common_read(void *context, uae_u8 *data, int sector, int count, int sectorsize)
+{
+    ioctl_request *request = (ioctl_request *)context;
+    return read_block(request->device, request->unit, data, sector, count, sectorsize);
+}
+
+/* pause/unpause CD audio */
+static int ioctl_command_pause(int unitnum, int paused)
+{
+    struct dev_info_ioctl *device = unitisopen(unitnum);
+    return host_cd_pause(device ? &device->cda : NULL, paused);
 }
 
 
 /* stop CD audio */
-static int ioctl_command_stop (int unitnum)
+static int ioctl_command_stop(int unitnum)
 {
-	struct dev_info_ioctl *ciw = unitisopen (unitnum);
-	if (!ciw)
-		return 0;
-
-	ciw_cdda_stop(&ciw->cda);
-		
-	return 1;
+    struct dev_info_ioctl *device = unitisopen(unitnum);
+    return host_cd_stop(device ? &device->cda : NULL);
 }
 
-static uae_u32 ioctl_command_volume (int unitnum, uae_u16 volume_left, uae_u16 volume_right)
+static uae_u32 ioctl_command_volume(int unitnum, uae_u16 volume_left, uae_u16 volume_right)
 {
-	struct dev_info_ioctl *ciw = unitisopen (unitnum);
-	if (!ciw)
-		return -1;
-	uae_u32 old = (ciw->cda.cdda_volume[1] << 16) | (ciw->cda.cdda_volume[0] << 0);
-	ciw->cda.cdda_volume[0] = volume_left;
-	ciw->cda.cdda_volume[1] = volume_right;
-	return old;
+    struct dev_info_ioctl *device = unitisopen(unitnum);
+    return host_cd_volume(device ? &device->cda : NULL, volume_left, volume_right);
 }
 
 /* play CD audio */
-static int ioctl_command_play (int unitnum, int startlsn, int endlsn, int scan, play_status_callback statusfunc, play_subchannel_callback subfunc)
+static int ioctl_command_play(int unitnum, int startlsn, int endlsn, int scan,
+			      play_status_callback statusfunc, play_subchannel_callback subfunc)
 {
-	struct dev_info_ioctl *ciw = unitisopen (unitnum);
-	if (!ciw)
-		return 0;
-
-	ciw->cda.di = &ciw->di;
-	ciw->cda.cdda_play_finished = 0;
-	ciw->cda.cdda_subfunc = subfunc;
-	ciw->cda.cdda_statusfunc = statusfunc;
-	ciw->cda.cdda_scan = scan > 0 ? 10 : (scan < 0 ? 10 : 0);
-	ciw->cda.cdda_delay = ciw_cdda_setstate(&ciw->cda, -1, -1);
-	ciw->cda.cdda_delay_frames = ciw_cdda_setstate(&ciw->cda, -2, -1);
-	ciw_cdda_setstate(&ciw->cda, AUDIO_STATUS_NOT_SUPPORTED, -1);
-	ciw->cda.read_block = read_block_cda;
-
-	if (!open_createfile (ciw, 0)) {
-		ciw_cdda_setstate(&ciw->cda, AUDIO_STATUS_PLAY_ERROR, -1);
-		return 0;
-	}
-	if (!isaudiotrack (&ciw->di.toc, startlsn)) {
-		ciw_cdda_setstate(&ciw->cda, AUDIO_STATUS_PLAY_ERROR, -1);
-		return 0;
-	}
-	if (!ciw->cda.cdda_play) {
-		uae_start_thread (_T("ioctl_cdda_play"), ciw_cdda_play, &ciw->cda, NULL);
-	}
-	ciw->cda.cdda_start = startlsn;
-	ciw->cda.cdda_end = endlsn;
-	ciw->cda.cd_last_pos = ciw->cda.cdda_start;
-	ciw->cda.cdda_play++;
-
-	return 1;
+    struct dev_info_ioctl *device = unitisopen(unitnum);
+    if (!device)
+	return 0;
+    ioctl_request request = {device, unitnum};
+    host_cd_backend backend = {&request, unitnum, common_open, common_read};
+    return host_cd_play(&device->cda, &device->di, backend, read_block_cda, startlsn, endlsn, scan,
+			statusfunc, subfunc, false);
 }
 
 /* read qcode */
@@ -579,90 +543,16 @@ static int ioctl_command_qcode (int unitnum, uae_u8 *buf, int sector, bool all)
 
 }
 
-static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int size, int sectorsize, uae_u32 extra)
+static int ioctl_command_rawread(int unitnum, uae_u8 *data, int sector, int size, int sectorsize,
+				 uae_u32 extra)
 {
-	struct dev_info_ioctl *ciw = unitisopen (unitnum);
-	if (!ciw)
-		return 0;
-
-	uae_u8 *p = ciw->tempbuffer;
-	int ret = 0;
-
-	if (log_scsi)
-		write_log (_T("IOCTL rawread unit=%d sector=%d blocksize=%d\n"), unitnum, sector, sectorsize);
-	ciw_cdda_stop(&ciw->cda);
-	gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
-	if (sectorsize > 0) { 
-		if (sectorsize != 2336 && sectorsize != 2352 && sectorsize != 2048 &&
-			sectorsize != 2336 + 96 && sectorsize != 2352 + 96 && sectorsize != 2048 + 96)
-			return 0;
-		while (size-- > 0) {
-			if (!read_block (ciw, unitnum, data, sector, 1, sectorsize))
-				break;
-			ciw->cda.cd_last_pos = sector;
-			data += sectorsize;
-			ret += sectorsize;
-			sector++;
-		}
-	} else {
-		uae_u8 sectortype = extra >> 16;
-		uae_u8 cmd9 = extra >> 8;
-		int sync = (cmd9 >> 7) & 1;
-		int headercodes = (cmd9 >> 5) & 3;
-		int userdata = (cmd9 >> 4) & 1;
-		int edcecc = (cmd9 >> 3) & 1;
-		int errorfield = (cmd9 >> 1) & 3;
-		uae_u8 subs = extra & 7;
-		if (subs != 0 && subs != 1 && subs != 2 && subs != 4)
-			return -1;
-		if (errorfield >= 3)
-			return -1;
-		uae_u8 *d = data;
-
-		if (isaudiotrack (&ciw->di.toc, sector)) {
-
-			if (sectortype != 0 && sectortype != 1)
-				return -2;
-
-			for (int i = 0; i < size; i++) {
-				uae_u8 *odata = data;
-				int blocksize = errorfield == 0 ? 2352 : (errorfield == 1 ? 2352 + 294 : 2352 + 296);
-				int readblocksize = errorfield == 0 ? 2352 : 2352 + 296;
-
-				if (!read_block (ciw, unitnum, NULL, sector, 1, readblocksize)) {
-					reseterrormode (ciw);
-					return ret;
-				}
-				ciw->cda.cd_last_pos = sector;
-
-				if (subs == 0) {
-					memcpy (data, p, blocksize);
-					data += blocksize;
-				} else if (subs == 4) { // all, de-interleaved
-					memcpy (data, p, blocksize);
-					data += blocksize;
-					sub_to_deinterleaved (p + readblocksize, data);
-					data += SUB_CHANNEL_SIZE;
-				} else if (subs == 2) { // q-only
-					memcpy (data, p, blocksize);
-					data += blocksize;
-					uae_u8 subdata[SUB_CHANNEL_SIZE];
-					sub_to_deinterleaved (p + readblocksize, subdata);
-					memcpy (data, subdata + SUB_ENTRY_SIZE, SUB_ENTRY_SIZE);
-					p += SUB_ENTRY_SIZE;
-				} else if (subs == 1) { // all, interleaved
-					memcpy (data, p, blocksize);
-					memcpy (data + blocksize, p + readblocksize, SUB_CHANNEL_SIZE);
-					data += blocksize + SUB_CHANNEL_SIZE;
-				}
-				ret += (int)(data - odata);
-				sector++;
-			}
-		}
-
-
-	}
-	return ret;
+    dev_info_ioctl *device = unitisopen(unitnum);
+    if (!device)
+	return 0;
+    ioctl_request request = {device, unitnum};
+    host_cd_backend backend = {&request, unitnum, common_open, common_read};
+    return host_cd_rawread(&device->cda, &device->di, backend, data, sector, size, sectorsize,
+			   extra);
 }
 
 static int ioctl_command_readwrite (int unitnum, int sector, int size, int write, uae_u8 *data)
@@ -921,11 +811,7 @@ static void update_device_info (int unitnum)
 	if (!ciw)
 		return;
 	struct device_info *di = &ciw->di;
-	di->bus = unitnum;
-	di->target = 0;
-	di->lun = 0;
-	di->media_inserted = 0;
-	di->bytespersector = 2048;
+	host_cd_init_info(di, unitnum);
 	_stprintf (di->mediapath, _T("\\\\.\\%c:"), ciw->drvletter);
 	if (fetch_geometry (ciw, unitnum, di)) { // || ioctl_command_toc (unitnum))
 		di->media_inserted = 1;
@@ -934,12 +820,7 @@ static void update_device_info (int unitnum)
 		ioctl_command_toc2 (unitnum, &di->toc, true);
 		ciw->changed = false;
 	}
-	di->removable = ciw->type == DRIVE_CDROM ? 1 : 0;
-	di->write_protected = ciw->type == DRIVE_CDROM ? 1 : 0;
-	di->type = ciw->type == DRIVE_CDROM ? INQ_ROMD : INQ_DASD;
-	di->unitnum = unitnum + 1;
-	_tcscpy (di->label, ciw->drvlettername);
-	di->backend = _T("IOCTL");
+	host_cd_finish_info(di, unitnum, ciw->type == DRIVE_CDROM, ciw->drvlettername);
 }
 
 static void trim (TCHAR *s)
@@ -1242,19 +1123,7 @@ bool win32_ioctl_media_change (TCHAR driveletter, int insert)
 	return false;
 }
 
-static int ioctl_scsiemu (int unitnum, uae_u8 *cmd)
-{
-	uae_u8 c = cmd[0];
-	if (c == 0x1b) {
-		int mode = cmd[4] & 3;
-		if (mode == 2)
-			eject (unitnum, true);
-		else if (mode == 3)
-			eject (unitnum, false);
-		return 1;
-	}
-	return -1;
-}
+static int ioctl_scsiemu(int unitnum, uae_u8 *cmd) { return host_cd_scsiemu(unitnum, cmd, eject); }
 
 struct device_functions devicefunc_scsi_ioctl = {
 	_T("IOCTL"),
