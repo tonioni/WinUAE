@@ -1984,6 +1984,7 @@ if(WINUAE_UNIX_WITH_PROWIZARD)
     )
     list(APPEND WINUAE_UNIX_EXTRA_SOURCES
         moduleripper.cpp
+    od-generic/prowizard_host.cpp
         ${WINUAE_UNIX_PROWIZARD_C_SOURCES}
     )
     set_source_files_properties(${WINUAE_UNIX_PROWIZARD_C_SOURCES}

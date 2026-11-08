@@ -31,9 +31,7 @@
 #include "fsdb.h"
 
 
-#ifndef _WIN32
-#include <dlfcn.h>
-#endif
+#include "uae/dlopen.h"
 
 static float syncdivisor;
 
@@ -198,20 +196,12 @@ static void *dl_symbol(void *dl, const char *name)
     if (dl == NULL) {
         return NULL;
     }
-#ifdef _WIN32
-    return (void *) GetProcAddress ((HINSTANCE) dl, name);
-#else
-    return dlsym (dl, name);
-#endif
+    return uae_dlsym((UAE_DLHANDLE)dl, name);
 }
 
 static void dl_close(void *dl)
 {
-#ifdef _WIN32
-    FreeLibrary ((HMODULE) dl);
-#else
-    dlclose (dl);
-#endif
+    uae_dlclose((UAE_DLHANDLE)dl);
 }
 
 static void set_library_globals(void *dl)
@@ -248,11 +238,7 @@ static uae_u32 open_library (const char *name, uae_u32 min_version)
     }
 
     write_log (_T("uni: found library at %s - opening\n"), path);
-#ifdef _WIN32
-    void *dl = LoadLibrary (path);
-#else
-    void *dl = dlopen (path, RTLD_NOW);
-#endif
+    void *dl = uae_dlopen(path);
     free(path);
     if (dl == NULL) {
         write_log (_T("uni: error opening library errno %d\n"), errno);

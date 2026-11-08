@@ -106,6 +106,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\od-generic\prowizard_host.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\midiemu_host.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
       <Filter>win32</Filter>
     </ClCompile>
