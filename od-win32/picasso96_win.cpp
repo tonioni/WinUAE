@@ -3935,10 +3935,16 @@ static uae_u32 REGPARAM2 picasso_BlitTemplate(TrapContext *ctx)
 
 		uae_u8 *tmpl_buffer = NULL;
 		if (indirect) {
-			int tmpl_size = H * tmp.BytesPerRow * Bpp;
+			// One bit per pixel: each row reads from XOffset / 8 up to one
+			// byte past the bytes that cover the width.
+			if (!W || !H || tmp.BytesPerRow < 0) {
+				return 1;
+			}
+			int tmpl_offset = tmp.XOffset / 8;
+			int tmpl_size = tmpl_offset + (int)(H - 1) * tmp.BytesPerRow + (int)(W + 7) / 8 + 1;
 			tmpl_buffer = xcalloc(uae_u8, tmpl_size + 1);
 			trap_get_bytes(ctx, tmpl_buffer, tmp.AMemory, tmpl_size);
-			tmpl_base = tmpl_buffer + tmp.XOffset / 8;
+			tmpl_base = tmpl_buffer + tmpl_offset;
 		} else {
 			tmpl_base = tmp.Memory + tmp.XOffset / 8;
 		}
