@@ -3,6 +3,12 @@
 
 #include "uae/types.h"
 
+// Native device names and discovery. Start with cursor zero after opening
+// the native bus; a positive result is the next cursor, zero ends the scan.
+// name_size is in TCHARs and includes space for the terminating zero.
+bool host_cd_is_device(const TCHAR *name);
+int host_cd_next_device(int cursor, TCHAR *name, int name_size);
+
 #define DEVICE_SCSI_BUFSIZE (65536 - 1024)
 
 #define SCSI_UNIT_DISABLED -1

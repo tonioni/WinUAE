@@ -2222,6 +2222,7 @@ set(WINUAE_CORE_SOURCES
     od-generic/registry_ini.cpp
     od-generic/avsync.cpp
     od-generic/screenshot_common.cpp
+    od-unix/blkdev_host.cpp
     od-unix/charset.cpp
     od-unix/clipboard.cpp
     od-unix/config.cpp
