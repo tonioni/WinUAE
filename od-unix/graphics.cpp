@@ -1494,8 +1494,12 @@ void picasso_handle_vsync(void)
             continue;
         }
 
-        if (ad->picasso_on || vidinfo->picasso_active) {
+        /* P96 waits for the board vblank before it switches to a new
+         * screen, so it must run while the native display is shown too. */
+        if (monid == currprefs.rtgboards[0].monitor_id) {
             picasso_trigger_vblank();
+        }
+        if (ad->picasso_on || vidinfo->picasso_active) {
             picasso_refresh(monid);
         }
     }
