@@ -775,6 +775,9 @@
     <ClCompile Include="..\..\od-generic\hostcfg_compat.cpp">
       <Filter>shared</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\sound_common.cpp">
+      <Filter>shared</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\od-generic\mman.cpp">
       <Filter>shared</Filter>
     </ClCompile>
@@ -2180,6 +2183,9 @@
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\hostcfg.h">
+      <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\od-generic\sound_common.h">
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\hardfile_defaults.h">

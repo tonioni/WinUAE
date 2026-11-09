@@ -3,6 +3,7 @@
 
 #include "options.h"
 #include "audio.h"
+#include "od-generic/sound_common.h"
 #ifdef AVIOUTPUT
 #include "avioutput.h"
 #endif
@@ -39,7 +40,8 @@ static int have_sound;
 static int sound_muted;
 static int sound_softvolume = -1;
 static float sound_sync_multiplier = 1.0f;
-static float scaled_sample_evtime_orig;
+static float correction_sum, correction_count;
+static unsigned long correction_frame;
 
 extern float sampler_evtime;
 
@@ -109,6 +111,9 @@ static void enumerate_sdl_sound_devices(void)
 
 static void clearbuffer(void)
 {
+    correction_sum = correction_count = 0;
+    correction_frame = timeframes;
+    sound_setadjust(0);
     memset(paula_sndbuffer, 0, sizeof paula_sndbuffer);
     paula_sndbufpt = paula_sndbuffer;
 #ifdef UAE_UNIX_WITH_SDL3
@@ -116,27 +121,6 @@ static void clearbuffer(void)
         SDL_ClearAudioStream(audio_stream);
     }
 #endif
-}
-
-static void channelswap(uae_s16 *sndbuffer, int len)
-{
-    for (int i = 0; i < len; i += 2) {
-        uae_s16 t = sndbuffer[i];
-        sndbuffer[i] = sndbuffer[i + 1];
-        sndbuffer[i + 1] = t;
-    }
-}
-
-static void channelswap6(uae_s16 *sndbuffer, int len)
-{
-    for (int i = 0; i < len; i += 6) {
-        uae_s16 t = sndbuffer[i + 0];
-        sndbuffer[i + 0] = sndbuffer[i + 1];
-        sndbuffer[i + 1] = t;
-        t = sndbuffer[i + 4];
-        sndbuffer[i + 4] = sndbuffer[i + 5];
-        sndbuffer[i + 5] = t;
-    }
 }
 
 static int get_sound_channels(void)
@@ -176,14 +160,7 @@ static void update_softvolume(void)
         volume = 100;
     }
 
-    if (sound_muted || volume >= 100) {
-        sound_softvolume = 0;
-    } else {
-        sound_softvolume = (100 - volume) * 32768 / 100;
-        if (sound_softvolume >= 32768) {
-            sound_softvolume = -1;
-        }
-    }
+    sound_softvolume = host_sound_gain(volume, sound_muted != 0);
 #ifdef VIDEOGRAB
     setmastervolumevideograb(volume, sound_muted != 0);
 #endif
@@ -206,9 +183,7 @@ void update_sound(float clk)
     if (!have_sound || audio_spec.freq <= 0) {
         return;
     }
-    scaled_sample_evtime_orig = clk * (float)CYCLE_UNIT * sound_sync_multiplier / audio_spec.freq;
-    scaled_sample_evtime = scaled_sample_evtime_orig;
-    sampler_evtime = clk * CYCLE_UNIT * sound_sync_multiplier;
+    host_sound_update_clock(clk, audio_spec.freq, sound_sync_multiplier);
 #endif
 }
 
@@ -355,26 +330,11 @@ void finish_sound_buffer(void)
 {
     int bufsize = (int)((uae_u8 *)paula_sndbufpt - (uae_u8 *)paula_sndbuffer);
 
-    if (currprefs.turbo_emulation) {
-        paula_sndbufpt = paula_sndbuffer;
-        return;
-    }
-
-    if (bufsize <= 0) {
-        paula_sndbufpt = paula_sndbuffer;
-        return;
-    }
-
-    if (currprefs.sound_stereo_swap_paula) {
-        int channels = get_audio_nativechannels(active_sound_stereo);
-        if (channels == 2 || channels == 4) {
-            channelswap((uae_s16 *)paula_sndbuffer, bufsize / (int)sizeof(uae_s16));
-        } else if (channels >= 6) {
-            channelswap6((uae_s16 *)paula_sndbuffer, bufsize / (int)sizeof(uae_s16));
-        }
-    }
-
+    bufsize = host_sound_prepare((uae_s16 *)paula_sndbuffer, bufsize,
+        get_audio_nativechannels(active_sound_stereo), currprefs.sound_stereo_swap_paula,
+        currprefs.turbo_emulation);
     paula_sndbufpt = paula_sndbuffer;
+    if (!bufsize) return;
 
 #ifdef AVIOUTPUT
     if (avioutput_audio) {
@@ -394,12 +354,7 @@ void finish_sound_buffer(void)
         return;
     }
 
-    if (sound_softvolume >= 0) {
-        uae_s16 *p = (uae_s16 *)paula_sndbuffer;
-        for (int i = 0; i < bufsize / (int)sizeof(uae_s16); i++) {
-            p[i] = (uae_s16)(p[i] * sound_softvolume / 32768);
-        }
-    }
+    host_sound_apply_gain((uae_s16 *)paula_sndbuffer, bufsize / 2, sound_softvolume);
 
     if (!SDL_PutAudioStreamData(audio_stream, paula_sndbuffer, bufsize)) {
         write_log(_T("SDL3: SDL_PutAudioStreamData failed: %s\n"), SDL_GetError());
@@ -413,8 +368,15 @@ void finish_sound_buffer(void)
         return;
     }
     int target = paula_sndbufsize * UNIX_SOUND_QUEUE_BUFFERS;
+    float adjustment;
+    int channels = get_sound_channels();
+    if (target > 0 && host_sound_correct(&correction_sum, &correction_count,
+            &correction_frame, timeframes, (float)(queued - target) / (channels * 2),
+            100, &adjustment)) {
+        sound_setadjust(adjustment);
+    }
     if (queued > target * 3) {
-        SDL_ClearAudioStream(audio_stream);
+        clearbuffer();
         gui_data.sndbuf_status = 2;
     } else {
         gui_data.sndbuf_status = 0;
@@ -463,18 +425,6 @@ bool sound_paused(void)
 #else
     return true;
 #endif
-}
-
-void sound_setadjust(float v)
-{
-    if (v < -6.0f) {
-        v = -6.0f;
-    } else if (v > 6.0f) {
-        v = 6.0f;
-    }
-    if (scaled_sample_evtime_orig > 0) {
-        scaled_sample_evtime = scaled_sample_evtime_orig * (1000.0f + v) / 1000.0f;
-    }
 }
 
 int enumerate_sound_devices(void)
@@ -547,12 +497,7 @@ void sound_mute(int newmute)
 
 void sound_volume(int dir)
 {
-    currprefs.sound_volume_master -= dir * 10;
-    if (currprefs.sound_volume_master < 0) {
-        currprefs.sound_volume_master = 0;
-    } else if (currprefs.sound_volume_master > 100) {
-        currprefs.sound_volume_master = 100;
-    }
+    currprefs.sound_volume_master = host_sound_volume_step(currprefs.sound_volume_master, dir);
     changed_prefs.sound_volume_master = currprefs.sound_volume_master;
     update_softvolume();
     config_changed = 1;

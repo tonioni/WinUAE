@@ -1081,6 +1081,7 @@
     <ClCompile Include="..\..\od-generic\keymap.cpp" />
     <ClCompile Include="..\..\od-generic\hostcfg.cpp" />
     <ClCompile Include="..\..\od-generic\hostcfg_compat.cpp" />
+    <ClCompile Include="..\..\od-generic\sound_common.cpp" />
     <ClCompile Include="..\..\od-generic\mman.cpp" />
     <ClCompile Include="..\..\od-generic\scaler.cpp" />
     <ClCompile Include="..\..\od-generic\rtg_scaler.cpp" />
@@ -3538,6 +3539,7 @@
     <ClInclude Include="..\..\od-generic\hostcfg.def" />
     <ClInclude Include="..\..\include\printer_host.h" />
     <ClInclude Include="..\..\include\serial_host.h" />
+    <ClInclude Include="..\..\od-generic\sound_common.h" />
     <ClInclude Include="..\..\include\hardfile_defaults.h" />
     <ClInclude Include="..\..\include\cfgfile_mount.h" />
     <ClInclude Include="..\..\od-generic\blkdev_ioctl_common.h" />
