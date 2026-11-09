@@ -1761,7 +1761,9 @@ static void flush_cpu_caches_040_2(int cache, int scope, uaecptr addr, bool push
 					tag = addr & tagmask;
 					for (int i = 0; i < CACHELINES040; i++) {
 						if (c->valid[i] && c->tag[i] == tag) {
-							if (push) {
+							// only the data cache has lines to push; CPUSH
+							// on the instruction cache invalidates the line
+							if (push && !k) {
 								dcache040_push_line(index, i, false, pushinv);
 							} else {
 								c->valid[i] = false;
@@ -2194,7 +2196,7 @@ static void update_68k_cycles (void)
 	} else if (currprefs.cpu_memory_cycle_exact && currprefs.cpu_clock_multiplier == 0) {
 		if (currprefs.cpu_model >= 68040) {
 			cpucycleunit = CYCLE_UNIT / 16;
-		} if (currprefs.cpu_model == 68030) {
+		} else if (currprefs.cpu_model == 68030) {
 			cpucycleunit = CYCLE_UNIT / 8;
 		} else if (currprefs.cpu_model == 68020) {
 			cpucycleunit = CYCLE_UNIT / 4;

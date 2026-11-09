@@ -110,6 +110,7 @@ struct denise_rga_queue
 	bool finalseg;
 	struct linestate *ls;
 	uae_u16 reg, val;
+	uae_u64 val64;
 };
 
 static volatile uae_atomic rga_queue_read, rga_queue_write;
@@ -123,6 +124,7 @@ static bool full_line_draw;
 static void denise_handle_quick_strobe(uae_u16 strobe, int offset, int vpos);
 static void draw_denise_vsync(int);
 static void denise_update_reg(uae_u16 reg, uae_u16 v, uae_u32 linecnt);
+static void denise_update_reg64(uae_u16 reg, uae_u64 v, uae_u32 linecnt);
 static void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int startcycle, int endcycle, int skip_start, int skip_end, int dtotal,
 	int calib_start, int calib_len, bool lol, int hdelay, bool blanked, uae_s8 borderline, bool finalseg, struct linestate *ls);
 
@@ -136,6 +138,22 @@ static uae_u16 spr_unalign_val[2];
 static uae_u64 spr_unalign_val64[2];
 static void set_strlong(void);
 
+static void flush_sprite_writes(void)
+{
+	if (spr_unalign_reg[0]) {
+		sprwrite(spr_unalign_reg[0] - 0x140, spr_unalign_val[0]);
+		spr_unalign_reg[0] = 0;
+	}
+	if (spr_unalign_reg[1]) {
+		if (aga_mode) {
+			sprwrite_64(spr_unalign_reg[1] - 0x140, spr_unalign_val64[1]);
+		} else {
+			sprwrite(spr_unalign_reg[1] - 0x140, spr_unalign_val[1]);
+		}
+		spr_unalign_reg[1] = 0;
+	}
+}
+
 static void quick_denise_rga(uae_u32 linecnt, int startpos, int endpos)
 {
 	int pos = startpos;
@@ -145,20 +163,11 @@ static void quick_denise_rga(uae_u32 linecnt, int startpos, int endpos)
 		struct denise_rga *rd = &rga_denise[pos];
 		if (rd->line == linecnt) {
 			if (rd->rga != 0x1fe && (rd->rga < 0x38 || rd->rga >= 0x40)) {
-				denise_update_reg(rd->rga, rd->v, linecnt);
-				if (spr_unalign_reg[0]) {
-					int sreg = spr_unalign_reg[0] - 0x140;
-					sprwrite(sreg, spr_unalign_val[0]);
-					spr_unalign_reg[0] = 0;
-				}
-				if (spr_unalign_reg[1]) {
-					int sreg = spr_unalign_reg[1] - 0x140;
-					if (aga_mode) {
-						sprwrite_64(sreg, spr_unalign_val64[1]);
-					} else {
-						sprwrite(sreg, spr_unalign_val[1]);
-					}
-					spr_unalign_reg[1] = 0;
+				if ((rd->rga >= 0x110 && rd->rga < 0x120) || (rd->rga >= 0x140 && rd->rga < 0x140 + 8 * 8 && (rd->rga & 4))) {
+					denise_update_reg64(rd->rga, rd->v64, linecnt);
+					flush_sprite_writes();
+				} else {
+					denise_update_reg(rd->rga, rd->v, linecnt);
 				}
 			}
 			if (rd->rga == 0x03e) {
@@ -221,6 +230,9 @@ static void read_denise_line_queue(void)
 		denise_update_reg(q->reg, q->val, q->linecnt);
 		nolock = true;
 	} else if (q->type == 7) {
+		denise_update_reg64(q->reg, q->val64, q->linecnt);
+		nolock = true;
+	} else if (q->type == 8) {
 		if (q->val) {
 			denise_store_registers();
 		} else {
@@ -420,7 +432,7 @@ static int doublescan2xx;
 
 uae_sem_t gui_sem;
 
-static volatile int rga_denise_fast_read, rga_denise_fast_write;
+static std::atomic<int> rga_denise_fast_read, rga_denise_fast_write;
 #define DENISE_RGA_SLOT_FAST_TOTAL 1024
 static struct denise_rga rga_denise_fast[DENISE_RGA_SLOT_FAST_TOTAL];
 
@@ -3558,7 +3570,8 @@ void denise_reset(bool hard)
 	denise_cycle_half = 0;
 	denise_strlong = false;
 	denise_strlong_fast = false;
-	rga_denise_fast_read = rga_denise_fast_write = 0;
+	rga_denise_fast_read.store(0, std::memory_order_relaxed);
+	rga_denise_fast_write.store(0, std::memory_order_relaxed);
 	rga_queue_write = rga_queue_read = 0;
 	denise_lol_shift_enable = false;
 	denise_lol_shift_prev = 0;
@@ -4268,8 +4281,11 @@ static void expand_drga(struct denise_rga *rd)
 static void flush_fast_rga(uae_u32 linecnt)
 {
 	// extract fast CPU RGA pipeline
-	while (rga_denise_fast_write != rga_denise_fast_read) {
-		int rp = rga_denise_fast_read;
+	for (;;) {
+		int rp = rga_denise_fast_read.load(std::memory_order_relaxed);
+		if (rga_denise_fast_write.load(std::memory_order_acquire) == rp) {
+			break;
+		}
 		struct denise_rga *rd = &rga_denise_fast[rp];
 		// Any RGA queued accesses must be processed first
 		if (linecnt <= rd->line) {
@@ -4280,7 +4296,7 @@ static void flush_fast_rga(uae_u32 linecnt)
 		expand_drga(rd);
 		rp++;
 		rp &= DENISE_RGA_SLOT_FAST_TOTAL - 1;
-		rga_denise_fast_read = rp;
+		rga_denise_fast_read.store(rp, std::memory_order_release);
 	}
 }
 
@@ -4349,19 +4365,17 @@ static void do_ecs_unaligned1(void)
 	}
 }
 
-static void denise_update_reg(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
+
+static void denise_update_rga(struct denise_rga *dr, int linecnt)
 {
 	// makes sure fast queue is flushed first
 	if (rga_denise_fast_write != rga_denise_fast_read) {
 		flush_fast_rga(linecnt);
 	}
-
-	struct denise_rga dr = { 0 };
-	dr.rga = reg;
-	dr.v = v;
-	expand_drga_early2x(&dr);
-	expand_drga_early(&dr);
-	expand_drga(&dr);
+	expand_drga_early2x(dr);
+	expand_drga_early(dr);
+	flush_sprite_writes();
+	expand_drga(dr);
 	// handle all queued writes immediately
 	update_bplcon1();
 	if (aga_mode) {
@@ -4375,6 +4389,22 @@ static void denise_update_reg(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
 	aga_unalign1 = 0;
 	reswitch_unalign = 0;
 	check_lts_request();
+}
+
+static void denise_update_reg(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
+{
+	struct denise_rga dr = { 0 };
+	dr.rga = reg;
+	dr.v = v;
+	denise_update_rga(&dr, linecnt);
+}
+
+static void denise_update_reg64(uae_u16 reg, uae_u64 v, uae_u32 linecnt)
+{
+	struct denise_rga dr = { 0 };
+	dr.rga = reg;
+	dr.v64 = v;
+	denise_update_rga(&dr, linecnt);
 }
 
 // AGA HAM
@@ -5167,8 +5197,8 @@ static void denise_handle_quick_strobe(uae_u16 strobe, int offset, int vpos)
 
 bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
 {
-	int wp = rga_denise_fast_write;
-	if (((wp + 1) & (DENISE_RGA_SLOT_FAST_TOTAL - 1)) == rga_denise_fast_read) {
+	int wp = rga_denise_fast_write.load(std::memory_order_relaxed);
+	if (((wp + 1) & (DENISE_RGA_SLOT_FAST_TOTAL - 1)) == rga_denise_fast_read.load(std::memory_order_acquire)) {
 		return false;
 	}
 	struct denise_rga *r = &rga_denise_fast[wp];
@@ -5177,7 +5207,23 @@ bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
 	r->line = linecnt;
 	wp++;
 	wp &= DENISE_RGA_SLOT_FAST_TOTAL - 1;
-	rga_denise_fast_write = wp;
+	rga_denise_fast_write.store(wp, std::memory_order_release);
+	return true;
+}
+
+bool denise_update_reg64_queued(uae_u16 reg, uae_u64 v, uae_u32 linecnt)
+{
+	int wp = rga_denise_fast_write.load(std::memory_order_relaxed);
+	if (((wp + 1) & (DENISE_RGA_SLOT_FAST_TOTAL - 1)) == rga_denise_fast_read.load(std::memory_order_acquire)) {
+		return false;
+	}
+	struct denise_rga *r = &rga_denise_fast[wp];
+	r->rga = reg;
+	r->v64 = v;
+	r->line = linecnt;
+	wp++;
+	wp &= DENISE_RGA_SLOT_FAST_TOTAL - 1;
+	rga_denise_fast_write.store(wp, std::memory_order_release);
 	return true;
 }
 
@@ -8323,6 +8369,34 @@ void denise_update_reg_queue(uae_u16 reg, uae_u16 v, uae_u32 linecnt)
 	}
 }
 
+void denise_update_reg64_queue(uae_u16 reg, uae_u64 v, uae_u32 linecnt)
+{
+	if (multithread_denise_active()) {
+
+		if (!waitqueue_nolock()) {
+			return;
+		}
+		struct denise_rga_queue *q = &rga_queue[rga_queue_write & DENISE_RGA_SLOT_CHUNKS_MASK];
+		q->type = 7;
+		q->vpos = vpos;
+		q->linear_vpos = linear_vpos_start;
+		q->linear_vpos_vb_start = linear_vpos_vb_start;
+		q->linear_vpos_vb_end = linear_vpos_vb_end;
+		q->reg = reg;
+		q->val64 = v;
+		q->linecnt = linecnt;
+
+		addtowritequeue();
+
+	} else {
+
+		updatelinedata(0);
+		denise_update_reg64(reg, v, linecnt);
+
+	}
+}
+
+
 void denise_store_restore_registers_queue(bool store, uae_u32 linecnt)
 {
 	if (multithread_denise_active()) {
@@ -8331,7 +8405,7 @@ void denise_store_restore_registers_queue(bool store, uae_u32 linecnt)
 			return;
 		}
 		struct denise_rga_queue *q = &rga_queue[rga_queue_write & DENISE_RGA_SLOT_CHUNKS_MASK];
-		q->type = 7;
+		q->type = 8;
 		q->vpos = vpos;
 		q->linear_vpos = linear_vpos_start;
 		q->linear_vpos_vb_start = linear_vpos_vb_start;

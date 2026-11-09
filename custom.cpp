@@ -7731,15 +7731,25 @@ static int REGPARAM2 custom_wput_1(uaecptr addr, uae_u32 value, int noget)
 		ret = custom_wput_agnus(addr, value, noget);
 	}
 	if (!(noget & 0x8000) && (c & 2)) {
-		uae_u32 v = value;
 		if (!currprefs.cpu_memory_cycle_exact || custom_fastmode > 0) {
-			// fast CPU RGA pipeline, allow multiple register writes per CCK
-			if (!denise_update_reg_queued(addr, v, rga_denise_cycle_line)) {
-				// if full: direct write
-				denise_update_reg_queue(addr, value, rga_denise_cycle_line);
+			if (aga_mode && (c & 0x30)) {
+				 uae_u64 v = wordto64convert((c & 0x10) ? fetchmode_fmode_bpl : fetchmode_fmode_spr, value);
+				// fast CPU RGA pipeline, allow multiple register writes per CCK
+				if (!denise_update_reg64_queued(addr, v, rga_denise_cycle_line)) {
+					// if full: direct write
+					denise_update_reg64_queue(addr, v, rga_denise_cycle_line);
+				}
+			} else {
+				uae_u16 v = (uae_u16)value;
+				// fast CPU RGA pipeline, allow multiple register writes per CCK
+				if (!denise_update_reg_queued(addr, v, rga_denise_cycle_line)) {
+					// if full: direct write
+					denise_update_reg_queue(addr, v, rga_denise_cycle_line);
+				}
 			}
 		} else {
 			int reg = addr & 0x1fe;
+			uae_u32 v = value;
 			if (aga_mode) {
 				custom_wput_dma64(reg, NULL, v, c);
 			} else {
@@ -10142,7 +10152,9 @@ static void ciab_tod_maybe_inc(int delay)
 
 static void ciaa_tod_maybe_inc(int delay)
 {
-	if (ciavsyncs) {
+	// CD32: CIA-A TOD is counted from Akiko's frame
+	// timing in cia_hsync_do() (cs_cd32cd)
+	if (ciavsyncs && !currprefs.cs_cd32cd) {
 		if (delay > 0) {
 			// current hpos=START (1)
 			delay--;
