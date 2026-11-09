@@ -2993,12 +2993,20 @@ static uae_u32 REGPARAM2 unix_picasso_init_card(TrapContext *ctx)
     unix_picasso_init_board(ctx, board_info);
     unix_init_uaegfx_funcs(ctx, unix_uaegfx_rom, board_info);
 
+    /* With rtg_noautomodes the resolution list is empty and P96 takes the
+     * modes from its settings file, as on Windows. */
+    const uae_u32 mode_size = PSSO_LibResolution_sizeof +
+        unix_picasso_mode_depth_count() * PSSO_ModeInfo_sizeof;
     unix_rtg_ensure_mode_sizes();
-    for (int i = 0; i < unix_rtg_mode_count; i++) {
+    for (int i = 0; !currprefs.picasso96_noautomodes && i < unix_rtg_mode_count; i++) {
         int width = unix_rtg_mode_sizes[i].width;
         int height = unix_rtg_mode_sizes[i].height;
         if ((uae_u32)width * (uae_u32)height > gfxmem_bank.allocated_size - 256) {
             continue;
+        }
+        if (amem + mode_size > unix_picasso_amemend) {
+            write_log(_T("Unix RTG resolution list full at %dx%d\n"), width, height);
+            break;
         }
         if (unix_add_mode(ctx, board_info, &amem, width, height, ++count)) {
             continue;
