@@ -928,30 +928,51 @@ static int unix_picasso_resolution_memory_size(void)
         (PSSO_LibResolution_sizeof + unix_picasso_mode_depth_count() * PSSO_ModeInfo_sizeof);
 }
 
-static int unix_picasso_mode_id(int width, int height, int index)
-{
-    static const struct {
-        int width;
-        int height;
-        int id;
-    } mode_ids[] = {
-        { 320, 240, 1 },
-        { 640, 480, 3 },
-        { 800, 600, 4 },
-        { 1024, 768, 5 },
-        { 1280, 1024, 7 },
-        { 320, 256, 9 },
-        { 640, 512, 10 },
-        { 1280, 720, 142 },
-        { 0, 0, 0 }
-    };
+/* Display IDs of the Windows version, so screenmode preferences carry over:
+ * ids 0-10 and 129-193 for known sizes, then descending ids that skip the
+ * reserved range. Keep in sync with picasso96_win.cpp. */
+static const struct {
+    int width;
+    int height;
+    int id;
+} unix_rtg_mode_ids[] = {
+    { 320, 200, 0 }, { 320, 240, 1 }, { 640, 400, 2 }, { 640, 480, 3 },
+    { 800, 600, 4 }, { 1024, 768, 5 }, { 1152, 864, 6 }, { 1280, 1024, 7 },
+    { 1600, 1280, 8 }, { 320, 256, 9 }, { 640, 512, 10 }, { 704, 480, 129 },
+    { 704, 576, 130 }, { 720, 480, 131 }, { 720, 576, 132 }, { 768, 483, 133 },
+    { 768, 576, 134 }, { 800, 480, 135 }, { 848, 480, 136 }, { 854, 480, 137 },
+    { 948, 576, 138 }, { 1024, 576, 139 }, { 1152, 768, 140 }, { 1152, 864, 141 },
+    { 1280, 720, 142 }, { 1280, 768, 143 }, { 1280, 800, 144 }, { 1280, 854, 145 },
+    { 1280, 960, 146 }, { 1366, 768, 147 }, { 1440, 900, 148 }, { 1440, 960, 149 },
+    { 1600, 1200, 150 }, { 1680, 1050, 151 }, { 1920, 1080, 152 }, { 1920, 1200, 153 },
+    { 2048, 1152, 154 }, { 2048, 1536, 155 }, { 2560, 1600, 156 }, { 2560, 2048, 157 },
+    { 400, 300, 158 }, { 512, 384, 159 }, { 640, 432, 160 }, { 1360, 768, 161 },
+    { 1360, 1024, 162 }, { 1400, 1050, 163 }, { 1792, 1344, 164 }, { 1800, 1440, 165 },
+    { 1856, 1392, 166 }, { 1920, 1440, 167 }, { 480, 360, 168 }, { 640, 350, 169 },
+    { 1600, 900, 170 }, { 960, 600, 171 }, { 1088, 612, 172 }, { 1152, 648, 173 },
+    { 1776, 1000, 174 }, { 2560, 1440, 175 }, { 2560, 1920, 176 }, { 3440, 1440, 177 },
+    { 3840, 1600, 178 }, { 3840, 2160, 179 }, { 5120, 1440, 180 }, { 5120, 2160, 181 },
+    { 1280, 600, 182 }, { 3840, 1080, 183 }, { 2560, 1080, 184 }, { 4096, 2160, 185 },
+    { 5120, 2880, 186 }, { 1176, 664, 187 }, { 1440, 1080, 188 }, { 1600, 1000, 189 },
+    { 1600, 1024, 190 }, { 2048, 1280, 191 }, { 6144, 3456, 192 }, { 7680, 4320, 193 },
+};
 
-    for (int i = 0; mode_ids[i].width; i++) {
-        if (mode_ids[i].width == width && mode_ids[i].height == height) {
-            return 0x50001000 | (mode_ids[i].id * 0x10000);
+static int unix_picasso_mode_id(int width, int height, int *unknown_count)
+{
+    const int count = (int)(sizeof unix_rtg_mode_ids / sizeof unix_rtg_mode_ids[0]);
+
+    for (int i = 0; i < count; i++) {
+        if (unix_rtg_mode_ids[i].width == width && unix_rtg_mode_ids[i].height == height) {
+            return 0x50001000 | (unix_rtg_mode_ids[i].id * 0x10000);
         }
     }
-    return 0x51001000 - index * 0x10000;
+    (*unknown_count)++;
+    if (256 - *unknown_count == unix_rtg_mode_ids[count - 1].id + 1) {
+        *unknown_count = 256 - 127;
+    } else if (256 - *unknown_count == 11) {
+        *unknown_count = 511;
+    }
+    return 0x51001000 - *unknown_count * 0x10000;
 }
 
 static void unix_amiga_list_add_tail(TrapContext *ctx, uaecptr list, uaecptr node)
@@ -1020,7 +1041,7 @@ static void unix_fill_mode_info(TrapContext *ctx, uaecptr ptr, struct LibResolut
     trap_put_long(ctx, ptr + PSSO_ModeInfo_PixelClock, (width + 8) * (height + 8) * (freq ? freq : 60));
 }
 
-static bool unix_add_mode(TrapContext *ctx, uaecptr board_info, uaecptr *amem, int width, int height, int index)
+static bool unix_add_mode(TrapContext *ctx, uaecptr board_info, uaecptr *amem, int width, int height, int *unknown_count)
 {
     static const int depths[] = { 8, 15, 16, 24, 32 };
     struct LibResolution res = { 0 };
@@ -1028,7 +1049,7 @@ static bool unix_add_mode(TrapContext *ctx, uaecptr board_info, uaecptr *amem, i
 
     memcpy(res.P96ID, "P96-0:", 6);
     snprintf(res.Name, sizeof res.Name, "UAE:%4dx%4d", width, height);
-    res.DisplayID = unix_picasso_mode_id(width, height, index);
+    res.DisplayID = unix_picasso_mode_id(width, height, unknown_count);
     res.BoardInfo = board_info;
     res.Width = width;
     res.Height = height;
@@ -2867,6 +2888,7 @@ static uae_u32 REGPARAM2 unix_picasso_init_card(TrapContext *ctx)
     uaecptr board_info = trap_get_areg(ctx, 0);
     uaecptr amem = unix_picasso_amem;
     int count = 0;
+    int unknown_count = 0;
 
     if (!amem) {
         write_log(_T("Unix RTG InitCard without resolution memory\n"));
@@ -2891,8 +2913,8 @@ static uae_u32 REGPARAM2 unix_picasso_init_card(TrapContext *ctx)
             write_log(_T("Unix RTG resolution list full at %dx%d\n"), width, height);
             break;
         }
-        if (unix_add_mode(ctx, board_info, &amem, width, height, ++count)) {
-            continue;
+        if (unix_add_mode(ctx, board_info, &amem, width, height, &unknown_count)) {
+            count++;
         }
     }
 
