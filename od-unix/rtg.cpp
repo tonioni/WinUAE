@@ -1503,7 +1503,7 @@ static bool unix_picasso_blit_pixels(uae_u8 *src, uae_u8 *dst, unsigned width,
             const unsigned x = backwards ? width - 1 - ix : ix;
             uae_u8 *sp = s + x * bpp, *dp = d + x * bpp;
             uae_u32 sv = unix_picasso_load_pen(sp, bpp);
-            if (transparent && sv == key) continue;
+            if (transparent && (sv & rgbmask) == key) continue;
             uae_u32 dv = unix_picasso_load_pen(dp, bpp);
             uae_u32 value = op == BLIT_SWAP ? sv :
                 unix_picasso_blit_op_long(sv, ~sv, dv, (~dv) & rgbmask, op);
@@ -1550,6 +1550,9 @@ static uae_u32 unix_picasso_blit_rect_common(TrapContext *ctx, uaecptr srcinfo, 
     if ((opcode < BLIT_FALSE || opcode >= BLIT_LAST) && opcode != BLIT_SWAP) return 0;
     uae_u8 *srcbase = src_ri.Memory + srcy * src_ri.BytesPerRow + srcx * bytes_per_pixel;
     uae_u8 *dstbase = dst->Memory + dsty * dst->BytesPerRow + dstx * bytes_per_pixel;
+    /* The key matches only colour bits, like the Windows template: alpha
+     * and unused bits of a keyed pixel do not make it opaque. */
+    key &= unix_picasso_rgb_full_mask(rgbfmt);
     if (bytes_per_pixel < 4) key &= (1u << (bytes_per_pixel * 8)) - 1;
     if (!unix_picasso_blit_pixels(srcbase, dstbase, width, height,
         src_ri.BytesPerRow, dst->BytesPerRow, bytes_per_pixel,
@@ -1593,9 +1596,10 @@ static uae_u32 REGPARAM2 unix_picasso_blit_rect_no_mask_complete(TrapContext *ct
         (BLIT_OPCODE)(trap_get_dreg(ctx, 6) & 0xff));
 }
 
+/* a1 is the source RenderInfo, a2 the destination and d6 the colour key. */
 static uae_u32 REGPARAM2 unix_picasso_blit_rect_transparent(TrapContext *ctx)
 {
-    return unix_picasso_blit_rect_common(ctx, trap_get_areg(ctx, 1), 0,
+    return unix_picasso_blit_rect_common(ctx, trap_get_areg(ctx, 1), trap_get_areg(ctx, 2),
         (uae_u16)trap_get_dreg(ctx, 0), (uae_u16)trap_get_dreg(ctx, 1),
         (uae_u16)trap_get_dreg(ctx, 2), (uae_u16)trap_get_dreg(ctx, 3),
         (uae_u16)trap_get_dreg(ctx, 4), (uae_u16)trap_get_dreg(ctx, 5),
