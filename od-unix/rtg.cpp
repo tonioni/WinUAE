@@ -393,115 +393,6 @@ enum {
 #define UNIX_UAEGFX_VERSION 3
 #define UNIX_UAEGFX_REVISION 4
 
-#define UNIX_LIB_SIZE 34
-#define UNIX_CARD_FLAGS UNIX_LIB_SIZE
-#define UNIX_CARD_EXECBASE (UNIX_CARD_FLAGS + 2)
-#define UNIX_CARD_EXPANSIONBASE (UNIX_CARD_EXECBASE + 4)
-#define UNIX_CARD_SEGMENTLIST (UNIX_CARD_EXPANSIONBASE + 4)
-#define UNIX_CARD_NAME (UNIX_CARD_SEGMENTLIST + 4)
-#define UNIX_CARD_RESLIST (UNIX_CARD_NAME + 4)
-#define UNIX_CARD_RESLISTSIZE (UNIX_CARD_RESLIST + 4)
-#define UNIX_CARD_BOARDINFO (UNIX_CARD_RESLISTSIZE + 4)
-#define UNIX_CARD_VBLANKIRQ (UNIX_CARD_BOARDINFO + 4)
-#define UNIX_CARD_PORTSIRQ (UNIX_CARD_VBLANKIRQ + 22)
-#define UNIX_CARD_IRQFLAG (UNIX_CARD_PORTSIRQ + 22)
-#define UNIX_CARD_IRQPTR (UNIX_CARD_IRQFLAG + 4)
-#define UNIX_CARD_IRQEXECBASE (UNIX_CARD_IRQPTR + 4)
-#define UNIX_CARD_IRQCODE (UNIX_CARD_IRQEXECBASE + 4)
-#define UNIX_CARD_SIZEOF (UNIX_CARD_IRQCODE + 2 * 11 * 2)
-
-#define UNIX_BIB_GRANTDIRECTACCESS 26
-#define UNIX_BIF_GRANTDIRECTACCESS (1 << UNIX_BIB_GRANTDIRECTACCESS)
-#define UNIX_BIB_VBLANKINTERRUPT 4
-#define UNIX_BIF_VBLANKINTERRUPT (1 << UNIX_BIB_VBLANKINTERRUPT)
-#define UNIX_BIF_VGASCREENSPLIT (1 << 6)
-#define UNIX_BIB_DACSWITCH 28
-#define UNIX_BIF_DACSWITCH (1 << UNIX_BIB_DACSWITCH)
-
-#define UNIX_PSSO_BoardInfo_FreeCardMem (PSSO_BoardInfo_AllocCardMem + 4)
-#define UNIX_PSSO_BoardInfo_SetSwitch (UNIX_PSSO_BoardInfo_FreeCardMem + 4)
-#define UNIX_PSSO_BoardInfo_SetColorArray (UNIX_PSSO_BoardInfo_SetSwitch + 4)
-#define UNIX_PSSO_BoardInfo_SetDAC (UNIX_PSSO_BoardInfo_SetColorArray + 4)
-#define UNIX_PSSO_BoardInfo_SetGC (UNIX_PSSO_BoardInfo_SetDAC + 4)
-#define UNIX_PSSO_BoardInfo_SetPanning (UNIX_PSSO_BoardInfo_SetGC + 4)
-#define UNIX_PSSO_BoardInfo_CalculateBytesPerRow (UNIX_PSSO_BoardInfo_SetPanning + 4)
-#define UNIX_PSSO_BoardInfo_CalculateMemory (UNIX_PSSO_BoardInfo_CalculateBytesPerRow + 4)
-#define UNIX_PSSO_BoardInfo_GetCompatibleFormats (UNIX_PSSO_BoardInfo_CalculateMemory + 4)
-#define UNIX_PSSO_BoardInfo_SetDisplay (UNIX_PSSO_BoardInfo_GetCompatibleFormats + 4)
-#define UNIX_PSSO_BoardInfo_ResolvePixelClock (UNIX_PSSO_BoardInfo_SetDisplay + 4)
-#define UNIX_PSSO_BoardInfo_GetPixelClock (UNIX_PSSO_BoardInfo_ResolvePixelClock + 4)
-#define UNIX_PSSO_BoardInfo_SetClock (UNIX_PSSO_BoardInfo_GetPixelClock + 4)
-#define UNIX_PSSO_BoardInfo_SetMemoryMode (UNIX_PSSO_BoardInfo_SetClock + 4)
-#define UNIX_PSSO_BoardInfo_SetWriteMask (UNIX_PSSO_BoardInfo_SetMemoryMode + 4)
-#define UNIX_PSSO_BoardInfo_SetClearMask (UNIX_PSSO_BoardInfo_SetWriteMask + 4)
-#define UNIX_PSSO_BoardInfo_SetReadPlane (UNIX_PSSO_BoardInfo_SetClearMask + 4)
-#define UNIX_PSSO_BoardInfo_WaitVerticalSync (UNIX_PSSO_BoardInfo_SetReadPlane + 4)
-#define UNIX_PSSO_BoardInfo_SetInterrupt (UNIX_PSSO_BoardInfo_WaitVerticalSync + 4)
-#define UNIX_PSSO_BoardInfo_WaitBlitter (UNIX_PSSO_BoardInfo_SetInterrupt + 4)
-#define UNIX_PSSO_BoardInfo_ScrollPlanar (UNIX_PSSO_BoardInfo_WaitBlitter + 4)
-#define UNIX_PSSO_BoardInfo_ScrollPlanarDefault (UNIX_PSSO_BoardInfo_ScrollPlanar + 4)
-#define UNIX_PSSO_BoardInfo_UpdatePlanar (UNIX_PSSO_BoardInfo_ScrollPlanarDefault + 4)
-#define UNIX_PSSO_BoardInfo_UpdatePlanarDefault (UNIX_PSSO_BoardInfo_UpdatePlanar + 4)
-#define UNIX_PSSO_BoardInfo_BlitPlanar2Chunky (UNIX_PSSO_BoardInfo_UpdatePlanarDefault + 4)
-#define UNIX_PSSO_BoardInfo_BlitPlanar2ChunkyDefault (UNIX_PSSO_BoardInfo_BlitPlanar2Chunky + 4)
-#define UNIX_PSSO_BoardInfo_FillRect (UNIX_PSSO_BoardInfo_BlitPlanar2ChunkyDefault + 4)
-#define UNIX_PSSO_BoardInfo_FillRectDefault (UNIX_PSSO_BoardInfo_FillRect + 4)
-#define UNIX_PSSO_BoardInfo_InvertRect (UNIX_PSSO_BoardInfo_FillRectDefault + 4)
-#define UNIX_PSSO_BoardInfo_InvertRectDefault (UNIX_PSSO_BoardInfo_InvertRect + 4)
-#define UNIX_PSSO_BoardInfo_BlitRect (UNIX_PSSO_BoardInfo_InvertRectDefault + 4)
-#define UNIX_PSSO_BoardInfo_BlitRectDefault (UNIX_PSSO_BoardInfo_BlitRect + 4)
-#define UNIX_PSSO_BoardInfo_BlitTemplate (UNIX_PSSO_BoardInfo_BlitRectDefault + 4)
-#define UNIX_PSSO_BoardInfo_BlitTemplateDefault (UNIX_PSSO_BoardInfo_BlitTemplate + 4)
-#define UNIX_PSSO_BoardInfo_BlitPattern (UNIX_PSSO_BoardInfo_BlitTemplateDefault + 4)
-#define UNIX_PSSO_BoardInfo_BlitPatternDefault (UNIX_PSSO_BoardInfo_BlitPattern + 4)
-#define UNIX_PSSO_BoardInfo_DrawLine (UNIX_PSSO_BoardInfo_BlitPatternDefault + 4)
-#define UNIX_PSSO_BoardInfo_DrawLineDefault (UNIX_PSSO_BoardInfo_DrawLine + 4)
-#define UNIX_PSSO_BoardInfo_BlitRectNoMaskComplete (UNIX_PSSO_BoardInfo_DrawLineDefault + 4)
-#define UNIX_PSSO_BoardInfo_BlitRectNoMaskCompleteDefault (UNIX_PSSO_BoardInfo_BlitRectNoMaskComplete + 4)
-#define UNIX_PSSO_BoardInfo_BlitPlanar2Direct (UNIX_PSSO_BoardInfo_BlitRectNoMaskCompleteDefault + 4)
-#define UNIX_PSSO_BoardInfo_BlitPlanar2DirectDefault (UNIX_PSSO_BoardInfo_BlitPlanar2Direct + 4)
-#define UNIX_PSSO_BoardInfo_Reserved0 (UNIX_PSSO_BoardInfo_BlitPlanar2DirectDefault + 4)
-#define UNIX_PSSO_BoardInfo_Reserved0Default (UNIX_PSSO_BoardInfo_Reserved0 + 4)
-#define UNIX_PSSO_BoardInfo_Reserved1 (UNIX_PSSO_BoardInfo_Reserved0Default + 4)
-#define UNIX_PSSO_SetSplitPosition (UNIX_PSSO_BoardInfo_Reserved1 + 4)
-#define UNIX_PSSO_ReInitMemory (UNIX_PSSO_SetSplitPosition + 4)
-#define UNIX_PSSO_BoardInfo_GetCompatibleDACFormats (UNIX_PSSO_ReInitMemory + 4)
-#define UNIX_PSSO_BoardInfo_CoerceMode (UNIX_PSSO_BoardInfo_GetCompatibleDACFormats + 4)
-#define UNIX_PSSO_BoardInfo_Reserved3Default (UNIX_PSSO_BoardInfo_CoerceMode + 4)
-#define UNIX_PSSO_BoardInfo_BlitRectTransparent (UNIX_PSSO_BoardInfo_Reserved3Default + 4)
-#define UNIX_PSSO_BoardInfo_BlitRectTransparentDefault (UNIX_PSSO_BoardInfo_BlitRectTransparent + 4)
-#define UNIX_PSSO_BoardInfo_Reserved5 (UNIX_PSSO_BoardInfo_BlitRectTransparentDefault + 4)
-#define UNIX_PSSO_BoardInfo_Reserved5Default (UNIX_PSSO_BoardInfo_Reserved5 + 4)
-#define UNIX_PSSO_BoardInfo_SetDPMSLevel (UNIX_PSSO_BoardInfo_Reserved5Default + 4)
-#define UNIX_PSSO_BoardInfo_ResetChip (UNIX_PSSO_BoardInfo_SetDPMSLevel + 4)
-#define UNIX_PSSO_BoardInfo_GetFeatureAttrs (UNIX_PSSO_BoardInfo_ResetChip + 4)
-#define UNIX_PSSO_BoardInfo_AllocBitMap (UNIX_PSSO_BoardInfo_GetFeatureAttrs + 4)
-#define UNIX_PSSO_BoardInfo_FreeBitMap (UNIX_PSSO_BoardInfo_AllocBitMap + 4)
-#define UNIX_PSSO_BoardInfo_GetBitMapAttr (UNIX_PSSO_BoardInfo_FreeBitMap + 4)
-#define UNIX_PSSO_BoardInfo_SetSprite (UNIX_PSSO_BoardInfo_GetBitMapAttr + 4)
-#define UNIX_PSSO_BoardInfo_SetSpritePosition (UNIX_PSSO_BoardInfo_SetSprite + 4)
-#define UNIX_PSSO_BoardInfo_SetSpriteImage (UNIX_PSSO_BoardInfo_SetSpritePosition + 4)
-#define UNIX_PSSO_BoardInfo_SetSpriteColor (UNIX_PSSO_BoardInfo_SetSpriteImage + 4)
-
-#define UNIX_PSSO_BoardInfo_CreateFeature (UNIX_PSSO_BoardInfo_SetSpriteColor + 4)
-#define UNIX_PSSO_BoardInfo_SetFeatureAttrs (UNIX_PSSO_BoardInfo_CreateFeature + 4)
-#define UNIX_PSSO_BoardInfo_DeleteFeature (UNIX_PSSO_BoardInfo_SetFeatureAttrs + 4)
-
-#define PSSO_BoardInfo_ChipData			    PSSO_BoardInfo_MouseSaveBuffer + 4
-#define PSSO_BoardInfo_CardData			    PSSO_BoardInfo_ChipData + 16 * 4
-#define PSSO_BoardInfo_MemorySpaceBase		PSSO_BoardInfo_CardData + 16 * 4
-#define PSSO_BoardInfo_MemorySpaceSize		PSSO_BoardInfo_MemorySpaceBase + 4
-#define PSSO_BoardInfo_DoubleBufferList		PSSO_BoardInfo_MemorySpaceSize + 4
-#define PSSO_BoardInfo_SyncTime			    PSSO_BoardInfo_DoubleBufferList + 4
-#define PSSO_BoardInfo_SyncPeriod		    PSSO_BoardInfo_SyncTime + 8
-#define PSSO_BoardInfo_SoftVBlankPort		PSSO_BoardInfo_SyncPeriod + 4
-#define PSSO_BoardInfo_WaitQ                PSSO_BoardInfo_SoftVBlankPort + 34
-#define PSSO_BoardInfo_EssentialFormats     PSSO_BoardInfo_WaitQ + 3 * 4
-#define PSSO_BoardInfo_MouseImageBuffer     PSSO_BoardInfo_EssentialFormats + 4
-#define PSSO_BoardInfo_BackViewPort         PSSO_BoardInfo_MouseImageBuffer + 4
-#define PSSO_BoardInfo_BackBitMap           PSSO_BoardInfo_BackViewPort + 4
-#define PSSO_BoardInfo_BackBitMapExtra      PSSO_BoardInfo_BackBitMap + 4
-#define PSSO_BoardInfo_YSplit               PSSO_BoardInfo_BackBitMapExtra + 4
 
 #define UNIX_RTG_CURSOR_MAXWIDTH 256
 #define UNIX_RTG_CURSOR_MAXHEIGHT 256
@@ -1173,8 +1064,8 @@ static void unix_picasso_init_alloc(TrapContext *ctx, int size)
     unix_picasso_amem = 0;
     unix_picasso_amemend = 0;
     if (unix_uaegfx_base) {
-        size = trap_get_long(ctx, unix_uaegfx_base + UNIX_CARD_RESLISTSIZE);
-        unix_picasso_amem = trap_get_long(ctx, unix_uaegfx_base + UNIX_CARD_RESLIST);
+        size = trap_get_long(ctx, unix_uaegfx_base + CARD_RESLISTSIZE);
+        unix_picasso_amem = trap_get_long(ctx, unix_uaegfx_base + CARD_RESLIST);
     } else if (unix_uaegfx_active) {
         unix_reserved_gfxmem = size;
         unix_picasso_amem = gfxmem_bank.start + gfxmem_bank.allocated_size - size;
@@ -1194,7 +1085,7 @@ static uae_u32 REGPARAM2 unix_picasso_find_card(TrapContext *ctx)
         return 0;
     }
     if (unix_uaegfx_base) {
-        trap_put_long(ctx, unix_uaegfx_base + UNIX_CARD_BOARDINFO, board_info);
+        trap_put_long(ctx, unix_uaegfx_base + CARD_BOARDINFO, board_info);
     }
     unix_picasso_boardinfo = board_info;
 
@@ -2183,26 +2074,26 @@ static void unix_init_vblank_abi(TrapContext *ctx, uaecptr base, uaecptr ABI)
     }
     for (int i = 0; i < 22; i++) {
         trap_put_byte(ctx, ABI + PSSO_BoardInfo_HardInterrupt + i,
-            trap_get_byte(ctx, base + UNIX_CARD_PORTSIRQ + i));
+            trap_get_byte(ctx, base + CARD_PORTSIRQ + i));
     }
     unix_uaegfx_abi_interrupt = ABI;
 }
 
 static void unix_init_vblank_irq(TrapContext *ctx, uaecptr base)
 {
-    uaecptr vblank_irq = base + UNIX_CARD_VBLANKIRQ;
-    uaecptr ports_irq = base + UNIX_CARD_PORTSIRQ;
-    uaecptr code = base + UNIX_CARD_IRQCODE;
+    uaecptr vblank_irq = base + CARD_VBLANKIRQ;
+    uaecptr ports_irq = base + CARD_PORTSIRQ;
+    uaecptr code = base + CARD_IRQCODE;
     uaecptr p = code;
 
     trap_put_word(ctx, vblank_irq + 8, 0x0205);
     trap_put_long(ctx, vblank_irq + 10, unix_uaegfx_vblankname);
-    trap_put_long(ctx, vblank_irq + 14, base + UNIX_CARD_IRQFLAG);
+    trap_put_long(ctx, vblank_irq + 14, base + CARD_IRQFLAG);
     trap_put_long(ctx, vblank_irq + 18, code);
 
     trap_put_word(ctx, ports_irq + 8, 0x0205);
     trap_put_long(ctx, ports_irq + 10, unix_uaegfx_portsname);
-    trap_put_long(ctx, ports_irq + 14, base + UNIX_CARD_IRQFLAG);
+    trap_put_long(ctx, ports_irq + 14, base + CARD_IRQFLAG);
     trap_put_long(ctx, ports_irq + 18, code + 11 * 2);
 
     trap_put_long(ctx, p, 0x08910000); p += 4;  // bclr #0,(a1)
@@ -2236,9 +2127,9 @@ void picasso_trigger_vblank(void)
         !currprefs.rtg_hardwareinterrupt || currprefs.host_rtgvblankrate == -2) {
         return;
     }
-    trap_put_long(ctx, unix_uaegfx_base + UNIX_CARD_IRQPTR,
+    trap_put_long(ctx, unix_uaegfx_base + CARD_IRQPTR,
         unix_uaegfx_abi_interrupt + PSSO_BoardInfo_SoftInterrupt);
-    trap_put_byte(ctx, unix_uaegfx_base + UNIX_CARD_IRQFLAG, currprefs.host_rtgvblankrate ? 2 : 1);
+    trap_put_byte(ctx, unix_uaegfx_base + CARD_IRQFLAG, currprefs.host_rtgvblankrate ? 2 : 1);
     if (currprefs.host_rtgvblankrate != 0) {
         INTREQ(0x8000 | 0x0008);
     }
@@ -2282,38 +2173,8 @@ static uae_u32 REGPARAM2 unix_picasso_default_unsupported(TrapContext *)
     return 0;
 }
 
-// Feature tags use the P96 ABI shared with the Windows implementation.
-#define FA_Active (0x80000000u + 2)
-#define FA_Left (0x80000000u + 3)
-#define FA_Top (0x80000000u + 4)
-#define FA_Width (0x80000000u + 5)
-#define FA_Height (0x80000000u + 6)
-#define FA_Format (0x80000000u + 7)
-#define FA_Color (0x80000000u + 8)
-#define FA_Occlusion (0x80000000u + 9)
-#define FA_SourceWidth (0x80000000u + 10)
-#define FA_SourceHeight (0x80000000u + 11)
-#define FA_MinWidth (0x80000000u + 12)
-#define FA_MinHeight (0x80000000u + 13)
-#define FA_MaxWidth (0x80000000u + 14)
-#define FA_MaxHeight (0x80000000u + 15)
-#define FA_BitMap (0x80000000u + 18)
-#define FA_Brightness (0x80000000u + 19)
-#define FA_ModeInfo (0x80000000u + 20)
-#define FA_ModeFormat (0x80000000u + 21)
-#define FA_Colors (0x80000000u + 22)
-#define FA_Colors32 (0x80000000u + 23)
-#define FA_ClipLeft (0x80000000u + 33)
-#define FA_ClipTop (0x80000000u + 34)
-#define FA_ClipWidth (0x80000000u + 35)
-#define FA_ClipHeight (0x80000000u + 36)
-#define ABMA_RGBFormat (0x80000000u + 2)
-#define ABMA_Clear (0x80000000u + 3)
-#define ABMA_Displayable (0x80000000u + 4)
-#define ABMA_Visible (0x80000000u + 5)
-
 #define UNIX_OVERLAY_COOKIE 0x12345678
-#define UNIX_SFT_MEMORYWINDOW 4
+#define SFT_MEMORYWINDOW 4
 
 static unix_rtg_overlay_state unix_rtg_overlay;
 
@@ -2430,7 +2291,7 @@ static bool unix_overlay_dimensions(const unix_rtg_overlay_state *o)
 
 static bool unix_overlay_valid_feature(TrapContext *ctx)
 {
-    return trap_get_dreg(ctx, 0) == UNIX_SFT_MEMORYWINDOW &&
+    return trap_get_dreg(ctx, 0) == SFT_MEMORYWINDOW &&
         trap_get_areg(ctx, 0) == unix_picasso_boardinfo &&
         trap_get_areg(ctx, 1) == UNIX_OVERLAY_COOKIE && unix_rtg_overlay.bitmap;
 }
@@ -2453,7 +2314,7 @@ static uae_u32 REGPARAM2 unix_picasso_set_feature_attrs(TrapContext *ctx)
 
 static uae_u32 REGPARAM2 unix_picasso_get_feature_attrs(TrapContext *ctx)
 {
-    if (trap_get_dreg(ctx, 0) != UNIX_SFT_MEMORYWINDOW) {
+    if (trap_get_dreg(ctx, 0) != SFT_MEMORYWINDOW) {
         return 0;
     }
     const unix_rtg_overlay_state *o = &unix_rtg_overlay;
@@ -2494,7 +2355,7 @@ static uae_u32 REGPARAM2 unix_picasso_get_feature_attrs(TrapContext *ctx)
 
 static void unix_overlay_free_bitmap(TrapContext *ctx, uaecptr bi, uaecptr bitmap)
 {
-    uaecptr func = trap_get_long(ctx, bi + UNIX_PSSO_BoardInfo_FreeBitMap);
+    uaecptr func = trap_get_long(ctx, bi + PSSO_BoardInfo_FreeBitMap);
     trap_call_add_areg(ctx, 0, bi);
     trap_call_add_areg(ctx, 1, bitmap);
     trap_call_add_areg(ctx, 2, 0);
@@ -2504,7 +2365,7 @@ static void unix_overlay_free_bitmap(TrapContext *ctx, uaecptr bi, uaecptr bitma
 static uae_u32 REGPARAM2 unix_picasso_create_feature(TrapContext *ctx)
 {
     uaecptr bi = trap_get_areg(ctx, 0);
-    if (trap_get_dreg(ctx, 0) != UNIX_SFT_MEMORYWINDOW ||
+    if (trap_get_dreg(ctx, 0) != SFT_MEMORYWINDOW ||
         bi != unix_picasso_boardinfo || unix_rtg_overlay.bitmap) {
         return 0;
     }
@@ -2514,8 +2375,8 @@ static uae_u32 REGPARAM2 unix_picasso_create_feature(TrapContext *ctx)
     if (!unix_overlay_dimensions(&next)) {
         return 0;
     }
-    uaecptr alloc = trap_get_long(ctx, bi + UNIX_PSSO_BoardInfo_AllocBitMap);
-    uaecptr release = trap_get_long(ctx, bi + UNIX_PSSO_BoardInfo_FreeBitMap);
+    uaecptr alloc = trap_get_long(ctx, bi + PSSO_BoardInfo_AllocBitMap);
+    uaecptr release = trap_get_long(ctx, bi + PSSO_BoardInfo_FreeBitMap);
     if (!alloc || !release || !trap_valid_address(ctx, alloc, 2) ||
         !trap_valid_address(ctx, release, 2)) {
         return 0;
@@ -2566,7 +2427,7 @@ static uae_u32 REGPARAM2 unix_picasso_delete_feature(TrapContext *ctx)
         return 0;
     }
     uaecptr bi = trap_get_areg(ctx, 0);
-    uaecptr release = trap_get_long(ctx, bi + UNIX_PSSO_BoardInfo_FreeBitMap);
+    uaecptr release = trap_get_long(ctx, bi + PSSO_BoardInfo_FreeBitMap);
     if (!release || !trap_valid_address(ctx, release, 2)) {
         return 0;
     }
@@ -2599,27 +2460,27 @@ static void unix_picasso_init_board(TrapContext *ctx, uaecptr board_info)
     }
 
     flags &= 0xffff0000;
-    flags |= BIF_BLITTER | BIF_NOMEMORYMODEMIX | BIF_INDISPLAYCHAIN | UNIX_BIF_GRANTDIRECTACCESS;
+    flags |= BIF_BLITTER | BIF_NOMEMORYMODEMIX | BIF_INDISPLAYCHAIN | BIF_GRANTDIRECTACCESS;
     if (currprefs.rtg_overlay && !unix_uaegfx_old) {
         flags |= BIF_VIDEOWINDOW;
     }
     if (currprefs.rtg_vgascreensplit && !unix_uaegfx_old) {
-        flags |= UNIX_BIF_VGASCREENSPLIT;
+        flags |= BIF_VGASCREENSPLIT;
     }
     if (currprefs.rtg_dacswitch) {
-        flags |= UNIX_BIF_DACSWITCH;
+        flags |= BIF_DACSWITCH;
     }
     if (currprefs.rtg_hardwaresprite) {
         flags |= BIF_HARDWARESPRITE;
     }
     if (currprefs.rtg_hardwareinterrupt && !unix_uaegfx_old) {
-        flags |= UNIX_BIF_VBLANKINTERRUPT;
+        flags |= BIF_VBLANKINTERRUPT;
     }
     trap_put_long(ctx, board_info + PSSO_BoardInfo_Flags, flags);
     write_log(_T("Unix RTG hardware sprite support %s\n"),
         (flags & BIF_HARDWARESPRITE) ? _T("enabled") : _T("disabled"));
     write_log(_T("Unix RTG vblank interrupt support %s\n"),
-        (flags & UNIX_BIF_VBLANKINTERRUPT) ? _T("enabled") : _T("disabled"));
+        (flags & BIF_VBLANKINTERRUPT) ? _T("enabled") : _T("disabled"));
 
     for (int mode = 0; mode < MAXMODES; mode++) {
         int max_width;
@@ -2695,7 +2556,7 @@ static void unix_init_uaegfx_funcs(TrapContext *ctx, uaecptr start, uaecptr ABI)
     org(start);
     dw(RTS);
 
-    UNIX_PUTABI(UNIX_PSSO_BoardInfo_ResolvePixelClock);
+    UNIX_PUTABI(PSSO_BoardInfo_ResolvePixelClock);
     dl(0x2340002c);
     dw(0x7000);
     dl(0x137c0062);
@@ -2704,73 +2565,73 @@ static void unix_init_uaegfx_funcs(TrapContext *ctx, uaecptr start, uaecptr ABI)
     dw(0x002b);
     dw(RTS);
 
-    UNIX_PUTABI(UNIX_PSSO_BoardInfo_GetPixelClock);
+    UNIX_PUTABI(PSSO_BoardInfo_GetPixelClock);
     dw(0x203c);
     dl(100227260);
     dw(RTS);
 
-    UNIX_PUTABI(UNIX_PSSO_BoardInfo_CalculateMemory);
+    UNIX_PUTABI(PSSO_BoardInfo_CalculateMemory);
     dw(0x2009);
     dw(RTS);
 
-    UNIX_PUTABI(UNIX_PSSO_BoardInfo_GetCompatibleFormats);
+    UNIX_PUTABI(PSSO_BoardInfo_GetCompatibleFormats);
     dw(0x203c);
     dl(RGBMASK_8BIT | RGBMASK_15BIT | RGBMASK_16BIT | RGBMASK_24BIT | RGBMASK_32BIT);
     dw(RTS);
 
-    UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_CalculateBytesPerRow, unix_picasso_calculate_bytes_per_row);
-    UNIX_RTGNONE(UNIX_PSSO_BoardInfo_SetClock);
-    UNIX_RTGNONE(UNIX_PSSO_BoardInfo_SetMemoryMode);
-    UNIX_RTGNONE(UNIX_PSSO_BoardInfo_SetWriteMask);
-    UNIX_RTGNONE(UNIX_PSSO_BoardInfo_SetClearMask);
-    UNIX_RTGNONE(UNIX_PSSO_BoardInfo_SetReadPlane);
-    UNIX_RTGNONE(UNIX_PSSO_BoardInfo_WaitVerticalSync);
-    UNIX_RTGNONE(UNIX_PSSO_BoardInfo_WaitBlitter);
+    UNIX_RTGCALL2(PSSO_BoardInfo_CalculateBytesPerRow, unix_picasso_calculate_bytes_per_row);
+    UNIX_RTGNONE(PSSO_BoardInfo_SetClock);
+    UNIX_RTGNONE(PSSO_BoardInfo_SetMemoryMode);
+    UNIX_RTGNONE(PSSO_BoardInfo_SetWriteMask);
+    UNIX_RTGNONE(PSSO_BoardInfo_SetClearMask);
+    UNIX_RTGNONE(PSSO_BoardInfo_SetReadPlane);
+    UNIX_RTGNONE(PSSO_BoardInfo_WaitVerticalSync);
+    UNIX_RTGNONE(PSSO_BoardInfo_WaitBlitter);
 
-    UNIX_RTGCALL(UNIX_PSSO_BoardInfo_BlitPlanar2Direct, UNIX_PSSO_BoardInfo_BlitPlanar2DirectDefault, unix_picasso_blit_planar2direct);
-    UNIX_RTGCALL(UNIX_PSSO_BoardInfo_FillRect, UNIX_PSSO_BoardInfo_FillRectDefault, unix_picasso_fill_rect);
-    UNIX_RTGCALL(UNIX_PSSO_BoardInfo_BlitRect, UNIX_PSSO_BoardInfo_BlitRectDefault, unix_picasso_blit_rect);
-    UNIX_RTGCALL(UNIX_PSSO_BoardInfo_BlitPlanar2Chunky, UNIX_PSSO_BoardInfo_BlitPlanar2ChunkyDefault, unix_picasso_blit_planar2chunky);
-    UNIX_RTGCALL(UNIX_PSSO_BoardInfo_BlitTemplate, UNIX_PSSO_BoardInfo_BlitTemplateDefault, unix_picasso_blit_template);
-    UNIX_RTGCALL(UNIX_PSSO_BoardInfo_InvertRect, UNIX_PSSO_BoardInfo_InvertRectDefault, unix_picasso_invert_rect);
-    UNIX_RTGCALL(UNIX_PSSO_BoardInfo_BlitRectNoMaskComplete, UNIX_PSSO_BoardInfo_BlitRectNoMaskCompleteDefault, unix_picasso_blit_rect_no_mask_complete);
-    UNIX_RTGCALL(UNIX_PSSO_BoardInfo_BlitRectTransparent, UNIX_PSSO_BoardInfo_BlitRectTransparentDefault, unix_picasso_blit_rect_transparent);
-    UNIX_RTGCALL(UNIX_PSSO_BoardInfo_BlitPattern, UNIX_PSSO_BoardInfo_BlitPatternDefault, unix_picasso_blit_pattern);
+    UNIX_RTGCALL(PSSO_BoardInfo_BlitPlanar2Direct, PSSO_BoardInfo_BlitPlanar2DirectDefault, unix_picasso_blit_planar2direct);
+    UNIX_RTGCALL(PSSO_BoardInfo_FillRect, PSSO_BoardInfo_FillRectDefault, unix_picasso_fill_rect);
+    UNIX_RTGCALL(PSSO_BoardInfo_BlitRect, PSSO_BoardInfo_BlitRectDefault, unix_picasso_blit_rect);
+    UNIX_RTGCALL(PSSO_BoardInfo_BlitPlanar2Chunky, PSSO_BoardInfo_BlitPlanar2ChunkyDefault, unix_picasso_blit_planar2chunky);
+    UNIX_RTGCALL(PSSO_BoardInfo_BlitTemplate, PSSO_BoardInfo_BlitTemplateDefault, unix_picasso_blit_template);
+    UNIX_RTGCALL(PSSO_BoardInfo_InvertRect, PSSO_BoardInfo_InvertRectDefault, unix_picasso_invert_rect);
+    UNIX_RTGCALL(PSSO_BoardInfo_BlitRectNoMaskComplete, PSSO_BoardInfo_BlitRectNoMaskCompleteDefault, unix_picasso_blit_rect_no_mask_complete);
+    UNIX_RTGCALL(PSSO_BoardInfo_BlitRectTransparent, PSSO_BoardInfo_BlitRectTransparentDefault, unix_picasso_blit_rect_transparent);
+    UNIX_RTGCALL(PSSO_BoardInfo_BlitPattern, PSSO_BoardInfo_BlitPatternDefault, unix_picasso_blit_pattern);
 
-    UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetSwitch, unix_picasso_set_switch);
-    UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetColorArray, unix_picasso_set_color_array);
-    UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetDAC, unix_picasso_set_dac);
-    UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetGC, unix_picasso_set_gc);
-    UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetPanning, unix_picasso_set_panning);
-    UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetDisplay, unix_picasso_set_display);
+    UNIX_RTGCALL2(PSSO_BoardInfo_SetSwitch, unix_picasso_set_switch);
+    UNIX_RTGCALL2(PSSO_BoardInfo_SetColorArray, unix_picasso_set_color_array);
+    UNIX_RTGCALL2(PSSO_BoardInfo_SetDAC, unix_picasso_set_dac);
+    UNIX_RTGCALL2(PSSO_BoardInfo_SetGC, unix_picasso_set_gc);
+    UNIX_RTGCALL2(PSSO_BoardInfo_SetPanning, unix_picasso_set_panning);
+    UNIX_RTGCALL2(PSSO_BoardInfo_SetDisplay, unix_picasso_set_display);
 
     if (currprefs.rtg_hardwaresprite) {
-        UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetSprite, unix_picasso_set_sprite);
-        UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetSpritePosition, unix_picasso_set_sprite_position);
-        UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetSpriteImage, unix_picasso_set_sprite_image);
-        UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetSpriteColor, unix_picasso_set_sprite_color);
+        UNIX_RTGCALL2(PSSO_BoardInfo_SetSprite, unix_picasso_set_sprite);
+        UNIX_RTGCALL2(PSSO_BoardInfo_SetSpritePosition, unix_picasso_set_sprite_position);
+        UNIX_RTGCALL2(PSSO_BoardInfo_SetSpriteImage, unix_picasso_set_sprite_image);
+        UNIX_RTGCALL2(PSSO_BoardInfo_SetSpriteColor, unix_picasso_set_sprite_color);
     }
 
-    UNIX_RTGCALLDEFAULT(UNIX_PSSO_BoardInfo_ScrollPlanar, UNIX_PSSO_BoardInfo_ScrollPlanarDefault);
-    UNIX_RTGCALLDEFAULT(UNIX_PSSO_BoardInfo_UpdatePlanar, UNIX_PSSO_BoardInfo_UpdatePlanarDefault);
-    UNIX_RTGCALLDEFAULT(UNIX_PSSO_BoardInfo_DrawLine, UNIX_PSSO_BoardInfo_DrawLineDefault);
+    UNIX_RTGCALLDEFAULT(PSSO_BoardInfo_ScrollPlanar, PSSO_BoardInfo_ScrollPlanarDefault);
+    UNIX_RTGCALLDEFAULT(PSSO_BoardInfo_UpdatePlanar, PSSO_BoardInfo_UpdatePlanarDefault);
+    UNIX_RTGCALLDEFAULT(PSSO_BoardInfo_DrawLine, PSSO_BoardInfo_DrawLineDefault);
 
     if (currprefs.rtg_overlay) {
-        UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_GetFeatureAttrs, unix_picasso_get_feature_attrs);
-        UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetFeatureAttrs, unix_picasso_set_feature_attrs);
-        UNIX_RTGCALL2X(UNIX_PSSO_BoardInfo_CreateFeature, unix_picasso_create_feature);
-        UNIX_RTGCALL2X(UNIX_PSSO_BoardInfo_DeleteFeature, unix_picasso_delete_feature);
+        UNIX_RTGCALL2(PSSO_BoardInfo_GetFeatureAttrs, unix_picasso_get_feature_attrs);
+        UNIX_RTGCALL2(PSSO_BoardInfo_SetFeatureAttrs, unix_picasso_set_feature_attrs);
+        UNIX_RTGCALL2X(PSSO_BoardInfo_CreateFeature, unix_picasso_create_feature);
+        UNIX_RTGCALL2X(PSSO_BoardInfo_DeleteFeature, unix_picasso_delete_feature);
     }
     if (currprefs.rtg_vgascreensplit) {
-        UNIX_RTGCALL2(UNIX_PSSO_SetSplitPosition, unix_picasso_set_split_position);
+        UNIX_RTGCALL2(PSSO_SetSplitPosition, unix_picasso_set_split_position);
     }
     if (currprefs.rtg_dacswitch) {
-        UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_GetCompatibleDACFormats, unix_picasso_get_compatible_dac_formats);
-        UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_CoerceMode, unix_picasso_coerce_mode);
+        UNIX_RTGCALL2(PSSO_BoardInfo_GetCompatibleDACFormats, unix_picasso_get_compatible_dac_formats);
+        UNIX_RTGCALL2(PSSO_BoardInfo_CoerceMode, unix_picasso_coerce_mode);
     }
 
     if (currprefs.rtg_hardwareinterrupt) {
-        UNIX_RTGCALL2(UNIX_PSSO_BoardInfo_SetInterrupt, unix_picasso_set_interrupt);
+        UNIX_RTGCALL2(PSSO_BoardInfo_SetInterrupt, unix_picasso_set_interrupt);
         unix_init_vblank_abi(ctx, unix_uaegfx_base, ABI);
     }
 
@@ -3104,7 +2965,7 @@ static uaecptr unix_uaegfx_card_install(TrapContext *ctx, uae_u32 extrasize)
     trap_call_add_areg(ctx, 0, functable);
     trap_call_add_areg(ctx, 1, datatable);
     trap_call_add_areg(ctx, 2, 0);
-    trap_call_add_dreg(ctx, 0, UNIX_CARD_SIZEOF + extrasize);
+    trap_call_add_dreg(ctx, 0, CARD_SIZEOF + extrasize);
     trap_call_add_dreg(ctx, 1, 0);
     unix_uaegfx_base = trap_call_lib(ctx, exec, -0x54);
     trap_set_areg(ctx, 2, olda2);
@@ -3117,12 +2978,12 @@ static uaecptr unix_uaegfx_card_install(TrapContext *ctx, uae_u32 extrasize)
 
     trap_call_add_areg(ctx, 1, EXPANSION_explibname);
     trap_call_add_dreg(ctx, 0, 0);
-    trap_put_long(ctx, unix_uaegfx_base + UNIX_CARD_EXPANSIONBASE, trap_call_lib(ctx, exec, -0x228));
-    trap_put_long(ctx, unix_uaegfx_base + UNIX_CARD_EXECBASE, exec);
-    trap_put_long(ctx, unix_uaegfx_base + UNIX_CARD_IRQEXECBASE, exec);
-    trap_put_long(ctx, unix_uaegfx_base + UNIX_CARD_NAME, unix_uaegfx_resname);
-    trap_put_long(ctx, unix_uaegfx_base + UNIX_CARD_RESLIST, unix_uaegfx_base + UNIX_CARD_SIZEOF);
-    trap_put_long(ctx, unix_uaegfx_base + UNIX_CARD_RESLISTSIZE, extrasize);
+    trap_put_long(ctx, unix_uaegfx_base + CARD_EXPANSIONBASE, trap_call_lib(ctx, exec, -0x228));
+    trap_put_long(ctx, unix_uaegfx_base + CARD_EXECBASE, exec);
+    trap_put_long(ctx, unix_uaegfx_base + CARD_IRQEXECBASE, exec);
+    trap_put_long(ctx, unix_uaegfx_base + CARD_NAME, unix_uaegfx_resname);
+    trap_put_long(ctx, unix_uaegfx_base + CARD_RESLIST, unix_uaegfx_base + CARD_SIZEOF);
+    trap_put_long(ctx, unix_uaegfx_base + CARD_RESLISTSIZE, extrasize);
 
     if (currprefs.rtg_hardwareinterrupt) {
         unix_init_vblank_irq(ctx, unix_uaegfx_base);

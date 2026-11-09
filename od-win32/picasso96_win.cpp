@@ -198,26 +198,6 @@ static uaecptr uaegfx_resname, uaegfx_prefix,
 	uaegfx_base,
 	uaegfx_rom;
 
-typedef enum {
-	BLIT_FALSE,
-	BLIT_NOR,
-	BLIT_ONLYDST,
-	BLIT_NOTSRC,
-	BLIT_ONLYSRC,
-	BLIT_NOTDST,
-	BLIT_EOR,
-	BLIT_NAND,
-	BLIT_AND,
-	BLIT_NEOR,
-	BLIT_DST,
-	BLIT_NOTONLYSRC,
-	BLIT_SRC,
-	BLIT_NOTONLYDST,
-	BLIT_OR,
-	BLIT_TRUE,
-	BLIT_SWAP = 30
-} BLIT_OPCODE;
-
 #include "win32gui.h"
 #include "resource.h"
 
