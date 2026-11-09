@@ -3281,6 +3281,20 @@ static uae_u32 REGPARAM2 picasso_SetSplitPosition(TrapContext *ctx)
 	return 1;
 }
 
+// SetSplitPosition stores the split in BoardInfo, so this is the value
+// P96 expects to be shown. Used when the display is reopened and after
+// a state restore, both of which would otherwise drop the split.
+int picasso_get_splitypos(int monid)
+{
+	if (monid != currprefs.rtgboards[0].monitor_id || !boardinfo) {
+		return -1;
+	}
+	if (!trap_valid_address(NULL, boardinfo + PSSO_BoardInfo_YSplit, 2)) {
+		return -1;
+	}
+	return (uae_s16)trap_get_word(NULL, boardinfo + PSSO_BoardInfo_YSplit) - 1;
+}
+
 #ifdef CPU_64_BIT
 static void do_xor8(uae_u8 *p, int w, uae_u32 v)
 {
@@ -6605,6 +6619,9 @@ void restore_p96_finish (void)
 		if (cursorvisible) {
 			setspriteimage(NULL, boardinfo);
 		}
+		struct picasso_vidbuf_description *svidinfo = &picasso_vidinfo[currprefs.rtgboards[0].monitor_id];
+		svidinfo->splitypos = picasso_get_splitypos(currprefs.rtgboards[0].monitor_id);
+		svidinfo->full_refresh = 1;
 
 		set_config_changed();
 	}
