@@ -2189,6 +2189,7 @@ set(WINUAE_CORE_SOURCES
     native2amiga.cpp
     newcpu.cpp
     newcpu_common.cpp
+    picasso96_convert.cpp
     readcpu.cpp
     rommgr.cpp
     rtc.cpp
@@ -2494,6 +2495,17 @@ target_include_directories(winuae_unix_picasso96_abi_test PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 winuae_unix_register_test(winuae_unix_picasso96_abi_test)
+
+add_executable(winuae_unix_picasso96_convert_test EXCLUDE_FROM_ALL
+    picasso96_convert.cpp
+    od-generic/picasso96_convert_test.cpp
+)
+target_include_directories(winuae_unix_picasso96_convert_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+winuae_unix_register_test(winuae_unix_picasso96_convert_test)
 
 add_executable(winuae_unix_uaenet_test EXCLUDE_FROM_ALL
     od-generic/uaenet.cpp

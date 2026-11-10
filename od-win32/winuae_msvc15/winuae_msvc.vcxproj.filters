@@ -667,6 +667,9 @@
     <ClCompile Include="..\..\newcpu_common.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\picasso96_convert.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\scp.cpp">
       <Filter>common</Filter>
     </ClCompile>

@@ -719,91 +719,9 @@ static uae_u32 unix_picasso_convert_pixel(const uae_u8 *src, RGBFTYPE fmt,
     }
 }
 
-enum {
-    RGBFB_A8R8G8B8_32 = 1,
-    RGBFB_A8B8G8R8_32,
-    RGBFB_R8G8B8A8_32,
-    RGBFB_B8G8R8A8_32,
-    RGBFB_R8G8B8_32,
-    RGBFB_B8G8R8_32,
-    RGBFB_R5G6B5PC_32,
-    RGBFB_R5G5B5PC_32,
-    RGBFB_R5G6B5_32,
-    RGBFB_R5G5B5_32,
-    RGBFB_B5G6R5PC_32,
-    RGBFB_B5G5R5PC_32,
-    RGBFB_CLUT_RGBFB_32,
-    RGBFB_Y4U2V2_32,
-    RGBFB_Y4U1V1_32,
-};
-
 static void unix_picasso_render_pixels(const uae_u8 *srcbase, int width, int height,
     int srcrowbytes, int srcpixbytes, RGBFTYPE rgbfmt, const uae_u32 *clut,
     uae_u8 *dstbase, int dstrowbytes, const uae_u32 *rgbx16 = p96_rgbx16);
-
-int getconvert(int rgbformat)
-{
-    switch (rgbformat) {
-    case RGBFB_CLUT:
-        return RGBFB_CLUT_RGBFB_32;
-    case RGBFB_B5G6R5PC:
-        return RGBFB_B5G6R5PC_32;
-    case RGBFB_R5G6B5PC:
-        return RGBFB_R5G6B5PC_32;
-    case RGBFB_R5G5B5PC:
-        return RGBFB_R5G5B5PC_32;
-    case RGBFB_R5G6B5:
-        return RGBFB_R5G6B5_32;
-    case RGBFB_R5G5B5:
-        return RGBFB_R5G5B5_32;
-    case RGBFB_B5G5R5PC:
-        return RGBFB_B5G5R5PC_32;
-    case RGBFB_A8R8G8B8:
-        return RGBFB_A8R8G8B8_32;
-    case RGBFB_R8G8B8:
-        return RGBFB_R8G8B8_32;
-    case RGBFB_B8G8R8:
-        return RGBFB_B8G8R8_32;
-    case RGBFB_A8B8G8R8:
-        return RGBFB_A8B8G8R8_32;
-    case RGBFB_B8G8R8A8:
-        return RGBFB_B8G8R8A8_32;
-    case RGBFB_R8G8B8A8:
-        return RGBFB_R8G8B8A8_32;
-    case RGBFB_Y4U2V2:
-        return RGBFB_Y4U2V2_32;
-    case RGBFB_Y4U1V1:
-        return RGBFB_Y4U1V1_32;
-    default:
-        return 0;
-    }
-}
-
-static uae_u16 unix_yuv_to_rgb16(uae_u8 yx, uae_u8 ux, uae_u8 vx)
-{
-    int y = yx - 16;
-    int u = ux - 128;
-    int v = vx - 128;
-    int r = (298 * y + 409 * v + 128) >> (8 + 3);
-    int g = (298 * y - 100 * u - 208 * v + 128) >> (8 + 3);
-    int b = (298 * y + 516 * u + 128) >> (8 + 3);
-    if (r < 0) {
-        r = 0;
-    } else if (r > 31) {
-        r = 31;
-    }
-    if (g < 0) {
-        g = 0;
-    } else if (g > 31) {
-        g = 31;
-    }
-    if (b < 0) {
-        b = 0;
-    } else if (b > 31) {
-        b = 31;
-    }
-    return (r << 10) | (g << 5) | b;
-}
 
 static bool unix_picasso_colorkey_matches(const uae_u8 *screen, int dx, int screenpixbytes,
     uae_u32 colorkey)
@@ -891,7 +809,7 @@ static uae_u32 unix_picasso_convert_scaled_pixel(const uae_u8 *src, int x, int s
         uae_u8 y = (sxfrac & 0x80) ? (uae_u8)(val >> 24) : (uae_u8)(val >> 8);
         uae_u8 u = (uae_u8)val;
         uae_u8 v = (uae_u8)(val >> 16);
-        uae_u16 rgb = unix_yuv_to_rgb16(y, u, v);
+        uae_u16 rgb = p96_yuvtorgb(y, u, v);
         return rgbx16 ? rgbx16[rgb] : 0xff000000;
     }
     case RGBFB_Y4U1V1_32:
@@ -906,7 +824,7 @@ static uae_u32 unix_picasso_convert_scaled_pixel(const uae_u8 *src, int x, int s
         uae_u8 y = ((val >> (12 + sample * 5)) & 31) * 8;
         uae_u8 u = (val & 63) * 4;
         uae_u8 v = ((val >> 6) & 63) * 4;
-        uae_u16 rgb = unix_yuv_to_rgb16(y, u, v);
+        uae_u16 rgb = p96_yuvtorgb(y, u, v);
         return rgbx16 ? rgbx16[rgb] : 0xff000000;
     }
     default:

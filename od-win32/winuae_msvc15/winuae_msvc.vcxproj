@@ -1094,6 +1094,7 @@
     <ClCompile Include="..\..\mos6502.cpp" />
     <ClCompile Include="..\..\ncr9x_scsi.cpp" />
     <ClCompile Include="..\..\newcpu_common.cpp" />
+    <ClCompile Include="..\..\picasso96_convert.cpp" />
     <ClCompile Include="..\..\86box\cpu\386_common.cpp">
       <AdditionalIncludeDirectories>$(WinUAE86BoxIncludes);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>$(WinUAE86BoxDefinitions);%(PreprocessorDefinitions)</PreprocessorDefinitions>

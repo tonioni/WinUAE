@@ -922,85 +922,6 @@ static void rtg_clear(int monid)
 	vidinfo->rtg_clear_flag = 2;
 }
 
-enum {
-	/* DEST = RGBFB_B8G8R8A8,32 */
-	RGBFB_A8R8G8B8_32 = 1,
-	RGBFB_A8B8G8R8_32,
-	RGBFB_R8G8B8A8_32,
-	RGBFB_B8G8R8A8_32,
-	RGBFB_R8G8B8_32,
-	RGBFB_B8G8R8_32,
-	RGBFB_R5G6B5PC_32,
-	RGBFB_R5G5B5PC_32,
-	RGBFB_R5G6B5_32,
-	RGBFB_R5G5B5_32,
-	RGBFB_B5G6R5PC_32,
-	RGBFB_B5G5R5PC_32,
-	RGBFB_CLUT_RGBFB_32,
-	RGBFB_Y4U2V2_32,
-	RGBFB_Y4U1V1_32,
-};
-
-int getconvert(int rgbformat)
-{
-	int v = 0;
-
-	switch (rgbformat)
-	{
-	case RGBFB_CLUT:
-		v = RGBFB_CLUT_RGBFB_32;
-		break;
-
-	case RGBFB_B5G6R5PC:
-		v = RGBFB_B5G6R5PC_32;
-		break;
-	case RGBFB_R5G6B5PC:
-		v = RGBFB_R5G6B5PC_32;
-		break;
-
-	case RGBFB_R5G5B5PC:
-		v = RGBFB_R5G5B5PC_32;
-		break;
-	case RGBFB_R5G6B5:
-		v = RGBFB_R5G6B5_32;
-		break;
-	case RGBFB_R5G5B5:
-		v = RGBFB_R5G5B5_32;
-		break;
-	case RGBFB_B5G5R5PC:
-		v = RGBFB_B5G5R5PC_32;
-		break;
-
-	case RGBFB_A8R8G8B8:
-		v = RGBFB_A8R8G8B8_32;
-		break;
-	case RGBFB_R8G8B8:
-		v = RGBFB_R8G8B8_32;
-		break;
-	case RGBFB_B8G8R8:
-		v = RGBFB_B8G8R8_32;
-		break;
-	case RGBFB_A8B8G8R8:
-		v = RGBFB_A8B8G8R8_32;
-		break;
-	case RGBFB_B8G8R8A8:
-		v = RGBFB_B8G8R8A8_32;
-		break;
-	case RGBFB_R8G8B8A8:
-		v = RGBFB_R8G8B8A8_32;
-		break;
-
-	case RGBFB_Y4U2V2:
-		v = RGBFB_Y4U2V2_32;
-		break;
-	case RGBFB_Y4U1V1:
-		v = RGBFB_Y4U1V1_32;
-		break;
-
-	}
-	return v;
-}
-
 static void setconvert(int monid)
 {
 	lockrtg();
@@ -4791,29 +4712,6 @@ static void copyrow(int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int width
 	}
 }
 
-static uae_u16 yuvtorgb(uae_u8 yx, uae_u8 ux, uae_u8 vx)
-{
-	int y = yx - 16;
-	int u = ux - 128;
-	int v = vx - 128;
-	int r = (298 * y + 409 * v + 128) >> (8 + 3);
-	int g = (298 * y - 100 * u - 208 * v + 128) >> (8 + 3);
-	int b = (298 * y + 516 * u + 128) >> (8 + 3);
-	if (r < 0)
-		r = 0;
-	if (r > 31)
-		r = 31;
-	if (g < 0)
-		g = 0;
-	if (g > 31)
-		g = 31;
-	if (b < 0)
-		b = 0;
-	if (b > 31)
-		b = 31;
-	return (r << 10) | (g << 5) | b;
-}
-
 #define CKCHECK if (!ck \
 	|| (screenpixbytes == 4 && colorkey == ((uae_u32*)srcs)[dx]) \
 	|| (screenpixbytes == 2 && (uae_u16)colorkey == ((uae_u16*)srcs)[dx]) \
@@ -4988,7 +4886,7 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 						u = val >> 0;
 						v = val >> 16;
 						if (y0 == y1) {
-							uae_u16 out = yuvtorgb(y0, u, v);
+							uae_u16 out = p96_yuvtorgb(y0, u, v);
 							outval1 = p96_rgbx16p[out];
 							outval2 = outval1;
 						} else {
@@ -5002,7 +4900,7 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 					CKCHECK
 					{
 						if (docalc1) {
-							uae_u16 out = yuvtorgb(y0, u, v);
+							uae_u16 out = p96_yuvtorgb(y0, u, v);
 							outval1 = p96_rgbx16p[out];
 							docalc1 = false;
 						}
@@ -5012,7 +4910,7 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 					CKCHECK
 					{
 						if (docalc2) {
-							uae_u16 out = yuvtorgb(y1, u, v);
+							uae_u16 out = p96_yuvtorgb(y1, u, v);
 							outval2 = p96_rgbx16p[out];
 							docalc2 = false;
 						}
@@ -5040,25 +4938,25 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 				if (fr >= 192) {
 					CKCHECK
 					{
-						uae_u16 out = yuvtorgb(y3, u, v);
+						uae_u16 out = p96_yuvtorgb(y3, u, v);
 						((uae_u32*)dst2)[dx] = p96_rgbx16p[out];
 					}
 				} else if (fr >= 128) {
 					CKCHECK
 					{
-						uae_u16 out = yuvtorgb(y2, u, v);
+						uae_u16 out = p96_yuvtorgb(y2, u, v);
 						((uae_u32*)dst2)[dx] = p96_rgbx16p[out];
 					}
 				} else if (fr >= 64) {
 					CKCHECK
 					{
-						uae_u16 out = yuvtorgb(y1, u, v);
+						uae_u16 out = p96_yuvtorgb(y1, u, v);
 						((uae_u32*)dst2)[dx] = p96_rgbx16p[out];
 					}
 				} else {
 					CKCHECK
 					{
-						uae_u16 out = yuvtorgb(y0, u, v);
+						uae_u16 out = p96_yuvtorgb(y0, u, v);
 						((uae_u32*)dst2)[dx] = p96_rgbx16p[out];
 					}
 				}
