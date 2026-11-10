@@ -640,6 +640,28 @@ typedef enum {
 	BLIT_SWAP = 30
 } BLIT_OPCODE;
 
+/* Host conversion modes, all with a 32-bit B8G8R8A8 destination. */
+enum {
+	RGBFB_A8R8G8B8_32 = 1,
+	RGBFB_A8B8G8R8_32,
+	RGBFB_R8G8B8A8_32,
+	RGBFB_B8G8R8A8_32,
+	RGBFB_R8G8B8_32,
+	RGBFB_B8G8R8_32,
+	RGBFB_R5G6B5PC_32,
+	RGBFB_R5G5B5PC_32,
+	RGBFB_R5G6B5_32,
+	RGBFB_R5G5B5_32,
+	RGBFB_B5G6R5PC_32,
+	RGBFB_B5G5R5PC_32,
+	RGBFB_CLUT_RGBFB_32,
+	RGBFB_Y4U2V2_32,
+	RGBFB_Y4U1V1_32,
+};
+
+extern int getconvert(int rgbformat);
+extern uae_u16 p96_yuvtorgb(uae_u8 y, uae_u8 u, uae_u8 v);
+
 /* uaegfx.card library base */
 #define LIB_SIZE 34
 #define CARD_FLAGS LIB_SIZE
