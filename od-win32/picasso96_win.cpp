@@ -3357,7 +3357,7 @@ static uae_u32 REGPARAM2 picasso_InvertRect (TrapContext *ctx)
 	if (CopyRenderInfoStructureA2U(ctx, renderinfo, &ri)) {
 		P96TRACE((_T("InvertRect %dbpp 0x%02x\n"), Bpp, mask));
 
-		if (!validatecoords(ctx, &ri, ri.RGBFormat, &X, &Y, &Width, &Height))
+		if (!validatecoords(ctx, &ri, RGBFmt, &X, &Y, &Width, &Height))
 			return 1;
 
 		if (Bpp > 1)
@@ -4293,7 +4293,7 @@ static uae_u32 getcim(uae_u8 v, int bpp, int *maxcp, uaecptr acim, uae_u32 *cim,
 		else if (vc < 15)
 			vc = 15;
 		else if (vc < 31)
-			vc = 32;
+			vc = 31;
 		else if (vc < 63)
 			vc = 63;
 		else
