@@ -3893,8 +3893,16 @@ static uae_u32 REGPARAM2 picasso_BlitPattern(TrapContext *ctx)
 									break;
 								case 3:
 									{
-										uae_u32 *addr = (uae_u32*)(uae_mem2 + bits * 3);
-										*addr ^= rgbmask;
+										uae_u8 *addr = uae_mem2 + bits * 3;
+										if (cols + bits < W - 1) {
+											*(uae_u32*)addr ^= rgbmask;
+										} else {
+											// The fourth byte of a long is past
+											// the end of the row.
+											addr[0] ^= 0xff;
+											addr[1] ^= 0xff;
+											addr[2] ^= 0xff;
+										}
 									}
 									break;
 								case 4:
@@ -4078,9 +4086,17 @@ static uae_u32 REGPARAM2 picasso_BlitTemplate(TrapContext *ctx)
 									break;
 								case 3:
 									{
-										uae_u32 *addr = (uae_u32*)(uae_mem2 + bits * 3);
-										*addr ^= rgbmask;
-								}
+										uae_u8 *addr = uae_mem2 + bits * 3;
+										if (cols + bits < W - 1) {
+											*(uae_u32*)addr ^= rgbmask;
+										} else {
+											// The fourth byte of a long is past
+											// the end of the row.
+											addr[0] ^= 0xff;
+											addr[1] ^= 0xff;
+											addr[2] ^= 0xff;
+										}
+									}
 									break;
 								case 4:
 									{
