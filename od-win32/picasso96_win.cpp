@@ -1611,17 +1611,17 @@ static void do_blitrect_frame_buffer (struct RenderInfo *ri, struct
 		if(opcode == BLIT_SRC) {
 
 			/* handle normal case efficiently */
-			if (ri->Memory == dstri->Memory && dsty == srcy) {
+			// Pitches are equal when the rectangles overlap (BlitRectHelper
+			// copies the source otherwise), so the address order decides
+			// the direction, whichever RenderInfo each one came from.
+			if (dst <= src) {
 				for (int i = 0; i < height; i++, src += ri->BytesPerRow, dst += dstri->BytesPerRow)
 					memmove (dst, src, total_width);
-			} else if (dsty < srcy) {
-				for (int i = 0; i < height; i++, src += ri->BytesPerRow, dst += dstri->BytesPerRow)
-					memcpy (dst, src, total_width);
 			} else {
 				src += (height - 1) * ri->BytesPerRow;
 				dst += (height - 1) * dstri->BytesPerRow;
 				for (int i = 0; i < height; i++, src -= ri->BytesPerRow, dst -= dstri->BytesPerRow)
-					memcpy (dst, src, total_width);
+					memmove (dst, src, total_width);
 			}
 
 		} else {
@@ -3521,15 +3521,49 @@ static int BlitRectHelper(TrapContext *ctx)
 	* If we have a destination RenderInfo, then we've been called from picasso_BlitRectNoMaskComplete()
 	* and we need to put the results on the screen from the frame-buffer.
 	*/
-	if (dstri == NULL || dstri->Memory == ri->Memory) {
+	if (dstri == NULL || (dstri->Memory == ri->Memory && dstri->BytesPerRow == ri->BytesPerRow)) {
 		dstri = ri;
 	}
+
+	// The blitters pick one traversal direction from the source pitch,
+	// which cannot protect overlapping rectangles with different pitches.
+	// Copy the source first in that case. A swap also writes its source,
+	// so leave that layout to the software fallback.
+	struct RenderInfo snapri;
+	uae_u8 *snapshot = NULL;
+	if (dstri != ri && dstri->BytesPerRow != ri->BytesPerRow) {
+		uae_u32 rowbytes = width * Bpp;
+		uae_u8 *s0 = ri->Memory + srcx * Bpp + srcy * ri->BytesPerRow;
+		uae_u8 *d0 = dstri->Memory + dstx * Bpp + dsty * dstri->BytesPerRow;
+		uae_u8 *s1 = s0 + (height - 1) * ri->BytesPerRow + rowbytes;
+		uae_u8 *d1 = d0 + (height - 1) * dstri->BytesPerRow + rowbytes;
+		if (s0 < d1 && d0 < s1) {
+			if (opcode == BLIT_SWAP) {
+				return 0;
+			}
+			snapshot = xmalloc(uae_u8, rowbytes * height);
+			if (!snapshot) {
+				return 0;
+			}
+			for (uae_u32 y = 0; y < height; y++) {
+				memcpy(snapshot + y * rowbytes, s0 + y * ri->BytesPerRow, rowbytes);
+			}
+			snapri = *ri;
+			snapri.Memory = snapshot;
+			snapri.BytesPerRow = rowbytes;
+			ri = &snapri;
+			srcx = 0;
+			srcy = 0;
+		}
+	}
+
 	/* Do our virtual frame-buffer memory first */
 	if (transparent) {
 		do_blitrect_frame_buffer_transparent(ri, dstri, srcx, srcy, dstx, dsty, width, height, mask, transparentcolor, RGBFmt, opcode);
 	} else {
 		do_blitrect_frame_buffer(ri, dstri, srcx, srcy, dstx, dsty, width, height, mask, RGBFmt, opcode);
 	}
+	xfree(snapshot);
 	return 1;
 }
 
@@ -3539,11 +3573,16 @@ static int BlitRect(TrapContext *ctx, uaecptr ri, uaecptr dstri,
 	bool transparent, uae_u32 transparentcolor,
 	uae_u8 RGBFmt, BLIT_OPCODE opcode)
 {
-	/* Set up the params */
-	CopyRenderInfoStructureA2U(ctx, ri, &blitrectdata.ri_struct);
+	/* Set up the params. Without a valid RenderInfo, leave the blit to
+	 * the software fallback rather than using the previous call's. */
+	if (!CopyRenderInfoStructureA2U(ctx, ri, &blitrectdata.ri_struct)) {
+		return 0;
+	}
 	blitrectdata.ri = &blitrectdata.ri_struct;
 	if(dstri) {
-		CopyRenderInfoStructureA2U(ctx, dstri, &blitrectdata.dstri_struct);
+		if (!CopyRenderInfoStructureA2U(ctx, dstri, &blitrectdata.dstri_struct)) {
+			return 0;
+		}
 		blitrectdata.dstri = &blitrectdata.dstri_struct;
 	} else {
 		blitrectdata.dstri = NULL;
