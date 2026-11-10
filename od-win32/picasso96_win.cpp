@@ -5151,28 +5151,79 @@ void fb_copyrow(int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int width, in
 		vidinfo->picasso_convert, p96_rgbx16);
 }
 
-static void copyallinvert(int monid, uae_u8 *src, uae_u8 *dst, int pwidth, int pheight, int srcbytesperrow, int srcpixbytes, int dstbytesperrow, int dstpixbytes, int *mode_convert)
+static uae_u32 vram_wrap(uae_s64 pos, uae_u32 vram_size)
+{
+	return (uae_u32)(((pos % vram_size) + vram_size) % vram_size);
+}
+
+// Copy part of display row y of a screen that starts at offset off in the
+// board memory. Like the address counter of an SVGA chip, the scanout
+// wraps from the end of the board memory to its start.
+static void copyrow_wrap(int monid, uae_u8 *vram, uae_u32 vram_size, int off, uae_u8 *dst, int x, int y, int width, int srcbytesperrow, int srcpixbytes, int dstbytesperrow, int dstpixbytes, int *convert_modep, uae_u32 *p96_rgbx16p)
 {
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
-	
-	int w = pwidth * dstpixbytes;
-	uae_u8 *src2 = src;
-	for (int y = 0; y < pheight; y++) {
-		for (int x = 0; x < w; x++)
-			src2[x] ^= 0xff;
-		copyrow(monid, src, dst, 0, y, pwidth, srcbytesperrow, srcpixbytes, 0, y, dstbytesperrow, dstpixbytes, mode_convert, p96_rgbx16);
-		for (int x = 0; x < w; x++)
-			src2[x] ^= 0xff;
-		src2 += srcbytesperrow;
+
+	if (width <= 0) {
+		return;
+	}
+	if (vidinfo->splitypos >= 0 && y >= vidinfo->splitypos) {
+		// copyrow() reads the lower split screen from the start of the
+		// board memory itself.
+		copyrow(monid, vram, dst, x, y, width, srcbytesperrow, srcpixbytes, x, y, dstbytesperrow, dstpixbytes, convert_modep, p96_rgbx16p);
+		return;
+	}
+	uae_u32 start = vram_wrap((uae_s64)off + (uae_s64)y * srcbytesperrow + (uae_s64)x * srcpixbytes, vram_size);
+	uae_u32 len = width * srcpixbytes;
+	if (start + len <= vram_size) {
+		copyrow(monid, vram + start, dst, 0, 0, width, srcbytesperrow, srcpixbytes, x, y, dstbytesperrow, dstpixbytes, convert_modep, p96_rgbx16p);
+		return;
+	}
+	if (len > vram_size) {
+		return;
+	}
+	// The row crosses the end of the board memory. Copy the pixels before
+	// and after the end directly, and a pixel that the end splits through
+	// a small buffer.
+	uae_u32 first = vram_size - start;
+	int before = first / srcpixbytes;
+	uae_u32 split = first % srcpixbytes;
+	uae_u32 next = 0;
+	if (before > 0) {
+		copyrow(monid, vram + start, dst, 0, 0, before, srcbytesperrow, srcpixbytes, x, y, dstbytesperrow, dstpixbytes, convert_modep, p96_rgbx16p);
+	}
+	if (split) {
+		// Some conversions read a long per pixel.
+		uae_u8 pixel[8] = { 0 };
+		memcpy(pixel, vram + start + before * srcpixbytes, split);
+		memcpy(pixel + split, vram, srcpixbytes - split);
+		copyrow(monid, pixel, dst, 0, 0, 1, srcbytesperrow, srcpixbytes, x + before, y, dstbytesperrow, dstpixbytes, convert_modep, p96_rgbx16p);
+		before++;
+		next = srcpixbytes - split;
+	}
+	if (before < width) {
+		copyrow(monid, vram + next, dst, 0, 0, width - before, srcbytesperrow, srcpixbytes, x + before, y, dstbytesperrow, dstpixbytes, convert_modep, p96_rgbx16p);
 	}
 }
 
-static void copyall(int monid, uae_u8 *src, uae_u8 *dst, int pwidth, int pheight, int srcbytesperrow, int srcpixbytes, int dstbytesperrow, int dstpixbytes, int *mode_convert)
+static void copyallinvert(int monid, uae_u8 *vram, uae_u32 vram_size, int off, uae_u8 *dst, int pwidth, int pheight, int srcbytesperrow, int srcpixbytes, int dstbytesperrow, int dstpixbytes, int *mode_convert)
 {
-	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
-
+	int w = pwidth * dstpixbytes;
 	for (int y = 0; y < pheight; y++) {
-		copyrow(monid, src, dst, 0, y, pwidth, srcbytesperrow, srcpixbytes, 0, y, dstbytesperrow, dstpixbytes, mode_convert, p96_rgbx16);
+		uae_u32 row = vram_wrap((uae_s64)off + (uae_s64)y * srcbytesperrow, vram_size);
+		for (int x = 0; x < w; x++) {
+			vram[(row + x) % vram_size] ^= 0xff;
+		}
+		copyrow_wrap(monid, vram, vram_size, off, dst, 0, y, pwidth, srcbytesperrow, srcpixbytes, dstbytesperrow, dstpixbytes, mode_convert, p96_rgbx16);
+		for (int x = 0; x < w; x++) {
+			vram[(row + x) % vram_size] ^= 0xff;
+		}
+	}
+}
+
+static void copyall(int monid, uae_u8 *vram, uae_u32 vram_size, int off, uae_u8 *dst, int pwidth, int pheight, int srcbytesperrow, int srcpixbytes, int dstbytesperrow, int dstpixbytes, int *mode_convert)
+{
+	for (int y = 0; y < pheight; y++) {
+		copyrow_wrap(monid, vram, vram_size, off, dst, 0, y, pwidth, srcbytesperrow, srcpixbytes, dstbytesperrow, dstpixbytes, mode_convert, p96_rgbx16);
 	}
 }
 
@@ -5203,7 +5254,7 @@ uae_u8 *uaegfx_getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, in
 	convert[1] = convert[0];
 	alloc_colors_picasso(8, 8, 8, 16, 8, 0, state->RGBFormat, p96_rgbx16);
 
-	copyall (monid, src + off, dst, width, height, state->BytesPerRow, state->BytesPerPixel, width * pixbytes, pixbytes, convert);
+	copyall(monid, src, gfxmem_banks[0]->allocated_size, off, dst, width, height, state->BytesPerRow, state->BytesPerPixel, width * pixbytes, pixbytes, convert);
 	if (pixbytes == 1) {
 		for (int i = 0; i < 256; i++) {
 			palette[i * 3 + 0] = state->CLUT[i].Red;
@@ -5231,6 +5282,46 @@ void picasso_invalidate(int monid, int x, int y, int w, int h)
 	DX_Invalidate(&AMonitors[monid], x, y, w, h);
 }
 
+// Copy the display rows that a changed page of the board memory covers.
+// realoffset is the offset of the page from the first of those rows, and
+// y0 is the display row they start at.
+static void flushrows(int monid, int index, uae_u8 *src, uae_u32 vram_size, int off, uae_u8 *dst, int realoffset, int y0, int pwidth, int pheight, int *miny, int *maxy, int *flushlines)
+{
+	struct picasso96_state_struct *state = &picasso96_state[monid];
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
+	int y = realoffset / state->BytesPerRow + y0;
+
+	if (y >= pheight) {
+		return;
+	}
+	int x = (realoffset % state->BytesPerRow) / state->BytesPerPixel;
+	if (x < pwidth) {
+		copyrow_wrap(monid, src, vram_size, off, dst, x, y, pwidth - x,
+			state->BytesPerRow, state->BytesPerPixel,
+			vidinfo->rowbytes, vidinfo->pixbytes,
+			vidinfo->picasso_convert, p96_rgbx16);
+		(*flushlines)++;
+	}
+	int w = (gwwpagesize[index] - (state->BytesPerRow - x * state->BytesPerPixel) + state->BytesPerPixel - 1) / state->BytesPerPixel;
+	if (y < *miny) {
+		*miny = y;
+	}
+	y++;
+	while (y < pheight && w > 0) {
+		int maxw = w > pwidth ? pwidth : w;
+		copyrow_wrap(monid, src, vram_size, off, dst, 0, y, maxw,
+			state->BytesPerRow, state->BytesPerPixel,
+			vidinfo->rowbytes, vidinfo->pixbytes,
+			vidinfo->picasso_convert, p96_rgbx16);
+		w -= maxw;
+		y++;
+		(*flushlines)++;
+	}
+	if (y > *maxy) {
+		*maxy = y;
+	}
+}
+
 static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 {
 	int monid = currprefs.rtgboards[index].monitor_id;
@@ -5241,17 +5332,39 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 	int pwidth = state->Width > state->VirtualWidth ? state->VirtualWidth : state->Width;
 	int pheight = state->Height > state->VirtualHeight ? state->VirtualHeight : state->Height;
 	int maxy = -1;
-	int miny = pheight - 1;
 	int flushlines = 0, matchcount = 0;
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	bool overlay_updated = false;
 
+	// SetPanning can place the screen anywhere in the board memory. Like
+	// on SVGA chips, rows past its end wrap around to its start.
+	uae_u32 vram_size = gfxmem_banks[index]->allocated_size;
+	if (off < 0 || (uae_u32)off >= vram_size || state->BytesPerRow <= 0) {
+		return;
+	}
+	if (pheight > (int)(vram_size / state->BytesPerRow)) {
+		pheight = vram_size / state->BytesPerRow;
+	}
+	int miny = pheight - 1;
+	int upper = vidinfo->splitypos >= 0 && vidinfo->splitypos < pheight ? vidinfo->splitypos : pheight;
+	uae_u32 upper_end = off + state->BytesPerRow * upper;
+	uae_u32 wrap_end = 0;
+	if (upper_end > vram_size) {
+		wrap_end = upper_end - vram_size;
+		upper_end = vram_size;
+	}
+	uae_u32 lower_end = vidinfo->splitypos >= 0 ? state->BytesPerRow * (pheight - upper) : 0;
+	if (lower_end < wrap_end) {
+		lower_end = wrap_end;
+	}
+
 	src_start[0] = src + (off & ~gwwpagemask[index]);
-	src_end[0] = src + ((off + state->BytesPerRow * pheight + gwwpagesize[index] - 1) & ~gwwpagemask[index]);
-	if (vidinfo->splitypos >= 0) {
-		src_end[0] = src + ((off + state->BytesPerRow * vidinfo->splitypos + gwwpagesize[index] - 1) & ~gwwpagemask[index]);
+	src_end[0] = src + ((upper_end + gwwpagesize[index] - 1) & ~gwwpagemask[index]);
+	if (vidinfo->splitypos >= 0 || wrap_end) {
+		// The lower split screen and the wrapped rows both start at the
+		// beginning of the board memory.
 		src_start[1] = src;
-		src_end[1] = src + ((state->BytesPerRow * (pheight - vidinfo->splitypos) + gwwpagesize[index] - 1) & ~gwwpagemask[index]);
+		src_end[1] = src + ((lower_end + gwwpagesize[index] - 1) & ~gwwpagemask[index]);
 	} else {
 		src_start[1] = src_end[1] = 0;
 	}
@@ -5351,12 +5464,12 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 
 			if (dofull) {
 				if (flashscreen != 0) {
-					copyallinvert(monid, src + off, dst, pwidth, pheight,
+					copyallinvert(monid, src, vram_size, off, dst, pwidth, pheight,
 						state->BytesPerRow, state->BytesPerPixel,
 						vidinfo->rowbytes, vidinfo->pixbytes,
 						vidinfo->picasso_convert);
 				} else {
-					copyall(monid, src + off, dst, pwidth, pheight,
+					copyall(monid, src, vram_size, off, dst, pwidth, pheight,
 						state->BytesPerRow, state->BytesPerPixel,
 						vidinfo->rowbytes, vidinfo->pixbytes,
 						vidinfo->picasso_convert);
@@ -5367,58 +5480,26 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 				break;
 			}
 
-			if (split) {
-				off = 0;
-			}
-
 			for (int i = 0; i < gwwcnt; i++) {
 				uae_u8 *p = (uae_u8 *)gwwbuf[index][i];
 
-				if (p >= src_start[split] && p < src_end[split]) {
-					int y, x, realoffset;
-
-					if (p >= src + off) {
-						realoffset = (int)(p - (src + off));
-					} else {
-						realoffset = 0;
-					}
-
-					y = realoffset / state->BytesPerRow;
-					if (split) {
-						y += vidinfo->splitypos;
-					}
-					if (y < pheight) {
-						int w = (gwwpagesize[index] + state->BytesPerPixel - 1) / state->BytesPerPixel;
-						x = (realoffset % state->BytesPerRow) / state->BytesPerPixel;
-						if (x < pwidth) {
-							copyrow(monid, src + off, dst, x, y, pwidth - x,
-								state->BytesPerRow, state->BytesPerPixel,
-								x, y, vidinfo->rowbytes, vidinfo->pixbytes,
-								vidinfo->picasso_convert, p96_rgbx16);
-							flushlines++;
-						}
-						w = (gwwpagesize[index] - (state->BytesPerRow - x * state->BytesPerPixel) + state->BytesPerPixel - 1) / state->BytesPerPixel;
-						if (y < miny) {
-							miny = y;
-						}
-						y++;
-						while (y < pheight && w > 0) {
-							int maxw = w > pwidth ? pwidth : w;
-							copyrow(monid, src + off, dst, 0, y, maxw,
-								state->BytesPerRow, state->BytesPerPixel,
-								0, y, vidinfo->rowbytes, vidinfo->pixbytes,
-								vidinfo->picasso_convert, p96_rgbx16);
-							w -= maxw;
-							y++;
-							flushlines++;
-						}
-						if (y > maxy) {
-							maxy = y;
-						}
-					}
-
+				if (p < src_start[split] || p >= src_end[split]) {
+					continue;
 				}
-
+				int poff = (int)(p - src);
+				if (!split) {
+					flushrows(monid, index, src, vram_size, off, dst, poff > off ? poff - off : 0, 0,
+						pwidth, pheight, &miny, &maxy, &flushlines);
+					continue;
+				}
+				if (vidinfo->splitypos >= 0) {
+					flushrows(monid, index, src, vram_size, off, dst, poff, vidinfo->splitypos,
+						pwidth, pheight, &miny, &maxy, &flushlines);
+				}
+				if ((uae_u32)poff < wrap_end) {
+					flushrows(monid, index, src, vram_size, off, dst, (int)(poff + vram_size - off), 0,
+						pwidth, pheight, &miny, &maxy, &flushlines);
+				}
 			}
 		}
 		break;
