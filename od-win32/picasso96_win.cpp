@@ -2018,6 +2018,7 @@ static uae_u32 setspriteimage(TrapContext *ctx, uaecptr bi)
 	int hiressprite, doubledsprite;
 	int ret = 0;
 	int w, h;
+	uae_u8 *image;
 
 	cursordeactivate = 0;
 	if (!hwsprite)
@@ -2049,9 +2050,10 @@ static uae_u32 setspriteimage(TrapContext *ctx, uaecptr bi)
 		goto end;
 	}
 
-	cursordata = xmalloc (uae_u8, w * h);
+	// Build the full image, then keep what fits the cursor surface.
+	image = xmalloc(uae_u8, w * h);
 	for (y = 0, yy = 0; y < h; y++, yy++) {
-		uae_u8 *p = cursordata + w * y;
+		uae_u8 *p = image + w * y;
 		uae_u8 *pprev = p;
 		uaecptr img = iptr + 4 * hiressprite + yy * 4 * hiressprite;
 		x = 0;
@@ -2073,7 +2075,8 @@ static uae_u32 setspriteimage(TrapContext *ctx, uaecptr bi)
 				}
 			}
 		}
-		if (doubledsprite && y < h) {
+		// With an odd height the last row has no copy.
+		if (doubledsprite && y + 1 < h) {
 			y++;
 			memcpy(p, pprev, w);
 		}
@@ -2085,6 +2088,13 @@ static uae_u32 setspriteimage(TrapContext *ctx, uaecptr bi)
 	cursorheight = h;
 	if (cursorheight > CURSORMAXHEIGHT)
 		cursorheight = CURSORMAXHEIGHT;
+	// Users read rows of cursorwidth bytes, and the Windows cursor compares
+	// rows rounded up to 16 pixels.
+	cursordata = xcalloc(uae_u8, ((cursorwidth + 15) & ~15) * cursorheight);
+	for (y = 0; y < cursorheight; y++) {
+		memcpy(cursordata + cursorwidth * y, image + w * y, cursorwidth);
+	}
+	xfree(image);
 
 	createwindowscursor(0, 1, 0);
 
