@@ -2980,6 +2980,9 @@ if(TARGET winuae_unix AND NOT APPLE)
         install(FILES od-unix/share/applications/net.winuae.WinUAE.desktop
             DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
         )
+        install(FILES od-unix/share/metainfo/net.winuae.WinUAE.metainfo.xml
+            DESTINATION "${CMAKE_INSTALL_DATADIR}/metainfo"
+        )
         install(FILES od-unix/share/mime/packages/net.winuae.WinUAE.xml
             DESTINATION "${CMAKE_INSTALL_DATADIR}/mime/packages"
         )

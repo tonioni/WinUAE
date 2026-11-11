@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+    <id>net.winuae.WinUAE</id>
+    <name>WinUAE</name>
+    <summary>Amiga emulator</summary>
+    <metadata_license>CC0-1.0</metadata_license>
+    <project_license>GPL-2.0-or-later</project_license>
+    <description>
+        <p>
+            WinUAE Amiga emulator.
+        </p>
+    </description>
+    <url type="homepage">https://www.winuae.net/</url>
+    <launchable type="desktop-id">net.winuae.WinUAE.desktop</launchable>
+</component>
