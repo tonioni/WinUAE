@@ -223,14 +223,14 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		dst = (uae_u8*)lpvBits;
 		dst += dpitch * screenshot_height;
 		if (yoffset > 0) {
-			if (yoffset >= screenshot_height - height) {
+			if (yoffset >= screenshot_height - height && screenshot_height > height) {
 				screenshot_height -= yoffset - (screenshot_height - height);
 			}
 			dst -= dpitch * yoffset;
 		} else if (yoffset < 0) {
 			yoffset = -yoffset;
-			if (yoffset >= height - screenshot_height) {
-				screenshot_height -= yoffset - (screenshot_height - height);
+			if (yoffset >= height - screenshot_height && height > screenshot_height) {
+				screenshot_height -= yoffset - (height - screenshot_height);
 			}
 			src += spitch * yoffset;
 		}
@@ -239,12 +239,13 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		if (xoffset < 0) {
 			xoffset2 = -xoffset;
 			xoffset = 0;
-			if (xoffset2 >= screenshot_width - width) {
+			if (xoffset2 >= screenshot_width - width && screenshot_width > width) {
 				screenshot_width -= xoffset2 - (screenshot_width - width);
+				xoffset2 = 0;
 			}
 		} else {
-			if (xoffset >= screenshot_width - width) {
-				screenshot_width -= xoffset - (screenshot_width - width);
+			if (xoffset >= width - screenshot_width && width > screenshot_width) {
+				screenshot_width -= xoffset - (width - screenshot_width);
 			}
 		}
 
