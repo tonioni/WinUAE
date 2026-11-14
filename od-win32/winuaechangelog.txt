@@ -1,4 +1,29 @@
 
+Beta 23:
+
+- Multiple 86box emulated display cards can be active simultaneously. Any combination of 86box emulated Z2/Z3/PCI cards are now supported, up to current max of 4. (SR) (I thought 86box didn't support simultaneously enabled cards but it does, one comment mislead me. 86box/UAE glue code update was required, UAE side already supported multiple cards simultaneously since 4.x or so)
+- Escape config file CD paths that include comma in file name and also have extra parameters. (for example CD32 image file with "delayed" parameter)
+- If config file is dragged and dropped in to configurations panel, update name and description fields.
+- More 68030 MMU fixes.
+- 68040/060 cache emulation fixes.
+- Added workaround for strange Windows Remote Desktop bug where rawinput device name length query does not fail and returns device name length = 1 (Length which makes no sense) and following query to get the device name returns ERROR_INVALID_HANDLE (which makes even less sense, handle obviously is correct because length query didn't fail!). If this happens, automatically disable rawinput keyboard support and enable directinput keyboard support. Same functionality as -norawinput_keyboard command line parameter.
+- Fast drawing mode ECS superhires mode in hires host resolution was always filtered, even when filtered lores was not checked.
+- Fixed Remove interlace artifacts random glitches when scrolling. (Glitches that appear and disappear in next frame still remains but these also existed in 6.0.x)
+- Fixed autoclip screenshots/screenshot centering if config file manually set screenshot size.
+- ECS superhires sprites' sprite/bitplane priorities are calculated per-bitplane-shres-pixel if output resolution is superhires and per-sprite-pixel if hires. (ECS superhires sprites are always in hires resolution. This was previously always per-sprite-pixel which is not correct. Probably no program cares.)
+- NE2000 PCMCIA config data didn't have ending marker, if tuple was requested that didn't exist in config data, config data scan didn't stop and overrun past attribute space.
+- Some instructions in 68040/060 CE mode used 68020 cycle counts. (Note that 68040/060 CE is very far from correct)
+- Do not create useless empty (no config files found) configuration.cache.
+- ECS superhires sprite collisions fixed (amitorture)
+- CIA timer counting was off by one in fast CPU modes (amitorture)
+- Emulated hardware sound card mono mixing fixed and internal timing now handles long/short frame differences (amitorture)
+- RTC 12h/24h bit was not fully emulated (amitorture)
+- FPU emulation now counts cycles in cycle-exact modes (SR)
+- BlizzardPPC + SCSI CD + CD in drive when booting crash fixed (SR)
+- Some uaegfx 24-bit blit operations use 32-bit reads/writes and could read/write past end of VRAM by 1 byte. Use byte read/writes in this edge case. (SR)
+- Picasso96 screen dragging could read past end of VRAM. Now it wraps around to beginning of VRAM like SVGA chips do. (SR)
+- Moved more common support code under od-win32 to od-generic that can be easily shared with other ports (screenshot, bsdsocket, serial, real drive as hardfile, midi parsing, command line parameters and more) and misc fixes here and there (SR)
+
 Beta 22:
 
 - Fixed fast drawing mode missing genlock transparency in right border.
