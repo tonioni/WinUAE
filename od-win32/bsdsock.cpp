@@ -1810,25 +1810,27 @@ uae_u32 host_IoctlSocket(TrapContext *ctx, SB, uae_u32 sd, uae_u32 request, uae_
 				int idx = get_net_if(ctx, arg, false);
 				if (idx >= 0) {
 					INTERFACE_INFO *ii = &net_interfaces[idx];
-					uae_u16 flags = 0;
-					if (ii->iiFlags & IFF_UP) {
-						flags |= 1;
-						flags |= 0x40; // IFF_RUNNING
+					if (ii) {
+						uae_u16 flags = 0;
+						if (ii->iiFlags & IFF_UP) {
+							flags |= 1;
+							flags |= 0x40; // IFF_RUNNING
+						}
+						if (ii->iiFlags & IFF_BROADCAST) {
+							flags |= 2;
+						}
+						if (ii->iiFlags & IFF_LOOPBACK) {
+							flags |= 8;
+						}
+						if (ii->iiFlags & IFF_POINTTOPOINT) {
+							flags |= 0x10;
+						}
+						if (ii->iiFlags & IFF_MULTICAST) {
+							flags |= 0x8000;
+						}
+						trap_put_word(ctx, arg + 16, flags);
+						success = 0;
 					}
-					if (ii->iiFlags & IFF_BROADCAST) {
-						flags |= 2;
-					}
-					if (ii->iiFlags & IFF_LOOPBACK) {
-						flags |= 8;
-					}
-					if (ii->iiFlags & IFF_POINTTOPOINT) {
-						flags |= 0x10;
-					}
-					if (ii->iiFlags & IFF_MULTICAST) {
-						flags |= 0x8000;
-					}
-					trap_put_word(ctx, arg + 16, flags);
-					success = 0;
 				}
 			}
 		break;
@@ -1837,9 +1839,9 @@ uae_u32 host_IoctlSocket(TrapContext *ctx, SB, uae_u32 sd, uae_u32 request, uae_
 		case SIOCGIFPHYS:
 			{
 				int idx = get_net_if(ctx, arg, true);
-				if (idx >= 0) {
+				if (idx >= 0 && net_interfaces2) {
 					struct bsdsock_interface_info *ii2 = &net_interfaces2[idx];
-					if (ii2->inuse) {
+					if (ii2 && ii2->inuse) {
 						if (request == SIOCGIFMETRIC) {
 							trap_put_long(ctx, arg + 16, ii2->metric);
 							success = 0;
@@ -1863,16 +1865,18 @@ uae_u32 host_IoctlSocket(TrapContext *ctx, SB, uae_u32 sd, uae_u32 request, uae_
 				int idx = get_net_if(ctx, arg, false);
 				if (idx >= 0) {
 					INTERFACE_INFO *ii = &net_interfaces[idx];
-					sockaddr_gen *sa = &ii->iiAddress;
-					if (request == SIOCGIFNETMASK) {
-						sa = &ii->iiNetmask;
-					} else if (request == SIOCGIFBRDADDR) {
-						sa = &ii->iiBroadcastAddress;
+					if (ii) {
+						sockaddr_gen *sa = &ii->iiAddress;
+						if (request == SIOCGIFNETMASK) {
+							sa = &ii->iiNetmask;
+						} else if (request == SIOCGIFBRDADDR) {
+							sa = &ii->iiBroadcastAddress;
+						}
+						trap_put_byte(ctx, arg + 16, 16);
+						trap_put_byte(ctx, arg + 17, (uae_u8)sa->Address.sa_family);
+						trap_put_bytes(ctx, sa->Address.sa_data, arg + 16 + 2, 14);
+						success = 0;
 					}
-					trap_put_byte(ctx, arg + 16, 16);
-					trap_put_byte(ctx, arg + 17, (uae_u8)sa->Address.sa_family);
-					trap_put_bytes(ctx, sa->Address.sa_data, arg + 16 + 2, 14);
-					success = 0;
 				}
 			}
 		break;
