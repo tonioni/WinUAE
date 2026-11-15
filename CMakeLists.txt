@@ -2200,6 +2200,7 @@ set(WINUAE_CORE_SOURCES
     scsitape.cpp
     specialmonitors.cpp
     statusline.cpp
+    od-generic/statusbar.cpp
     test_card.cpp
     tinyxml2.cpp
     traps.cpp
@@ -2474,6 +2475,13 @@ target_include_directories(winuae_unix_avsync_test PRIVATE
 )
 winuae_unix_register_test(winuae_unix_avsync_test)
 
+add_executable(winuae_unix_statusbar_test EXCLUDE_FROM_ALL
+    od-generic/statusbar.cpp od-generic/statusbar_test.cpp)
+target_include_directories(winuae_unix_statusbar_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include")
+winuae_unix_register_test(winuae_unix_statusbar_test)
+
 add_executable(winuae_unix_scaler_test EXCLUDE_FROM_ALL
     od-generic/rtg_scaler.cpp
     od-generic/display_modes.cpp
@@ -2575,6 +2583,7 @@ if(WINUAE_UNIX_WITH_QT_UI)
             $<$<BOOL:${WINUAE_UNIX_WITH_FLOPPYBRIDGE}>:od-unix/qt/floppybridge_ui.cpp>
             od-unix/qt/launcher.cpp
             od-unix/qt/launcher_bridge.cpp
+            od-unix/qt/statusbar.cpp
             od-unix/qt/mount_config.cpp
             od-unix/qt/path_utils.cpp
             od-unix/qt/prefs_adapter.cpp
@@ -2708,6 +2717,19 @@ if(WINUAE_UNIX_WITH_QT_UI)
                 ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
                 TIMEOUT 30
             )
+        endif()
+
+        add_executable(winuae_unix_qt_statusbar_test EXCLUDE_FROM_ALL
+            od-generic/statusbar.cpp od-unix/qt/statusbar.cpp od-unix/qt/statusbar_test.cpp)
+        target_include_directories(winuae_unix_qt_statusbar_test PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/od-unix"
+            "${CMAKE_CURRENT_SOURCE_DIR}/include"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(winuae_unix_qt_statusbar_test PRIVATE ${WINUAE_UNIX_QT_WIDGETS_TARGET})
+        winuae_unix_register_test(winuae_unix_qt_statusbar_test)
+        if(BUILD_TESTING)
+            set_tests_properties(winuae_unix_qt_statusbar_test PROPERTIES
+                ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
         endif()
 
         if(WINUAE_UNIX_WITH_INTEGRATED_QT_UI)

@@ -22,6 +22,11 @@
 #include <vector>
 
 #include "statusline.h"
+#include "xwin.h"
+#include "statusbar.h"
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+#include "od-unix/qt/statusbar.h"
+#endif
 #include "traps.h"
 #include "clipboard.h"
 #include "disk.h"
@@ -97,6 +102,12 @@ static uae_u32 s_status_rc[256];
 static uae_u32 s_status_gc[256];
 static uae_u32 s_status_bc[256];
 static bool s_status_colors_ready;
+static statusbar_rect s_status_bounds;
+static statusbar_rect s_status_rects[STATUSBAR_ITEMS];
+static statusbar_item s_status_items[STATUSBAR_ITEMS];
+static int s_status_output_width, s_status_output_height;
+static int s_status_draw_height;
+static float s_status_scale = 1;
 static Uint8 s_status_click_button;
 static SDL_MouseButtonFlags s_suppressed_mouse_buttons;
 static int s_vsync_applied = -1;
@@ -504,12 +515,20 @@ static int unix_input_lock_state_from_sdl(SDL_Keymod mod)
 
 static int statusbar_source_height(void)
 {
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    return std::max(1, s_status_draw_height);
+#else
     return TD_TOTAL_HEIGHT;
+#endif
 }
 
 static int statusbar_display_height(void)
 {
-    return statusbar_source_height() * UnixStatusScale;
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    return winUaeQtStatusbarHeight();
+#else
+    return TD_TOTAL_HEIGHT * UnixStatusScale;
+#endif
 }
 
 static void init_status_colors(void)
@@ -742,6 +761,12 @@ static bool make_video_layout(const struct unix_video_frame *frame, const struct
         (float)output_width,
         (float)status_height
     };
+    s_status_bounds = {layout->status_dst.x, layout->status_dst.y,
+        layout->status_dst.w, layout->status_dst.h};
+    s_status_output_width = output_width;
+    s_status_output_height = output_height;
+    s_status_draw_height = status_height;
+    s_status_scale = layout->pixel_scale_y;
     return true;
 }
 
@@ -949,6 +974,12 @@ static bool update_status_pixels(int width)
         return false;
     }
 
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    statusbar_state state;
+    statusbar_get_state(&state);
+    winUaeQtPaintStatusbar(s_status_pixels.data(), width, statusbar_source_height(),
+        s_status_scale, state, statusline_fetch(), s_status_rects, s_status_items);
+#else
     init_status_colors();
     std::fill(s_status_pixels.begin(), s_status_pixels.end(), 0xffd4d0c8u);
     statusline_set_multiplier(0, width, statusbar_source_height());
@@ -963,6 +994,7 @@ static bool update_status_pixels(int width)
             s_status_bc,
             NULL);
     }
+#endif
     return true;
 }
 
@@ -1432,9 +1464,15 @@ static void unix_gl_present(const struct unix_video_frame *frame, const struct g
     unix_gl_draw_texture(s_gl_texture, layout.frame_dst, true, filter, frame->width, frame->height, scaler);
     glDisable(GL_SCISSOR_TEST);
 
-    if (unix_gl_ensure_status_texture(frame->width)) {
-        unix_gl_draw_texture(s_gl_status_texture, layout.status_dst, true, NULL,
-            frame->width, statusbar_source_height());
+    if (unix_gl_ensure_status_texture(
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+        output_width
+#else
+        frame->width
+#endif
+        )) {
+        unix_gl_draw_texture(s_gl_status_texture, layout.status_dst, false, NULL,
+            s_status_width, statusbar_source_height());
     }
 
     SDL_GL_SwapWindow(s_window);
@@ -1487,103 +1525,103 @@ static bool unix_mouse_event_in_client(SDL_WindowID window_id, float x, float y)
     return unix_event_for_window(window_id) && unix_mouse_point_in_client(x, y);
 }
 
-static bool statusbar_logical_position(int window_x, int window_y, int *logical_x, int *logical_y)
+static bool statusbar_position_from_window(float window_x, float window_y, float *x, float *y)
 {
-    if (!s_window || s_texture_width <= 0 || s_texture_height <= 0) {
+    if (!s_window || s_status_width <= 0 || s_status_height <= 0)
         return false;
-    }
-
-    int window_width = 0;
-    int window_height = 0;
-    SDL_GetWindowSize(s_window, &window_width, &window_height);
-    if (window_width <= 0 || window_height <= 0) {
-        return false;
-    }
-
-    const int logical_width = s_texture_width;
-    const int logical_height = s_texture_height + statusbar_display_height();
-    const int lx = window_x * logical_width / window_width;
-    const int ly = window_y * logical_height / window_height;
-    if (ly < s_texture_height || ly >= logical_height) {
-        return false;
-    }
-    if (logical_x) {
-        *logical_x = lx;
-    }
-    if (logical_y) {
-        *logical_y = ly;
-    }
-    return true;
+    int width = 0, height = 0;
+    SDL_GetWindowSize(s_window, &width, &height);
+    return statusbar_point(window_x, window_y, width, height,
+        s_status_output_width, s_status_output_height, s_status_bounds, x, y);
 }
 
-static int statusbar_hit_slot(int logical_x)
+static int statusbar_led_at(float x, float y)
 {
-    if (s_status_width <= 0) {
-        return -1;
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    int slot = statusbar_hit(s_status_rects, STATUSBAR_ITEMS, x, y);
+    int led = statusbar_led(slot);
+    if (led == LED_DF3 && gui_data.md >= 0 && gui_data.drives[3].drive_disabled)
+        led = LED_MD;
+    return led;
+#else
+    // The non-Qt fallback uses the OSD: follow its actual visible LED order.
+    int visible[LED_MAX], count = 0;
+    for (int i = 0; i < LED_MAX; ++i) {
+        int led = defaultosdledpos[i];
+        if (statusline_led_visible(led) &&
+            (currprefs.leds_on_screen_mask[adisplays[0].picasso_on ? 1 : 0] & (1 << led)))
+            visible[count++] = led;
     }
-
-    int mult = statusline_get_multiplier(0) / 100;
-    if (mult < 1) {
-        mult = 1;
-    }
-    const int x_start = (td_numbers_pos & TD_RIGHT)
-        ? s_status_width - (td_numbers_padx + VISIBLE_LEDS * td_width) * mult
+    const int mult = std::max(1, statusline_get_multiplier(0) / 100);
+    const int start = (td_numbers_pos & TD_RIGHT)
+        ? s_status_width - (td_numbers_padx + count * td_width) * mult
         : td_numbers_padx * mult;
-    const int slot_width = td_width * mult;
-    if (slot_width <= 0 || logical_x < x_start) {
+    const float px = x * s_status_width / s_status_bounds.w;
+    if (px < start || td_width <= 0)
         return -1;
-    }
-    const int slot = (logical_x - x_start) / slot_width;
-    return slot >= 0 && slot < VISIBLE_LEDS ? slot : -1;
+    int slot = int((px - start) / (td_width * mult));
+    return slot < count ? visible[slot] : -1;
+#endif
 }
 
-static bool handle_statusbar_click(int window_x, int window_y, Uint8 button)
+static bool handle_statusbar_click(float window_x, float window_y, Uint8 button)
 {
-    int logical_x = 0;
-    if (!statusbar_logical_position(window_x, window_y, &logical_x, NULL)) {
+    if (button != SDL_BUTTON_LEFT && button != SDL_BUTTON_RIGHT)
         return false;
+    float x, y;
+    if (!statusbar_position_from_window(window_x, window_y, &x, &y))
+        return false;
+    int led = statusbar_led_at(x, y);
+    switch (statusbar_action_for(led, button == SDL_BUTTON_RIGHT)) {
+    case STATUSBAR_DISK:
+        if (changed_prefs.floppyslots[led - LED_DF0].dfxtype >= 0)
+            gui_display(led - LED_DF0);
+        break;
+    case STATUSBAR_EJECT:
+        disk_eject(led - LED_DF0);
+        break;
+    case STATUSBAR_CD:
+        gui_display(6);
+        break;
+    case STATUSBAR_EJECT_CD:
+        changed_prefs.cdslots[0].name[0] = 0;
+        changed_prefs.cdslots[0].inuse = false;
+        set_config_changed();
+        break;
+    case STATUSBAR_SETTINGS:
+        gui_display(-1);
+        break;
+    case STATUSBAR_RESET:
+        uae_reset(0, 1);
+        break;
+    case STATUSBAR_RESUME:
+        if (pause_emulation)
+            pausemode(0);
+        break;
+    default:
+        break;
     }
-
-    const int slot = statusbar_hit_slot(logical_x);
-    if (slot < 0) {
-        return true;
-    }
-
-    const bool right_click = button == SDL_BUTTON_RIGHT;
-    if (slot >= 8 && slot <= 11) {
-        const int drive = slot - 8;
-        if (right_click) {
-            disk_eject(drive);
-        } else if (changed_prefs.floppyslots[drive].dfxtype >= 0) {
-            gui_display(drive);
-        }
-        return true;
-    }
-    if (slot == 6) {
-        if (right_click) {
-            changed_prefs.cdslots[0].name[0] = 0;
-            changed_prefs.cdslots[0].inuse = false;
-            set_config_changed();
-        } else {
-            gui_display(6);
-        }
-        return true;
-    }
-    if (slot == 3) {
-        if (right_click) {
-            uae_reset(0, 1);
-        } else {
-            gui_display(-1);
-        }
-        return true;
-    }
-    if (slot == 2 && !right_click && pause_emulation) {
-        pausemode(0);
-        return true;
-    }
-
     return true;
 }
+
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+static void update_statusbar_tooltip()
+{
+    static int previous = -1;
+    float x, y, wx, wy;
+    SDL_GetMouseState(&wx, &wy);
+    int slot = -1;
+    if (!s_mouse_grabbed && SDL_GetMouseFocus() == s_window &&
+        statusbar_position_from_window(wx, wy, &x, &y))
+        slot = statusbar_hit(s_status_rects, STATUSBAR_ITEMS, x, y);
+    if (slot != previous) {
+        SDL_GetGlobalMouseState(&wx, &wy);
+        winUaeQtStatusbarTooltip(slot >= 0 ? s_status_items[slot].tooltip : nullptr,
+            int(wx), int(wy));
+        previous = slot;
+    }
+}
+#endif
 
 bool unix_video_setup(void)
 {
@@ -1599,6 +1637,9 @@ bool unix_video_setup(void)
         return false;
     }
 
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    ensureWinUaeQtApplication();
+#endif
     s_event_thread = uae_thread_get_id();
     s_event_thread_valid = true;
     s_wrong_event_thread_logged = false;
@@ -1966,7 +2007,7 @@ static int unix_video_poll_internal(bool *quit_requested, bool input_events)
             }
             int button = unix_mouse_button_from_sdl(event.button.button);
             if (button >= 0) {
-                if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && handle_statusbar_click((int)event.button.x, (int)event.button.y, event.button.button)) {
+                if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && !s_mouse_grabbed && handle_statusbar_click(event.button.x, event.button.y, event.button.button)) {
                     s_status_click_button = event.button.button;
                     break;
                 }
@@ -2054,6 +2095,9 @@ static void unix_video_present_on_event_thread(const struct unix_video_frame *fr
     if (!unix_video_init(frame->width, frame->height, frame->pixbytes)) {
         return;
     }
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    update_statusbar_tooltip();
+#endif
     unix_video_sync_vsync_state(frame);
     const struct gfx_filterdata *filter = filterdata_for_frame(frame);
     auto_resize_window_for_rtg(frame, filter);
@@ -2091,7 +2135,13 @@ static void unix_video_present_on_event_thread(const struct unix_video_frame *fr
     render_scanline_overlay(filter, &layout.frame_dst);
     SDL_SetRenderClipRect(s_renderer, NULL);
 
-    if (update_status_texture(frame->width)) {
+    if (update_status_texture(
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+        output_width
+#else
+        frame->width
+#endif
+        )) {
         SDL_RenderTexture(s_renderer, s_status_texture, NULL, &layout.status_dst);
     }
     SDL_RenderPresent(s_renderer);

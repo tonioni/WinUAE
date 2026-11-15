@@ -577,6 +577,9 @@
     <ClCompile Include="..\..\inputrecord.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\od-generic\statusbar.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\statusline.cpp">
       <Filter>common</Filter>
     </ClCompile>

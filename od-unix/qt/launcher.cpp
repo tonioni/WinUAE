@@ -5510,6 +5510,11 @@ static QApplication &winUaeQtSharedApplication(int argc, char **argv)
     return *sharedApplication;
 }
 
+void ensureWinUaeQtApplication()
+{
+    winUaeQtSharedApplication(0, nullptr);
+}
+
 /* Settings page selected when the dialog was last open, so reopening it
  * during the same session (e.g. to swap floppies) returns to that page. */
 static int lastNavigationPageIndex = -1;

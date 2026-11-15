@@ -87,6 +87,7 @@
 #include "inputrecord.h"
 #include "gfxboard.h"
 #include "statusline.h"
+#include "statusbar.h"
 #include "devices.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
@@ -2719,27 +2720,42 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			case NM_RCLICK:
 			{
 				LPNMMOUSE lpnm = (LPNMMOUSE)lParam;
-				int num = (int)lpnm->dwItemSpec;
-				int df0 = 11;
-				if (num >= df0 && num <= df0 + 3) { // DF0-DF3
-					num -= df0;
-					if (nm->code == NM_RCLICK) {
-						disk_eject(num);
-					} else if (changed_prefs.floppyslots[num].dfxtype >= 0) {
-						DiskSelection(hWnd, IDC_DF0 + num, 0, &changed_prefs, NULL, NULL);
-						disk_insert(num, changed_prefs.floppyslots[num].df);
+				int led = statusbar_led((int)lpnm->dwItemSpec - window_led_joy_start - 1);
+				if (led == LED_DF3 && gui_data.md >= 0 && gui_data.drives[3].drive_disabled)
+					led = LED_MD;
+				switch (statusbar_action_for(led, nm->code == NM_RCLICK)) {
+				case STATUSBAR_DISK:
+					if (changed_prefs.floppyslots[led - LED_DF0].dfxtype >= 0) {
+						int drive = led - LED_DF0;
+						DiskSelection(hWnd, IDC_DF0 + drive, 0, &changed_prefs, NULL, NULL);
+						disk_insert(drive, changed_prefs.floppyslots[drive].df);
 					}
-				} else if (num == 6) { // POWER
-					if (nm->code == NM_CLICK) {
-						inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
-					} else {
-						uae_reset(0, 1);
-					}
-				} else if (num == 4) { // FPS
+					break;
+				case STATUSBAR_EJECT:
+					disk_eject(led - LED_DF0);
+					break;
+				case STATUSBAR_SETTINGS:
+					inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
+					break;
+				case STATUSBAR_RESET:
+					uae_reset(0, 1);
+					break;
+				case STATUSBAR_RESUME:
 					if (pause_emulation) {
 						resumepaused(9);
 						setmouseactive(mon->monitor_id, 1);
 					}
+					break;
+				case STATUSBAR_CD:
+					gui_display(6);
+					break;
+				case STATUSBAR_EJECT_CD:
+					changed_prefs.cdslots[0].name[0] = 0;
+					changed_prefs.cdslots[0].inuse = false;
+					set_config_changed();
+					break;
+				default:
+					break;
 				}
 				return TRUE;
 			}
