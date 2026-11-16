@@ -53,6 +53,7 @@
 #include "rp.h"
 #endif
 #include "statusline.h"
+#include "statusbar.h"
 #include "devices.h"
 #ifdef WITH_MIDIEMU
 #include "midiemu.h"
@@ -2852,10 +2853,9 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 	RECT rc;
 	HLOCAL hloc;
 	LPINT lpParts;
-	int drive_width, hd_width, cd_width, power_width, caps_width;
-	int fps_width, lines_width, idle_width, snd_width, joy_width, net_width;
+	int joy_width;
 	int joys = currprefs.win32_statusbar > 1 ? 2 : 0;
-	int num_parts = LED_MAX + joys + 1;
+	int num_parts = STATUSBAR_ITEMS + joys + 2;
 	float scale = 1.0;
 	WINDOWINFO wi;
 	int extra;
@@ -2888,20 +2888,13 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 	GetWindowInfo(mon->hMainWnd, &wi);
 	extra = wi.rcClient.top - wi.rcWindow.top;
 	scale = getdpiforwindow(mon->hStatusWnd) / 96.0f;
-	drive_width = (int)(24 * scale);
-	hd_width = (int)(24 * scale);
-	cd_width = (int)(24 * scale);
-	power_width = (int)(42 * scale);
-	caps_width = (int)(42 * scale);
-	lines_width = (int)(42 * scale);
-	fps_width = (int)(64 * scale);
-	idle_width = (int)(64 * scale);
-	net_width = (int)(24 * scale);
-	if (is_ppc_cpu(&currprefs))
-		idle_width += (int)(68 * scale);
-	if (is_x86_cpu(&currprefs))
-		idle_width += (int)(68 * scale);
-	snd_width = (int)(72 * scale);
+	int widths[STATUSBAR_ITEMS];
+	int total_width = 0;
+	for (int n = 0; n < STATUSBAR_ITEMS; ++n) {
+		widths[n] = (int)(statusbar_width(n, is_ppc_cpu(&currprefs),
+			is_x86_cpu(&currprefs) > 0) * scale);
+		total_width += widths[n];
+	}
 	joy_width = (int)(24 * scale);
 	GetClientRect(mon->hMainWnd, &rc);
 	/* Allocate an array for holding the right edge coordinates. */
@@ -2915,7 +2908,7 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 			i++;
 			window_led_msg_start = i;
 			/* Calculate the right edge coordinate for each part, and copy the coords to the array.  */
-			int startx = rc.right - (drive_width * 4) - power_width - caps_width - idle_width - fps_width - lines_width - cd_width - hd_width - snd_width - net_width - joys * joy_width - extra;
+			int startx = rc.right - total_width - joys * joy_width - extra;
 			for (int j = 0; j < joys; j++) {
 				lpParts[i] = startx;
 				i++;
@@ -2924,49 +2917,12 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 			window_led_joy_start = i;
 			if (lpParts[0] >= startx)
 				lpParts[0] = startx - 1;
-			// snd
-			lpParts[i] = startx;
-			i++;
-			// cpu
-			lpParts[i] = lpParts[i - 1] + snd_width;
-			i++;
-			// fps
-			lpParts[i] = lpParts[i - 1] + idle_width;
-			i++;
-			// lines
-			lpParts[i] = lpParts[i - 1] + fps_width;
-			i++;
-			// power
-			lpParts[i] = lpParts[i - 1] + lines_width;
-			i++;
-			// caps
-			lpParts[i] = lpParts[i - 1] + power_width;
-			i++;
-			i1 = i;
-			// hd
-			lpParts[i] = lpParts[i - 1] + caps_width;
-			i++;
-			// cd
-			lpParts[i] = lpParts[i - 1] + hd_width;
-			i++;
-			// net
-			lpParts[i] = lpParts[i - 1] + cd_width;
-			i++;
-			// df0
-			lpParts[i] = lpParts[i - 1] + net_width;
-			i++;
-			// df1
-			lpParts[i] = lpParts[i - 1] + drive_width;
-			i++;
-			// df2
-			lpParts[i] = lpParts[i - 1] + drive_width;
-			i++;
-			// df3
-			lpParts[i] = lpParts[i - 1] + drive_width;
-			i++;
-			// edge
-			lpParts[i] = lpParts[i - 1] + drive_width;
-
+			i1 = window_led_joy_start + statusbar_position(LED_CD);
+			lpParts[i++] = startx;
+			for (int n = 0; n < STATUSBAR_ITEMS; ++n) {
+				startx += widths[n];
+				lpParts[i++] = startx;
+			}
 			window_led_msg = lpParts[window_led_msg_start - 1];
 			window_led_msg_end = lpParts[window_led_msg_start - 1 + 1];
 			window_led_joys = lpParts[window_led_joy_start - joys];

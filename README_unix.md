@@ -841,7 +841,8 @@ export WINUAE_SMOKE_LOG=/tmp/winuae_unix_smoke.log
 - CHD hardfile and CD image support is built by default. CHD FLAC codecs require libFLAC that is compatible with the configured macOS deployment target; otherwise CHD remains enabled without FLAC-compressed CD codecs.
 - Hold `End` and press `F1`-`F4` to change DF0:-DF3:, `F5` to change the CD image, and `F6` to restore a state. Hold `Shift` with those shortcuts to eject the matching floppy/CD image or save state, matching the Windows key map.
 - On MacBook or compact Apple keyboards, `End` is usually `Fn`/Globe + `Right Arrow`. Depending on macOS keyboard settings, function keys may also need `Fn`/Globe, so the MacBook form is `Fn`/Globe + `Right Arrow`, then `F1`-`F6` or `Shift` + `F1`-`F6`. Enabling "Use F1, F2, etc. keys as standard function keys" in macOS makes these closer to the Windows chords.
-- The SDL status strip at the bottom of the emulation window mirrors the Windows basics: left-click DF0:-DF3: or CD to choose media, right-click them to eject, left-click the power area for settings, right-click it for soft reset, and left-click the paused FPS area to resume.
+- With the integrated Qt UI, the window status bar uses the system font and theme colors at the display's native resolution. Its labels, ordering, and actions share the Windows status model, and its height stays constant when the emulation window is resized. The bitmap on-screen LEDs remain a separate overlay; builds without integrated Qt retain the bitmap status strip.
+- Release the mouse before using the status bar: left-click DF0:-DF3: or CD to choose media, right-click them to eject, left-click the power area for settings, right-click it for soft reset, and left-click the paused FPS area to resume.
 
 ## Useful CMake Options
 

@@ -3278,6 +3278,7 @@
     <ClCompile Include="..\..\softfloat\softfloat_fpsp.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />
+    <ClCompile Include="..\..\od-generic\statusbar.cpp" />
     <ClCompile Include="..\..\support\time.cpp" />
     <ClCompile Include="..\..\tabletlibrary.cpp" />
     <ClCompile Include="..\..\test_card.cpp" />

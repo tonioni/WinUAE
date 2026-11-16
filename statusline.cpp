@@ -12,6 +12,12 @@
 #include "drawing.h"
 #include "inputdevice.h"
 #include "statusline.h"
+#include "statusbar.h"
+#include "cpuboard.h"
+#include "x86.h"
+#include "uae/ppc.h"
+#include "sounddep/sound.h"
+#include "avioutput.h"
 
 #define STATUSLINE_MS 3000
 
@@ -591,4 +597,18 @@ void statusline_vsync(void)
 void statusline_single_erase(int monid, uae_u8 *buf, int y, int totalwidth)
 {
 	memset(buf, 0, 4 * totalwidth);
+}
+
+void statusbar_get_state(statusbar_state *state)
+{
+	state->gui = gui_data;
+	state->paused = pause_emulation != 0;
+	state->sound_paused = sound_paused();
+	state->recording = avioutput_requested != 0;
+	state->rtg = adisplays[0].picasso_on;
+	state->refresh_rate = p96vblank;
+	state->ppc = is_ppc_cpu(&currprefs);
+	state->ppc_active = ppc_state == PPC_STATE_ACTIVE;
+	int x86 = is_x86_cpu(&currprefs);
+	state->x86 = x86 > 0 ? (x86 == X86_STATE_ACTIVE ? 1 : 2) : 0;
 }

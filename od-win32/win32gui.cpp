@@ -81,6 +81,7 @@
 #include "uaeipc.h"
 #include "rp.h"
 #include "statusline.h"
+#include "statusbar.h"
 #include "zarchive.h"
 #include "gfxboard.h"
 #include "win32_uaenet.h"
@@ -24374,20 +24375,16 @@ void gui_fps (int fps, int lines, bool lace, int idle, int color)
 	gui_led(LED_SND, (gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0) ? 0 : 1, -1);
 }
 
-#define LED_STRING_WIDTH 40
+#define LED_STRING_WIDTH (STATUSBAR_TEXT_SIZE + 1)
 void gui_led (int led, int on, int brightness)
 {
 	int monid = 0;
 	struct AmigaMonitor *mon = &AMonitors[monid];
-	struct amigadisplay *ad = &adisplays[monid];
 	WORD type;
 	static TCHAR drive_text[NUM_LEDS * LED_STRING_WIDTH];
 	static TCHAR dfx[4][300];
-	TCHAR *ptr, *tt, *p;
-	int pos = -1, j;
-	int writing = 0, playing = 0, active2 = 0;
-	int writeprotected = 0;
-	int center = 0;
+	TCHAR *ptr, *tt;
+	int pos;
 
 	indicator_leds (led, on);
 #ifdef LOGITECHLCD
@@ -24396,6 +24393,7 @@ void gui_led (int led, int on, int brightness)
 	if (D3D_led)
 		D3D_led(led, on, brightness);
 #ifdef RETROPLATFORM
+	int writing = 0;
 	if (led >= LED_DF0 && led <= LED_DF3 && !gui_data.drives[led - LED_DF0].drive_disabled) {
 		rp_floppy_track(led - LED_DF0, gui_data.drives[led - LED_DF0].drive_track);
 		writing = gui_data.drives[led - LED_DF0].drive_writing;
@@ -24404,186 +24402,25 @@ void gui_led (int led, int on, int brightness)
 #endif
 	if (!mon->hStatusWnd)
 		return;
-	tt = NULL;
-	if (led >= LED_DF0 && led <= LED_DF3) {
-		pos = 9 + (led - LED_DF0);
-		ptr = drive_text + pos * LED_STRING_WIDTH;
-		if (gui_data.drives[led - 1].drive_disabled)
-			_tcscpy (ptr, _T(""));
-		else
-			_stprintf (ptr , _T("%02d"), gui_data.drives[led - 1].drive_track);
-		p = gui_data.drives[led - 1].df;
-		j = uaetcslen(p) - 1;
-		if (j < 0)
-			j = 0;
-		while (j > 0) {
-			if (p[j - 1] == '\\' || p[j - 1] == '/')
-				break;
-			j--;
-		}
-		tt = dfx[led - 1];
-		tt[0] = 0;
-		if (uaetcslen(p + j) > 0)
-			_stprintf (tt, _T("%s [CRC=%08X]"), p + j, gui_data.drives[led - 1].crc32);
-		center = 1;
-		if (gui_data.drives[led - 1].drive_writing)
-			writing = 1;
-		if (gui_data.drives[led - 1].floppy_protected)
-			writeprotected = 1;
-	} else if (led == LED_POWER) {
-		pos = 4;
-		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("Power"));
-		center = 1;
-	} else if (led == LED_CAPS) {
-		pos = 5;
-		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("Caps"));
-		center = 1;
-	} else if (led == LED_HD) {
-		pos = 7;
-		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("HD"));
-		center = 1;
-		if (on > 1)
-			writing = 1;
-	} else if (led == LED_CD) {
-		pos = 6;
-		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("CD"));
-		center = 1;
-		if (on >= 0) {
-			if (on & LED_CD_AUDIO)
-				playing = 1;
-			else if (on & LED_CD_ACTIVE2)
-				active2 = 1;
-			on &= 1;
-		}
-	} else if (led == LED_NET) {
-		pos = 8;
-		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("N"));
-		center = 1;
-		if (on > 1)
-			writing = 1;
-	} else if (led == LED_LINES) {
-		pos = 3;
-		ptr = drive_text + pos * LED_STRING_WIDTH;
-		if (gui_data.fps_color < 2) {
-			_stprintf(ptr, _T("%3d%c"), gui_data.lines, gui_data.lace ? 'i' : 'p');
-		} else {
-			_tcscpy(ptr, _T("----"));
-		}
-		on = 1;
-	} else if (led == LED_FPS) {
-		float fps = gui_data.fps / 10.0f;
-		pos = 2;
-		ptr = drive_text + pos * LED_STRING_WIDTH;
-		if (fps > 9999.9)
-			fps = 9999.9;
-		const TCHAR *rec = avioutput_requested ? _T("R") : _T("");
-		if (gui_data.fps_color == 2) {
-			if (ad->picasso_on)
-				_stprintf(ptr, _T("%.1f%s [NS]"), p96vblank, rec);
-			else
-				_stprintf(ptr, _T("No Sync%s"), rec);
-		} else if (gui_data.fps_color == 3) {
-			if (ad->picasso_on)
-				_stprintf(ptr, _T("%.1f%s [---]"), p96vblank, rec);
-			else
-				_stprintf(ptr, _T("FPS: ---%s"), rec);
-		} else if (fps < 1000) {
-			if (ad->picasso_on)
-				_stprintf (ptr, _T("%.1f%s [%.1f]"), p96vblank, rec, fps);
-			else
-				_stprintf (ptr, _T("FPS: %.1f%s"), fps, rec);
-		} else {
-			if (ad->picasso_on)
-				_stprintf(ptr, _T("%.0f%s [%.0f]"), p96vblank, rec, fps);
-			else
-				_stprintf(ptr, _T("FPS: %.0f%s"), fps, rec);
-		}
-		if (gui_data.cpu_halted > 0) {
-			_stprintf (ptr, _T("HALT%d%s"), gui_data.cpu_halted, rec);
-			center = 1;
-		}
-		if (pause_emulation) {
-			_tcscpy (ptr, _T("PAUSED"));
-			center = 1;
-		}
-		on = 1;
-	} else if (led == LED_CPU) {
-		pos = 1;
-		ptr = drive_text + pos * LED_STRING_WIDTH;
-		if (pause_emulation)
-			on = 0;
-		else
-			on = 1;
-		bool m68klabelchange = false;
-		const TCHAR *m68label = _T("CPU");
-		ptr[0] = 0;
-		p = ptr;
-		if (is_ppc_cpu(&currprefs)) {
-			_tcscat(ptr, _T("PPC: "));
-			if (ppc_state == PPC_STATE_ACTIVE)
-				_tcscat(ptr, _T("RUN"));
-			else
-				_tcscat(ptr, _T("STOP"));
-			_tcscat(ptr, _T(" "));
-			p = ptr + _tcslen(ptr);
-			m68label = _T("68k");
-			m68klabelchange = true;
-		}
-		int state = is_x86_cpu(&currprefs);
-		if (state > 0) {
-			_tcscat(ptr, _T("x86: "));
-			if (state == X86_STATE_ACTIVE)
-				_tcscat(ptr, _T("RUN"));
-			else
-				_tcscat(ptr, _T("STOP"));
-			_tcscat(ptr, _T(" "));
-			p = ptr + _tcslen(ptr);
-			m68label = _T("68k");
-			m68klabelchange = true;
-		}
-		if (gui_data.cpu_halted < 0 || gui_data.cpu_stopped) {
-			if (!m68klabelchange)
-				_tcscpy(p, _T("CPU:STOP"));
-			else
-				_tcscat(p, _T("68k: STOP"));
-		} else {
-			_stprintf(p, _T("%s: %.0f%%"), m68label, (double)((gui_data.idle) / 10.0));
-		}
-	} else if (led == LED_SND && gui_data.sndbuf_avail) {
-		pos = 0;
-		ptr = drive_text + pos * LED_STRING_WIDTH;
-		if (gui_data.sndbuf_status < 3 && !pause_emulation && !sound_paused()) {
-			_stprintf (ptr, _T("SND: %+.0f%%"), (double)((gui_data.sndbuf) / 10.0));
-		} else {
-			_tcscpy (ptr, _T("SND: -"));
-			center = 1;
-			on = 0;
-		}
-	} else if (led == LED_MD) {
-		pos = 9 + 3;
-		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("NV"));
-	}
-
-	if (on < 0)
+	statusbar_state state;
+	statusbar_get_state(&state);
+	statusbar_item item;
+	if (!statusbar_format(state, led, on, &item))
 		return;
-
-	type = SBT_OWNERDRAW;
+	pos = statusbar_position(led);
 	if (pos >= 0) {
-		ptr[_tcslen(ptr) + 1] = 0;
-		if (center)
-			ptr[_tcslen(ptr) + 1] |= 1;
-		if (on) {
-			ptr[_tcslen(ptr) + 1] |= 2;
+		ptr = drive_text + pos * LED_STRING_WIDTH;
+		_tcscpy(ptr, item.text);
+		ptr[_tcslen(ptr) + 1] = item.flags;
+		type = SBT_OWNERDRAW;
+		if (item.flags & STATUSBAR_ON)
 			type |= SBT_POPOUT;
+		tt = NULL;
+		if (led >= LED_DF0 && led <= LED_DF3) {
+			tt = dfx[led - LED_DF0];
+			_tcscpy(tt, item.tooltip);
 		}
-		if (writing)
-			ptr[_tcslen(ptr) + 1] |= 4;
-		if (playing)
-			ptr[_tcslen(ptr) + 1] |= 8;
-		if (active2)
-			ptr[_tcslen(ptr) + 1] |= 16;
-		if (writeprotected)
-			ptr[_tcslen(ptr) + 1] |= 32;
+
 		pos += window_led_joy_start;
 		PostMessage(mon->hStatusWnd, SB_SETTEXT, (WPARAM)((pos + 1) | type), (LPARAM)ptr);
 		if (tt != NULL)
