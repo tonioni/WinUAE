@@ -1060,11 +1060,12 @@ static int read_header_ext2 (struct zfile *diskfile, trackid *trackdata, int *nu
 	if (*num_tracks < 0) {
 		return 0;
 	}
+	// track data starts after all declared headers, including the ones that are not used
+	offs = 8 + 2 + 2 + (*num_tracks) * (2 + 2 + 4 + 4);
 	if (*num_tracks > MAX_TRACKS) {
 		write_log(_T("extadf: Too many tracks (%d), using %d\n"), *num_tracks, MAX_TRACKS);
 		*num_tracks = MAX_TRACKS;
 	}
-	offs = 8 + 2 + 2 + (*num_tracks) * (2 + 2 + 4 + 4);
 
 	for (int i = 0; i < (*num_tracks); i++) {
 		tid = trackdata + i;
