@@ -5433,7 +5433,12 @@ static void vsync_handler_post(void)
 	check_lineoptimizations();
 }
 
-static void dmal_emu_disk(struct rgabuf *rga, int slot, bool w, bool fast)
+static bool is_accurate_disk(void)
+{
+	return currprefs.floppy_speed == 100 && currprefs.cpu_memory_cycle_exact && currprefs.m68k_speed >= 0;
+}
+
+static bool dmal_emu_disk(struct rgabuf *rga, int slot, bool w, bool fast)
 {
 	uae_u16 dat = 0;
 
@@ -5444,14 +5449,15 @@ static void dmal_emu_disk(struct rgabuf *rga, int slot, bool w, bool fast)
 	// disk_fifostatus() needed in >100% disk speed modes
 	if (w) {
 		uaecptr pt = rga->pv;
-		if (fast) {
-			if (disk_fifostatus() <= 0) {
-				dat = chipmem_wget_indirect(pt);
-				regs.chipset_latch_rw = last_custom_value = dat;
-				if (disk_fifostatus() <= 0) {
-					DSKDAT(dat);
-				}
+		if (!is_accurate_disk()) {
+			if (disk_fifostatus() > 0) {
+				return false;
 			}
+		}
+		if (fast) {
+			dat = chipmem_wget_indirect(pt);
+			regs.chipset_latch_rw = last_custom_value = dat;
+			DSKDAT(dat);
 		} else {
 #ifdef DEBUGGER
 			if (debug_dma) {
@@ -5478,12 +5484,15 @@ static void dmal_emu_disk(struct rgabuf *rga, int slot, bool w, bool fast)
 	} else {
 		// read from disk
 		uaecptr pt = rga->pv;
-		if (fast) {
-			if (disk_fifostatus() >= 0) {
-				dat = DSKDATR(slot);
-				chipmem_wput_indirect(pt, dat);
-				regs.chipset_latch_rw = last_custom_value = dat;
+		if (!is_accurate_disk()) {
+			if (disk_fifostatus() < 0) {
+				return false;
 			}
+		}
+		if (fast) {
+			dat = DSKDATR(slot);
+			chipmem_wput_indirect(pt, dat);
+			regs.chipset_latch_rw = last_custom_value = dat;
 		} else {
 			if (disk_fifostatus() >= 0) {
 				dat = DSKDATR(slot);
@@ -5500,6 +5509,7 @@ static void dmal_emu_disk(struct rgabuf *rga, int slot, bool w, bool fast)
 			regs.chipset_latch_rw = last_custom_value = dat;
 		}
 	}
+	return true;
 }
 
 static void dmal_emu_audio(struct rgabuf *rga, int nr)
@@ -11195,8 +11205,9 @@ static void do_imm_dmal(void)
 				struct rgabuf r = { 0 };
 				uaecptr *pt = disk_getpt();
 				r.pv = *pt;
-				dmal_emu_disk(&r, nr, w, true);
-				*pt += 2;
+				if (dmal_emu_disk(&r, nr, w, true)) {
+					*pt += 2;
+				}
 			}
 		}
 	}
@@ -12269,12 +12280,18 @@ static void handle_rga_out(void)
 
 		// DISK
 		if (r->type & CYCLE_DISK) {
+			// >100% floppy speeds: disk.cpp also moves words and DSKPT itself,
+			// possibly after this slot latched the pointer.
+			if (!is_accurate_disk() && !r->conflict) {
+				r->pv = *r->p;
+			}
 			uaecptr pt = r->pv;
-			dmal_emu_disk(r, r->dskdat & 3, (r->dskdat & 0x100) != 0, false);
-			if (!disinc) {
-				pt += 2;
-				*r->p = pt;
-				r->pv = pt;
+			if (dmal_emu_disk(r, r->dskdat & 3, (r->dskdat & 0x100) != 0, false)) {
+				if (!disinc) {
+					pt += 2;
+					*r->p = pt;
+					r->pv = pt;
+				}
 			}
 			done = true;
 		}
