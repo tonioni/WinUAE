@@ -4540,6 +4540,10 @@ static const struct expansionboardsettings mediator_settings[] = {
 		_T("swapconfig")
 	},
 	{
+		_T("Bus error on master abort"),
+		_T("masterabort")
+	},
+	{
 		NULL
 	}
 };
@@ -4547,6 +4551,10 @@ static const struct expansionboardsettings bridge_settings[] = {
 	{
 		_T("Full PCI DMA"),
 		_T("fulldma")
+	},
+	{
+		_T("Bus error on master abort"),
+		_T("masterabort")
 	},
 	{
 		NULL
