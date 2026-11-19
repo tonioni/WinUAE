@@ -108,30 +108,60 @@ STATIC_INLINE void do_head_cycles_ce020 (int h)
 }
 #endif
 
-STATIC_INLINE uae_u32 get_long_ce020 (uaecptr addr)
+// The 68020 cannot continue executing until read data arrives, so on real A1200
+// hardware internal cycles do not overlap a data read (chip_read = 16 clocks).
+// We still let them overlap the read's last clock, which makes 68020 CE slightly
+// faster than real (chip_read about 15 clocks). The rest of the 68020 CE model is
+// not exact yet, and some demos break when the CPU is even slightly too slow:
+// with no overlap, one part of Roots V2.0 (Sanity) drops to every second frame.
+// Keep this margin until the whole 68020 CE timing matches real hardware.
+#define CE020_READ_OVERLAP_CLOCKS 1
+STATIC_INLINE void end_read_ce020(void)
 {
-	return mem_access_delay_long_read_ce020 (addr);
+	evt_t s = regs.ce020endcycle - CE020_READ_OVERLAP_CLOCKS * cpucycleunit;
+	if (s > regs.ce020startcycle)
+		regs.ce020startcycle = s;
 }
-STATIC_INLINE uae_u32 get_word_ce020 (uaecptr addr)
+
+STATIC_INLINE uae_u32 get_long_ce020(uaecptr addr)
 {
-	return mem_access_delay_word_read_ce020 (addr);
+	uae_u32 v = mem_access_delay_long_read_ce020(addr);
+	end_read_ce020();
+	return v;
 }
-STATIC_INLINE uae_u32 get_byte_ce020 (uaecptr addr)
+STATIC_INLINE uae_u32 get_word_ce020(uaecptr addr)
 {
-	return mem_access_delay_byte_read_ce020 (addr);
+	uae_u32 v = mem_access_delay_word_read_ce020(addr);
+	end_read_ce020();
+	return v;
+}
+STATIC_INLINE uae_u32 get_byte_ce020(uaecptr addr)
+{
+	uae_u32 v = mem_access_delay_byte_read_ce020(addr);
+	end_read_ce020();
+	return v;
+}
+
+// A posted write's last clock also overlaps the next instruction (write tail).
+STATIC_INLINE void end_write_ce020(void)
+{
+	regs.ce020startcycle -= cpucycleunit;
 }
 
 STATIC_INLINE void put_long_ce020 (uaecptr addr, uae_u32 v)
 {
 	mem_access_delay_long_write_ce020 (addr, v);
+	end_write_ce020();
 }
 STATIC_INLINE void put_word_ce020 (uaecptr addr, uae_u32 v)
 {
 	mem_access_delay_word_write_ce020 (addr, v);
+	end_write_ce020();
 }
 STATIC_INLINE void put_byte_ce020 (uaecptr addr, uae_u32 v)
 {
 	mem_access_delay_byte_write_ce020 (addr, v);
+	end_write_ce020();
 }
 
 extern void continue_ce020_prefetch(void);

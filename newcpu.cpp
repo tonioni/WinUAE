@@ -6332,7 +6332,11 @@ static void m68k_run_2ce (void)
 		
 				wait_memory_cycles();
 				regs.instruction_cnt++;
-				regs.ce020extracycles++;
+
+				// Hack not needed anymore if 68020
+				if (currprefs.cpu_model != 68020 || currprefs.m68k_speed < 0) {
+					regs.ce020extracycles++;
+				}
 
 		cont:
 				if (r->spcflags || regs.ipl[0] > 0) {
