@@ -830,8 +830,9 @@ static uae_u32 REGPARAM2 pci_io_lget(uaecptr addr)
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_io(&addr, &pcibs, &endianswap, 4);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_long, true, 0);
+	}
 	if (a && a->lget) {
 		v = a->lget(pcibs, addr);
 #if PCI_DEBUG_IO
@@ -852,8 +853,9 @@ static uae_u32 REGPARAM2 pci_io_wget(uaecptr addr)
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_io(&addr, &pcibs, &endianswap, 2);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_word, true, 0);
+	}
 	if (a && a->wget) {
 		if (endianswap) {
 			v = a->wget(pcibs, addr ^ (endianswap > 0 ? 2 : 0));
@@ -880,8 +882,9 @@ static uae_u32 REGPARAM2 pci_io_bget(uaecptr addr)
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_io(&addr, &pcibs, &endianswap, 1);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_byte, true, 0);
+	}
 	if (a && a->bget) {
 		if (endianswap) {
 			v = a->bget(pcibs, beswap(endianswap, addr));
@@ -907,8 +910,9 @@ static void REGPARAM2 pci_io_lput(uaecptr addr, uae_u32 b)
 	struct pci_board_state *pcibs;
 	uaecptr addr2 = addr;
 	const pci_addrbank *a = get_pci_io(&addr, &pcibs, &endianswap, -4);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_long, false, b);
+	}
 	if (a) {
 #if PCI_DEBUG_IO > 1
 		write_log(_T("pci_io_lput %08x = %08x = %08x\n"), addr, addr2, b);
@@ -932,8 +936,9 @@ static void REGPARAM2 pci_io_wput(uaecptr addr, uae_u32 b)
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_io(&addr, &pcibs, &endianswap, -2);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_word, false, b);
+	}
 	if (a) {
 		if (a->wput) {
 			if (endianswap) {
@@ -957,8 +962,9 @@ static void REGPARAM2 pci_io_bput(uaecptr addr, uae_u32 b)
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_io(&addr, &pcibs, &endianswap, -1);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_byte, false, b);
+	}
 	if (a) {
 		if (a->bput) {
 			if (endianswap) {
@@ -983,8 +989,9 @@ static uae_u32 REGPARAM2 pci_mem_lget(uaecptr addr)
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_mem(&addr, &pcibs, &endianswap);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_long, true, 0);
+	}
 	if (a && a->lget) {
 		v = a->lget(pcibs, addr);
 		if (endianswap)
@@ -998,8 +1005,9 @@ static uae_u32 REGPARAM2 pci_mem_wget(uaecptr addr)
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_mem(&addr, &pcibs, &endianswap);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_word, true, 0);
+	}
 	if (a && a->wget) {
 		if (endianswap) {
 			v = a->wget(pcibs, addr ^ (endianswap > 0 ? 2 : 0));
@@ -1016,8 +1024,9 @@ static uae_u32 REGPARAM2 pci_mem_bget(uaecptr addr)
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_mem(&addr, &pcibs, &endianswap);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_byte, true, 0);
+	}
 	if (a) {
 		if (a->bget) {
 			if (endianswap) {
@@ -1039,8 +1048,9 @@ static void REGPARAM2 pci_mem_lput(uaecptr addr, uae_u32 b)
 	struct pci_board_state *pcibs;
 	uaecptr addr2 = addr;
 	const pci_addrbank *a = get_pci_mem(&addr, &pcibs, &endianswap);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_long, false, b);
+	}
 #if PCI_DEBUG_IO > 1
 	write_log(_T("pci_mem_lput %08x = %08x = %08x\n"), addr, addr2, b);
 #endif
@@ -1061,8 +1071,9 @@ static void REGPARAM2 pci_mem_wput(uaecptr addr, uae_u32 b)
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_mem(&addr, &pcibs, &endianswap);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_word, false, b);
+	}
 	if (a) {
 		if (a->wput) {
 			if (endianswap) {
@@ -1083,8 +1094,9 @@ static void REGPARAM2 pci_mem_bput(uaecptr addr, uae_u32 b)
 	int endianswap;
 	struct pci_board_state *pcibs;
 	const pci_addrbank *a = get_pci_mem(&addr, &pcibs, &endianswap);
-	if (!a)
+	if (!a) {
 		pci_master_abort(addr, sz_byte, false, b);
+	}
 	if (a) {
 		if (a->bput) {
 			if (endianswap) {
