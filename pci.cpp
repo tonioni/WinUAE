@@ -391,10 +391,11 @@ static struct pci_board_state *get_pci_board_state(struct pci_bridge *pcib, uaec
 			}
 		}
 	}
+	// Legacy VGA ports, decoded only while I/O space is enabled
 	if (io && addr2 < 0x400) {
 		for (int i = 0; i < MAX_PCI_BOARDS; i++) {
 			struct pci_board_state *pcibs = &pcib->boards[i];
-			if (pcibs->board && pcibs->board->bars[PCI_LEGACY_IO].bget) {
+			if (pcibs->board && pcibs->board->bars[PCI_LEGACY_IO].bget && pcibs->io_map_active) {
 				stored_board = i;
 				stored_bar = PCI_LEGACY_IO;
 				*bar = stored_bar;
