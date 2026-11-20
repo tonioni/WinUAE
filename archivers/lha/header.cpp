@@ -628,11 +628,11 @@ boolean get_header(struct zfile *fp, LzHeader *hdr)
 	}
 
 	if (dir_length) {
-		if ((dir_length + name_length) > sizeof(dirname)) {
+		if ((dir_length + name_length) >= sizeof(dirname)) {
 			return FALSE;
 		}
 		strcat(dirname, hdr->name);
-		if ((dir_length + name_length) > sizeof(hdr->name)) {
+		if ((dir_length + name_length) >= sizeof(hdr->name)) {
 			return FALSE;
 		}
 		strncpy(hdr->name, dirname, sizeof(hdr->name));
