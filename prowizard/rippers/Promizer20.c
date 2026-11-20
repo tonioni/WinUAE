@@ -9,9 +9,19 @@
 
 int16_t	 testPM2 ( void )
 {
+  unsigned long available, ref_offset, pat_data_size;
+  unsigned long ref_table_size, sample_offset, sample_size, max_ref, pos;
+  unsigned long pattern_pos, pattern_count, note_count, ref, entry;
+  unsigned long effect, pattern_break;
+
   PW_Start_Address = PW_i;
   /* test 1 */
-  if ( (PW_Start_Address + 5714) > PW_in_size )
+  if ( (PW_Start_Address < 0) || (PW_Start_Address > PW_in_size) )
+  {
+    return BAD;
+  }
+  available = (unsigned long)(PW_in_size - PW_Start_Address);
+  if ( available < 5714 )
   {
     return BAD;
   }
@@ -28,6 +38,93 @@ int16_t	 testPM2 ( void )
   /* test 3 */
   if ( in_data[PW_Start_Address+5461] > 0x40 )
     /* testing a volume */
+  {
+    return BAD;
+  }
+
+  /* Validate every input-derived size used by Depack_PM20(). */
+  if ( (((in_data[PW_Start_Address+5200]*256) +
+          in_data[PW_Start_Address+5201]) / 2) > 128 )
+  {
+    return BAD;
+  }
+
+  ref_offset = ((unsigned long)in_data[PW_Start_Address+5710] << 24) |
+               ((unsigned long)in_data[PW_Start_Address+5711] << 16) |
+               ((unsigned long)in_data[PW_Start_Address+5712] << 8) |
+               (unsigned long)in_data[PW_Start_Address+5713];
+  if ( (ref_offset < 516) || (ref_offset > available - 5198) )
+  {
+    return BAD;
+  }
+  pat_data_size = ref_offset - 516;
+  if ( (pat_data_size & 1) || (pat_data_size > 32768) )
+  {
+    return BAD;
+  }
+
+  max_ref = 0;
+  for ( pos=0 ; pos<pat_data_size ; pos+=2 )
+  {
+    ref = ((unsigned long)in_data[PW_Start_Address+5714+pos] << 8) |
+          (unsigned long)in_data[PW_Start_Address+5715+pos];
+    if ( ref > max_ref )
+      max_ref = ref;
+  }
+  /* Depack_PM20() stores the maximum plus one in a signed int16_t. */
+  if ( max_ref > 0x7ffe )
+  {
+    return BAD;
+  }
+  ref_table_size = (max_ref + 1) * 4;
+  if ( ref_table_size > available - (5198 + ref_offset) )
+  {
+    return BAD;
+  }
+
+  /* Account for pattern-break skips before Depack_PM20() writes Pattern. */
+  pattern_pos = pattern_count = note_count = pattern_break = 0;
+  for ( pos=0 ; pos<pat_data_size ; pos+=2 )
+  {
+    if ( (pattern_pos % 1024) == 0 )
+    {
+      if ( pattern_count >= 64 )
+        return BAD;
+      pattern_count++;
+    }
+    if ( pattern_pos > 65532 )
+      return BAD;
+    ref = ((unsigned long)in_data[PW_Start_Address+5714+pos] << 8) |
+          (unsigned long)in_data[PW_Start_Address+5715+pos];
+    entry = PW_Start_Address + 5198 + ref_offset + ref * 4;
+    if ( (in_data[entry+1] / 2) >= 37 )
+      return BAD;
+    effect = in_data[entry+2] & 0x0f;
+    if ( (effect == 0x0d) || (effect == 0x0b) )
+      pattern_break = 1;
+    if ( pattern_break && ((note_count % 4) == 3) )
+    {
+      pattern_pos = (pattern_pos + 1023) & ~1023UL;
+      pattern_break = 0;
+    }
+    else
+      pattern_pos += 4;
+    note_count++;
+  }
+  sample_offset = ((unsigned long)in_data[PW_Start_Address+5706] << 24) |
+                  ((unsigned long)in_data[PW_Start_Address+5707] << 16) |
+                  ((unsigned long)in_data[PW_Start_Address+5708] << 8) |
+                  (unsigned long)in_data[PW_Start_Address+5709];
+  if ( sample_offset > available - 5198 )
+  {
+    return BAD;
+  }
+  sample_size = 0;
+  for ( pos=0 ; pos<31 ; pos++ )
+    sample_size +=
+      ((((unsigned long)in_data[PW_Start_Address+5458+pos*8] << 8) |
+         (unsigned long)in_data[PW_Start_Address+5459+pos*8]) * 2);
+  if ( sample_size > available - (5198 + sample_offset) )
   {
     return BAD;
   }
