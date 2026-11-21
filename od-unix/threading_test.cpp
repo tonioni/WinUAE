@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "threaddep/thread.h"
+#include "uae.h"
 
 static bool require_int(const char *label, int actual, int expected)
 {
@@ -17,6 +18,24 @@ static bool require_int(const char *label, int actual, int expected)
 int main()
 {
     bool ok = true;
+
+    volatile uae_atomic pending = 0x12;
+    ok = require_int("atomic or returns previous bits",
+        atomic_or(&pending, 0x24), 0x12) && ok;
+    ok = require_int("atomic or stores combined bits", pending, 0x36) && ok;
+    ok = require_int("atomic and returns previous bits",
+        atomic_and(&pending, 0x0f), 0x36) && ok;
+    ok = require_int("atomic and stores masked bits", pending, 0x06) && ok;
+    // The interrupt dispatcher consumes pending requests this way.
+    ok = require_int("claim pending interrupt bits",
+        atomic_and(&pending, 0), 0x06) && ok;
+    ok = require_int("claimed interrupt bits cleared", pending, 0) && ok;
+    ok = require_int("atomic increment returns new value", atomic_inc(&pending), 1) && ok;
+    ok = require_int("atomic decrement returns new value", atomic_dec(&pending), 0) && ok;
+    atomic_or(&pending, 4);
+    ok = require_int("test and reset reports previous bit",
+        atomic_bit_test_and_reset(&pending, 2), 1) && ok;
+    ok = require_int("test and reset clears bit", pending, 0) && ok;
 
     uae_sem_t sem = NULL;
     uae_sem_init(&sem, 0, 0);
