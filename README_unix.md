@@ -21,7 +21,7 @@ This is an early macOS/Linux port of the WinUAE source tree. The current Unix bu
 - Native CD/DVD access is available on macOS and Linux; `WINUAE_UNIX_WITH_NATIVE_SCSI` adds Linux SG_IO and macOS SCSITaskLib direct SCSI/tape passthrough through the same SPTI-style slot used by Windows.
 - The shared Toccata/Prelude/UAESND sound-board backend and PCI ES1370/FM801 paths are built by default, with SDL3 host capture hooks when SDL3 is available.
 - UAE Zorro II/Zorro III RTG RAM can be configured and autoconfigured, with an initial Unix `uaegfx.card` install path and guest Picasso96 monitor-driver smoke coverage, including 8-bit Workbench mode open and direct 15-bit/16-bit/24-bit/32-bit P96 screen-open tests. Accelerated RTG operations are still incomplete.
-- The Qt Expansions page can enable common Zorro/expansion board ROM entries, CPU boards, PPC quickstart presets, and shared sound boards using the same `*_rom_file`, `*_rom_options`, and CPU-board keys as WinUAE. PPC emulation uses the external `qemu-uae` plugin ABI; a QEMU 11.0 based plugin tree is expected next to `WinUAE/` as `qemu-uae` (the reinauer/qemu-uae checkout).
+- The Qt Expansions page can enable common Zorro/expansion board ROM entries, CPU boards, PPC quickstart presets, and shared sound boards using the same `*_rom_file`, `*_rom_options`, and CPU-board keys as WinUAE. PPC emulation uses the external `qemu-uae` plugin ABI; the bundled plugin defaults to QEMU 11.1.3, built from the `uae-ppc-plugin` patch deck or the matching [`qemu-v11.1.3-uae` source branch](https://github.com/reinauer/qemu/tree/qemu-v11.1.3-uae).
 - Full UI parity with the Windows configuration dialogs and platform packaging are still incomplete.
 - If SDL3 is not found, CMake currently builds a headless/null-video target.
 
@@ -221,16 +221,25 @@ with instructions when none applies:
 
 1. `-DWINUAE_QEMU_UAE_PLUGIN_FILE=/path/to/qemu-uae.so` — a prebuilt plugin.
 2. A patched `qemu-uae` source tree at `WINUAE_QEMU_UAE_SOURCE_DIR`
-   (default: sibling `../qemu-uae`) — the developer path.
+   (default: sibling `../qemu-uae`) whose `VERSION` matches
+   `WINUAE_QEMU_UAE_QEMU_VERSION` (default `11.1.3`) — the developer path.
+   An older sibling checkout is skipped in favor of the builder.
 3. The `uae-ppc-plugin` builder at `WINUAE_QEMU_UAE_BUILDER_DIR`
    (default: sibling `../uae-ppc-plugin`). The builder downloads a
    SHA-verified QEMU source tarball, applies the UAE patch deck, and builds
    the plugin during the WinUAE build. For offline builds (distribution
    packaging), declare the QEMU tarball as a package source and pass
-   `-DWINUAE_QEMU_UAE_QEMU_TARBALL=/path/to/qemu-11.0.1.tar.xz`.
+   `-DWINUAE_QEMU_UAE_QEMU_TARBALL=/path/to/qemu-11.1.3.tar.xz`.
 4. When no builder checkout is found and `WINUAE_QEMU_UAE_BUILDER_FETCH` is
    `ON` (the default), the builder is cloned at build time from
-   `WINUAE_QEMU_UAE_BUILDER_URL`.
+   `WINUAE_QEMU_UAE_BUILDER_URL` and checked out at
+   `WINUAE_QEMU_UAE_BUILDER_REVISION`. Existing managed clones are updated
+   to that commit when needed; explicitly supplied local checkouts are
+   used as-is. Offline builds need the pinned commit already cached.
+
+CMake passes the selected QEMU version to the builder and tracks its script,
+patch deck, local archive and build settings. Changes trigger a fresh plugin
+build from the managed source cache; unchanged builds reuse the output.
 
 On Linux the bundled plugin target is part of the default build, so plain
 `cmake --build` + `cmake --install` flows always produce and install the
@@ -337,7 +346,7 @@ WinUAE_mac/
   qemu-uae/
 ```
 
-The helper builds the sibling QEMU 11.0 plugin tree and can copy the result
+The helper builds the selected QEMU-UAE source tree and can copy the result
 into a WinUAE build directory:
 
 ```sh
@@ -361,8 +370,8 @@ cmake --build /tmp/winuae_cmake_build --target winuae_unix_qemu_uae_plugin -j
 `WINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN` controls whether the plugin build target
 is enabled, and `WINUAE_QEMU_UAE_SOURCE_DIR` can point at a different
 `qemu-uae` source tree. `WINUAE_QEMU_UAE_PLUGIN_FILE` can point at an already
-built plugin. Without a patched source tree, the target builds through the
-release-oriented `uae-ppc-plugin` builder (`WINUAE_QEMU_UAE_BUILDER_DIR`,
+built plugin. Without a source tree matching the selected QEMU release,
+the target builds through the release-oriented `uae-ppc-plugin` builder (`WINUAE_QEMU_UAE_BUILDER_DIR`,
 cloned from `WINUAE_QEMU_UAE_BUILDER_URL` when missing and
 `WINUAE_QEMU_UAE_BUILDER_FETCH` is enabled; `WINUAE_QEMU_UAE_QEMU_TARBALL`
 supplies a local QEMU tarball for offline builds). `WINUAE_QEMU_UAE_DEPS_PREFIX`
