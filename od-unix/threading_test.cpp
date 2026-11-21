@@ -15,9 +15,26 @@ static bool require_int(const char *label, int actual, int expected)
     return false;
 }
 
+static void check_worker_thread(void *data)
+{
+    *(bool*)data = is_mainthread();
+}
+
 int main()
 {
     bool ok = true;
+
+    // Check from a worker first: the first caller need not be the main thread.
+    bool worker_is_main = true;
+    uae_thread_id worker;
+    if (!uae_start_thread("main-thread-test", check_worker_thread,
+            &worker_is_main, &worker)) {
+        fprintf(stderr, "failed to start main-thread test worker\n");
+        return 1;
+    }
+    uae_wait_thread(worker);
+    ok = require_int("worker is not main thread", worker_is_main, 0) && ok;
+    ok = require_int("main thread recognized", is_mainthread(), 1) && ok;
 
     volatile uae_atomic pending = 0x12;
     ok = require_int("atomic or returns previous bits",

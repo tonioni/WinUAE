@@ -8,6 +8,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Capture the startup thread before any emulator workers are created.
+static const pthread_t main_thread_id = pthread_self();
+
+bool is_mainthread(void)
+{
+    return pthread_equal(pthread_self(), main_thread_id) != 0;
+}
+
 uae_atomic atomic_and(volatile uae_atomic *p, uae_u32 v)
 {
     return __sync_fetch_and_and(p, (uae_atomic)v);
