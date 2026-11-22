@@ -8,6 +8,41 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Capture the startup thread before any emulator workers are created.
+static const pthread_t main_thread_id = pthread_self();
+
+bool is_mainthread(void)
+{
+    return pthread_equal(pthread_self(), main_thread_id) != 0;
+}
+
+uae_atomic atomic_and(volatile uae_atomic *p, uae_u32 v)
+{
+    return __sync_fetch_and_and(p, (uae_atomic)v);
+}
+
+uae_atomic atomic_or(volatile uae_atomic *p, uae_u32 v)
+{
+    return __sync_fetch_and_or(p, (uae_atomic)v);
+}
+
+uae_atomic atomic_inc(volatile uae_atomic *p)
+{
+    return __sync_add_and_fetch(p, 1);
+}
+
+uae_atomic atomic_dec(volatile uae_atomic *p)
+{
+    return __sync_sub_and_fetch(p, 1);
+}
+
+uae_u32 atomic_bit_test_and_reset(volatile uae_atomic *p, uae_u32 v)
+{
+    uae_atomic mask = (uae_atomic)1 << v;
+    uae_atomic old = __sync_fetch_and_and(p, ~mask);
+    return (old & mask) != 0;
+}
+
 static void unix_sem_timeout_from_now(struct timespec *ts, int ms)
 {
     clock_gettime(CLOCK_REALTIME, ts);

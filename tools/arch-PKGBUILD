@@ -1,5 +1,6 @@
 # Maintainer: Ferenc Boldog <ferenc.boldog@gmail.com>
-_qemu_version="11.0.1"
+_qemu_version="11.1.3"
+_qemu_builder_revision="3047b78acb4f33737a06a57392d472356fe57ac7"
 _qemu_archive="qemu-${_qemu_version}.tar.xz"
 _qemu_url_default="https://download.qemu.org/${_qemu_archive}"
 
@@ -20,11 +21,11 @@ provides=('winuae-unix')
 conflicts=('winuae-unix')
 source=(
 	"${pkgname}::git+https://github.com/tonioni/WinUAE.git#branch=master"
-	"qemu-uae::git+https://github.com/reinauer/uae-ppc-plugin#branch=main"
+	"qemu-uae::git+https://github.com/reinauer/uae-ppc-plugin#commit=${_qemu_builder_revision}"
 	"floppybridge::git+https://github.com/RobSmithDev/FloppyDriveBridge.git#commit=710fa15cb200303f8c4bde1c931786175f301a68"
 	"https://download.qemu.org/${_qemu_archive}"
 )
-sha256sums=('SKIP' 'SKIP' 'SKIP' '0d235f5820278d914a3155ec27af8e4258d697ea892895570807d69c0cb8cd64')
+sha256sums=('SKIP' 'SKIP' 'SKIP' '5a8289c7940dc77d3873c81a6c29ba3afe1446fc9d36e77fa1658cdbecb84b22')
 
 pkgver() {
     cd "${pkgname}"
@@ -32,7 +33,11 @@ pkgver() {
 }
 
 build() {
-    ${srcdir}/qemu-uae/build-qemu-uae-plugin.sh --tarball "${srcdir}/${_qemu_archive}" --work-dir "${srcdir}/qemu-uae" --output "${srcdir}"
+    QEMU_UAE_QEMU_VERSION="${_qemu_version}" \
+        "${srcdir}/qemu-uae/build-qemu-uae-plugin.sh" \
+        --clean --tarball "${srcdir}/${_qemu_archive}" \
+        --work-dir "${srcdir}/qemu-uae-build" \
+        --output "${srcdir}/qemu-uae.so"
     WINUAE_FLOPPYBRIDGE_SOURCE_DIR=${srcdir}/floppybridge WINUAE_FLOPPYBRIDGE_OUTPUT=${srcdir}/build/FloppyBridge.so ${srcdir}/${pkgname}/tools/build-floppybridge.sh
     cmake -B "${srcdir}/build" -S "${srcdir}/${pkgname}" \
         -DWINUAE_UNIX_BUILD_QEMU_UAE_PLUGIN=ON \
