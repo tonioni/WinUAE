@@ -5728,7 +5728,7 @@ int DISK_examine_image(struct uae_prefs *p, int num, struct diskinfo *di, bool d
 	uae_u32 dos, crc, crc2;
 	int wasdelayed = drv->dskchange_time;
 	int sectable[MAX_SECTORS] = { 0 };
-	int oldcyl, oldside, mfmpos;
+	int oldcyl, oldside, mfmpos, oldwp, oldwp2;
 	uae_u32 v = 0;
 #ifdef FLOPPYBRIDGE
 	bool fb = DISK_isfloppybridge(p, num);
@@ -5751,6 +5751,8 @@ int DISK_examine_image(struct uae_prefs *p, int num, struct diskinfo *di, bool d
 	di->unreadable = true;
 	oldcyl = drv->cyl;
 	oldside = side;
+	oldwp2 = drv->forcedwrprot;
+	oldwp = drv->wrprot;
 	mfmpos = drv->mfmpos;
 	drv->cyl = 0;
 	side = 0;
@@ -5772,6 +5774,8 @@ int DISK_examine_image(struct uae_prefs *p, int num, struct diskinfo *di, bool d
 	di->hd = drv->ddhd == 2;
 	drv->cyl = oldcyl;
 	side = oldside;
+	drv->wrprot = oldwp;
+	drv->forcedwrprot = oldwp2;
 	if (sectable[0] == 0 || sectable[1] == 0) {
 		ret = 2;
 		di->unreadable = true;
