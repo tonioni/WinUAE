@@ -1314,19 +1314,31 @@ int trap_put_string(TrapContext *ctx, const void *haddrp, uaecptr addr, int maxl
 		uae_u8 *p = ctx->host_trap_data + RTAREA_TRAP_DATA_EXTRA;
 		for (;;) {
 			uae_u8 v = *haddr++;
-			*p++ = v;
-			if (!v)
+			maxlen--;
+			if (maxlen == 0) {
+				*p++ = 0;
 				break;
+			}
+			*p++ = v;
+			if (!v) {
+				break;
+			}
 			len++;
 		}
 		call_hardware_trap_back(ctx, TRAPCMD_PUT_STRING, ctx->amiga_trap_data + RTAREA_TRAP_DATA_EXTRA, addr, maxlen, 0);
 	} else {
 		for (;;) {
 			uae_u8 v = *haddr++;
+			maxlen--;
+			if (maxlen == 0) {
+				put_byte(addr, 0);
+				break;
+			}
 			put_byte(addr, v);
 			addr++;
-			if (!v)
+			if (!v) {
 				break;
+			}
 			len++;
 		}
 	}
@@ -1340,21 +1352,33 @@ int trap_get_string(TrapContext *ctx, void *haddrp, uaecptr addr, int maxlen)
 		uae_u8 *p = ctx->host_trap_data + RTAREA_TRAP_DATA_EXTRA;
 		call_hardware_trap_back(ctx, TRAPCMD_GET_STRING, addr, ctx->amiga_trap_data + RTAREA_TRAP_DATA_EXTRA, maxlen, 0);
 		for (;;) {
+			maxlen--;
+			if (maxlen == 0) {
+				*haddr++ = 0;
+				break;
+			}
 			uae_u8 v = *p++;
 			*haddr++ = v;
-			if (!v)
+			if (!v) {
 				break;
+			}
 			len++;
 		}
 	} else {
 		for (;;) {
+			maxlen--;
+			if (maxlen == 0) {
+				*haddr++ = 0;
+				break;
+			}
 			uae_u8 v = get_byte(addr);
 			*haddr++ = v;
 			addr++;
-			if (!v)
+			if (!v) {
 				break;
+			}
+			len++;
 		}
-		len++;
 	}
 	return len;
 }
