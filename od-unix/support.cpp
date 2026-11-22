@@ -130,33 +130,6 @@ int target_sleep_nanos(int ns)
     return 0;
 }
 
-uae_atomic atomic_and(volatile uae_atomic *p, uae_u32 v)
-{
-    return __sync_and_and_fetch(p, (uae_atomic)v);
-}
-
-uae_atomic atomic_or(volatile uae_atomic *p, uae_u32 v)
-{
-    return __sync_or_and_fetch(p, (uae_atomic)v);
-}
-
-uae_atomic atomic_inc(volatile uae_atomic *p)
-{
-    return __sync_add_and_fetch(p, 1);
-}
-
-uae_atomic atomic_dec(volatile uae_atomic *p)
-{
-    return __sync_sub_and_fetch(p, 1);
-}
-
-uae_u32 atomic_bit_test_and_reset(volatile uae_atomic *p, uae_u32 v)
-{
-    uae_atomic mask = (uae_atomic)1 << v;
-    uae_atomic old = __sync_fetch_and_and(p, ~mask);
-    return (old & mask) != 0;
-}
-
 // Seconds since 1970 in local time, like the Windows host.
 uae_u32 getlocaltime(void)
 {
@@ -176,6 +149,5 @@ void target_setdefaultstatefilename(const TCHAR*) {}
 bool target_osd_keyboard(int) { return false; }
 void target_osk_control(int, int, int, int) {}
 bool isguiactive(void) { return false; }
-bool is_mainthread(void) { return true; }
 void fpux_save(int*) {}
 void fpux_restore(int*) {}
