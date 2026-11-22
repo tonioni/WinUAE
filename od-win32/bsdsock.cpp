@@ -2859,11 +2859,18 @@ void host_getservbynameport(TrapContext *ctx, SB, uae_u32 nameport, uae_u32 prot
 
 uae_u32 host_gethostname(TrapContext *ctx, uae_u32 name, uae_u32 namelen)
 {
-	if (!trap_valid_address(ctx, name, namelen))
-		return -1;
-	uae_char buf[256];
-	trap_get_string(ctx, buf, name, sizeof buf);
-	return gethostname(buf, namelen);
+	if (!trap_valid_address(ctx, name, namelen)) {
+		return SOCKET_ERROR;
+	}
+	uae_char buf[256 + 1];
+	if (namelen > sizeof(buf) - 1) {
+		namelen = sizeof(buf) - 1;
+	}
+	if (gethostname(buf, namelen) == SOCKET_ERROR) {
+		return SOCKET_ERROR;
+	}
+	trap_put_string(ctx, buf, name, sizeof(buf) - 1);
+	return 0;
 }
 
 #endif
