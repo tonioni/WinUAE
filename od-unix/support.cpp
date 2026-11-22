@@ -148,6 +148,5 @@ void target_addtorecent(const TCHAR*, int) {}
 void target_setdefaultstatefilename(const TCHAR*) {}
 bool target_osd_keyboard(int) { return false; }
 void target_osk_control(int, int, int, int) {}
-bool isguiactive(void) { return false; }
 void fpux_save(int*) {}
 void fpux_restore(int*) {}
