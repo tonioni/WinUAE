@@ -1325,7 +1325,9 @@ int trap_put_string(TrapContext *ctx, const void *haddrp, uaecptr addr, int maxl
 			}
 			len++;
 		}
-		call_hardware_trap_back(ctx, TRAPCMD_PUT_STRING, ctx->amiga_trap_data + RTAREA_TRAP_DATA_EXTRA, addr, maxlen, 0);
+		// The loop has already limited and terminated the string: copy its
+		// len + 1 bytes. maxlen now holds only what was left of the limit.
+		call_hardware_trap_back(ctx, TRAPCMD_PUT_BYTES, ctx->amiga_trap_data + RTAREA_TRAP_DATA_EXTRA, addr, len + 1, 0);
 	} else {
 		for (;;) {
 			uae_u8 v = *haddr++;
