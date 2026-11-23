@@ -26,6 +26,7 @@
 #include "uae.h"
 
 #ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+#include <atomic>
 #include "qt/launcher_bridge.h"
 #endif
 
@@ -35,7 +36,30 @@ static int unix_gui_argc;
 static TCHAR **unix_gui_argv;
 #ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
 static TCHAR unix_gui_display_config_path[MAX_DPATH];
+static std::atomic<unsigned int> unix_gui_active_depth{0};
+
+// Keep the outer dialog active when a nested dialog returns.
+class UnixGuiActivity {
+public:
+    UnixGuiActivity()
+    {
+        unix_gui_active_depth.fetch_add(1, std::memory_order_relaxed);
+    }
+    ~UnixGuiActivity()
+    {
+        unix_gui_active_depth.fetch_sub(1, std::memory_order_relaxed);
+    }
+};
 #endif
+
+bool isguiactive(void)
+{
+#ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    return unix_gui_active_depth.load(std::memory_order_relaxed) != 0;
+#else
+    return false;
+#endif
+}
 
 static bool is_runtime_config_snapshot(const TCHAR *path)
 {
@@ -127,6 +151,7 @@ void target_main_exit(void)
 int gui_init(void)
 {
 #ifdef WINUAE_UNIX_WITH_INTEGRATED_QT_UI
+    UnixGuiActivity activity;
     TCHAR initial_config[MAX_DPATH];
     initial_config[0] = 0;
 
@@ -288,6 +313,7 @@ bool gui_ask_disk(int drv, TCHAR *name, int name_len)
         return false;
     }
     active = true;
+    UnixGuiActivity activity;
 
     const int old_pause = pause_emulation;
     pause_emulation = 1;
@@ -406,6 +432,7 @@ void gui_display(int shortcut)
     }
 
     active = true;
+    UnixGuiActivity activity;
 
     const int old_pause = pause_emulation;
     pause_emulation = 1;
