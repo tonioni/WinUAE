@@ -95,6 +95,26 @@ static __inline uint32_t do_byteswap_32(uint32_t v)
 #define REG_FBSOURCEDELTA       0x0d88
 #define REG_CONFIG              0x0d90
 
+// Texture unit registers needed for P96 blit support
+#define REG_TEX_ADDRESS_MODE    0x0380
+#define REG_TEX_SSTART          0x0388
+#define REG_TEX_DSDX            0x0390
+#define REG_TEX_TSTART          0x03a0
+#define REG_TEX_DTDX            0x03a8
+#define REG_TEX_DSDYDOM         0x0398
+#define REG_TEX_DTDYDOM         0x03b0
+#define REG_TEX_BASE_ADDRESS    0x0580
+#define REG_TEX_MAP_FORMAT      0x0588
+#define REG_TEX_DATA_FORMAT     0x0590
+#define REG_TEX_READ_MODE       0x0670
+#define REG_TEX_COLOR_MODE      0x0680
+
+#define REG_CHROMA_LOW          0x0f10
+#define REG_CHROMA_UPPER        0x0f08
+#define REG_YUV_MODE            0x0f00
+#define REG_DITHERMODE          0x0818
+
+
 typedef struct permedia2_t
 {
 	mem_mapping_t linear_mapping[2];
@@ -136,8 +156,9 @@ typedef struct permedia2_t
 	int gp_bpp;
 	int gp_bytesperline;
 	int gp_type;
-	bool gp_astipple, gp_texena, gp_fogena, gp_fastfill;
+	bool gp_astipple, gp_fogena, gp_fastfill;
 	bool gp_synconbitmask, gp_reusebitmask, gp_colordda;
+	bool gp_texena;
 	int gp_incx, gp_incy;
 	int gp_dxsub, gp_dxdom;
 	bool gp_readsrc, gp_readdst, gp_writedst;
@@ -173,6 +194,13 @@ typedef struct permedia2_t
 	bool gp_bmcheckresult;
 
 	int gp_packedlimitxstart, gp_packedlimitxend;
+
+	int gp_s, gp_t, gp_texpitch, gp_texbpp, gp_texelsize;
+	int gp_sstart;
+	int gp_texw, gp_texh;
+	int swrapmode, twrapmode;
+
+	uint32_t chromalow[4], chromaupper[4];
 
 	uint32_t gp_outfifocnt;
 	uint32_t gp_outfifodata;
@@ -363,7 +391,7 @@ static void permedia2_recalctimings(svga_t *svga)
 
 		svga->bpp = bpp;
 
-		bool oswaprb = svga->swaprb;
+		int oswaprb = svga->swaprb;
 		svga->swaprb = (permedia2->ramdac_vals[0x18] & 0x20) == 0;
 		if (oswaprb != svga->swaprb) {
 			gfxchip_video_rbswap(svga->swaprb);
@@ -684,23 +712,28 @@ static uint32_t permedia2_ramdac_read(int reg, void *p)
 			permedia2->ramdac_palcomp = 0;
 			permedia2->ramdac_pal++;
 		}
-	} else if (reg == 0x50) {
-		// data register
-		v = permedia2->ramdac_vals[permedia2->ramdac_reg];
-		switch (permedia2->ramdac_reg)
-		{
-			case 0x29: // pixelclockstatus
+		} else if (reg == 0x50) {
+			// data register
+			v = permedia2->ramdac_vals[permedia2->ramdac_reg];
+			switch (permedia2->ramdac_reg)
+			{
+				case 0x29: // pixelclockstatus
 				v = 0x10; // PLL locked
 				break;
-			case 0x33: // memoryclockstatus
+				case 0x33: // memoryclockstatus
 				v = 0x10; // PLL locked
 				break;
+			}
 		}
-	}
 
-	return v;
+		return v;
 }
 
+static __inline int TOFRACT1218(uint32_t v)
+{
+	int vv = v & 0xfffffffc;
+	return vv;
+}
 static __inline int TOFRACT1215(uint32_t v)
 {
 	int vv = v & 0x7fffffe;
@@ -746,6 +779,98 @@ static __inline int FTOINT(int f)
 	return f >> 16;
 }
 
+static int unpackwidth(uint32_t v, int shift)
+{
+	int ppv0 = (v >> (shift + 0)) & 7;
+	int ppv1 = (v >> (shift + 3)) & 7;
+	int ppv2 = (v >> (shift + 6)) & 7;
+	int pp0 = ppv0 ? 1 << (ppv0 - 1) : 0;
+	int pp1 = ppv1 ? 1 << (ppv1 - 1) : 0;
+	int pp2 = ppv2 ? 1 << (ppv2 - 1) : 0;
+	return (pp0 + pp1 + pp2) * 32;
+}
+
+static uint32_t readtex(struct permedia2_t *permedia2, uint32_t c, bool *textured)
+{
+	uint32_t tc = permedia2->gp_regs[REG_TEX_COLOR_MODE >> 3];
+	if (!(tc & 1)) {
+		*textured = true;
+		return c;
+	}
+
+	if (permedia2->gp_s >= 0 && (permedia2->gp_s >> 20) < permedia2->gp_texw &&
+		permedia2->gp_t >= 0 && (permedia2->gp_t >> 20) < permedia2->gp_texh) {
+
+		uint32_t baseaddr = (permedia2->gp_regs[REG_TEX_BASE_ADDRESS >> 3] & 0xffffff) * permedia2->gp_texelsize;
+		uint32_t taddr;
+		uint32_t tmf = permedia2->gp_regs[REG_TEX_MAP_FORMAT >> 3];
+		if (tmf & (1 << 16)) { // window origin
+			taddr = baseaddr - (permedia2->gp_t >> 20) * permedia2->gp_texpitch * permedia2->gp_texelsize +
+				(permedia2->gp_s >> 20) * permedia2->gp_texelsize;
+		} else {
+			taddr = baseaddr + (permedia2->gp_t >> 20) * permedia2->gp_texpitch * permedia2->gp_texelsize +
+				(permedia2->gp_s >> 20) * permedia2->gp_texelsize;
+		}
+
+		uint32_t addr = (taddr >> 1) & permedia2->svga.vram_mask;
+		switch (permedia2->gp_texelsize)
+		{
+			case 4 / 4:
+			c = permedia2->svga.vram[addr];
+			if (!(taddr & 1)) {
+				c >>= 4;
+			}
+			c &= 15;
+			// TODO: convert
+			break;
+			case 8 / 4:
+			c = permedia2->svga.vram[addr];
+			c = (c << 0) | (c << 8) | (c << 16);
+			break;
+			case 16 / 4:
+			c = *((uint16_t*)&permedia2->svga.vram[addr]);
+			break;
+			case 24 / 4:
+			{
+				uint8_t c0 = permedia2->svga.vram[(addr + 0) & permedia2->svga.vram_mask];
+				uint8_t c1 = permedia2->svga.vram[(addr + 1) & permedia2->svga.vram_mask];
+				uint8_t c2 = permedia2->svga.vram[(addr + 2) & permedia2->svga.vram_mask];
+				c = (c0 << 0) | (c1 << 8) | (c2 << 16);
+			}
+			break;
+			case 32 / 4:
+			c = *((uint32_t*)&permedia2->svga.vram[addr]);
+			break;
+		}
+
+		uint32_t yuvmode = permedia2->gp_regs[REG_YUV_MODE >> 3];
+		int testmode = (yuvmode >> 1) & 3;
+		if (testmode) {
+			// TODO: other color depths
+			if ((c & 0xff000000) >= permedia2->chromalow[0] &&
+				(c & 0x00ff0000) >= permedia2->chromalow[1] &&
+				(c & 0x0000ff00) >= permedia2->chromalow[2] &&
+				(c & 0x000000ff) >= permedia2->chromalow[3] &&
+				(c & 0xff000000) <= permedia2->chromaupper[0] &&
+				(c & 0x00ff0000) <= permedia2->chromaupper[1] &&
+				(c & 0x0000ff00) <= permedia2->chromaupper[2] &&
+				(c & 0x000000ff) <= permedia2->chromaupper[3])
+			{
+				if (testmode == 2) {
+					bool reject = ((yuvmode >> 4) & 1) != 0;
+					if (!reject) {
+						return c;
+					}
+					*textured = true;
+					return c;
+				}
+			}
+		}
+
+		*textured = true;
+	}
+	return c;
+}
 static void writefb(struct permedia2_t *permedia2, uint32_t dst, uint32_t color, int bpp)
 {
 	dst &= permedia2->svga.vram_mask;
@@ -997,6 +1122,13 @@ static void do_blit_rect(permedia2_t *permedia2)
 							c = readfb(permedia2, ssp, permedia2->gp_bpp);
 						}
 						if (pxmode >=0) {
+							if (permedia2->gp_texena) {
+								bool textured = false;
+								c = readtex(permedia2, c, &textured);
+								if (!textured) {
+									goto next;
+								}
+							}
 							if (permedia2->gp_readdst) {
 								cd = readfb(permedia2, ddp, permedia2->gp_bpp);
 							}
@@ -1019,13 +1151,49 @@ static void do_blit_rect(permedia2_t *permedia2)
 							}
 						}
 					}
+					next:;
+
+					if (permedia2->gp_texena) {
+						int sd = TOFRACT1218(permedia2->gp_regs[REG_TEX_DSDX >> 3]);
+						permedia2->gp_s += sd;
+						int td = TOFRACT1218(permedia2->gp_regs[REG_TEX_DTDX >> 3]);
+						permedia2->gp_t += td;
+					}
+
 					permedia2->gp_x += permedia2->gp_incx;
 				}
 			}
+
 			permedia2->gp_x1 += permedia2->gp_dxdom;
 			permedia2->gp_x2 += permedia2->gp_dxsub;
 			permedia2->gp_x = permedia2->gp_incx > 0 ? permedia2->gp_x1 : permedia2->gp_x2 - FRACT_ONE;
 			permedia2->gp_y += permedia2->gp_dy;
+
+			if (permedia2->gp_texena) {
+				int sd = TOFRACT1218(permedia2->gp_regs[REG_TEX_DSDYDOM >> 3]);
+				permedia2->gp_sstart += sd;
+				permedia2->gp_s = permedia2->gp_sstart;
+				int td = TOFRACT1218(permedia2->gp_regs[REG_TEX_DTDYDOM >> 3]);
+				permedia2->gp_t += td;
+
+				if (permedia2->swrapmode == 1) {
+					if (permedia2->gp_s < 0) {
+						permedia2->gp_s += permedia2->gp_texw;
+					}
+					if ((permedia2->gp_s >> 20) >= permedia2->gp_texw) {
+						permedia2->gp_s -= permedia2->gp_texw;
+					}
+				}
+				if (permedia2->twrapmode == 1) {
+					if (permedia2->gp_t < 0) {
+						permedia2->gp_t += permedia2->gp_texh;
+					}
+					if ((permedia2->gp_t >> 20) >= permedia2->gp_texh) {
+						permedia2->gp_t -= permedia2->gp_texh;
+					}
+				}
+			}
+
 			if (permedia2->gp_synconbitmask) {
 				if (!next_bitmask(permedia2)) {
 					return;
@@ -1348,6 +1516,63 @@ static void permedia2_blit(permedia2_t *permedia2)
 		permedia2->gp_bitmaskoffset = (permedia2->gp_x >> 16) & 31;
 	}
 
+	if (permedia2->gp_texena) {
+
+		uint32_t readmode = permedia2->gp_regs[REG_TEX_READ_MODE >> 3];
+		permedia2->gp_texw = 1 << ((readmode >> 9) & 15);
+		permedia2->gp_texh = 1 << ((readmode >> 13) & 15);
+		permedia2->swrapmode = (readmode & (1 << 1)) & 3;
+		permedia2->twrapmode = (readmode & (1 << 3)) & 3;
+
+		permedia2->gp_sstart = TOFRACT1218(permedia2->gp_regs[REG_TEX_SSTART >> 3]);
+		permedia2->gp_s = permedia2->gp_sstart;
+		permedia2->gp_t = TOFRACT1218(permedia2->gp_regs[REG_TEX_TSTART >> 3]);
+		permedia2->gp_texpitch = unpackwidth(permedia2->gp_regs[REG_TEX_MAP_FORMAT >> 3], 0);
+
+
+		uint32_t format = permedia2->gp_regs[REG_TEX_DATA_FORMAT >> 3] & 15;
+		switch (format)
+		{
+			case 0:
+			case 13:
+			case 18:
+			case 19:
+			permedia2->gp_texbpp = 4;
+			break;
+			case 14:
+			case 15:
+			permedia2->gp_texbpp = 1;
+			break;
+			default:
+			permedia2->gp_texbpp = 2;
+			break;
+		}
+
+		uint32_t tmf = permedia2->gp_regs[REG_TEX_MAP_FORMAT >> 3];
+		switch ((tmf >> 19) & 7)
+		{
+			case 0:
+			permedia2->gp_texelsize = 8 / 4;
+			break;
+			case 1:
+			permedia2->gp_texelsize = 16 / 4;
+			break;
+			case 2:
+			permedia2->gp_texelsize = 32 / 4;
+			break;
+			case 3:
+			permedia2->gp_texelsize = 4 / 4;
+			break;
+			case 4:
+			permedia2->gp_texelsize = 24 / 4;
+			break;
+			default:
+			permedia2->gp_texelsize = 32 / 4;
+			pclog("invalid texel size %d\n", (tmf >> 19) & 7);
+			break;
+		}
+	}
+
 #if BLIT_LOG
 	pclog("X1=%d Y1=%d X2=%d Y2=%d BPP=%d PITCH=%d SOFF=%08x ROP=%02X SRC=%08x DST=%08x\n",
 		permedia2->gp_x1, permedia2->gp_y1, permedia2->gp_x2, permedia2->gp_y2, permedia2->gp_bpp,
@@ -1403,13 +1628,7 @@ static void permedia2_mmio_write_l(uint32_t addr, uint32_t val, void *p)
 
 		} else if (reg == REG_FBREADMODE) {
 			int readmode = val;
-			int ppv0 = (readmode >> 0) & 7;
-			int ppv1 = (readmode >> 3) & 7;
-			int ppv2 = (readmode >> 6) & 7;
-			int pp0 = ppv0 ? 1 << (ppv0 - 1) : 0;
-			int pp1 = ppv1 ? 1 << (ppv1 - 1) : 0;
-			int pp2 = ppv2 ? 1 << (ppv2 - 1) : 0;
-			permedia2->gp_pitch = (pp0 + pp1 + pp2) * 32;
+			permedia2->gp_pitch = unpackwidth(readmode, 0);
 		} else if (reg == REG_BITMASKPATTERN) {
 			permedia2->gp_bitmaskpattern = val;
 			uint32_t rasterizer = permedia2->gp_regs[REG_RASTERIZERMODE >> 3];
@@ -1470,6 +1689,16 @@ static void permedia2_mmio_write_l(uint32_t addr, uint32_t val, void *p)
 		} else if (reg == REG_SYNC) {
 			permedia2->gp_outfifodata = tag;
 			permedia2->gp_outfifocnt = 1;
+		} else if (reg == REG_CHROMA_LOW) {
+			permedia2->chromalow[0] = val & 0xff000000;
+			permedia2->chromalow[1] = val & 0x00ff0000;
+			permedia2->chromalow[2] = val & 0x0000ff00;
+			permedia2->chromalow[3] = val & 0x000000ff;
+		} else if (reg == REG_CHROMA_UPPER) {
+			permedia2->chromaupper[0] = val & 0xff000000;
+			permedia2->chromaupper[1] = val & 0x00ff0000;
+			permedia2->chromaupper[2] = val & 0x0000ff00;
+			permedia2->chromaupper[3] = val & 0x000000ff;
 		}
 	} else if (reg >= 0x4000 && reg < 0x5000) {
 		permedia2_ramdac_write(reg & 0xff, val, p);
