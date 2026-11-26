@@ -163,22 +163,25 @@ void setcapslockstate (int state)
 	capslockstate = state;
 }
 
-int getcapslock (void)
+int getcapslock(void)
 {
 	int capstable[7];
 
 	// this returns bogus state if caps change when in exclusive mode..
-	host_capslockstate = GetKeyState (VK_CAPITAL) & 1;
-	host_numlockstate = GetKeyState (VK_NUMLOCK) & 1;
-	host_scrolllockstate = GetKeyState (VK_SCROLL) & 1;
+	host_capslockstate = GetKeyState(VK_CAPITAL) & 1;
+	host_numlockstate = GetKeyState(VK_NUMLOCK) & 1;
+	host_scrolllockstate = GetKeyState(VK_SCROLL) & 1;
 	capstable[0] = DIK_CAPITAL;
 	capstable[1] = host_capslockstate;
-	capstable[2] = DIK_NUMLOCK;
-	capstable[3] = host_numlockstate;
-	capstable[4] = DIK_SCROLL;
-	capstable[5] = host_scrolllockstate;
-	capstable[6] = 0;
-	capslockstate = inputdevice_synccapslock (capslockstate, capstable);
+	capstable[2] = 0;
+//	capstable[6] = 0;
+// 	Commented out, not used yet.
+//	capstable[2] = DIK_NUMLOCK;
+//	capstable[3] = host_numlockstate;
+//	capstable[4] = DIK_SCROLL;
+//	capstable[5] = host_scrolllockstate;
+//	capstable[6] = 0;
+	capslockstate = inputdevice_synccapslock(capslockstate, capstable);
 	if (currprefs.keyboard_mode == 0) {
 		gui_data.capslock = host_capslockstate;
 		gui_led(LED_CAPS, gui_data.capslock, -1);

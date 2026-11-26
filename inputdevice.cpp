@@ -8448,20 +8448,15 @@ int inputdevice_iskeymapped (int keyboard, int scancode)
 int inputdevice_synccapslock (int oldcaps, int *capstable)
 {
 	struct uae_input_device *na = &keyboards[0];
-	int j, i;
 	
 	if (!keyboards)
 		return -1;
-	for (j = 0; na->extra[j]; j++) {
+	for (int j = 0; na->extra[j]; j++) {
 		if (na->extra[j] == INPUTEVENT_KEY_CAPS_LOCK) {
-			for (i = 0; capstable[i]; i += 2) {
-				if (na->extra[j] == capstable[i]) {
-					if (oldcaps != capstable[i + 1]) {
-						oldcaps = capstable[i + 1];
-						inputdevice_translatekeycode (0, capstable[i], oldcaps ? -1 : 0, false);
-					}
-					return i;
-				}
+			if (oldcaps != capstable[1]) {
+				oldcaps = capstable[1];
+				inputdevice_translatekeycode(0, capstable[0], -1, false);
+				return oldcaps;
 			}
 		}
 	}
