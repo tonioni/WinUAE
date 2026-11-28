@@ -1030,17 +1030,21 @@ static void lts_ecs_n_ishres_dhires_b1(int cnt, int draw_end, int hbstrt_offset,
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 2;
 			} else {
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1060,18 +1064,23 @@ static void lts_ecs_n_ishres_dhires_b1_filtered(int cnt, int draw_end, int hbstr
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 2;
 			} else {
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1091,17 +1100,21 @@ static void lts_ecs_dpf_ishres_dhires_b1(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 2;
 			} else {
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1121,18 +1134,23 @@ static void lts_ecs_dpf_ishres_dhires_b1_filtered(int cnt, int draw_end, int hbs
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 2;
 			} else {
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1152,17 +1170,21 @@ static void lts_ecs_ehb_ishres_dhires_b1(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 2;
 			} else {
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1182,18 +1204,23 @@ static void lts_ecs_ehb_ishres_dhires_b1_filtered(int cnt, int draw_end, int hbs
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 2;
 			} else {
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1213,17 +1240,21 @@ static void lts_ecs_ham_ishres_dhires_b1(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 2;
 			} else {
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1243,18 +1274,23 @@ static void lts_ecs_ham_ishres_dhires_b1_filtered(int cnt, int draw_end, int hbs
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 2;
 			} else {
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1274,17 +1310,21 @@ static void lts_ecs_kehb_ishres_dhires_b1(int cnt, int draw_end, int hbstrt_offs
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 2;
 			} else {
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1304,18 +1344,23 @@ static void lts_ecs_kehb_ishres_dhires_b1_filtered(int cnt, int draw_end, int hb
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 2;
 			} else {
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1843,19 +1888,25 @@ static void lts_ecs_n_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offset,
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 4;
 			} else {
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
-			cnt += bufaddv;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1879,19 +1930,25 @@ static void lts_ecs_dpf_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 4;
 			} else {
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
-			cnt += bufaddv;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1915,19 +1972,25 @@ static void lts_ecs_ehb_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 4;
 			} else {
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
-			cnt += bufaddv;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1951,19 +2014,25 @@ static void lts_ecs_ham_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 4;
 			} else {
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
-			cnt += bufaddv;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -1987,19 +2056,25 @@ static void lts_ecs_kehb_ishres_dshres_b1(int cnt, int draw_end, int hbstrt_offs
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
+				buf1 += 4;
 			} else {
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
 				*buf1++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
-			cnt += bufaddv;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -3124,20 +3199,26 @@ static void lts_ecs_n_ishres_dhires_b2(int cnt, int draw_end, int hbstrt_offset,
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 2;
+				buf2 += 2;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -3157,21 +3238,28 @@ static void lts_ecs_n_ishres_dhires_b2_filtered(int cnt, int draw_end, int hbstr
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 2;
+				buf2 += 2;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -3191,20 +3279,26 @@ static void lts_ecs_dpf_ishres_dhires_b2(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 2;
+				buf2 += 2;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -3224,21 +3318,28 @@ static void lts_ecs_dpf_ishres_dhires_b2_filtered(int cnt, int draw_end, int hbs
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 2;
+				buf2 += 2;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -3258,20 +3359,26 @@ static void lts_ecs_ehb_ishres_dhires_b2(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 2;
+				buf2 += 2;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -3291,21 +3398,28 @@ static void lts_ecs_ehb_ishres_dhires_b2_filtered(int cnt, int draw_end, int hbs
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 2;
+				buf2 += 2;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -3325,20 +3439,26 @@ static void lts_ecs_ham_ishres_dhires_b2(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 2;
+				buf2 += 2;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -3358,21 +3478,28 @@ static void lts_ecs_ham_ishres_dhires_b2_filtered(int cnt, int draw_end, int hbs
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 2;
+				buf2 += 2;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -3392,20 +3519,26 @@ static void lts_ecs_kehb_ishres_dhires_b2(int cnt, int draw_end, int hbstrt_offs
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 2;
+				buf2 += 2;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -3425,21 +3558,28 @@ static void lts_ecs_kehb_ishres_dhires_b2_filtered(int cnt, int draw_end, int hb
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 2;
+				buf2 += 2;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -4037,23 +4177,34 @@ static void lts_ecs_n_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offset,
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 4;
+				buf2 += 4;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
+				*buf2++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*buf2++ = dpix_val0;
 			*buf2++ = dpix_val1;
-			cnt += bufaddv;
+			*buf2++ = dpix_val2;
+			*buf2++ = dpix_val3;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -4077,23 +4228,34 @@ static void lts_ecs_dpf_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 4;
+				buf2 += 4;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
+				*buf2++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*buf2++ = dpix_val0;
 			*buf2++ = dpix_val1;
-			cnt += bufaddv;
+			*buf2++ = dpix_val2;
+			*buf2++ = dpix_val3;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -4117,23 +4279,34 @@ static void lts_ecs_ehb_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 4;
+				buf2 += 4;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
+				*buf2++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*buf2++ = dpix_val0;
 			*buf2++ = dpix_val1;
-			cnt += bufaddv;
+			*buf2++ = dpix_val2;
+			*buf2++ = dpix_val3;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -4157,23 +4330,34 @@ static void lts_ecs_ham_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offse
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 4;
+				buf2 += 4;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
+				*buf2++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*buf2++ = dpix_val0;
 			*buf2++ = dpix_val1;
-			cnt += bufaddv;
+			*buf2++ = dpix_val2;
+			*buf2++ = dpix_val3;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -4197,23 +4381,34 @@ static void lts_ecs_kehb_ishres_dshres_b2(int cnt, int draw_end, int hbstrt_offs
 		bool bpl = false;
 		if (cnt < bpl1dat_trigger_offset || cnt < hbstop_offset || cnt < hstrt_offset || cnt >= hstop_offset) {
 			if (cnt < hbstop_offset) {
-				buf1++;
-				buf2++;
+				buf1 += 4;
+				buf2 += 4;
 			} else {
 				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf1++ = bgcolor;
+				*buf2++ = bgcolor;
+				*buf2++ = bgcolor;
+				*buf2++ = bgcolor;
 				*buf2++ = bgcolor;
 			}
 		} else {
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*buf2++ = dpix_val0;
 			*buf2++ = dpix_val1;
-			cnt += bufaddv;
+			*buf2++ = dpix_val2;
+			*buf2++ = dpix_val3;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;

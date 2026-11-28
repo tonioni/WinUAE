@@ -1404,7 +1404,7 @@ static void lts_aga_fm1_n0_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -1497,7 +1497,7 @@ static void lts_aga_fm1_n1_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -1592,7 +1592,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -1690,7 +1690,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -1766,7 +1766,7 @@ static void lts_aga_fm1_ehb0_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -1842,7 +1842,7 @@ static void lts_aga_fm1_ehb1_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -1918,7 +1918,7 @@ static void lts_aga_fm1_ham0_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -1994,7 +1994,7 @@ static void lts_aga_fm1_ham1_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -2070,7 +2070,7 @@ static void lts_aga_fm1_kehb0_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -2146,7 +2146,7 @@ static void lts_aga_fm1_kehb1_p4_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -2236,7 +2236,7 @@ static void lts_aga_fm1_n0_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -2329,7 +2329,7 @@ static void lts_aga_fm1_n1_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -2424,7 +2424,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -2522,7 +2522,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -2598,7 +2598,7 @@ static void lts_aga_fm1_ehb0_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -2674,7 +2674,7 @@ static void lts_aga_fm1_ehb1_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -2764,7 +2764,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -2857,7 +2857,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -2933,7 +2933,7 @@ static void lts_aga_fm1_kehb0_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -3009,7 +3009,7 @@ static void lts_aga_fm1_kehb1_p8_ilores_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -6052,7 +6052,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -6158,7 +6158,7 @@ static void lts_aga_fm1_n0_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -6251,7 +6251,7 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -6363,7 +6363,7 @@ static void lts_aga_fm1_n1_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -6458,7 +6458,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -6574,7 +6574,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -6672,7 +6672,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -6794,7 +6794,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -6869,7 +6869,7 @@ static void lts_aga_fm1_ehb0_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -6948,7 +6948,7 @@ static void lts_aga_fm1_ehb0_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7023,7 +7023,7 @@ static void lts_aga_fm1_ehb1_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7102,7 +7102,7 @@ static void lts_aga_fm1_ehb1_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7183,7 +7183,7 @@ static void lts_aga_fm1_ham0_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7262,7 +7262,7 @@ static void lts_aga_fm1_ham0_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7343,7 +7343,7 @@ static void lts_aga_fm1_ham1_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7422,7 +7422,7 @@ static void lts_aga_fm1_ham1_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7497,7 +7497,7 @@ static void lts_aga_fm1_kehb0_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7576,7 +7576,7 @@ static void lts_aga_fm1_kehb0_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7651,7 +7651,7 @@ static void lts_aga_fm1_kehb1_p4_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7730,7 +7730,7 @@ static void lts_aga_fm1_kehb1_p4_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7820,7 +7820,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -7926,7 +7926,7 @@ static void lts_aga_fm1_n0_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -8019,7 +8019,7 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -8131,7 +8131,7 @@ static void lts_aga_fm1_n1_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -8226,7 +8226,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -8342,7 +8342,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -8440,7 +8440,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -8562,7 +8562,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -8637,7 +8637,7 @@ static void lts_aga_fm1_ehb0_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -8716,7 +8716,7 @@ static void lts_aga_fm1_ehb0_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -8791,7 +8791,7 @@ static void lts_aga_fm1_ehb1_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -8870,7 +8870,7 @@ static void lts_aga_fm1_ehb1_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -8976,7 +8976,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -9082,7 +9082,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -9194,7 +9194,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -9306,7 +9306,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -9381,7 +9381,7 @@ static void lts_aga_fm1_kehb0_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -9460,7 +9460,7 @@ static void lts_aga_fm1_kehb0_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -9535,7 +9535,7 @@ static void lts_aga_fm1_kehb1_p8_ihires_dlores_spr_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -9614,7 +9614,7 @@ static void lts_aga_fm1_kehb1_p8_ihires_dlores_spr_filtered_genlock(void)
 			internal_pixel_cnt += 4;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_1x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -12165,7 +12165,7 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -12175,7 +12175,7 @@ static void lts_aga_fm1_n0_p4_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -12338,7 +12338,7 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -12348,7 +12348,7 @@ static void lts_aga_fm1_n1_p4_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -12499,7 +12499,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -12509,7 +12509,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -12682,7 +12682,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -12692,7 +12692,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -12794,7 +12794,7 @@ static void lts_aga_fm1_ehb0_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -12804,7 +12804,7 @@ static void lts_aga_fm1_ehb0_p4_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -12906,7 +12906,7 @@ static void lts_aga_fm1_ehb1_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -12916,7 +12916,7 @@ static void lts_aga_fm1_ehb1_p4_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -13018,7 +13018,7 @@ static void lts_aga_fm1_ham0_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -13028,7 +13028,7 @@ static void lts_aga_fm1_ham0_p4_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -13130,7 +13130,7 @@ static void lts_aga_fm1_ham1_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -13140,7 +13140,7 @@ static void lts_aga_fm1_ham1_p4_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -13242,7 +13242,7 @@ static void lts_aga_fm1_kehb0_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -13252,7 +13252,7 @@ static void lts_aga_fm1_kehb0_p4_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -13354,7 +13354,7 @@ static void lts_aga_fm1_kehb1_p4_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -13364,7 +13364,7 @@ static void lts_aga_fm1_kehb1_p4_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -13505,7 +13505,7 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -13515,7 +13515,7 @@ static void lts_aga_fm1_n0_p8_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -13678,7 +13678,7 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -13688,7 +13688,7 @@ static void lts_aga_fm1_n1_p8_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -13839,7 +13839,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -13849,7 +13849,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -14022,7 +14022,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -14032,7 +14032,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -14134,7 +14134,7 @@ static void lts_aga_fm1_ehb0_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -14144,7 +14144,7 @@ static void lts_aga_fm1_ehb0_p8_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -14246,7 +14246,7 @@ static void lts_aga_fm1_ehb1_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -14256,7 +14256,7 @@ static void lts_aga_fm1_ehb1_p8_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -14397,7 +14397,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -14407,7 +14407,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -14570,7 +14570,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -14580,7 +14580,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -14682,7 +14682,7 @@ static void lts_aga_fm1_kehb0_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -14692,7 +14692,7 @@ static void lts_aga_fm1_kehb0_p8_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -14794,7 +14794,7 @@ static void lts_aga_fm1_kehb1_p8_ilores_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -14804,7 +14804,7 @@ static void lts_aga_fm1_kehb1_p8_ilores_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -16833,7 +16833,7 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -16843,7 +16843,7 @@ static void lts_aga_fm1_n0_p4_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -16978,7 +16978,7 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -16988,7 +16988,7 @@ static void lts_aga_fm1_n1_p4_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -17127,7 +17127,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -17137,7 +17137,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -17282,7 +17282,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -17292,7 +17292,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -17394,7 +17394,7 @@ static void lts_aga_fm1_ehb0_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -17404,7 +17404,7 @@ static void lts_aga_fm1_ehb0_p4_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -17506,7 +17506,7 @@ static void lts_aga_fm1_ehb1_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -17516,7 +17516,7 @@ static void lts_aga_fm1_ehb1_p4_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -17618,7 +17618,7 @@ static void lts_aga_fm1_ham0_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -17628,7 +17628,7 @@ static void lts_aga_fm1_ham0_p4_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -17730,7 +17730,7 @@ static void lts_aga_fm1_ham1_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -17740,7 +17740,7 @@ static void lts_aga_fm1_ham1_p4_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -17842,7 +17842,7 @@ static void lts_aga_fm1_kehb0_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -17852,7 +17852,7 @@ static void lts_aga_fm1_kehb0_p4_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -17954,7 +17954,7 @@ static void lts_aga_fm1_kehb1_p4_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -17964,7 +17964,7 @@ static void lts_aga_fm1_kehb1_p4_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -18093,7 +18093,7 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -18103,7 +18103,7 @@ static void lts_aga_fm1_n0_p8_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -18238,7 +18238,7 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -18248,7 +18248,7 @@ static void lts_aga_fm1_n1_p8_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -18387,7 +18387,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -18397,7 +18397,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -18542,7 +18542,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -18552,7 +18552,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -18654,7 +18654,7 @@ static void lts_aga_fm1_ehb0_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -18664,7 +18664,7 @@ static void lts_aga_fm1_ehb0_p8_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -18766,7 +18766,7 @@ static void lts_aga_fm1_ehb1_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -18776,7 +18776,7 @@ static void lts_aga_fm1_ehb1_p8_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -18905,7 +18905,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -18915,7 +18915,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -19050,7 +19050,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -19060,7 +19060,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -19162,7 +19162,7 @@ static void lts_aga_fm1_kehb0_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -19172,7 +19172,7 @@ static void lts_aga_fm1_kehb0_p8_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -19274,7 +19274,7 @@ static void lts_aga_fm1_kehb1_p8_ihires_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -19284,7 +19284,7 @@ static void lts_aga_fm1_kehb1_p8_ihires_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -23207,7 +23207,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -23217,7 +23217,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -23382,7 +23382,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -23395,7 +23395,7 @@ static void lts_aga_fm1_n0_p4_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -23531,7 +23531,7 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -23541,7 +23541,7 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -23718,7 +23718,7 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -23731,7 +23731,7 @@ static void lts_aga_fm1_n1_p4_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -23871,7 +23871,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -23881,7 +23881,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -24066,7 +24066,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -24079,7 +24079,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -24225,7 +24225,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -24235,7 +24235,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -24432,7 +24432,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -24445,7 +24445,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -24546,7 +24546,7 @@ static void lts_aga_fm1_ehb0_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -24556,7 +24556,7 @@ static void lts_aga_fm1_ehb0_p4_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -24668,7 +24668,7 @@ static void lts_aga_fm1_ehb0_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -24681,7 +24681,7 @@ static void lts_aga_fm1_ehb0_p4_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -24782,7 +24782,7 @@ static void lts_aga_fm1_ehb1_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -24792,7 +24792,7 @@ static void lts_aga_fm1_ehb1_p4_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -24904,7 +24904,7 @@ static void lts_aga_fm1_ehb1_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -24917,7 +24917,7 @@ static void lts_aga_fm1_ehb1_p4_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -25030,7 +25030,7 @@ static void lts_aga_fm1_ham0_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -25040,7 +25040,7 @@ static void lts_aga_fm1_ham0_p4_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -25152,7 +25152,7 @@ static void lts_aga_fm1_ham0_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -25165,7 +25165,7 @@ static void lts_aga_fm1_ham0_p4_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -25278,7 +25278,7 @@ static void lts_aga_fm1_ham1_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -25288,7 +25288,7 @@ static void lts_aga_fm1_ham1_p4_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -25400,7 +25400,7 @@ static void lts_aga_fm1_ham1_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -25413,7 +25413,7 @@ static void lts_aga_fm1_ham1_p4_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -25514,7 +25514,7 @@ static void lts_aga_fm1_kehb0_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -25524,7 +25524,7 @@ static void lts_aga_fm1_kehb0_p4_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -25636,7 +25636,7 @@ static void lts_aga_fm1_kehb0_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -25649,7 +25649,7 @@ static void lts_aga_fm1_kehb0_p4_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -25750,7 +25750,7 @@ static void lts_aga_fm1_kehb1_p4_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -25760,7 +25760,7 @@ static void lts_aga_fm1_kehb1_p4_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -25872,7 +25872,7 @@ static void lts_aga_fm1_kehb1_p4_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -25885,7 +25885,7 @@ static void lts_aga_fm1_kehb1_p4_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -25986,7 +25986,7 @@ static void lts_aga_fm1_n0_p8_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -25996,7 +25996,7 @@ static void lts_aga_fm1_n0_p8_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -26108,7 +26108,7 @@ static void lts_aga_fm1_n0_p8_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -26121,7 +26121,7 @@ static void lts_aga_fm1_n0_p8_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -26222,7 +26222,7 @@ static void lts_aga_fm1_n1_p8_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -26232,7 +26232,7 @@ static void lts_aga_fm1_n1_p8_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -26344,7 +26344,7 @@ static void lts_aga_fm1_n1_p8_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -26357,7 +26357,7 @@ static void lts_aga_fm1_n1_p8_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -26458,7 +26458,7 @@ static void lts_aga_fm1_dpf0_p8_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -26468,7 +26468,7 @@ static void lts_aga_fm1_dpf0_p8_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -26580,7 +26580,7 @@ static void lts_aga_fm1_dpf0_p8_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -26593,7 +26593,7 @@ static void lts_aga_fm1_dpf0_p8_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -26694,7 +26694,7 @@ static void lts_aga_fm1_dpf1_p8_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -26704,7 +26704,7 @@ static void lts_aga_fm1_dpf1_p8_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -26816,7 +26816,7 @@ static void lts_aga_fm1_dpf1_p8_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -26829,7 +26829,7 @@ static void lts_aga_fm1_dpf1_p8_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -26930,7 +26930,7 @@ static void lts_aga_fm1_ehb0_p8_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -26940,7 +26940,7 @@ static void lts_aga_fm1_ehb0_p8_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -27052,7 +27052,7 @@ static void lts_aga_fm1_ehb0_p8_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -27065,7 +27065,7 @@ static void lts_aga_fm1_ehb0_p8_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -27166,7 +27166,7 @@ static void lts_aga_fm1_ehb1_p8_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -27176,7 +27176,7 @@ static void lts_aga_fm1_ehb1_p8_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -27288,7 +27288,7 @@ static void lts_aga_fm1_ehb1_p8_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -27301,7 +27301,7 @@ static void lts_aga_fm1_ehb1_p8_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -27414,7 +27414,7 @@ static void lts_aga_fm1_ham0_p8_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -27424,7 +27424,7 @@ static void lts_aga_fm1_ham0_p8_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -27536,7 +27536,7 @@ static void lts_aga_fm1_ham0_p8_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -27549,7 +27549,7 @@ static void lts_aga_fm1_ham0_p8_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -27662,7 +27662,7 @@ static void lts_aga_fm1_ham1_p8_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -27672,7 +27672,7 @@ static void lts_aga_fm1_ham1_p8_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -27784,7 +27784,7 @@ static void lts_aga_fm1_ham1_p8_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -27797,7 +27797,7 @@ static void lts_aga_fm1_ham1_p8_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -27898,7 +27898,7 @@ static void lts_aga_fm1_kehb0_p8_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -27908,7 +27908,7 @@ static void lts_aga_fm1_kehb0_p8_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -28020,7 +28020,7 @@ static void lts_aga_fm1_kehb0_p8_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -28033,7 +28033,7 @@ static void lts_aga_fm1_kehb0_p8_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -28134,7 +28134,7 @@ static void lts_aga_fm1_kehb1_p8_ishres_dhires_spr_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -28144,7 +28144,7 @@ static void lts_aga_fm1_kehb1_p8_ishres_dhires_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -28256,7 +28256,7 @@ static void lts_aga_fm1_kehb1_p8_ishres_dhires_spr_filtered_genlock(void)
 			internal_pixel_cnt += 2;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_2x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -28269,7 +28269,7 @@ static void lts_aga_fm1_kehb1_p8_ishres_dhires_spr_filtered_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -31871,7 +31871,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -31881,7 +31881,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -31891,7 +31891,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -31901,7 +31901,7 @@ static void lts_aga_fm1_n0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -32176,7 +32176,7 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -32186,7 +32186,7 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -32196,7 +32196,7 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -32206,7 +32206,7 @@ static void lts_aga_fm1_n1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -32457,7 +32457,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -32467,7 +32467,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -32477,7 +32477,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -32487,7 +32487,7 @@ static void lts_aga_fm1_dpf0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -32782,7 +32782,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -32792,7 +32792,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -32802,7 +32802,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -32812,7 +32812,7 @@ static void lts_aga_fm1_dpf1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -32966,7 +32966,7 @@ static void lts_aga_fm1_ehb0_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -32976,7 +32976,7 @@ static void lts_aga_fm1_ehb0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -32986,7 +32986,7 @@ static void lts_aga_fm1_ehb0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -32996,7 +32996,7 @@ static void lts_aga_fm1_ehb0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -33150,7 +33150,7 @@ static void lts_aga_fm1_ehb1_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -33160,7 +33160,7 @@ static void lts_aga_fm1_ehb1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -33170,7 +33170,7 @@ static void lts_aga_fm1_ehb1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -33180,7 +33180,7 @@ static void lts_aga_fm1_ehb1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -33334,7 +33334,7 @@ static void lts_aga_fm1_ham0_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -33344,7 +33344,7 @@ static void lts_aga_fm1_ham0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -33354,7 +33354,7 @@ static void lts_aga_fm1_ham0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -33364,7 +33364,7 @@ static void lts_aga_fm1_ham0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -33518,7 +33518,7 @@ static void lts_aga_fm1_ham1_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -33528,7 +33528,7 @@ static void lts_aga_fm1_ham1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -33538,7 +33538,7 @@ static void lts_aga_fm1_ham1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -33548,7 +33548,7 @@ static void lts_aga_fm1_ham1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -33702,7 +33702,7 @@ static void lts_aga_fm1_kehb0_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -33712,7 +33712,7 @@ static void lts_aga_fm1_kehb0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -33722,7 +33722,7 @@ static void lts_aga_fm1_kehb0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -33732,7 +33732,7 @@ static void lts_aga_fm1_kehb0_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -33886,7 +33886,7 @@ static void lts_aga_fm1_kehb1_p4_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -33896,7 +33896,7 @@ static void lts_aga_fm1_kehb1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -33906,7 +33906,7 @@ static void lts_aga_fm1_kehb1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -33916,7 +33916,7 @@ static void lts_aga_fm1_kehb1_p4_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -34147,7 +34147,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -34157,7 +34157,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -34167,7 +34167,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -34177,7 +34177,7 @@ static void lts_aga_fm1_n0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -34452,7 +34452,7 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -34462,7 +34462,7 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -34472,7 +34472,7 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -34482,7 +34482,7 @@ static void lts_aga_fm1_n1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -34733,7 +34733,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -34743,7 +34743,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -34753,7 +34753,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -34763,7 +34763,7 @@ static void lts_aga_fm1_dpf0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -35058,7 +35058,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -35068,7 +35068,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -35078,7 +35078,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -35088,7 +35088,7 @@ static void lts_aga_fm1_dpf1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -35242,7 +35242,7 @@ static void lts_aga_fm1_ehb0_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -35252,7 +35252,7 @@ static void lts_aga_fm1_ehb0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -35262,7 +35262,7 @@ static void lts_aga_fm1_ehb0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -35272,7 +35272,7 @@ static void lts_aga_fm1_ehb0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -35426,7 +35426,7 @@ static void lts_aga_fm1_ehb1_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -35436,7 +35436,7 @@ static void lts_aga_fm1_ehb1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -35446,7 +35446,7 @@ static void lts_aga_fm1_ehb1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -35456,7 +35456,7 @@ static void lts_aga_fm1_ehb1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -35687,7 +35687,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -35697,7 +35697,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -35707,7 +35707,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -35717,7 +35717,7 @@ static void lts_aga_fm1_ham0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -35992,7 +35992,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -36002,7 +36002,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -36012,7 +36012,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -36022,7 +36022,7 @@ static void lts_aga_fm1_ham1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -36176,7 +36176,7 @@ static void lts_aga_fm1_kehb0_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -36186,7 +36186,7 @@ static void lts_aga_fm1_kehb0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -36196,7 +36196,7 @@ static void lts_aga_fm1_kehb0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -36206,7 +36206,7 @@ static void lts_aga_fm1_kehb0_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -36360,7 +36360,7 @@ static void lts_aga_fm1_kehb1_p8_ilores_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -36370,7 +36370,7 @@ static void lts_aga_fm1_kehb1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -36380,7 +36380,7 @@ static void lts_aga_fm1_kehb1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -36390,7 +36390,7 @@ static void lts_aga_fm1_kehb1_p8_ilores_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -40011,7 +40011,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -40021,7 +40021,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -40031,7 +40031,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -40041,7 +40041,7 @@ static void lts_aga_fm1_n0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -40316,7 +40316,7 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -40326,7 +40326,7 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -40336,7 +40336,7 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -40346,7 +40346,7 @@ static void lts_aga_fm1_n1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -40597,7 +40597,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -40607,7 +40607,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -40617,7 +40617,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -40627,7 +40627,7 @@ static void lts_aga_fm1_dpf0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -40922,7 +40922,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -40932,7 +40932,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -40942,7 +40942,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -40952,7 +40952,7 @@ static void lts_aga_fm1_dpf1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -41106,7 +41106,7 @@ static void lts_aga_fm1_ehb0_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -41116,7 +41116,7 @@ static void lts_aga_fm1_ehb0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -41126,7 +41126,7 @@ static void lts_aga_fm1_ehb0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -41136,7 +41136,7 @@ static void lts_aga_fm1_ehb0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -41290,7 +41290,7 @@ static void lts_aga_fm1_ehb1_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -41300,7 +41300,7 @@ static void lts_aga_fm1_ehb1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -41310,7 +41310,7 @@ static void lts_aga_fm1_ehb1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -41320,7 +41320,7 @@ static void lts_aga_fm1_ehb1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -41474,7 +41474,7 @@ static void lts_aga_fm1_ham0_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -41484,7 +41484,7 @@ static void lts_aga_fm1_ham0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -41494,7 +41494,7 @@ static void lts_aga_fm1_ham0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -41504,7 +41504,7 @@ static void lts_aga_fm1_ham0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -41658,7 +41658,7 @@ static void lts_aga_fm1_ham1_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -41668,7 +41668,7 @@ static void lts_aga_fm1_ham1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -41678,7 +41678,7 @@ static void lts_aga_fm1_ham1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -41688,7 +41688,7 @@ static void lts_aga_fm1_ham1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -41842,7 +41842,7 @@ static void lts_aga_fm1_kehb0_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -41852,7 +41852,7 @@ static void lts_aga_fm1_kehb0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -41862,7 +41862,7 @@ static void lts_aga_fm1_kehb0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -41872,7 +41872,7 @@ static void lts_aga_fm1_kehb0_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -42026,7 +42026,7 @@ static void lts_aga_fm1_kehb1_p4_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -42036,7 +42036,7 @@ static void lts_aga_fm1_kehb1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -42046,7 +42046,7 @@ static void lts_aga_fm1_kehb1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -42056,7 +42056,7 @@ static void lts_aga_fm1_kehb1_p4_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -42287,7 +42287,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -42297,7 +42297,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -42307,7 +42307,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -42317,7 +42317,7 @@ static void lts_aga_fm1_n0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -42592,7 +42592,7 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -42602,7 +42602,7 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -42612,7 +42612,7 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -42622,7 +42622,7 @@ static void lts_aga_fm1_n1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -42873,7 +42873,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -42883,7 +42883,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -42893,7 +42893,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -42903,7 +42903,7 @@ static void lts_aga_fm1_dpf0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -43198,7 +43198,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -43208,7 +43208,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -43218,7 +43218,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -43228,7 +43228,7 @@ static void lts_aga_fm1_dpf1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -43382,7 +43382,7 @@ static void lts_aga_fm1_ehb0_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -43392,7 +43392,7 @@ static void lts_aga_fm1_ehb0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -43402,7 +43402,7 @@ static void lts_aga_fm1_ehb0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -43412,7 +43412,7 @@ static void lts_aga_fm1_ehb0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -43566,7 +43566,7 @@ static void lts_aga_fm1_ehb1_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -43576,7 +43576,7 @@ static void lts_aga_fm1_ehb1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -43586,7 +43586,7 @@ static void lts_aga_fm1_ehb1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -43596,7 +43596,7 @@ static void lts_aga_fm1_ehb1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -43827,7 +43827,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -43837,7 +43837,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -43847,7 +43847,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -43857,7 +43857,7 @@ static void lts_aga_fm1_ham0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -44132,7 +44132,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -44142,7 +44142,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -44152,7 +44152,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -44162,7 +44162,7 @@ static void lts_aga_fm1_ham1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -44316,7 +44316,7 @@ static void lts_aga_fm1_kehb0_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -44326,7 +44326,7 @@ static void lts_aga_fm1_kehb0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -44336,7 +44336,7 @@ static void lts_aga_fm1_kehb0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -44346,7 +44346,7 @@ static void lts_aga_fm1_kehb0_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -44500,7 +44500,7 @@ static void lts_aga_fm1_kehb1_p8_ihires_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -44510,7 +44510,7 @@ static void lts_aga_fm1_kehb1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -44520,7 +44520,7 @@ static void lts_aga_fm1_kehb1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -44530,7 +44530,7 @@ static void lts_aga_fm1_kehb1_p8_ihires_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -47333,7 +47333,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -47343,7 +47343,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -47353,7 +47353,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -47363,7 +47363,7 @@ static void lts_aga_fm1_n0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -47582,7 +47582,7 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -47592,7 +47592,7 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -47602,7 +47602,7 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -47612,7 +47612,7 @@ static void lts_aga_fm1_n1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -47839,7 +47839,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -47849,7 +47849,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -47859,7 +47859,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -47869,7 +47869,7 @@ static void lts_aga_fm1_dpf0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -48108,7 +48108,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -48118,7 +48118,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -48128,7 +48128,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -48138,7 +48138,7 @@ static void lts_aga_fm1_dpf1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -48292,7 +48292,7 @@ static void lts_aga_fm1_ehb0_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -48302,7 +48302,7 @@ static void lts_aga_fm1_ehb0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -48312,7 +48312,7 @@ static void lts_aga_fm1_ehb0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -48322,7 +48322,7 @@ static void lts_aga_fm1_ehb0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -48476,7 +48476,7 @@ static void lts_aga_fm1_ehb1_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -48486,7 +48486,7 @@ static void lts_aga_fm1_ehb1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -48496,7 +48496,7 @@ static void lts_aga_fm1_ehb1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -48506,7 +48506,7 @@ static void lts_aga_fm1_ehb1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -48660,7 +48660,7 @@ static void lts_aga_fm1_ham0_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -48670,7 +48670,7 @@ static void lts_aga_fm1_ham0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -48680,7 +48680,7 @@ static void lts_aga_fm1_ham0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -48690,7 +48690,7 @@ static void lts_aga_fm1_ham0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -48844,7 +48844,7 @@ static void lts_aga_fm1_ham1_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -48854,7 +48854,7 @@ static void lts_aga_fm1_ham1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -48864,7 +48864,7 @@ static void lts_aga_fm1_ham1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -48874,7 +48874,7 @@ static void lts_aga_fm1_ham1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -49028,7 +49028,7 @@ static void lts_aga_fm1_kehb0_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -49038,7 +49038,7 @@ static void lts_aga_fm1_kehb0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -49048,7 +49048,7 @@ static void lts_aga_fm1_kehb0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -49058,7 +49058,7 @@ static void lts_aga_fm1_kehb0_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -49212,7 +49212,7 @@ static void lts_aga_fm1_kehb1_p4_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -49222,7 +49222,7 @@ static void lts_aga_fm1_kehb1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -49232,7 +49232,7 @@ static void lts_aga_fm1_kehb1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -49242,7 +49242,7 @@ static void lts_aga_fm1_kehb1_p4_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -49396,7 +49396,7 @@ static void lts_aga_fm1_n0_p8_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -49406,7 +49406,7 @@ static void lts_aga_fm1_n0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -49416,7 +49416,7 @@ static void lts_aga_fm1_n0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -49426,7 +49426,7 @@ static void lts_aga_fm1_n0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -49580,7 +49580,7 @@ static void lts_aga_fm1_n1_p8_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -49590,7 +49590,7 @@ static void lts_aga_fm1_n1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -49600,7 +49600,7 @@ static void lts_aga_fm1_n1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -49610,7 +49610,7 @@ static void lts_aga_fm1_n1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -49764,7 +49764,7 @@ static void lts_aga_fm1_dpf0_p8_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -49774,7 +49774,7 @@ static void lts_aga_fm1_dpf0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -49784,7 +49784,7 @@ static void lts_aga_fm1_dpf0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -49794,7 +49794,7 @@ static void lts_aga_fm1_dpf0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -49948,7 +49948,7 @@ static void lts_aga_fm1_dpf1_p8_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -49958,7 +49958,7 @@ static void lts_aga_fm1_dpf1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -49968,7 +49968,7 @@ static void lts_aga_fm1_dpf1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -49978,7 +49978,7 @@ static void lts_aga_fm1_dpf1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -50132,7 +50132,7 @@ static void lts_aga_fm1_ehb0_p8_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -50142,7 +50142,7 @@ static void lts_aga_fm1_ehb0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -50152,7 +50152,7 @@ static void lts_aga_fm1_ehb0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -50162,7 +50162,7 @@ static void lts_aga_fm1_ehb0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -50316,7 +50316,7 @@ static void lts_aga_fm1_ehb1_p8_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -50326,7 +50326,7 @@ static void lts_aga_fm1_ehb1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -50336,7 +50336,7 @@ static void lts_aga_fm1_ehb1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -50346,7 +50346,7 @@ static void lts_aga_fm1_ehb1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -50500,7 +50500,7 @@ static void lts_aga_fm1_ham0_p8_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -50510,7 +50510,7 @@ static void lts_aga_fm1_ham0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -50520,7 +50520,7 @@ static void lts_aga_fm1_ham0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -50530,7 +50530,7 @@ static void lts_aga_fm1_ham0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -50684,7 +50684,7 @@ static void lts_aga_fm1_ham1_p8_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -50694,7 +50694,7 @@ static void lts_aga_fm1_ham1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -50704,7 +50704,7 @@ static void lts_aga_fm1_ham1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -50714,7 +50714,7 @@ static void lts_aga_fm1_ham1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -50868,7 +50868,7 @@ static void lts_aga_fm1_kehb0_p8_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -50878,7 +50878,7 @@ static void lts_aga_fm1_kehb0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -50888,7 +50888,7 @@ static void lts_aga_fm1_kehb0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -50898,7 +50898,7 @@ static void lts_aga_fm1_kehb0_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);
@@ -51052,7 +51052,7 @@ static void lts_aga_fm1_kehb1_p8_ishres_dshres_spr_genlock(void)
 			internal_pixel_cnt += 1;
 			if (denise_pixtotal >= 0 && buf1 < denise_pixtotal_max_buf_4x) {
 				if (sv0) {
-					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
+					uae_u32 spix0 = denise_render_sprites_aga(pix0, sv0);
 					if (spix0) {
 						dpix_val0 = denise_colors.acolors[spix0];
 						gpix0 = get_genlock_transparency(spix0);
@@ -51062,7 +51062,7 @@ static void lts_aga_fm1_kehb1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][0] = dpix_val0;
 				dtgbuf[h][0] = gpix0;
 				if (sv1) {
-					uae_u32 spix1 = denise_render_sprites2(pix1, sv1);
+					uae_u32 spix1 = denise_render_sprites_aga(pix1, sv1);
 					if (spix1) {
 						dpix_val1 = denise_colors.acolors[spix1];
 						gpix1 = get_genlock_transparency(spix1);
@@ -51072,7 +51072,7 @@ static void lts_aga_fm1_kehb1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][1] = dpix_val1;
 				dtgbuf[h][1] = gpix1;
 				if (sv2) {
-					uae_u32 spix2 = denise_render_sprites2(pix2, sv2);
+					uae_u32 spix2 = denise_render_sprites_aga(pix2, sv2);
 					if (spix2) {
 						dpix_val2 = denise_colors.acolors[spix2];
 						gpix2 = get_genlock_transparency(spix2);
@@ -51082,7 +51082,7 @@ static void lts_aga_fm1_kehb1_p8_ishres_dshres_spr_genlock(void)
 				dtbuf[h][2] = dpix_val2;
 				dtgbuf[h][2] = gpix2;
 				if (sv3) {
-					uae_u32 spix3 = denise_render_sprites2(pix3, sv3);
+					uae_u32 spix3 = denise_render_sprites_aga(pix3, sv3);
 					if (spix3) {
 						dpix_val3 = denise_colors.acolors[spix3];
 						gpix3 = get_genlock_transparency(spix3);

@@ -72,7 +72,7 @@ int no_trace_exceptions;
 int debug_copper = 0;
 int debug_dma = 0, debug_heatmap = 0;
 static uae_u32 debug_sprite_mask_val = 0xff;
-uae_u32 debug_sprite_mask = 0xffffffff;
+uae_u32 debug_sprite_mask = 0xffff;
 int debug_illegal = 0;
 uae_u64 debug_illegal_mask;
 static int debug_mmu_mode;
@@ -7744,8 +7744,11 @@ static bool debug_line_2(TCHAR *input)
 								debug_sprite_mask |= (3 << (i * 2)) | (1 << (i + 16));
 							}
 						}
+						if (debug_sprite_mask_val & 0x100) {
+							debug_sprite_mask |= 0x80000000;
+						}
 					}
-					console_out_f (_T("Sprite mask: %02X\n"), debug_sprite_mask_val);
+					console_out_f (_T("Sprite mask: %04X\n"), debug_sprite_mask_val);
 					break;
 				case 'b':
 					if (more_params(&inptr)) {

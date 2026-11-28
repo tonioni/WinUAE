@@ -363,13 +363,19 @@ static void gen_shiftspr(int shift)
 // filter_pixel() would blend an opaque sprite with the background.
 static void gen_ecsshresspr(bool allpixels)
 {
-	outf("if (sv0 || sv1) {");
 	if (allpixels) {
-		outf("get_shres_spr_pix(pix0, pix1, pix2, pix3, sv0, sv1, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);");
+		if (genlock) {
+			outf("do_shres_pix_genlock(pix0, pix1, pix2, pix3, shifted, sv0, sv1, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);");
+		} else {
+			outf("do_shres_pix(pix0, pix1, pix2, pix3, shifted, sv0, sv1, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);");
+		}
 	} else {
-		outf("get_shres_spr_pix(pix0, pix1, pix2, pix3, sv0, sv1, &dpix_val0, NULL, &dpix_val2, NULL);");
+		if (genlock) {
+			outf("do_shres_pix_genlock(pix0, pix1, pix2, pix3, shifted, sv0, sv1, &dpix_val0, NULL, &dpix_val2, NULL, &gpix0, NULL, &gpix2, NULL);");
+		} else {
+			outf("do_shres_pix(pix0, pix1, pix2, pix3, shifted, sv0, sv1, &dpix_val0, NULL, &dpix_val2, NULL);");
+		}
 	}
-	outf("}");
 }
 
 static void gen_sprpix_ecs(int i)
@@ -571,7 +577,11 @@ static void gen_matchspr(int i)
 static void gen_sprmerge(int off, int k, int dbl)
 {
 	outf("if (sv%d) {", k);
-	outf("	uae_u32 spix%d = denise_render_sprites2(pix%d, sv%d);", off, k, k);
+	if (aga) {
+		outf("	uae_u32 spix%d = denise_render_sprites_aga(pix%d, sv%d);", off, k, k);
+	} else {
+		outf("	uae_u32 spix%d = denise_render_sprites_ecs(pix%d, pix0, sv%d);", off, k, k);
+	}
 	outf("	if (spix%d) {", off);
 	outf("		dpix_val%d = denise_colors.acolors[spix%d];", off, off);
 	if (genlock) {
@@ -795,7 +805,10 @@ static void gen_pix(void)
 			if (modetype > 0) {
 				outf("	if (denise_hdiw && bpl1dat_trigger && !diw_disable) {");
 				gen_getbpl(i, maxplanes);
-				outf("	clxdat |= bplcoltable[pix%d];", i);
+				if (i == 0) {
+					// ocs/ecs: collision is always lores based
+					outf("	clxdat |= bplcoltable[pix0];");
+				}
 				if (planes > 4) {
 					outf("	if (decode_specials) {");
 					outf("		pix%d = decode_denise_specials(pix%d);", i, i);
@@ -1133,30 +1146,44 @@ static void gen_fastdraw_mode(int off, int total)
 	} else if (res == 2) { // ECS shres
 		outf("uae_u8 c0 = *cp++;");
 		outf("uae_u8 c1 = *cp++;");
+		outf("uae_u8 c2 = *cp++;");
+		outf("uae_u8 c3 = *cp++;");
 		if (doubling == -2) {
-			outf("cp += 2;");
+			outf("cp += 4;");
 		}
-		outf("uae_u32 dpix_val0, dpix_val1;");
+		outf("uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;");
 		if (genlock) {
-			outf("uae_u8 gpix0, gpix1;");
-			outf("get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);");
+			outf("uae_u8 gpix0, gpix1, gpix2, gpix3;");
+			outf("do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);");
 		} else {
-			outf("get_shres_pix(c0, c1, &dpix_val0, &dpix_val1);");
+			outf("do_shres_pix_fast(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3);");
 		}
 		if (doubling < 0 && filtered) {
 			outf("dpix_val0 = filter_pixel(dpix_val0, dpix_val1);");
 			if (genlock) {
 				outf("gpix0 = filter_pixel_genlock(gpix0, gpix1);");
 			}
+			outf("dpix_val2 = filter_pixel(dpix_val2, dpix_val3);");
+			if (genlock) {
+				outf("gpix2 = filter_pixel_genlock(gpix2, gpix3);");
+			}
 		}
 		outf("*buf1++ = dpix_val0;");
 		if (doubling == 0) {
 			outf("*buf1++ = dpix_val1;");
 		}
+		outf("*buf1++ = dpix_val2;");
+		if (doubling == 0) {
+			outf("*buf1++ = dpix_val3;");
+		}
 		if (isbuf2) {
 			outf("*buf2++ = dpix_val0;");
 			if (doubling == 0) {
 				outf("*buf2++ = dpix_val1;");
+			}
+			outf("*buf2++ = dpix_val2;");
+			if (doubling == 0) {
+				outf("*buf2++ = dpix_val3;");
 			}
 		}
 		if (genlock) {
@@ -1164,9 +1191,6 @@ static void gen_fastdraw_mode(int off, int total)
 			if (doubling == 0) {
 				outf("*gbuf++ = gpix1;");
 			}
-		}
-		if (doubling == 0) {
-			outf("cnt += bufaddv;");
 		}
 		return;
 	} else {
@@ -1198,6 +1222,9 @@ static void gen_fastdraw_mode(int off, int total)
 static void gen_fastdraw(void)
 {
 	int doubling = outres - res;
+	if (ecsshres) {
+		doubling += 2;
+	}
 
 	outf("uae_u8 *cp = *cpp;");
 	outf("uae_u8 *cp2 = *cp2p;");
@@ -1289,16 +1316,21 @@ static void gen_fastdraw(void)
 		outf("uae_u8 c;");
 		outf("uae_u32 col;");
 	}
-	if (doubling <= 0) {
+	if (ecsshres) {
+		// ecs superhires needs to draw 4 pixels in single "cycle".
 		gen_fastdraw_mode(0, 1);
-	} else if (doubling == 1) {
-		gen_fastdraw_mode(0, 2);
-		gen_fastdraw_mode(1, 2);
-	} else if (doubling == 2) {
-		gen_fastdraw_mode(0, 4);
-		gen_fastdraw_mode(1, 4);
-		gen_fastdraw_mode(2, 4);
-		gen_fastdraw_mode(3, 4);
+	} else {
+		if (doubling <= 0) {
+			gen_fastdraw_mode(0, 1);
+		} else if (doubling == 1) {
+			gen_fastdraw_mode(0, 2);
+			gen_fastdraw_mode(1, 2);
+		} else if (doubling == 2) {
+			gen_fastdraw_mode(0, 4);
+			gen_fastdraw_mode(1, 4);
+			gen_fastdraw_mode(2, 4);
+			gen_fastdraw_mode(3, 4);
+		}
 	}
 	outf("}");
 	outf("if (cnt >= bpl1dat_trigger_offset && !bpl) {");
@@ -1835,13 +1867,15 @@ int main (int argc, char *argv[])
 				outf("shiftbpl2();");
 				outf("pix3 = getbpl2();");
 				outf("shiftbpl2();");
+#if 0
 				if (genlock) {
-					outf("get_shres_pix_genlock(pix0, pix1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);");
-					outf("get_shres_pix_genlock(pix2, pix3, &dpix_val2, &dpix_val3, &gpix2, &gpix3);");
+					outf("get_shres_pix_genlock(pix0, pix2, &dpix_val0, &dpix_val2, &gpix0, &gpix2);");
+					outf("get_shres_pix_genlock(pix1, pix3, &dpix_val1, &dpix_val3, &gpix1, &gpix3);");
 				} else {
-					outf("get_shres_pix(pix0, pix1, &dpix_val0, &dpix_val1);");
-					outf("get_shres_pix(pix2, pix3, &dpix_val2, &dpix_val3);");
+					outf("get_shres_pix(pix0, pix2, &dpix_val0, &dpix_val2);");
+					outf("get_shres_pix(pix1, pix3, &dpix_val1, &dpix_val3);");
 				}
+#endif
 				outf("}");
 				outf("}");
 				if (outres == 1) {
@@ -1894,6 +1928,7 @@ int main (int argc, char *argv[])
 	// fast drawing
 	filtered = 0;
 	genlock = 0;
+	ecsshres = 0;
 
 	set_outfile("../../linetoscr_ecs_fast.cpp");
 	aga = 0;
@@ -1902,6 +1937,7 @@ int main (int argc, char *argv[])
 	for (isbuf2 = 0; isbuf2 < 2; isbuf2++) {
 		for (outres = 0; outres < 3; outres++) {
 			for (res = 0; res < 3; res++) {
+				ecsshres = res == 2;
 				for (modes = 0; modes < 5; modes++) {
 					if (gen_fasthead()) {
 						gen_fastdraw();
@@ -1921,6 +1957,7 @@ int main (int argc, char *argv[])
 			}
 		}
 	}
+	ecsshres = 0;
 	write_funcs_fast("linetoscr_ecs_fast_funcs");
 
 	set_outfile("../../linetoscr_aga_fast.cpp");

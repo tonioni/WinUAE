@@ -1151,10 +1151,13 @@ static void lts_ecs_n_ishres_dhires_b1_genlock(int cnt, int draw_end, int hbstrt
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1186,12 +1189,17 @@ static void lts_ecs_n_ishres_dhires_b1_filtered_genlock(int cnt, int draw_end, i
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			gpix0 = filter_pixel_genlock(gpix0, gpix1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+			gpix2 = filter_pixel_genlock(gpix2, gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1223,10 +1231,13 @@ static void lts_ecs_dpf_ishres_dhires_b1_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1258,12 +1269,17 @@ static void lts_ecs_dpf_ishres_dhires_b1_filtered_genlock(int cnt, int draw_end,
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			gpix0 = filter_pixel_genlock(gpix0, gpix1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+			gpix2 = filter_pixel_genlock(gpix2, gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1295,10 +1311,13 @@ static void lts_ecs_ehb_ishres_dhires_b1_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1330,12 +1349,17 @@ static void lts_ecs_ehb_ishres_dhires_b1_filtered_genlock(int cnt, int draw_end,
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			gpix0 = filter_pixel_genlock(gpix0, gpix1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+			gpix2 = filter_pixel_genlock(gpix2, gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1367,10 +1391,13 @@ static void lts_ecs_ham_ishres_dhires_b1_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1402,12 +1429,17 @@ static void lts_ecs_ham_ishres_dhires_b1_filtered_genlock(int cnt, int draw_end,
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			gpix0 = filter_pixel_genlock(gpix0, gpix1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+			gpix2 = filter_pixel_genlock(gpix2, gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1439,10 +1471,13 @@ static void lts_ecs_kehb_ishres_dhires_b1_genlock(int cnt, int draw_end, int hbs
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -1474,12 +1509,17 @@ static void lts_ecs_kehb_ishres_dhires_b1_filtered_genlock(int cnt, int draw_end
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			gpix0 = filter_pixel_genlock(gpix0, gpix1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+			gpix2 = filter_pixel_genlock(gpix2, gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -2099,14 +2139,17 @@ static void lts_ecs_n_ishres_dshres_b1_genlock(int cnt, int draw_end, int hbstrt
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*gbuf++ = gpix0;
 			*gbuf++ = gpix1;
-			cnt += bufaddv;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -2141,14 +2184,17 @@ static void lts_ecs_dpf_ishres_dshres_b1_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*gbuf++ = gpix0;
 			*gbuf++ = gpix1;
-			cnt += bufaddv;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -2183,14 +2229,17 @@ static void lts_ecs_ehb_ishres_dshres_b1_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*gbuf++ = gpix0;
 			*gbuf++ = gpix1;
-			cnt += bufaddv;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -2225,14 +2274,17 @@ static void lts_ecs_ham_ishres_dshres_b1_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*gbuf++ = gpix0;
 			*gbuf++ = gpix1;
-			cnt += bufaddv;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -2267,14 +2319,17 @@ static void lts_ecs_kehb_ishres_dshres_b1_genlock(int cnt, int draw_end, int hbs
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*gbuf++ = gpix0;
 			*gbuf++ = gpix1;
-			cnt += bufaddv;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -3522,11 +3577,15 @@ static void lts_ecs_n_ishres_dhires_b2_genlock(int cnt, int draw_end, int hbstrt
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -3560,13 +3619,19 @@ static void lts_ecs_n_ishres_dhires_b2_filtered_genlock(int cnt, int draw_end, i
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			gpix0 = filter_pixel_genlock(gpix0, gpix1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+			gpix2 = filter_pixel_genlock(gpix2, gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -3600,11 +3665,15 @@ static void lts_ecs_dpf_ishres_dhires_b2_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -3638,13 +3707,19 @@ static void lts_ecs_dpf_ishres_dhires_b2_filtered_genlock(int cnt, int draw_end,
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			gpix0 = filter_pixel_genlock(gpix0, gpix1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+			gpix2 = filter_pixel_genlock(gpix2, gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -3678,11 +3753,15 @@ static void lts_ecs_ehb_ishres_dhires_b2_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -3716,13 +3795,19 @@ static void lts_ecs_ehb_ishres_dhires_b2_filtered_genlock(int cnt, int draw_end,
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			gpix0 = filter_pixel_genlock(gpix0, gpix1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+			gpix2 = filter_pixel_genlock(gpix2, gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -3756,11 +3841,15 @@ static void lts_ecs_ham_ishres_dhires_b2_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -3794,13 +3883,19 @@ static void lts_ecs_ham_ishres_dhires_b2_filtered_genlock(int cnt, int draw_end,
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			gpix0 = filter_pixel_genlock(gpix0, gpix1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+			gpix2 = filter_pixel_genlock(gpix2, gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -3834,11 +3929,15 @@ static void lts_ecs_kehb_ishres_dhires_b2_genlock(int cnt, int draw_end, int hbs
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -3872,13 +3971,19 @@ static void lts_ecs_kehb_ishres_dhires_b2_filtered_genlock(int cnt, int draw_end
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			dpix_val0 = filter_pixel(dpix_val0, dpix_val1);
 			gpix0 = filter_pixel_genlock(gpix0, gpix1);
+			dpix_val2 = filter_pixel(dpix_val2, dpix_val3);
+			gpix2 = filter_pixel_genlock(gpix2, gpix3);
 			*buf1++ = dpix_val0;
+			*buf1++ = dpix_val2;
 			*buf2++ = dpix_val0;
+			*buf2++ = dpix_val2;
 			*gbuf++ = gpix0;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
@@ -4570,16 +4675,21 @@ static void lts_ecs_n_ishres_dshres_b2_genlock(int cnt, int draw_end, int hbstrt
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*buf2++ = dpix_val0;
 			*buf2++ = dpix_val1;
+			*buf2++ = dpix_val2;
+			*buf2++ = dpix_val3;
 			*gbuf++ = gpix0;
 			*gbuf++ = gpix1;
-			cnt += bufaddv;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -4616,16 +4726,21 @@ static void lts_ecs_dpf_ishres_dshres_b2_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*buf2++ = dpix_val0;
 			*buf2++ = dpix_val1;
+			*buf2++ = dpix_val2;
+			*buf2++ = dpix_val3;
 			*gbuf++ = gpix0;
 			*gbuf++ = gpix1;
-			cnt += bufaddv;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -4662,16 +4777,21 @@ static void lts_ecs_ehb_ishres_dshres_b2_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*buf2++ = dpix_val0;
 			*buf2++ = dpix_val1;
+			*buf2++ = dpix_val2;
+			*buf2++ = dpix_val3;
 			*gbuf++ = gpix0;
 			*gbuf++ = gpix1;
-			cnt += bufaddv;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -4708,16 +4828,21 @@ static void lts_ecs_ham_ishres_dshres_b2_genlock(int cnt, int draw_end, int hbst
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*buf2++ = dpix_val0;
 			*buf2++ = dpix_val1;
+			*buf2++ = dpix_val2;
+			*buf2++ = dpix_val3;
 			*gbuf++ = gpix0;
 			*gbuf++ = gpix1;
-			cnt += bufaddv;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;
@@ -4754,16 +4879,21 @@ static void lts_ecs_kehb_ishres_dshres_b2_genlock(int cnt, int draw_end, int hbs
 			bpl = true;
 			uae_u8 c0 = *cp++;
 			uae_u8 c1 = *cp++;
-			uae_u32 dpix_val0, dpix_val1;
-			uae_u8 gpix0, gpix1;
-			get_shres_pix_genlock(c0, c1, &dpix_val0, &dpix_val1, &gpix0, &gpix1);
+			uae_u8 c2 = *cp++;
+			uae_u8 c3 = *cp++;
+			uae_u32 dpix_val0, dpix_val1, dpix_val2, dpix_val3;
+			uae_u8 gpix0, gpix1, gpix2, gpix3;
+			do_shres_pix_fast_genlock(c0, c1, c2, c3, &dpix_val0, &dpix_val1, &dpix_val2, &dpix_val3, &gpix0, &gpix1, &gpix2, &gpix3);
 			*buf1++ = dpix_val0;
 			*buf1++ = dpix_val1;
+			*buf1++ = dpix_val2;
+			*buf1++ = dpix_val3;
 			*buf2++ = dpix_val0;
 			*buf2++ = dpix_val1;
+			*buf2++ = dpix_val2;
+			*buf2++ = dpix_val3;
 			*gbuf++ = gpix0;
 			*gbuf++ = gpix1;
-			cnt += bufaddv;
 		}
 		if (cnt >= bpl1dat_trigger_offset && !bpl) {
 			cp += cpaddv;

@@ -448,6 +448,7 @@ static uae_u8 bplcon4_denise_xor_val, bplcon4_denise_sbase, bplcon4_denise_xor_v
 static int bplcon1_shift[2], bplcon1_shift_full[2], bplcon1_shift_full_masked[2], bplshiftcnt[2];
 static int bplcon1_shift_mask, bplcon1_shift_mask_full;
 static int denise_res, denise_res_size;
+static bool denise_ecsshres;
 static uae_u16 denise_diwstrt, denise_diwstop;
 static int denise_hstrt, denise_hstop, denise_diwhigh, denise_diwhigh2;
 static int denise_brdstrt, denise_brdstop;
@@ -542,6 +543,8 @@ struct denise_spr
 	bool shiftercopydone;
 	int shift;
 	int pix;
+	bool firstdata;
+	bool firstpix;
 };
 static struct denise_spr dspr[MAX_SPRITES];
 static struct denise_spr *dprspt[MAX_SPRITES + 1], *dprspts[MAX_SPRITES + 1];
@@ -2717,13 +2720,6 @@ static void spr_arm(struct denise_spr *s, int state)
 // arm/disarm sprite horizontal match
 static void spr_arms(struct denise_spr *s, int state)
 {
-	// ECS Denise + superhires: sprites 4 to 7 are disabled
-	if (ecs_denise_only && denise_res == RES_SUPERHIRES) {
-		size_t num = s - dspr;
-		if (num >= 4) {
-			state = 0;
-		}
-	}
 	if (state) {
 		if (!s->armeds) {
 			for (int i = 0; i < MAX_SPRITES; i++) {
@@ -2736,6 +2732,13 @@ static void spr_arms(struct denise_spr *s, int state)
 			s->armeds = 1;
 			// Sprite start always has 1 lores pixel delay
 			s->shift = 1 << RES_SUPERHIRES;
+			if (denise_ecsshres) {
+				s->shift >>= 1;
+				// ECS Denise: only sprites 0 to 3 have hires horizontal bit.
+				if (s->num >= 4) {
+					s->shift = 0;
+				}
+			}
 		}
 	} else {
 		for (int i = 0; i < MAX_SPRITES; i++) {
@@ -2868,7 +2871,8 @@ static void sprwrite(int reg, uae_u16 v)
 				sprxp |= 1;
 			}
 		} else if (ecs_denise) {
-			if (s->ctl & 0x10) {
+			// ECS Denise: only sprites 0 to 3 have hires x position bit.
+			if (num <= 3 && (s->ctl & 0x10)) {
 				sprxp |= 2;
 			}
 		}
@@ -2890,7 +2894,7 @@ static void check_lts_request(void)
 static void setbplmode(void)
 {
 	bplham = (bplcon0_denise & 0x800) != 0;
-	bpldualpf = (bplcon0_denise & 0x400) == 0x400;
+	bpldualpf = (bplcon0_denise & 0x400) && !denise_ecsshres;
 	bplehb = (denise_planes == 6 || (!aga_mode && denise_planes == 7)) && !bplham && !bpldualpf && (!ecs_denise || !(bplcon2_denise & 0x200));
 
 	// BYPASS: HAM and EHB select bits are ignored
@@ -3026,26 +3030,29 @@ static void update_bplcon1(void)
 	}
 }
 
-STATIC_INLINE void get_shres_pix(uae_u8 p0, uae_u8 p1, uae_u32 *dpix0, uae_u32 *dpix1)
+static void get_shres_pix(uae_u8 p0, uae_u8 p1, uae_u32 *dpix0, uae_u32 *dpix1)
 {
 	uae_u16 v;
-	uae_u8 off = ((p1 & 3) * 4) + (p0 & 3) + ((p0 | p1) & 16);
-	v = (denise_colors.color_regs_ecs[off] & 0xccc) << 0;
+
+	uae_u8 off = (p1 * 4) + p0;
+	uae_u16 rgb = denise_colors.color_regs_ecs[off];
+	v = (rgb & 0xccc) << 0;
 	v |= v >> 2;
 	*dpix0 = xcolors[v];
-	v = (denise_colors.color_regs_ecs[off] & 0x333) << 2;
+	v = (rgb & 0x333) << 2;
 	v |= v >> 2;
 	*dpix1 = xcolors[v];
 }
-STATIC_INLINE void get_shres_pix_genlock(uae_u8 p0, uae_u8 p1, uae_u32 *dpix0, uae_u32 *dpix1, uae_u8 *gpix0, uae_u8 *gpix1)
+static void get_shres_pix_genlock(uae_u8 p0, uae_u8 p1, uae_u32 *dpix0, uae_u32 *dpix1, uae_u8 *gpix0, uae_u8 *gpix1)
 {
 	uae_u8 v;
-	uae_u8 off = ((p1 & 3) * 4) + (p0 & 3) + ((p0 | p1) & 16);
-	v = (denise_colors.color_regs_ecs[off] & 0xccc) << 0;
+	uae_u8 off = (p1 * 4) + p0;
+	uae_u16 rgb = denise_colors.color_regs_ecs[off];
+	v = (rgb & 0xccc) << 0;
 	v |= v >> 2;
 	*dpix0 = xcolors[v];
 	*gpix0 = v;
-	v = (denise_colors.color_regs_ecs[off] & 0x333) << 2;
+	v = (rgb & 0x333) << 2;
 	v |= v >> 2;
 	*gpix1 = v;
 	*dpix1 = xcolors[v];
@@ -3404,6 +3411,7 @@ static void expand_bplcon0(uae_u16 v)
 
 	denise_res = GET_RES_DENISE(bplcon0_denise);
 	denise_res_size = 1 << denise_res;
+	denise_ecsshres = denise_res == RES_SUPERHIRES && ecs_denise_only;
 	sethresolution();
 	denise_planes = GET_PLANES(bplcon0_denise);
 	bplcolorburst = (bplcon0_denise & 0x200) != 0;
@@ -3576,6 +3584,7 @@ void denise_reset(bool hard)
 		bplcon0_denise = 0;
 		bplcon3_denise = 0x0c00;
 		bplcon4_denise = 0x0011;
+		denise_ecsshres = false;
 		clxcon_bpl_enable = -1;
 		clxcon_bpl_match = -1;
 		memset(bplcoltable, 0, sizeof(bplcoltable));
@@ -4621,6 +4630,22 @@ static uae_u8 denise_sprite_colour(uae_u8 apixel, uae_u32 vs)
 	// need. This is because we can't shift 32 bits at once (undefined
 	// behaviour in C)
 	plfmask = (plf_sprite_mask >> maskshift) >> maskshift;
+	// ECS Denise sprite hires bit set but not superhires bitplane: first pixel is not drawn.
+	// It can't be cleared ealier because this pixel is used for collision detection.
+	if (vs & 0xf0000000) {
+		if (vs & 0x10000000) {
+			v &= ~(0x0001 | 0x0002);
+		}
+		if (vs & 0x20000000) {
+			v &= ~(0x0004 | 0x0008);
+		}
+		if (vs & 0x40000000) {
+			v &= ~(0x0010 | 0x0020);
+		}
+		if (vs & 0x80000000) {
+			v &= ~(0x0040 | 0x0080);
+		}
+	}
 	v &= ~plfmask;
 	v &= debug_sprite_mask;
 	if (v) {
@@ -4673,7 +4698,14 @@ static uae_u8 denise_sprite_colour(uae_u8 apixel, uae_u32 vs)
 	return 0;
 }
 
-static uae_u8 denise_render_sprites2(uae_u8 apixel, uae_u32 vs)
+static uae_u8 denise_render_sprites_ecs(uae_u8 apixel, uae_u8 apixelc, uae_u32 vs)
+{
+	if (currprefs.collision_level) {
+		denise_collide_sprites(apixelc, vs);
+	}
+	return denise_sprite_colour(apixel, vs);
+}
+static uae_u8 denise_render_sprites_aga(uae_u8 apixel, uae_u32 vs)
 {
 	if (currprefs.collision_level) {
 		denise_collide_sprites(apixel, vs);
@@ -4699,65 +4731,211 @@ static void autoscale_sprites(void)
 #endif
 }
 
-// sv0 covers the superhires pixels pf0 and pf1, sv1 covers pf2 and pf3
-static void get_shres_spr_pix(uae_u8 pf0, uae_u8 pf1, uae_u8 pf2, uae_u8 pf3, uae_u32 sv0, uae_u32 sv1,
+static uae_u8 filter_pixel_genlock(uae_u8 p1, uae_u8 p2)
+{
+	return p1 | p2;
+}
+
+static uae_u32 filter_pixel(uae_u32 p1, uae_u32 p2)
+{
+	uae_u32 v = 0;
+	v |= ((((p1 >> 16) & 0xff) + ((p2 >> 16) & 0xff)) / 2) << 16;
+	v |= ((((p1 >> 8) & 0xff) + ((p2 >> 8) & 0xff)) / 2) << 8;
+	v |= ((((p1 >> 0) & 0xff) + ((p2 >> 0) & 0xff)) / 2) << 0;
+	return v;
+}
+
+static uae_u8 denise_sprite_colour_ecsshres(uae_u8 apixel, uae_u32 vs, bool *attached)
+{
+	uae_u16 v = (uae_u16)vs;
+	int *shift_lookup = 0 ? (bpldualpfpri ? dblpf_ms2 : dblpf_ms1) : dblpf_ms;
+	int maskshift, plfmask;
+	maskshift = shift_lookup[apixel];
+	plfmask = (plf_sprite_mask >> maskshift) >> maskshift;
+	v &= ~plfmask;
+	v &= debug_sprite_mask;
+	// ECS Denise + superhires: sprites 4 to 7 are not drawn
+	v &= (debug_sprite_mask & 0x80010000) ? 0xffff : 0x00ff;
+	if (v) {
+		int v1 = v & 255;
+		int offs;
+		if (v1 == 0) {
+			offs = 4 + sprite_offs[v >> 8];
+		} else {
+			offs = sprite_offs[v1];
+		}
+		v >>= offs * 2;
+		if (!(offs & 1) && dspr[offs].attached) {
+			*attached = true;
+		}
+		return v & 15;
+	}
+	return 0;
+}
+
+// sprite data to ecs shres "scrambled" palette
+static void denise_ecsshres_pixel_sprite(uae_u8 p0, uae_u8 p1, uae_u8 p2, uae_u8 p3, bool attached,
 	uae_u32 *dpix0, uae_u32 *dpix1, uae_u32 *dpix2, uae_u32 *dpix3)
 {
+	int p0x = p0 ? p0 : p1;
+	int p1x = p2 ? p2 : p3;
 	uae_u16 v;
-	// Sprite-playfield collisions see every playfield pixel under the sprite.
+
+	if (p0x || p1x) {
+		int e1 = (p0x >> 0) & 3;
+		int o1 = (p0x >> 2) & 3;
+		int e2 = (p1x >> 0) & 3;
+		int o2 = (p1x >> 2) & 3;
+		int plane1 = e1 ? e1 : o1;
+		if (attached) {
+			plane1 |= o1;
+		}
+		int plane2 = e2 ? e2 : o2;
+		int off = (plane2 << 2) + plane1 + 16;
+		uae_u16 rgb = denise_colors.color_regs_ecs[off];
+
+		v = (rgb & 0xccc) << 0;
+		v |= v >> 2;
+		if (p0) {
+			*dpix0 = xcolors[v];
+		}
+		if (p1 && dpix1) {
+			*dpix1 = xcolors[v];
+		}
+
+		v = (rgb & 0x333) << 2;
+		v |= v >> 2;
+		if (p2) {
+			*dpix2 = xcolors[v];
+		}
+		if (p3 && dpix3) {
+			*dpix3 = xcolors[v];
+		}
+	}
+}
+
+// bitplane and sprite data to ecs shres "scrambled" palette
+static void denise_ecsshres_pixel(uae_u8 pf0, uae_u8 pf1, uae_u8 pf2, uae_u8 pf3, bool bpldone,
+	uae_u32 sv0, uae_u32 sv1, uae_u32 *dpix0, uae_u32 *dpix1, uae_u32 *dpix2, uae_u32 *dpix3)
+{
+	bool attached0 = false;
+	bool attached1 = false;
+	uae_u8 p0 = denise_sprite_colour_ecsshres(pf0, sv0, &attached0);
+	uae_u8 p1 = p0;
+	if (pf0 != pf1) {
+		p1 = denise_sprite_colour_ecsshres(pf1, sv0, &attached0);
+	}
+	uae_u8 p2 = denise_sprite_colour_ecsshres(pf2, sv1, &attached1);
+	uae_u8 p3 = p2;
+	if (pf2 != pf3) {
+		p3 = denise_sprite_colour_ecsshres(pf3, sv1, &attached1);
+	}
+
+	if (bpldone) {
+		// really weird sprite/bitplane priority behavior.
+		if (sv0) {
+			pf0 = pf1 = 0;
+		}
+		if (sv1) {
+			pf0 = pf1 = pf2 = pf3 = 0;
+		}
+
+		get_shres_pix(pf0, pf2, dpix0, dpix2);
+		if (dpix1) {
+			get_shres_pix(pf1, pf3, dpix1, dpix3);
+		}
+
+		// only first shres pixel in 4xshres pixel lores block can detect collisions.
+		clxdat |= bplcoltable[pf0];
+	}
+
+	denise_ecsshres_pixel_sprite(p0, p1, p2, p3, attached0 || attached1, dpix0, dpix1, dpix2, dpix3);
+}
+// bitplane and sprite data to ecs shres "scrambled" palette
+static void denise_ecsshres_pixel_genlock(uae_u8 pf0, uae_u8 pf1, uae_u8 pf2, uae_u8 pf3, bool bpldone,
+	uae_u32 sv0, uae_u32 sv1, uae_u32 *dpix0, uae_u32 *dpix1, uae_u32 *dpix2, uae_u32 *dpix3,
+	uae_u8 *gpix0, uae_u8 *gpix1, uae_u8 *gpix2, uae_u8 *gpix3)
+{
+	bool attached0 = false;
+	bool attached1 = false;
+	uae_u8 p0 = denise_sprite_colour_ecsshres(pf0, sv0, &attached0);
+	uae_u8 p1 = p0;
+	if (pf0 != pf1) {
+		p1 = denise_sprite_colour_ecsshres(pf1, sv0, &attached0);
+	}
+	uae_u8 p2 = denise_sprite_colour_ecsshres(pf2, sv1, &attached1);
+	uae_u8 p3 = p2;
+	if (pf2 != pf3) {
+		p3 = denise_sprite_colour_ecsshres(pf3, sv1, &attached1);
+	}
+
+	if (bpldone) {
+		// really weird sprite/bitplane priority behavior.
+		if (sv0) {
+			pf0 = pf1 = 0;
+		}
+		if (sv1) {
+			pf0 = pf1 = pf2 = pf3 = 0;
+		}
+
+		get_shres_pix_genlock(pf0, pf2, dpix0, dpix2, gpix0, gpix2);
+		if (dpix1) {
+			get_shres_pix_genlock(pf1, pf3, dpix1, dpix3, gpix1, gpix3);
+		}
+
+		// only first shres pixel in 4xshres pixel lores block can detect collisions.
+		clxdat |= bplcoltable[pf0];
+	}
+
+	denise_ecsshres_pixel_sprite(p0, p1, p2, p3, attached0 || attached1, dpix0, dpix1, dpix2, dpix3);
+}
+// sv0 covers the superhires pixels pf0 and pf1, sv1 covers pf2 and pf3
+static void do_shres_pix(uae_u8 pf0, uae_u8 pf1, uae_u8 pf2, uae_u8 pf3, bool bpldone,
+	uae_u32 sv0, uae_u32 sv1,
+	uae_u32 *dpix0, uae_u32 *dpix1, uae_u32 *dpix2, uae_u32 *dpix3)
+{
+	// Sprite-playfield collisions see only first shres pixel in 4 pixel lores sized block.
+	// Collision bitplane data clocking is always lores based.
+	// ECS Denise + superhires: sprites 4 to 7 color selection is disabled but collisions still work normally.
 	if (currprefs.collision_level) {
 		if (sv0) {
 			denise_collide_sprites(pf0, sv0);
-			denise_collide_sprites(pf1, sv0);
-		}
-		if (sv1) {
-			denise_collide_sprites(pf2, sv1);
-			denise_collide_sprites(pf3, sv1);
 		}
 	}
-	if (dpix1) {
-		uae_u8 p0 = denise_sprite_colour(pf0, sv0);
-		uae_u8 p1 = denise_sprite_colour(pf1, sv0);
-		uae_u8 off = ((p1 & 3) * 4) + (p0 & 3) + ((p0 | p1) & 16);
-		if (p0) {
-			v = (denise_colors.color_regs_ecs[off] & 0xccc) << 0;
-			v |= v >> 2;
-			*dpix0 = xcolors[v];
+	denise_ecsshres_pixel(pf0, pf1, pf2, pf3, bpldone, sv0, sv1, dpix0, dpix1, dpix2, dpix3);
+}
+static void do_shres_pix_genlock(uae_u8 pf0, uae_u8 pf1, uae_u8 pf2, uae_u8 pf3, bool bpldone,
+	uae_u32 sv0, uae_u32 sv1,
+	uae_u32 *dpix0, uae_u32 *dpix1, uae_u32 *dpix2, uae_u32 *dpix3,
+	uae_u8 *gpix0, uae_u8 *gpix1, uae_u8 *gpix2, uae_u8 *gpix3)
+{
+	if (currprefs.collision_level) {
+		if (sv0) {
+			denise_collide_sprites(pf0, sv0);
 		}
-		if (p1) {
-			v = (denise_colors.color_regs_ecs[off] & 0x333) << 2;
-			v |= v >> 2;
-			*dpix1 = xcolors[v];
-		}
-		p0 = denise_sprite_colour(pf2, sv1);
-		p1 = denise_sprite_colour(pf3, sv1);
-		off = ((p1 & 3) * 4) + (p0 & 3) + ((p0 | p1) & 16);
-		if (p0) {
-			v = (denise_colors.color_regs_ecs[off] & 0xccc) << 0;
-			v |= v >> 2;
-			*dpix2 = xcolors[v];
-		}
-		if (p1) {
-			v = (denise_colors.color_regs_ecs[off] & 0x333) << 2;
-			v |= v >> 2;
-			*dpix3 = xcolors[v];
-		}
+	}
+	denise_ecsshres_pixel_genlock(pf0, pf1, pf2, pf3, bpldone, sv0, sv1, dpix0, dpix1, dpix2, dpix3, gpix0, gpix1, gpix2, gpix3);
+}
 
-	} else {
-		uae_u8 p0 = denise_sprite_colour(pf0, sv0);
-		uae_u8 p1 = denise_sprite_colour(pf2, sv1);
-		uae_u8 off = ((p1 & 3) * 4) + (p0 & 3) + ((p0 | p1) & 16);
-		if (p0) {
-			v = (denise_colors.color_regs_ecs[off] & 0xccc) << 0;
-			v |= v >> 2;
-			*dpix0 = xcolors[v];
-		}
-		if (p1) {
-			v = (denise_colors.color_regs_ecs[off] & 0x333) << 2;
-			v |= v >> 2;
-			*dpix2 = xcolors[v];
-		}
+static void do_shres_pix_fast(uae_u8 pf0, uae_u8 pf1, uae_u8 pf2, uae_u8 pf3,
+	uae_u32 *dpix0, uae_u32 *dpix1, uae_u32 *dpix2, uae_u32 *dpix3)
+{
+	get_shres_pix(pf0, pf2, dpix0, dpix2);
+	if (dpix1) {
+		get_shres_pix(pf1, pf3, dpix1, dpix3);
 	}
+	// only first shres pixel in 4xshres pixel lores block can detect collisions.
+	clxdat |= bplcoltable[pf0];
+}
+static void do_shres_pix_fast_genlock(uae_u8 pf0, uae_u8 pf1, uae_u8 pf2, uae_u8 pf3,
+	uae_u32 *dpix0, uae_u32 *dpix1, uae_u32 *dpix2, uae_u32 *dpix3,
+	uae_u8 *gpix0, uae_u8 *gpix1, uae_u8 *gpix2, uae_u8 *gpix3)
+{
+	get_shres_pix_genlock(pf0, pf2, dpix0, dpix2, gpix0, gpix2);
+	if (dpix1) {
+		get_shres_pix_genlock(pf1, pf3, dpix1, dpix3, gpix1, gpix3);
+	}
+	clxdat |= bplcoltable[pf0];
 }
 
 static void spr_disarms(uae_u32 mask)
@@ -4877,6 +5055,12 @@ static uae_u32 denise_render_sprites_lores(void)
 		int pix = sp->pix;
 		v |= pix << (num * 2);
 		v |= pix ? (1 << (num + 16)) : 0;
+		if (ecs_denise_only) {
+		// ECS Denise sprite hires bit set but not superhires bitplane: first pixel is not drawn.
+			v |= sp->firstpix ? 0x10000000 << num : 0;
+			sp->firstpix = sp->firstdata;
+			sp->firstdata = false;
+		}
 		if (!sp->dataas && !sp->databs) {
 			d |= 1 << num;
 		}
@@ -4896,13 +5080,17 @@ static uae_u32 denise_render_sprites_ecs_shres(void)
 {
 	uae_u32 v = 0;
 	uae_u32 d = 0;
-	for (int s = 0; s < 4; s++) {
-		struct denise_spr *sp = &dspr[s];
+	int sidx = 0;
+	while (dprspts[sidx]) {
+		struct denise_spr *sp = dprspts[sidx];
 		int num = sp->num;
 		int pix = sp->pix;
 		v |= pix << (num * 2);
 		v |= pix ? (1 << (num + 16)) : 0;
-		sp->shift -= 2;
+		// ECS Denise + superhires:
+		// Only sprites 0 to 3 support hires in shres mode.
+		// Sprites 4 to 7 are always in lores and invisible but affects collisions.
+		sp->shift -= sp->num >= 4 ? 1 : 2;
 		if (sp->shift <= 0) {
 			sp->shift = denise_spr_shiftsize;
 			if (!sp->dataas && !sp->databs) {
@@ -4913,6 +5101,10 @@ static uae_u32 denise_render_sprites_ecs_shres(void)
 			sp->dataas <<= 1;
 			sp->databs <<= 1;
 		}
+		sidx++;
+	}
+	if (d) {
+		spr_disarms(d);
 	}
 	return v;
 }
@@ -5465,13 +5657,12 @@ static void matchsprites2(int cnt)
 				} else {
 					sp->dataas = sp->dataa;
 					sp->databs = sp->datab;
-
-					// ECS Denise + hires sprite bit and hires: leftmost pixel is missing
-					if (ecs_denise_only && denise_res == RES_HIRES && (sp->ctl & 0x10)) {
-						sp->dataas &= 0x7fff;
-						sp->databs &= 0x7fff;
+					sp->firstdata = false;
+					// Mark first pixel of sprite if hires horizontal bit is set.
+					// ECS Denise don't draw sprite's first pixel if bitplane is not superhires.
+					if (ecs_denise_only && (sp->xpos & 3)) {
+						sp->firstdata = true;
 					}
-
 					if (sp->dataas || sp->databs) {
 						spr_arms(sp, 1);
 					}
@@ -5494,6 +5685,10 @@ static void matchsprites2_ecs_shres(int cnt)
 				} else {
 					sp->dataas = sp->dataa;
 					sp->databs = sp->datab;
+					sp->firstdata = false;
+					if (ecs_denise_only && (sp->xpos & 3)) {
+						sp->firstdata = true;
+					}
 					if (sp->dataas || sp->databs) {
 						spr_arms(sp, 1);
 					}
@@ -5764,20 +5959,6 @@ static void emulate_black_level_calibration(uae_u32 *b1, uae_u32 *b2, uae_u32 *d
 			}
 		}
 	}
-}
-
-static uae_u8 filter_pixel_genlock(uae_u8 p1, uae_u8 p2)
-{
-	return p1 | p2;
-}
-
-static uae_u32 filter_pixel(uae_u32 p1, uae_u32 p2)
-{
-	uae_u32 v = 0;
-	v |= ((((p1 >> 16) & 0xff) + ((p2 >> 16) & 0xff)) / 2) << 16;
-	v |= ((((p1 >>  8) & 0xff) + ((p2 >>  8) & 0xff)) / 2) << 8;
-	v |= ((((p1 >>  0) & 0xff) + ((p2 >>  0) & 0xff)) / 2) << 0;
-	return v;
 }
 
 // ultra extreme debug pixel patterns
@@ -6692,7 +6873,7 @@ static void select_lts(void)
 			}
 		}
 
-	} else if (ecs_denise && denise_res == RES_SUPERHIRES) {
+	} else if (denise_ecsshres) {
 
 		sprite_lts_selected = 1;
 		if (hresolution == RES_LORES) {
@@ -6934,7 +7115,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 		}
 
 		if (sv) {
-			uae_u32 spix = denise_render_sprites2(pix, sv);
+			uae_u32 spix = denise_render_sprites_aga(pix, sv);
 			if (spix) {
 				dpix_val = denise_colors.acolors[spix];
 				gpix = spix;
@@ -7067,6 +7248,7 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 	int dpixcnt = 0;
 
 	int ipix = 0;
+	uae_u8 pix0 = 0;
 	for (int i = 0; i < (1 << RES_SUPERHIRES); i++, ipix++) {
 
 		if (i == 2) {
@@ -7086,6 +7268,9 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 			gpix = 0;
 			if (denise_hdiw && bpl1dat_trigger) {
 				pix = getbpl6();
+				if (i == 0) {
+					pix0 = pix;
+				}
 
 #if 0
 				if (reswitch_unalign == 2 && i >= 2) {
@@ -7147,7 +7332,7 @@ static void lts_unaligned_ecs(int cnt, int cnt_next, int h)
 		}
 
 		if (sv) {
-			uae_u32 spix = denise_render_sprites2(pix, sv);
+			uae_u32 spix = denise_render_sprites_ecs(pix, pix0, sv);
 			if (spix) {
 				dpix_val = denise_colors.acolors[spix];
 				gpix = spix;
@@ -7665,6 +7850,9 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 	int planecnt = GET_PLANES(ls->bplcon0);
 	int res = GET_RES_DENISE(ls->bplcon0);
 	bool dpf = (ls->bplcon0 & 0x400) != 0;
+	if (denise_ecsshres) {
+		dpf = false; // ECS Denise superhires: dpf is not supported.
+	}
 	bool ham = (ls->bplcon0 & 0x800) != 0;
 	int fmode = 16 << (((ls->fmode & 3) == 3 ? 2 : (ls->fmode & 3)));
 
@@ -7768,6 +7956,10 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 
 	int doubling = hresolution - res;
 	int rshift = hresolution_inv;
+	if (denise_ecsshres) {
+		// ECS SHRES logic generates 4 shres pixels simultaneously.
+		doubling += 2;
+	}
 
 	int delay1 = (ls->bplcon1 & 0x0f) | ((ls->bplcon1 & 0x0c00) >> 6);
 	int delaymask = (fmode >> res) - 1;
@@ -7826,6 +8018,10 @@ void draw_denise_bitplane_line_fast(int gfx_ypos, enum nln_how how, struct lines
 
 	int cpadd = doubling < 0 ? (doubling < -1 ? 2 : 1) : 0;
 	int bufadd = doubling > 0 ? (doubling > 1 ? 2 : 1) : 0;
+
+	if (denise_ecsshres) {
+		cpadd += 2;
+	}
 
 	// subpixel handling
 	int subpix = (ls->bplcon1 & 0x0300) >> 8;
