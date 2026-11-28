@@ -543,8 +543,6 @@ struct denise_spr
 	bool shiftercopydone;
 	int shift;
 	int pix;
-	bool firstdata;
-	bool firstpix;
 };
 static struct denise_spr dspr[MAX_SPRITES];
 static struct denise_spr *dprspt[MAX_SPRITES + 1], *dprspts[MAX_SPRITES + 1];
@@ -4630,22 +4628,6 @@ static uae_u8 denise_sprite_colour(uae_u8 apixel, uae_u32 vs)
 	// need. This is because we can't shift 32 bits at once (undefined
 	// behaviour in C)
 	plfmask = (plf_sprite_mask >> maskshift) >> maskshift;
-	// ECS Denise sprite hires bit set but not superhires bitplane: first pixel is not drawn.
-	// It can't be cleared ealier because this pixel is used for collision detection.
-	if (vs & 0xf0000000) {
-		if (vs & 0x10000000) {
-			v &= ~(0x0001 | 0x0002);
-		}
-		if (vs & 0x20000000) {
-			v &= ~(0x0004 | 0x0008);
-		}
-		if (vs & 0x40000000) {
-			v &= ~(0x0010 | 0x0020);
-		}
-		if (vs & 0x80000000) {
-			v &= ~(0x0040 | 0x0080);
-		}
-	}
 	v &= ~plfmask;
 	v &= debug_sprite_mask;
 	if (v) {
@@ -5055,12 +5037,6 @@ static uae_u32 denise_render_sprites_lores(void)
 		int pix = sp->pix;
 		v |= pix << (num * 2);
 		v |= pix ? (1 << (num + 16)) : 0;
-		if (ecs_denise_only) {
-		// ECS Denise sprite hires bit set but not superhires bitplane: first pixel is not drawn.
-			v |= sp->firstpix ? 0x10000000 << num : 0;
-			sp->firstpix = sp->firstdata;
-			sp->firstdata = false;
-		}
 		if (!sp->dataas && !sp->databs) {
 			d |= 1 << num;
 		}
@@ -5657,12 +5633,13 @@ static void matchsprites2(int cnt)
 				} else {
 					sp->dataas = sp->dataa;
 					sp->databs = sp->datab;
-					sp->firstdata = false;
-					// Mark first pixel of sprite if hires horizontal bit is set.
-					// ECS Denise don't draw sprite's first pixel if bitplane is not superhires.
-					if (ecs_denise_only && (sp->xpos & 3)) {
-						sp->firstdata = true;
+
+					// ECS Denise + hires sprite bit and not superhires: leftmost pixel is not drawn and ignores collisions.
+					if (ecs_denise_only && denise_res < RES_SUPERHIRES && (sp->xpos & 3)) {
+						sp->dataas &= 0x7fff;
+						sp->databs &= 0x7fff;
 					}
+
 					if (sp->dataas || sp->databs) {
 						spr_arms(sp, 1);
 					}
@@ -5685,10 +5662,6 @@ static void matchsprites2_ecs_shres(int cnt)
 				} else {
 					sp->dataas = sp->dataa;
 					sp->databs = sp->datab;
-					sp->firstdata = false;
-					if (ecs_denise_only && (sp->xpos & 3)) {
-						sp->firstdata = true;
-					}
 					if (sp->dataas || sp->databs) {
 						spr_arms(sp, 1);
 					}
