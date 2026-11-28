@@ -1,4 +1,22 @@
 
+
+Beta 24:
+
+- Fixed bsdsocket emulation IoctlSocket SIOCGIF* functions not validating parameters (trying to access non-existing interface would cause NULL pointer crash)
+- bsdsocket emulation gethostname() didn't return write anything to host name buffer and could crash. Broken since 3.3.
+- OCS/ECS undocumemented behavior: only even hires bitplane pixels are included in collision detection (collision logic runs at lores pixel speed)
+- ECS superhires pixel order when "descrambling" palette index was not correct: It is [pix0, pix2] for left pixel pair and [pix1, pix3] for right pixel pair (not [pix0, pix1] [pix2, pix3]). Only visible if palette RGB values are not set up as documented. (Ross special lots of colors ECS Denise only screenmode)
+- ECS superhires strange undocumented bitplane/sprite priority logic emulated. ECS superhires strange attached sprite color selection accurately emulated.
+- ECS superhires undocumented behavior: only first pixels of 4 pixel shres logical blocks and even pixels of hires sprites are included in collision detection.
+- ECS superhires undocumented behavior: sprites 4 to 7 can never be visible but they still affect collision register! (Debugger Ms command bit 9 can be used to enable sprites 4 to 7)
+- ECS Denise note: at least my A500 ECS Denise seems to have temperature sensitive collision logic: sprite to bitplane collision detection changes when it warms up but it never returns same results as OCS Denise, even in lores (results are still mostly correct, timing and collision happening when sprite and bitplane are almost touching). My A3000 has slightly different results. Current collision emulation logic is based on decapped ECS Denise reverse-engineered schematics. Might need some future tweaks.
+- Fixed host caps lock sync. Probably broken long time ago. (Sends caps lock key press to Amiga side if host state has changed when starting emulation and when activating emulation window)
+- CVPPC/BVPPC (Permedia 2) partial texture unit emulation, supports future P96 version that uses it for blitting and transparency. Transparency support only partially implemented and only works in 8-bit and 32-bit modes.
+- HD ADF floppy image used DD floppy gap size. (about 6% too high RPM and bit rate, normal loaders didn't care)
+- Some 68020 CE timing updates (not perfect but possibly better than previously) (amitorture)
+- Optional PCI bridgeboard option: generate bus errors if accessing unmapped PCI address space. (SR)
+- Enable PCI SVGA legacy VGA (ISA) IO mapping only when PCI IO BARs are enabled. (SR)
+
 Beta 23:
 
 - Multiple 86box emulated display cards can be active simultaneously. Any combination of 86box emulated Z2/Z3/PCI cards are now supported, up to current max of 4. (SR) (I thought 86box didn't support simultaneously enabled cards but it does, one comment mislead me. 86box/UAE glue code update was required, UAE side already supported multiple cards simultaneously since 4.x or so)
